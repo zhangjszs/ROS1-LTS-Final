@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>urinay</name>
+  <version>1.0.0</version>
+  <description>The ultimate track limits + centerline using a Delaunay triangulation and Oriol's magic.</description>
+
+  <license>GPLv3</license>
+
+  <maintainer email="origovi2000@gmail.com">Oriol Gorriz</maintainer>
+  <author email="origovi2000@gmail.com">Oriol Gorriz</author>
+
+  <doc_depend>doxygen</doc_depend>
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>as_msgs</depend>
+  <depend>roscpp</depend>
+  <depend>rospy</depend>
+  <depend>std_msgs</depend>
+  <depend>common_msgs</depend>
+
+</package>

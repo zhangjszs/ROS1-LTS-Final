@@ -1,0 +1,18 @@
+car_arg: 
+  length: 1.55
+  front_axle: 0.5
+  rear_axle: 1.05
+  delta_max: 0.4
+  delta_min: 0.0174
+pp: 
+  angle_kv: 0.0
+  angle_kl: 2.5
+  angle_kp: 0.9
+  angle_ki: 0.0
+  angle_kd: 0.0
+st: 
+  angle_kv: 0.5
+  angle_kl: 2.5
+  angle_kp: 0.9
+  angle_ki: 0.0
+  angle_kd: 0.0

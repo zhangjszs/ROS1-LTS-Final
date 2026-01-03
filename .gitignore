@@ -1,0 +1,32 @@
+# Ignore zip files
+*.zip
+*.zip:Zone.Identifier
+
+# ROS build directories
+build/
+devel/
+install/
+log/
+logs/
+.catkin_workspace
+.catkin_tools/
+build_tmp/
+bui/
+cmake-build-debug/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Editor directories
+.vscode/
+.idea/
+*.swp
+*.user
+
+# Qt Creator
+*.pro.user
+*.pro.user.*
+
+# Logs
+*.log
