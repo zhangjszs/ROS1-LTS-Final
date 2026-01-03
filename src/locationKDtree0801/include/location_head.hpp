@@ -26,12 +26,13 @@
 #include "tf2/LinearMath/Transform.h"
 
 #include "ros/ros.h"
-#include "common_msgs/Imu.h"
+#include "sensor_msgs/Imu.h"
 
 #include "common_msgs/HUAT_ASENSING.h"
 #include "common_msgs/HUAT_Carstate.h"
 //#include "common_msgs/HUAT_A_cone.h"
 #include "common_msgs/HUAT_cone.h"
+#include "common_msgs/Cone.h"
 #include "common_msgs/HUAT_map.h"
 
 #define PII 3.14159265358979
@@ -73,7 +74,7 @@ namespace coordinate
         ros::Publisher coneMarker_pub;
 
         common_msgs::HUAT_Carstate Carstate;//存储车辆位置的相关信息
-        common_msgs::Imu Mimu;
+        common_msgs::HUAT_ASENSING Mimu;
         common_msgs::HUAT_ASENSING Mins;//存储INS相关信息
         common_msgs::HUAT_cone Ycone;//存储当时锥筒的信息
         common_msgs::HUAT_map Ymap;//存储所有锥筒的信息
@@ -103,8 +104,8 @@ namespace coordinate
         int getNewId();
         void calcVehicleDirection(double roll, double pitch, double yaw, double &x, double &y, double &z); 
 
-        void doINSMsg(const common_msgs::Imu::ConstPtr& msgs);
-        void doConeMsg(const common_msgs::HUAT_cone::ConstPtr& msgs);
+        void doINSMsg(const common_msgs::HUAT_ASENSING::ConstPtr& msgs);
+        void doConeMsg(const common_msgs::Cone::ConstPtr& msgs);
         
         void visWhole();
         void visCone(double x,double y,double z,int id);

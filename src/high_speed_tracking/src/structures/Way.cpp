@@ -742,6 +742,7 @@ std::vector<geometry_msgs::Point> Way::getPathInterpolation(double x, double y)
       }
       return res;
     }
+    return res;
   }
 }
 
@@ -886,4 +887,5 @@ std::vector<geometry_msgs::Point> Way::getPathFullInterpolation()
     }
     return res;
   }
+  return res;
 }

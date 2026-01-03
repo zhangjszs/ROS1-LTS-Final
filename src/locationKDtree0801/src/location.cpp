@@ -8,8 +8,8 @@ namespace coordinate
         loadParameters();
         cloud.reset(new pcl::PointCloud<pcl::PointXYZ>);
 
-        INS_sub = nh_.subscribe<common_msgs::Imu>("/pbox_pub/Ins",10,&Location::doINSMsg,this);
-        cone_sub = nh_.subscribe<common_msgs::HUAT_cone>("/cone_position",99999999,&Location::doConeMsg,this);
+        INS_sub = nh_.subscribe<common_msgs::HUAT_ASENSING>("/pbox_pub/Ins",10,&Location::doINSMsg,this);
+        cone_sub = nh_.subscribe<common_msgs::Cone>("/cone_position",99999999,&Location::doConeMsg,this);
         //ROS_INFO("callback!!!");
         carState_pub = nh_.advertise<common_msgs::HUAT_Carstate>("/Carstate",10);
         map_pub = nh_.advertise<common_msgs::HUAT_map>("/coneMap",10);
@@ -76,10 +76,10 @@ namespace coordinate
         return;
     }
     //车辆状态信息处理
-    void Location::doINSMsg(const common_msgs::Imu::ConstPtr& msgs)
+    void Location::doINSMsg(const common_msgs::HUAT_ASENSING::ConstPtr& msgs)
     {
         Mimu=*msgs;
-        const common_msgs::HUAT_ASENSING& imu_data=Mimu.imu_msg;
+        const common_msgs::HUAT_ASENSING& imu_data=Mimu;
         //ROS_WARN("callback!!!doINSMsg");    
         //saveGPS(msgs->latitude,msgs->longitude,msgs->altitude);
         //将ins消息中的赋值给Mins结构体
@@ -260,7 +260,7 @@ namespace coordinate
     }
 
     //锥筒信息处理
-    void Location::doConeMsg(const common_msgs::HUAT_cone::ConstPtr& msgs)
+    void Location::doConeMsg(const common_msgs::Cone::ConstPtr& msgs)
     {
         //ROS_DEBUG("callback!!!doConMsg");    
         if(!isfirstINSreceived)

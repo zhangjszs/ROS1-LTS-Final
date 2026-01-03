@@ -39,9 +39,9 @@ struct comp
 			return true;
 		else if (a.y > b.y)
 			return false;
-		else if (a.z > b.z)
-			return true; // 原来是大于我不理解
-		else if (a.z > b.z)
+		else if (a.z < b.z)
+			return true;
+		else
 			return false;
 	}
 };
