@@ -1,0 +1,16 @@
+<launch>
+    <node pkg="nodelet" type="nodelet" name="lidar_cluster_nodelet_manager" args="manager"
+        output="screen" />
+    <node pkg="nodelet" type="nodelet" name="lidar_cluster_node"
+        args="load nodelet_lidar/Lidar_Cluster_Nodelet lidar_cluster_nodelet_manager"
+        output="screen">
+        <rosparam command="load" file="$(find lidar_cluster)/config/lidar_cluster_example.yaml" />
+    </node>
+
+    <node pkg="rviz" type="rviz" name="rviz"
+        args="-d $(find lidar_cluster)/rviz_cfg/lidar_cluster_c.rviz" />
+
+    <!-- <node pkg="rosbag" type="play" name="player" args="/home/neko/rosbags/accel_cy_no_img.bag" /> -->
+    <!-- <node pkg="rosbag" type="play" name="player" args="/home/neko/rosbags/skidpad_jx_w_img.bag" /> -->
+
+</launch>
