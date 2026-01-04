@@ -6,7 +6,13 @@ namespace control
 {
 	void Car::get_param(std::string func)
 	{
-		;
+		nh.param(func + "/angle_kp", angle_kp, 1.0);
+		nh.param(func + "/angle_ki", angle_ki, 0.0);
+		nh.param(func + "/angle_kd", angle_kd, 0.0);
+		nh.param(func + "/steering_delta_max", steering_delta_max, 0.5);
+		nh.param(func + "/angle_kv", angle_kv, 0.0);
+		nh.param(func + "/angle_kl", angle_kl, 2.0);
+        nh.param("num", num, 1);
 	}
 
 	double Car::distance_square(double x1, double y1, double x2, double y2)

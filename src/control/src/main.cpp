@@ -15,25 +15,30 @@ int main(int argc, char *argv[])
     ros::init(argc, argv, "control_new");
 
     ros::NodeHandle nh;
+    ros::NodeHandle private_nh("~");
     common_msgs::HUAT_VehcileCmd cmd;
     ros::Duration(1).sleep();
     ros::Rate rate(10);
     control::Car *my_car;
 
     int num = 0;
-    std::ifstream ifs;
-    while(!num)
-    {
-        std::string home_path = getenv("HOME");
-        std::string cmd_path = home_path + "/autoStartGkj/command";
-        ifs.open(cmd_path.c_str(), std::ios::in);
-        if (!ifs.is_open())
+    if (private_nh.getParam("mode", num)) {
+        ROS_INFO("Loaded mode from param: %d", num);
+    } else {
+        std::ifstream ifs;
+        while(!num)
         {
-            std::cout << "文件打开失败" << std::endl;
-            return 0;
+            std::string home_path = getenv("HOME");
+            std::string cmd_path = home_path + "/autoStartGkj/command";
+            ifs.open(cmd_path.c_str(), std::ios::in);
+            if (!ifs.is_open())
+            {
+                std::cout << "文件打开失败" << std::endl;
+                return 0;
+            }
+            num = (char)ifs.get() - '0';
+            ifs.close();
         }
-        num = (char)ifs.get() - '0';
-        ifs.close();
     }
 
     if (num == 1)

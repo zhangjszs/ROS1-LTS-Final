@@ -141,6 +141,11 @@ public:
 
     void controlcommand(common_msgs::HUAT_ControlCommand &cmd, common_msgs::HUAT_VehcileCmd &finall_cmd)
     {
+        if (refx.empty() || refy.empty())
+        {
+            // ROS_WARN("Path is empty");
+            return;
+        }
         float delta_max = 0.4;
         int goal_idx = get_goal_idx();
         int lookhead_idx = get_lookahead_indices(goal_idx, lookahead, refx, refy);
@@ -265,7 +270,6 @@ int main(int argc, char **argv)
     ofs.open(path.c_str(), ios::out);
     ofs.close();
 
-    ros::init(argc, argv, "control");
     PPControl car;
     common_msgs::HUAT_ControlCommand cc;
     common_msgs::HUAT_VehcileCmd a;

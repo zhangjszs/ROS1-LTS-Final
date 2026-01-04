@@ -21,7 +21,7 @@ namespace control
             car_y = pose.position.y = msgs->car_state.y;
             pose.position.z = 0;
             car_veloc = msgs->V;
-            car_veloc = msgs->car_state.theta;
+            car_fangle = msgs->car_state.theta;
             get_pose_judge = true;
         }
 
@@ -82,7 +82,7 @@ namespace control
                 pub_cmd.publish(stop_cmd);
                 ros::shutdown();
             }
-            double alpha = atan2(path_coordinate[index_min + 1].x - path_coordinate[index_min].y, path_coordinate[index_min + 1].x - path_coordinate[index_min].y) - car_veloc;
+            double alpha = atan2(path_coordinate[index_min + 1].y - path_coordinate[index_min].y, path_coordinate[index_min + 1].x - path_coordinate[index_min].x) - car_fangle;
 
             alpha = angle_range(alpha);
 

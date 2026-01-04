@@ -10,7 +10,7 @@ namespace coordinate
         cloud.reset(new pcl::PointCloud<pcl::PointXYZ>);
 
         INS_sub = nh_.subscribe<common_msgs::HUAT_ASENSING>("/pbox_pub/Ins",10,&Location::doINSMsg,this);
-        cone_sub = nh_.subscribe<common_msgs::Cone>("/cone_position",99999999,&Location::doConeMsg,this);
+        cone_sub = nh_.subscribe<common_msgs::Cone>("/cone_position",10,&Location::doConeMsg,this);
         //ROS_INFO("callback!!!");
         carState_pub = nh_.advertise<common_msgs::HUAT_Carstate>("/Carstate",10);
         map_pub = nh_.advertise<common_msgs::HUAT_map>("/coneMap",10);
@@ -69,7 +69,7 @@ namespace coordinate
             ROS_WARN_STREAM("Did not load rearToIMUdistanceZ. Standard value is " << rearToIMUdistanceZ_);
         }
 
-        if (!nh_.param<std::string>("location", subTopic_, "/location"))
+        if (!nh_.param<std::string>("filtered_topic_name", subTopic_, "/location"))
         {
             //订阅的话题名称
             ROS_WARN_STREAM("Did not load topic name. Standard value is: " << subTopic_);
@@ -138,6 +138,7 @@ namespace coordinate
             //将当前纬度,经度,高度转换为ENU坐标下的坐标,并存储在enu_xyz数组中
             GeoDetic_TO_ENU((imu_data.latitude) * PII / 180, (imu_data.longitude) * PII / 180, imu_data.altitude,
                                 first_lat * PII / 180, first_lon * PII / 180, first_alt, &enu_xyz[0]);
+            oldAzimuth = imu_data.azimuth;
         }
         calcVehicleDirection(imu_data.roll, imu_data.pitch, Carstate.car_state.theta,  dir_x, dir_y, dir_z);//计算车辆的方向向量
         //可视化车辆和整个场景
@@ -205,11 +206,11 @@ namespace coordinate
 
         front_wheel[0] = enu_xyz[0] + frontToIMUdistanceX_;
         front_wheel[1] = enu_xyz[1] + frontToIMUdistanceY_;
-        front_wheel[1] = enu_xyz[2] + frontToIMUdistanceZ_;
+        front_wheel[2] = enu_xyz[2] + frontToIMUdistanceZ_;
 
         rear_wheel[0] = enu_xyz[0] + rearToIMUdistanceX_;
         rear_wheel[1] = enu_xyz[1] + rearToIMUdistanceY_;
-        rear_wheel[1] = enu_xyz[2] + rearToIMUdistanceZ_;
+        rear_wheel[2] = enu_xyz[2] + rearToIMUdistanceZ_;
 
         tf2::Transform transform;//创建一个 tf2::Transform 对象 transform
         transform.setOrigin(tf2::Vector3( 0,0,0));//设置变换的原点为 (0, 0, 0)
@@ -772,7 +773,7 @@ namespace coordinate
     //保存车在ENU坐标系下的坐标
     void Location::saveCarstate(double x,double y)
     {
-        ROS_WARN("SAVE");
+        // ROS_WARN("SAVE");
         std::stringstream ss;
         ss << x << "\t" << y <<std::endl;
         std::string str = ss.str();

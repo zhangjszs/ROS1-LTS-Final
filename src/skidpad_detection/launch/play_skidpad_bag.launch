@@ -1,0 +1,24 @@
+<launch>
+  <arg name="bag" default="/home/kerwin/rosbag/8.bag" />
+  <arg name="rate" default="1.0" />
+  <arg name="loop" default="false" />
+
+  <param name="use_sim_time" value="true" />
+
+  <!-- Skidpad Detection Node -->
+  <include file="$(find skidpad_detection)/launch/skidpad_detection.launch" />
+
+  <!-- Other Modules -->
+  <include file="$(find lidar_cluster)/launch/lidar_cluster.launch" />
+  
+  <group>
+    <param name="control/mode" value="3" />
+    <include file="$(find control)/launch/controler.launch" />
+  </group>
+
+  <include file="$(find location)/launch/location.launch" />
+
+  <!-- Rosbag Play -->
+  <node pkg="rosbag" type="play" name="rosbag_play" output="screen"
+        args="$(eval '--clock -r {} {} {} /INS/ASENSING_INS:=/pbox_pub/Ins'.format(arg('rate'), '-l' if arg('loop')=='true' else '', arg('bag')) )" />
+</launch>

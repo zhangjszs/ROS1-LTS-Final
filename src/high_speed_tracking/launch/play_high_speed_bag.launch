@@ -1,0 +1,15 @@
+<launch>
+  <arg name="bag" default="/home/kerwin/rosbag/22910_2.bag" />
+  <arg name="rate" default="1.0" />
+  <arg name="loop" default="false" />
+
+  <param name="use_sim_time" value="true" />
+
+  <include file="$(find urinay)/launch/urinay.launch" />
+  <include file="$(find lidar_cluster)/launch/lidar_cluster.launch" />
+  <include file="$(find control)/launch/controler.launch" />
+  <include file="$(find location)/launch/location.launch" />
+
+  <node pkg="rosbag" type="play" name="rosbag_play" output="screen"
+        args="$(eval '--clock -r {} {} {}'.format(arg('rate'), '-l' if arg('loop')=='true' else '', arg('bag')) )" />
+</launch>

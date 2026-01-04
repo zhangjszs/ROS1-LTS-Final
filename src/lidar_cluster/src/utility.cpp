@@ -350,7 +350,7 @@ void lidar_cluster::octreeRemovePoints(pcl::PointCloud<PointType>::Ptr &cloud,
     vector<int> vec_point_index,
         vec_total_index; //  体素内点的索引，   要删除的点的索引
     vector<pcl::octree::OctreeKey> vec_key;
-    for (auto iter = octree.leaf_begin(); iter != octree.leaf_end(); ++iter)
+    for (auto iter = octree.leaf_depth_begin(); iter != octree.leaf_depth_end(); ++iter)
     {
         auto key = iter.getCurrentOctreeKey();
         vec_key.emplace_back(key);

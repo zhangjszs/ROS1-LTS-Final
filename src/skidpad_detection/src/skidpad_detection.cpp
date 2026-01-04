@@ -38,9 +38,9 @@ namespace fsac
       ROS_WARN_STREAM("Did not load FinTargetX. Standard value is: " << FinTargetX_);
     }
 
-    if (!nh_.param("length/FInTargetY", FInTargetY_, 0.0))
+    if (!nh_.param("length/FinTargetY", FInTargetY_, 0.0))
     {
-      ROS_WARN_STREAM("Did not load FInTargetY. Standard value is " << FInTargetY_);
+      ROS_WARN_STREAM("Did not load FinTargetY. Standard value is " << FInTargetY_);
     }
 
     if (!nh_.param("length/distanceThreshold", distanceThreshold_, 0.5))
@@ -53,7 +53,7 @@ namespace fsac
       ROS_WARN_STREAM("Did not load distanceThreshold. Standard value is " << LeavedistanceThreshold_);
     }
 
-    if (!nh_.param<std::string>("skidpad_detection", subTopic_, "/skidpad_detection"))
+    if (!nh_.param<std::string>("filtered_topic_name", subTopic_, "/skidpad_detection"))
     {
       ROS_WARN_STREAM("Did not load topic name. Standard value is: " << subTopic_);
     }
@@ -63,7 +63,7 @@ namespace fsac
       ROS_WARN_STREAM("Did not load topic name. Standard value is: " << inverse_flag);
     }
 
-    if (!nh_.param("stopdistance", stopdistance_, 5.0))
+    if (!nh_.param("length/stopdistance", stopdistance_, 5.0))
     {
       ROS_WARN_STREAM("Did not load topic name. Standard value is: " << stopdistance_);
     }
@@ -81,6 +81,8 @@ namespace fsac
     //  pass.filter(*cloud_filtered);
     pass.setFilterFieldName("x");
     pass.setFilterLimits(0.1, 15);
+    pass.filter(*in_ptr);
+    
     pass.setFilterFieldName("y"); // y:-1 represent right,+1 represent left
     pass.setFilterLimits(-3, 3);
     pass.filter(*in_ptr);
@@ -91,11 +93,11 @@ namespace fsac
 
   void Skidpad_detection::skidpadCallback(const common_msgs::Cone::ConstPtr &skidpad_msg)
   {
-    ROS_WARN("d253a4d5a5da4d");
+    // ROS_WARN("d253a4d5a5da4d");
+    skidpad_msg_ptr->clear();
     if (!matchFlag && !at2_angle_calced)
     {
       // order.clear();
-      skidpad_msg_ptr->clear();
       return;
     }
     for (const geometry_msgs::Point32 &point : skidpad_msg->points)
