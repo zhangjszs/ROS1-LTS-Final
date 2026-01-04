@@ -1,4 +1,5 @@
 #include "location_head.hpp"
+#include <ros/package.h>
 
 namespace coordinate
 {
@@ -665,7 +666,8 @@ namespace coordinate
             ss<< "lat = " <<lat<<"\t"<< "lon = " <<lon<<"\t"<< "alt = " <<alt<<std::endl;
         std::string str = ss.str();
         std::ofstream f;
-        f.open("/home/mizorecanvas/tracking/src/testData/gps.txt",std::ios_base::app);
+        std::string path = ros::package::getPath("location") + "/testData/gps.txt";
+        f.open(path.c_str(),std::ios_base::app);
         if(f.fail())
         {
             std::cerr<<"Failed to open file: "<<std::strerror(errno)<<std::endl;
@@ -681,7 +683,8 @@ namespace coordinate
             ss<< "first = " <<first<<"\t"<< "now = " << now<<"\t"<< "diff" <<diff<<std::endl; //上一次方位角与方位角以及差值
         std::string str = ss.str();
         std::ofstream f;
-        f.open("/home/mizorecanvas/tracking/src/testData/angleChange.txt",std::ios_base::app); 
+        std::string path = ros::package::getPath("location") + "/testData/angleChange.txt";
+        f.open(path.c_str(),std::ios_base::app); 
         if (f.fail()) 
         { 
             std::cerr << "Failed to open file: " << std::strerror(errno) << std::endl; 
@@ -699,7 +702,8 @@ namespace coordinate
             ss << rear_x << "\t" << rear_y << "\t" << rear_z << "\n" <<std::endl;
         std::string str = ss.str();
         std::ofstream f;
-        f.open("/home/mizorecanvas/tracking/src/testData/state.txt",std::ios_base::app);
+        std::string path = ros::package::getPath("location") + "/testData/state.txt";
+        f.open(path.c_str(),std::ios_base::app);
         if(f.fail())
         {
             std::cerr<<"Failed to open file: "<<std::strerror(errno)<<std::endl;
@@ -720,7 +724,8 @@ namespace coordinate
         }
         std::string str = ss.str();
         std::ofstream f;
-        f.open("/home/mizorecanvas/tracking/src/testData/map.txt", std::ios_base::app);
+        std::string path = ros::package::getPath("location") + "/testData/map.txt";
+        f.open(path.c_str(), std::ios_base::app);
         if (f.fail())
         {
             std::cerr << "Failed to open file: " << std::strerror(errno) << std::endl;
@@ -737,7 +742,8 @@ namespace coordinate
         ss << cone.id << "\t" << cone.position_global.x << "\t" << cone.position_global.y << std::endl;
         std::string str = ss.str();
         std::ofstream f;
-        f.open("/home/mizorecanvas/tracking/src/testData/cone.txt", std::ios_base::app);
+        std::string path = ros::package::getPath("location") + "/testData/cone.txt";
+        f.open(path.c_str(), std::ios_base::app);
         if (f.fail())
         {
             std::cerr << "Failed to open file: " << std::strerror(errno) << std::endl;
@@ -753,7 +759,8 @@ namespace coordinate
         ss  << id << "\t" << x << "\t" << y << "\t" << z << std::endl;
         std::string str = ss.str();
         std::ofstream f;
-        f.open("/home/mizorecanvas/tracking/src/testData/point.txt", std::ios_base::app);
+        std::string path = ros::package::getPath("location") + "/testData/point.txt";
+        f.open(path.c_str(), std::ios_base::app);
         if (f.fail())
         {
             std::cerr << "Failed to open file: " << std::strerror(errno) << std::endl;
@@ -770,7 +777,8 @@ namespace coordinate
         ss << x << "\t" << y <<std::endl;
         std::string str = ss.str();
         std::ofstream f;
-        f.open("/home/tb/tracking/src/testData/carstate.txt", std::ios_base::app);
+        std::string path = ros::package::getPath("location") + "/testData/carstate.txt";
+        f.open(path.c_str(), std::ios_base::app);
         if (f.fail())
         {
             std::cerr << "Failed to open file: " << std::strerror(errno) << std::endl;
@@ -786,7 +794,8 @@ namespace coordinate
         ss << V << "\t" << W << "\t" << A <<std::endl;
         std::string str = ss.str();
         std::ofstream f;
-        f.open("/home/mizorecanvas/tracking/src/testData/allvelocity.txt", std::ios_base::app);
+        std::string path = ros::package::getPath("location") + "/testData/allvelocity.txt";
+        f.open(path.c_str(), std::ios_base::app);
         if (f.fail())
         {
             std::cerr << "Failed to open file: " << std::strerror(errno) << std::endl;
@@ -802,7 +811,8 @@ namespace coordinate
         ss << E << "\t" << N << "\t" << G <<std::endl;
         std::string str = ss.str();
         std::ofstream f;
-        f.open("/home/mizorecanvas/tracking/src/testData/velocity.txt", std::ios_base::app);
+        std::string path = ros::package::getPath("location") + "/testData/velocity.txt";
+        f.open(path.c_str(), std::ios_base::app);
         if (f.fail())
         {
             std::cerr << "Failed to open file: " << std::strerror(errno) << std::endl;
@@ -818,7 +828,8 @@ namespace coordinate
         ss << x_acc << "\t" << y_acc << "\t" << z_acc <<std::endl;
         std::string str = ss.str();
         std::ofstream f;
-        f.open("/home/mizorecanvas/tracking/src/testData/acc.txt", std::ios_base::app);
+        std::string path = ros::package::getPath("location") + "/testData/acc.txt";
+        f.open(path.c_str(), std::ios_base::app);
         if (f.fail())
         {
             return;

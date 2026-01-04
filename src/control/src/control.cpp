@@ -1,4 +1,6 @@
 #include "control.h"
+#include <ros/package.h>
+#include <stdlib.h>
 
 namespace control
 {
@@ -44,7 +46,8 @@ namespace control
 	{
 		std::ofstream ofs;
 		std::stringstream ss;
-		ofs.open("/home/tb/huat2025/src/control/doc/my_cmd.txt", std::ios_base::app);
+		std::string path = ros::package::getPath("control") + "/doc/my_cmd.txt";
+		ofs.open(path.c_str(), std::ios_base::app);
 		ss << "方向盘 = " << i << " ; car_x = " << car_x << " ; car_y = " << car_y
 		   << " ; tar_x = " << path_coordinate[tar].x << " ; tar_y = " << path_coordinate[tar].y
 		   << " ; gx = " << j << " ; gy = " << k << std::endl;
@@ -56,7 +59,9 @@ namespace control
 	void Car::control_cmd(common_msgs::HUAT_VehcileCmd &cmd)
 	{
 		std::ifstream ifs;
-		ifs.open("/home/tb/autoStartGkj/command", std::ios::in);
+		std::string home_path = getenv("HOME");
+		std::string cmd_path = home_path + "/autoStartGkj/command";
+		ifs.open(cmd_path.c_str(), std::ios::in);
 		if (!ifs.is_open())
 		{
 			std::cout << "文件打开失败" << std::endl;

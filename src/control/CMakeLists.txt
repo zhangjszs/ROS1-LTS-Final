@@ -10,6 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
   nav_msgs
   roscpp
   std_msgs
+  roslib
 )
 
 # add_message_files(
@@ -38,7 +39,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 catkin_package(
   INCLUDE_DIRS include
-  CATKIN_DEPENDS geometry_msgs nav_msgs roscpp std_msgs
+  CATKIN_DEPENDS geometry_msgs nav_msgs roscpp std_msgs roslib
 )
 
 include_directories(

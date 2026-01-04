@@ -1,4 +1,5 @@
 #include "skidpad_detection.hpp"
+#include <ros/package.h>
 namespace fsac
 {
 
@@ -368,7 +369,7 @@ namespace fsac
   void Skidpad_detection::SavePosition()
   {
     std::ofstream outfile;
-    const std::string file_path = "/home/kerwin/LIDAR_ye/src/skidpad_detection/src/trajectory.txt"; // 创建文件输出流对象
+    const std::string file_path = ros::package::getPath("skidpad_detection") + "/src/trajectory.txt"; // 创建文件输出流对象
     outfile.open(file_path, std::ios::out | std::ios::app);
     if (!outfile)
     {
@@ -386,7 +387,7 @@ namespace fsac
   void Skidpad_detection::SaveLinePath()
   {
     std::ofstream outfileL;
-    const std::string file_path = "/home/kerwin/LIDAR_ye/src/skidpad_detection/src/LinePath.txt"; // 创建文件输出流对象
+    const std::string file_path = ros::package::getPath("skidpad_detection") + "/src/LinePath.txt"; // 创建文件输出流对象
     outfileL.open(file_path, std::ios::out | std::ios::app);
     if (!outfileL)
     {
@@ -405,7 +406,7 @@ namespace fsac
   void Skidpad_detection::SaveRightPath()
   {
     std::ofstream outfileR;
-    const std::string file_path = "/home/kerwin/LIDAR_ye/src/skidpad_detection/src/RightPath.txt"; // 创建文件输出流对象
+    const std::string file_path = ros::package::getPath("skidpad_detection") + "/src/RightPath.txt"; // 创建文件输出流对象
     outfileR.open(file_path, std::ios::out | std::ios::app);
     if (!outfileR)
     {
@@ -424,7 +425,7 @@ namespace fsac
   void Skidpad_detection::SaveLeftPath()
   {
     std::ofstream outfileL;
-    const std::string file_path = "/home/kerwin/LIDAR_ye/src/skidpad_detection/src/LeftPath.txt"; // 创建文件输出流对象
+    const std::string file_path = ros::package::getPath("skidpad_detection") + "/src/LeftPath.txt"; // 创建文件输出流对象
     outfileL.open(file_path, std::ios::out | std::ios::app);
     if (!outfileL)
     {
@@ -443,7 +444,7 @@ namespace fsac
   void Skidpad_detection::SaveLastPath()
   {
     std::ofstream outfileLast;
-    const std::string file_path = "/home/kerwin/LIDAR_ye/src/skidpad_detection/src/LastPath.txt"; // 创建文件输出流对象
+    const std::string file_path = ros::package::getPath("skidpad_detection") + "/src/LastPath.txt"; // 创建文件输出流对象
     outfileLast.open(file_path, std::ios::out | std::ios::app);
     if (!outfileLast)
     {

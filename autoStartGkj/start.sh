@@ -1,19 +1,20 @@
-dataROOT="/home/tb/autoStartGkj"
+dataROOT="$HOME/2025huat/autoStartGkj"
 echo '0' > ${dataROOT}/command
 sourceBash="${dataROOT}/sourceBash"
 
 succ=0
-gnome-terminal --window -- bash -c "source /home/tb/.bashrc; source /opt/ros/melodic/setup.bash;roscore"
+gnome-terminal --window -- bash -c "source $HOME/.bashrc; source /opt/ros/noetic/setup.bash;roscore"
 sleep 2s
-gnome-terminal --window -- bash -c "source /home/tb/.bashrc;source /opt/ros/melodic/setup.bash; source /home/tb/line_creat2/devel/setup.bash; bash ${sourceBash}/racingNumCmd.sh ${sourceBash}"
+# Note: The following paths are updated to $HOME but might point to missing workspaces. Please verify.
+gnome-terminal --window -- bash -c "source $HOME/.bashrc;source /opt/ros/noetic/setup.bash; source $HOME/2025huat/devel/setup.bash; bash ${sourceBash}/racingNumCmd.sh ${sourceBash}"
 sleep 2s
-gnome-terminal --window -- bash -c "source /home/tb/.bashrc;source /opt/ros/melodic/setup.bash;bash ${sourceBash}/interface.sh"
+gnome-terminal --window -- bash -c "source $HOME/.bashrc;source /opt/ros/noetic/setup.bash;bash ${sourceBash}/interface.sh"
 sleep 2s
 
 # sudo chmod 777 /dev/ttyUSB0
-#gnome-terminal -x bash -c "source /home/tb/car/devel/setup.sh; roslaunch rslidar_sdk start.launch"
-gnome-terminal -x bash -c "source /home/tb/Driver/pbox_node_dirve-V3.0.5-20240412/pbox_node_dirve/devel/setup.sh; roslaunch pbox_node pbox_node.launch"
-gnome-terminal -x bash -c "source /home/tb/camera/devel/setup.sh; roslaunch pylon_camera pylon_camera_node.launch"
+#gnome-terminal -x bash -c "source $HOME/car/devel/setup.sh; roslaunch rslidar_sdk start.launch"
+gnome-terminal -x bash -c "source $HOME/Driver/pbox_node_dirve-V3.0.5-20240412/pbox_node_dirve/devel/setup.sh; roslaunch pbox_node pbox_node.launch"
+gnome-terminal -x bash -c "source $HOME/camera/devel/setup.sh; roslaunch pylon_camera pylon_camera_node.launch"
 sleep 3
 
 while [ $succ -eq 0 ]
@@ -26,7 +27,7 @@ echo $var
             ;;
         *)
 	    echo "Successfully entered control"
-	    gnome-terminal --window -- bash -c "source /home/tb/.bashrc; source /home/tb/huat2025/devel/setup.bash; rosrun control control"
+	    gnome-terminal --window -- bash -c "source $HOME/.bashrc; source $HOME/2025huat/devel/setup.bash; rosrun control control_new"
             succ=2025
             ;;
     esac
@@ -34,9 +35,9 @@ sleep 1
 done
 
 echo $succ
-gnome-terminal --window -- bash -c "source /home/tb/.bashrc; source /opt/ros/melodic/setup.bash; source /home/tb/huat2025/devel/setup.bash; rostopic echo /vehcileCMDMsg"
+gnome-terminal --window -- bash -c "source $HOME/.bashrc; source /opt/ros/noetic/setup.bash; source $HOME/2025huat/devel/setup.bash; rostopic echo /vehcileCMDMsg"
 
-#gnome-terminal --window -- bash -c "/home/tb/autoStartGkj/sourceBash/detect.sh;exec bash"
+#gnome-terminal --window -- bash -c "$HOME/2025huat/autoStartGkj/sourceBash/detect.sh;exec bash"
 
 
 while [ $succ -eq 2025 ]

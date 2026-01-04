@@ -2,6 +2,7 @@
 #include "line.hpp"
 #include "skip.hpp"
 #include "high.hpp"
+#include <stdlib.h>
 
 int main(int argc, char *argv[])
 {
@@ -23,7 +24,9 @@ int main(int argc, char *argv[])
     std::ifstream ifs;
     while(!num)
     {
-        ifs.open("/home/tb/autoStartGkj/command", std::ios::in);
+        std::string home_path = getenv("HOME");
+        std::string cmd_path = home_path + "/autoStartGkj/command";
+        ifs.open(cmd_path.c_str(), std::ios::in);
         if (!ifs.is_open())
         {
             std::cout << "文件打开失败" << std::endl;

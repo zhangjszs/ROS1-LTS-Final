@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(ros_vehicle_racingNum)
 
+add_compile_options(-std=c++14)
+
 find_package(catkin REQUIRED COMPONENTS
   common_msgs
   roscpp

@@ -8,6 +8,7 @@
 #include <tf/transform_datatypes.h>
 #include <nav_msgs/Path.h>
 #include <std_msgs/Bool.h>
+#include <ros/package.h>
 #include "geometry_msgs/Point.h"
 #include "common_msgs/HUAT_ASENSING.h"
 #include "common_msgs/HUAT_Carstate.h"
@@ -210,7 +211,8 @@ public:
 
                 ofstream ofs;
                 stringstream ss;
-                ofs.open("/home/czy/line/src/control/src/HUAT_cmd.txt", ios_base::app);
+                std::string path = ros::package::getPath("control") + "/src/HUAT_cmd.txt";
+                ofs.open(path.c_str(), ios_base::app);
                 ss << "方向盘 = " << my_steering <<  " ; car_x = " << gx << " ; car_y = " << gy <<  " ; tar_x = " << refx[lookhead_idx] << " ; tar_y = " << refy[lookhead_idx] << " ; gx = " << j << " ; gy = " << k <<endl;
                 ofs << ss.str();
                 ofs.close();
@@ -256,9 +258,11 @@ private:
 
 int main(int argc, char **argv)
 {
-    setlocale(LC_ALL,"");
+    ros::init(argc, argv, "control"); // Init ROS first to use ros::package
+
     ofstream ofs;
-    ofs.open("/home/czy/line/src/control/src/HUAT_cmd.txt", ios::out);
+    std::string path = ros::package::getPath("control") + "/src/HUAT_cmd.txt";
+    ofs.open(path.c_str(), ios::out);
     ofs.close();
 
     ros::init(argc, argv, "control");

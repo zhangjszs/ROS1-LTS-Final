@@ -8,6 +8,7 @@ Time: 22/3/25
 #include<iostream> //C++标准输入输出库
 #include <fstream>
 #include<string> //C++标准输入输出库
+#include <cstdlib>
 #include <common_msgs/vehicle_status.h>
 
 
@@ -50,7 +51,9 @@ void racingNumCmdCallback(const common_msgs::vehicle_status v_status){
 	// cout << " checksum:"<< checksum;
 
     // ofstream outfile("~/autoStartGkj/command",ofstream::out | ofstream::trunc);
-    ofstream outfile("/home/tb/autoStartGkj/command",ofstream::trunc);
+    std::string home_path = std::getenv("HOME");
+    std::string file_path = home_path + "/autoStartGkj/command";
+    ofstream outfile(file_path,ofstream::trunc);
     // if(racingNum !=0){
     if (outfile.is_open()){
         cout<<"File Open Succ!"<<endl;

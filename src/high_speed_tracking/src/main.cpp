@@ -69,7 +69,8 @@ void txtClear();
 void doWayMsg(const common_msgs::HUAT_PathLimits &msgs)
 {
   std::ofstream f;
-  f.open("/home/zhang/tracking/src/testData/wayPartial.txt", std::ios_base::app);
+  std::string path = ros::package::getPath("urinay") + "/testData/wayPartial.txt";
+  f.open(path.c_str(), std::ios_base::app);
   if (f.fail())
   {
     std::cerr << "Failed to open file: " << std::strerror(errno) << std::endl;
@@ -93,7 +94,8 @@ void doWayMsg(const common_msgs::HUAT_PathLimits &msgs)
 void doWayFullMsg(const common_msgs::HUAT_PathLimits &msgs)
 {
   std::ofstream f;
-  f.open("/home/zhang/tracking/src/testData/wayFull.txt", std::ios_base::app);
+  std::string path = ros::package::getPath("urinay") + "/testData/wayFull.txt";
+  f.open(path.c_str(), std::ios_base::app);
   if (f.fail())
   {
     std::cerr << "Failed to open file: " << std::strerror(errno) << std::endl;
@@ -116,14 +118,19 @@ void doWayFullMsg(const common_msgs::HUAT_PathLimits &msgs)
 
 void txtClear()
 {
-  std::ofstream f("/home/zhang/tracking/src/testData/wayPartial.txt", std::ios::out | std::ios::trunc);
+  std::string dir = ros::package::getPath("urinay") + "/testData";
+  mkdir(dir.c_str(), 0777);
+  std::string path1 = dir + "/wayPartial.txt";
+  std::string path2 = dir + "/wayFull.txt";
+
+  std::ofstream f(path1.c_str(), std::ios::out | std::ios::trunc);
   if (f.fail())
   {
     std::cerr << "Failed to open file: " << std::strerror(errno) << std::endl;
     return;
   }
   f.close();
-  std::ofstream ff("/home/zhang/tracking/src/testData/wayFull.txt", std::ios::out | std::ios::trunc);
+  std::ofstream ff(path2.c_str(), std::ios::out | std::ios::trunc);
   if (ff.fail())
   {
     std::cerr << "Failed to open file: " << std::strerror(errno) << std::endl;
