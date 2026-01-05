@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(urinay)
 
-add_compile_options(-std=c++14)
+add_compile_options(-std=c++17)
 set(CMAKE_BUILD_TYPE "Release")
 
 find_package(catkin REQUIRED COMPONENTS roscpp std_msgs common_msgs sensor_msgs roslib eigen_conversions)

@@ -1,0 +1,93 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Frames -->
+  <arg name="global_frame" default="velodyne"/>
+  <arg name="vehicle_frame" default="base_link"/>
+  <arg name="publish_tf" default="true"/>
+  <arg name="publish_cones" default="false"/>
+
+  <!-- Input topics -->
+  <arg name="cones_topic" default="/coneMap"/>
+  <arg name="carstate_topic" default="/Carstate"/>
+  <arg name="path_topic" default="/path_global"/>
+
+  <!-- Output topics -->
+  <arg name="cone_marker_topic" default="/coneMarker"/>
+  <arg name="car_body_topic" default="/carBody"/>
+  <arg name="wheels_topic" default="/whole"/>
+  <arg name="path_out_topic" default="/viz/path"/>
+
+  <!-- Cone visualization parameters -->
+  <arg name="cone_radius" default="0.15"/>
+  <arg name="cone_height" default="0.35"/>
+  <arg name="cone_color_r" default="1.0"/>
+  <arg name="cone_color_g" default="0.5"/>
+  <arg name="cone_color_b" default="0.0"/>
+  <arg name="cone_color_a" default="1.0"/>
+
+  <!-- Vehicle visualization parameters -->
+  <arg name="lidar_to_imu" default="1.87"/>
+  <arg name="car_body_front" default="0.0"/>
+  <arg name="car_body_rear" default="-1.5"/>
+  <arg name="car_body_half_width" default="0.25"/>
+  <arg name="car_body_line_width" default="0.3"/>
+  <arg name="car_body_height" default="0.5"/>
+  <arg name="car_body_color_r" default="1.0"/>
+  <arg name="car_body_color_g" default="0.0"/>
+  <arg name="car_body_color_b" default="0.0"/>
+  <arg name="car_body_color_a" default="1.0"/>
+
+  <arg name="wheel_front_x" default="-0.2"/>
+  <arg name="wheel_rear_x" default="-1.2"/>
+  <arg name="wheel_half_track" default="0.35"/>
+  <arg name="wheel_diameter" default="0.5"/>
+  <arg name="wheel_width" default="0.10"/>
+  <arg name="wheel_color_r" default="0.0"/>
+  <arg name="wheel_color_g" default="1.0"/>
+  <arg name="wheel_color_b" default="0.0"/>
+  <arg name="wheel_color_a" default="1.0"/>
+
+  <node pkg="race_rviz_viz" type="viz_node" name="race_rviz_viz_node" output="screen">
+    <param name="global_frame" value="$(arg global_frame)"/>
+    <param name="vehicle_frame" value="$(arg vehicle_frame)"/>
+    <param name="publish_tf" value="$(arg publish_tf)"/>
+    <param name="publish_cones" value="$(arg publish_cones)"/>
+
+    <param name="cones_topic" value="$(arg cones_topic)"/>
+    <param name="carstate_topic" value="$(arg carstate_topic)"/>
+    <param name="path_topic" value="$(arg path_topic)"/>
+
+    <param name="cone_marker_topic" value="$(arg cone_marker_topic)"/>
+    <param name="car_body_topic" value="$(arg car_body_topic)"/>
+    <param name="wheels_topic" value="$(arg wheels_topic)"/>
+    <param name="path_out_topic" value="$(arg path_out_topic)"/>
+
+    <param name="cone_radius" value="$(arg cone_radius)"/>
+    <param name="cone_height" value="$(arg cone_height)"/>
+    <param name="cone_color_r" value="$(arg cone_color_r)"/>
+    <param name="cone_color_g" value="$(arg cone_color_g)"/>
+    <param name="cone_color_b" value="$(arg cone_color_b)"/>
+    <param name="cone_color_a" value="$(arg cone_color_a)"/>
+
+    <param name="lidar_to_imu" value="$(arg lidar_to_imu)"/>
+    <param name="car_body_front" value="$(arg car_body_front)"/>
+    <param name="car_body_rear" value="$(arg car_body_rear)"/>
+    <param name="car_body_half_width" value="$(arg car_body_half_width)"/>
+    <param name="car_body_line_width" value="$(arg car_body_line_width)"/>
+    <param name="car_body_height" value="$(arg car_body_height)"/>
+    <param name="car_body_color_r" value="$(arg car_body_color_r)"/>
+    <param name="car_body_color_g" value="$(arg car_body_color_g)"/>
+    <param name="car_body_color_b" value="$(arg car_body_color_b)"/>
+    <param name="car_body_color_a" value="$(arg car_body_color_a)"/>
+
+    <param name="wheel_front_x" value="$(arg wheel_front_x)"/>
+    <param name="wheel_rear_x" value="$(arg wheel_rear_x)"/>
+    <param name="wheel_half_track" value="$(arg wheel_half_track)"/>
+    <param name="wheel_diameter" value="$(arg wheel_diameter)"/>
+    <param name="wheel_width" value="$(arg wheel_width)"/>
+    <param name="wheel_color_r" value="$(arg wheel_color_r)"/>
+    <param name="wheel_color_g" value="$(arg wheel_color_g)"/>
+    <param name="wheel_color_b" value="$(arg wheel_color_b)"/>
+    <param name="wheel_color_a" value="$(arg wheel_color_a)"/>
+  </node>
+</launch>

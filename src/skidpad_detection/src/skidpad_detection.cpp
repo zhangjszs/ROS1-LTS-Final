@@ -9,7 +9,7 @@ namespace fsac
     matchFlag = true;
     subscriber_ = nh_.subscribe("/cone_position", 100000, &Skidpad_detection::skidpadCallback, this);
     pose_sub_ = nh_.subscribe("/Carstate", 1000, &Skidpad_detection::positionback, this);
-    logging_path = nh_.advertise<nav_msgs::Path>("log_path", 10);
+    logging_path = nh_.advertise<nav_msgs::Path>("log_path", 10, true);
     approachingGoalPub = nh_.advertise<std_msgs::Bool>("approaching_goal", 10);
     skidpad_msg_ptr.reset(new pcl::PointCloud<pcl::PointXYZ>());
   }

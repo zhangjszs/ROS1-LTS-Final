@@ -16,9 +16,12 @@ namespace coordinate
         map_pub = nh_.advertise<common_msgs::HUAT_map>("/coneMap",10);
         globalMap_pub = nh_.advertise<sensor_msgs::PointCloud2>("/globalMapOnly",10);
 
-        carMarker_pub = nh_.advertise<visualization_msgs::Marker>("/carBody",10);
-        wholeMarker_pub = nh_.advertise<visualization_msgs::Marker>("/whole",10);
-        coneMarker_pub = nh_.advertise<visualization_msgs::Marker>("/coneMarker",10);
+        if (publish_visualization_)
+        {
+            carMarker_pub = nh_.advertise<visualization_msgs::Marker>("/carBody",10);
+            wholeMarker_pub = nh_.advertise<visualization_msgs::Marker>("/whole",10);
+            coneMarker_pub = nh_.advertise<visualization_msgs::Marker>("/coneMarker",10);
+        }
     
     }
 
@@ -74,6 +77,10 @@ namespace coordinate
             //订阅的话题名称
             ROS_WARN_STREAM("Did not load topic name. Standard value is: " << subTopic_);
         }
+        if (!nh_.param("publish_visualization", publish_visualization_, true))
+        {
+            ROS_WARN_STREAM("Did not load publish_visualization. Standard value is: " << (publish_visualization_ ? "true" : "false"));
+        }
         return;
     }
     //车辆状态信息处理
@@ -81,6 +88,8 @@ namespace coordinate
     {
         Mimu=*msgs;
         const common_msgs::HUAT_ASENSING& imu_data=Mimu;
+        Carstate.header.stamp = ros::Time::now();
+        Carstate.header.frame_id = "velodyne";
         //ROS_WARN("callback!!!doINSMsg");    
         //saveGPS(msgs->latitude,msgs->longitude,msgs->altitude);
         //将ins消息中的赋值给Mins结构体
@@ -101,7 +110,7 @@ namespace coordinate
         {
             //第一次接收到消息
             Carstate.car_state.theta = 0;
-            oldAzimuth = imu_data.azimuth;//得到第一次的角度
+            standardAzimuth = imu_data.azimuth;//得到第一次的角度
             Carstate.V = sqrt(pow(Mins.east_velocity,2)+pow(Mins.north_velocity,2)+pow(Mins.ground_velocity,2));//计算线速度
             Carstate.W = sqrt(pow(Mins.x_angular_velocity,2)+pow(Mins.y_angular_velocity,2)+pow(Mins.z_angular_velocity,2));//计算角速度
             Carstate.A = sqrt(pow(Mins.x_acc,2)+pow(Mins.y_acc,2)+pow(Mins.z_acc,2));//计算线加速度 
@@ -118,7 +127,7 @@ namespace coordinate
         } 
         else 
         {
-            double diff = - (imu_data.azimuth - oldAzimuth);//计算方位角的变化量
+            double diff = - (imu_data.azimuth - standardAzimuth);//计算方位角的变化量
             Carstate.car_state.theta =  diff *PII/180;
             //处理角度的特殊情况
             if (Carstate.car_state.theta > PII) 
@@ -131,19 +140,21 @@ namespace coordinate
                 Carstate.car_state.theta += 2 * PII;
                 diff += 360;
             }
-            //saveAngle(oldAzimuth,msgs->azimuth,diff);
+            //saveAngle(standardAzimuth,msgs->azimuth,diff);
             Carstate.V = sqrt(pow(Mins.east_velocity,2)+pow(Mins.north_velocity,2)+pow(Mins.ground_velocity,2));//计算车辆线速度
             Carstate.W = sqrt(pow(Mins.x_angular_velocity,2)+pow(Mins.y_angular_velocity,2)+pow(Mins.z_angular_velocity,2));//计算角速度
             Carstate.A = sqrt(pow(Mins.x_acc,2)+pow(Mins.y_acc,2)+pow(Mins.z_acc,2));//计算线加速度 
             //将当前纬度,经度,高度转换为ENU坐标下的坐标,并存储在enu_xyz数组中
             GeoDetic_TO_ENU((imu_data.latitude) * PII / 180, (imu_data.longitude) * PII / 180, imu_data.altitude,
                                 first_lat * PII / 180, first_lon * PII / 180, first_alt, &enu_xyz[0]);
-            oldAzimuth = imu_data.azimuth;
         }
         calcVehicleDirection(imu_data.roll, imu_data.pitch, Carstate.car_state.theta,  dir_x, dir_y, dir_z);//计算车辆的方向向量
         //可视化车辆和整个场景
-        visCar();
-        visWhole();
+        if (publish_visualization_)
+        {
+            visCar();
+            visWhole();
+        }
     }
 
     //坐标转换
@@ -216,7 +227,7 @@ namespace coordinate
         transform.setOrigin(tf2::Vector3( 0,0,0));//设置变换的原点为 (0, 0, 0)
         tf2::Quaternion q;//创建四元数对象 q
         //向该对象设置欧拉角,这个对象可以将欧拉角转换成四元数
-        q.setRPY(0, 0,  (oldAzimuth - 90) * (PII / 180));//设置了方位角,单位为弧度
+        q.setRPY(0, 0,  (standardAzimuth - 90) * (PII / 180));//设置了方位角,单位为弧度
         transform.setRotation(q);//将这个四元数设置为 transform 的旋转部分
 
         tf2::Vector3 state(enu_xyz[0],enu_xyz[1],0);//使用 enu_xyz 数组的前两个值创建一个 tf2::Vector3 对象 state，并将 z 坐标设置为 0
@@ -277,6 +288,8 @@ namespace coordinate
             return;
         }
         Ymap.cone.clear();
+        const double merge_distance = 2.5;
+        const double merge_distance_sq = merge_distance * merge_distance;
         
         // 准备进行坐标系转换,将锥筒从lider坐标系转换到全局坐标系
         tf2::Transform transform;
@@ -292,8 +305,6 @@ namespace coordinate
         tf2::Vector3 pos(Carstate.car_state.x, Carstate.car_state.y, 0);
         //saveCarstate(Carstate.car_state.x,Carstate.car_state.y);
         
-        pcl::PointCloud<pcl::PointXYZ>::Ptr global_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-
         if (!firstConeMsg)
         {
             //如果是第一次接收到锥筒信息
@@ -314,7 +325,6 @@ namespace coordinate
 
                 // 第一个到的消息不需要检测，直接给新id
                 Ycone.id = getNewId();
-                Ymap.cone.push_back(Ycone);
                 pcl::PointXYZ point;
                 point.x = Ycone.position_global.x;
                 point.y = Ycone.position_global.y;
@@ -324,9 +334,11 @@ namespace coordinate
                 cloud->width = cloud->points.size();
                 cloud->height = 1;
                 point_ids.push_back(id);
-                global_cloud->push_back(point);//锥筒信息添加到地图和点云中
                 //savePoint(Ycone.position_global.x, Ycone.position_global.y, Ycone.position_global.z, Ycone.id); // 给-号是因为坐标系y轴副方向为正
-                visCone(Ycone.position_global.x, Ycone.position_global.y, Ycone.position_global.z, Ycone.id);
+                if (publish_visualization_)
+                {
+                    visCone(Ycone.position_global.x, Ycone.position_global.y, Ycone.position_global.z, Ycone.id);
+                }
             }
         }
         else
@@ -349,6 +361,7 @@ namespace coordinate
                 pcl::PointXYZ point;
                 point.x = Ycone.position_global.x;
                 point.y = Ycone.position_global.y;
+                point.z = Ycone.position_global.z;
                 std::vector<int> pointIdxNKNSearch(1);//存储邻点的索引结果的向量
                 std::vector<float> pointNKNSquaredDistance(1);//存储邻点与查询点之间的平方距离结果的向量
 /*
@@ -360,23 +373,25 @@ namespace coordinate
                 {
                     //ROS_WARN("kdtree!!!");
                 /**********************修改这里V改变认为是同一锥筒的阈值*****************************/
-                    if (pointNKNSquaredDistance[0] <= 2.5 && !(pointIdxNKNSearch[0] >= cloud->size()))
+                    if (pointNKNSquaredDistance[0] <= merge_distance_sq && !(pointIdxNKNSearch[0] >= cloud->size()))
                     {   // 修改距离，在这个距离内认为是同一点
                         // 找到点就修正其值
                     /**********************修改这里^改变认为是同一锥筒的阈值*****************************/
 
                         cloud->points[pointIdxNKNSearch[0]].x = (cloud->points[pointIdxNKNSearch[0]].x + point.x) / 2.0;
                         cloud->points[pointIdxNKNSearch[0]].y = (cloud->points[pointIdxNKNSearch[0]].y + point.y) / 2.0;
+                        cloud->points[pointIdxNKNSearch[0]].z = (cloud->points[pointIdxNKNSearch[0]].z + point.z) / 2.0;
                         Ycone.position_global.x = cloud->points[pointIdxNKNSearch[0]].x;
                         Ycone.position_global.y = cloud->points[pointIdxNKNSearch[0]].y;
                         Ycone.id = point_ids[pointIdxNKNSearch[0]];
-                        Ymap.cone.push_back(Ycone);
 
                         point.x = Ycone.position_global.x;
                         point.y = Ycone.position_global.y;
-                        global_cloud->push_back(point);
                         //ROS_WARN("chance!!!");
-                        visCone(Ycone.position_global.x, Ycone.position_global.y, Ycone.position_global.z, Ycone.id);
+                        if (publish_visualization_)
+                        {
+                            visCone(Ycone.position_global.x, Ycone.position_global.y, Ycone.position_global.z, Ycone.id);
+                        }
                         //savePoint(Ycone.position_global.x,Ycone.position_global.y,Ycone.position_global.z,Ycone.id);
                     }
                     else
@@ -384,14 +399,15 @@ namespace coordinate
                         // 找到了最近邻点,但距离超过阈值，生成新的 ID
                         int id = getNewId();
                         Ycone.id = id;
-                        Ymap.cone.push_back(Ycone);
                         cloud->push_back(point);
                         cloud->width = cloud->points.size();
                         cloud->height = 1;
                         point_ids.push_back(id);
-                        global_cloud->push_back(point);
                         //ROS_WARN("threshold generate!!!");
-                        visCone(Ycone.position_global.x, Ycone.position_global.y, Ycone.position_global.z, Ycone.id);
+                        if (publish_visualization_)
+                        {
+                            visCone(Ycone.position_global.x, Ycone.position_global.y, Ycone.position_global.z, Ycone.id);
+                        }
                         //savePoint(Ycone.position_global.x, Ycone.position_global.y, Ycone.position_global.z, Ycone.id); // 给-号是因为坐标系y轴副方向为正
                     }
                 }
@@ -400,20 +416,42 @@ namespace coordinate
                     // 没有找到距离在 0.05以内的最近邻点，生成新的 ID
                     int id = getNewId();
                     Ycone.id = id;
-                    Ymap.cone.push_back(Ycone);
                     cloud->push_back(point);
                     cloud->width = cloud->points.size();
                     cloud->height = 1;
                     point_ids.push_back(id);
-                    global_cloud->push_back(point);
                     //ROS_WARN("generate!!!");
-                    visCone(Ycone.position_global.x, Ycone.position_global.y, Ycone.position_global.z, Ycone.id);
+                    if (publish_visualization_)
+                    {
+                        visCone(Ycone.position_global.x, Ycone.position_global.y, Ycone.position_global.z, Ycone.id);
+                    }
                     //savePoint(Ycone.position_global.x, Ycone.position_global.y, Ycone.position_global.z, Ycone.id); // 给-号是因为坐标系y轴副方向为正
                 }
             }
         }
         //saveCone(Ycone);
         kdtree.setInputCloud(cloud);//更新KD树以反映地图中锥筒的变化
+        Ymap.header.stamp = ros::Time::now();
+        Ymap.header.frame_id = "velodyne";
+        const double cos_theta = cos(Carstate.car_state.theta);
+        const double sin_theta = sin(Carstate.car_state.theta);
+        Ymap.cone.reserve(cloud->points.size());
+        for (size_t i = 0; i < cloud->points.size() && i < point_ids.size(); ++i)
+        {
+            common_msgs::HUAT_cone cone_msg;
+            cone_msg.header = Ymap.header;
+            cone_msg.id = point_ids[i];
+            cone_msg.position_global.x = cloud->points[i].x;
+            cone_msg.position_global.y = cloud->points[i].y;
+            cone_msg.position_global.z = cloud->points[i].z;
+
+            const double dx = cone_msg.position_global.x - Carstate.car_state.x;
+            const double dy = cone_msg.position_global.y - Carstate.car_state.y;
+            cone_msg.position_baseLink.x = cos_theta * dx + sin_theta * dy;
+            cone_msg.position_baseLink.y = -sin_theta * dx + cos_theta * dy;
+            cone_msg.position_baseLink.z = cone_msg.position_global.z;
+            Ymap.cone.push_back(cone_msg);
+        }
         // std::sort(Ymap.cone.begin(), Ymap.cone.end(),
         //           [](const common_msgs::HUAT_cone& a, const common_msgs::HUAT_cone& b){
         //               return a.id < b.id;
@@ -423,7 +461,7 @@ namespace coordinate
         //saveMap(Ymap);
 
         sensor_msgs::PointCloud2 global_cloud_msg;
-        pcl::toROSMsg(*global_cloud, global_cloud_msg);
+        pcl::toROSMsg(*cloud, global_cloud_msg);
         global_cloud_msg.header.frame_id = "velodyne";
         global_cloud_msg.header.stamp = ros::Time::now();
 

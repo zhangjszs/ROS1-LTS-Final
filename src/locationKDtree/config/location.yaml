@@ -1,4 +1,5 @@
 filtered_topic_name: /location
+publish_visualization: true
 length:
   lidarToIMUDist: 1.87
   frontToIMUdistanceX: 0.0

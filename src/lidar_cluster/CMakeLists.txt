@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(lidar_cluster)
-add_compile_options(-std=c++11)
-add_definitions(-std=c++11)
+add_compile_options(-std=c++17)
+add_definitions(-std=c++17)
 
 
 find_package(catkin REQUIRED COMPONENTS

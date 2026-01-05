@@ -18,6 +18,14 @@
 
   <include file="$(find location)/launch/location.launch" />
 
+  <!-- RViz Visualization (display only, no TF publish) -->
+  <include file="$(find race_rviz_viz)/launch/viz.launch">
+    <arg name="publish_tf" value="false" />
+    <arg name="publish_cones" value="false" />
+  </include>
+  <node pkg="rviz" type="rviz" name="rviz_skidpad"
+        args="-d $(find location)/config/display_skidpad.rviz" />
+
   <!-- Rosbag Play -->
   <node pkg="rosbag" type="play" name="rosbag_play" output="screen"
         args="$(eval '--clock -r {} {} {} /INS/ASENSING_INS:=/pbox_pub/Ins'.format(arg('rate'), '-l' if arg('loop')=='true' else '', arg('bag')) )" />

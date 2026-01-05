@@ -29,7 +29,7 @@
 
 struct comp
 {
-	bool operator()(pcl::PointXYZ a, pcl::PointXYZ b)
+	bool operator()(const pcl::PointXYZ& a, const pcl::PointXYZ& b) const
 	{
 		if (a.x < b.x)
 			return true;

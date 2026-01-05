@@ -86,7 +86,7 @@ namespace coordinate
         double front_wheel[3];//前轮轴中心在ENU坐标系下的坐标
         double rear_wheel[3];//后轮轴中心在ENU坐标系下的坐标
         double first_lat,first_lon,first_alt;//第一次的经纬度以及海拔
-        double oldAzimuth;
+        double standardAzimuth;
         double frontToIMUdistanceX_,frontToIMUdistanceY_,frontToIMUdistanceZ_,rearToIMUdistanceX_,rearToIMUdistanceY_,rearToIMUdistanceZ_,lidarToIMUDist_;//参数服务器获取的消息
         double tfRoll,tfPitch;//角度转换为弧度制
         //车辆前进方向向量
@@ -96,6 +96,7 @@ namespace coordinate
     
         bool isfirstINSreceived = false;//判断是否是第一次接收惯导消息
         bool firstConeMsg = false;//判断是否是第一次接收锥筒消息
+        bool publish_visualization_ = true;
         pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud;
         std::vector<int> point_ids;

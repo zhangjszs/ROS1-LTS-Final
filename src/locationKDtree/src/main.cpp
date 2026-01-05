@@ -10,7 +10,7 @@ int main(int argc ,char* argv[])
     
     coordinate::Location loc(nh);
     
-    ros::Rate rate(10);
+    ros::Rate rate(50);
 
     while (ros::ok())
     {  
