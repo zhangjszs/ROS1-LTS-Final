@@ -1,5 +1,6 @@
 filtered_topic_name: /location
 publish_visualization: true
+use_external_carstate: false
 length:
   lidarToIMUDist: 1.87
   frontToIMUdistanceX: 0.0

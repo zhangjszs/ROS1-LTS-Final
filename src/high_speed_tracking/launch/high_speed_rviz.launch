@@ -1,0 +1,13 @@
+<launch>
+  <arg name="publish_tf" default="false" />
+  <arg name="publish_cones" default="false" />
+  <arg name="rviz_config" default="$(find urinay)/config/display_high_speed.rviz" />
+
+  <include file="$(find race_rviz_viz)/launch/viz.launch">
+    <arg name="publish_tf" value="$(arg publish_tf)" />
+    <arg name="publish_cones" value="$(arg publish_cones)" />
+  </include>
+
+  <node pkg="rviz" type="rviz" name="rviz_high_speed"
+        args="-d $(arg rviz_config)" />
+</launch>

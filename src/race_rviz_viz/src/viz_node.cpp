@@ -23,6 +23,7 @@
 #include <geometry_msgs/TransformStamped.h>
 #include <nav_msgs/Path.h>
 #include <visualization_msgs/Marker.h>
+#include <visualization_msgs/MarkerArray.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Transform.h>
 #include <tf2_ros/transform_broadcaster.h>
@@ -40,11 +41,18 @@ public:
     pnh_.param<std::string>("cones_topic", cones_topic_, "/coneMap");
     pnh_.param<std::string>("carstate_topic", carstate_topic_, "/Carstate");
     pnh_.param<std::string>("path_topic", path_topic_, "/path_global");
+    pnh_.param<bool>("publish_urinay_markers", publish_urinay_markers_, false);
+    pnh_.param<std::string>("urinay_triangulation_topic", urinay_triangulation_topic_, "/AS/P/urinay/markers/triangulation");
+    pnh_.param<std::string>("urinay_midpoints_topic", urinay_midpoints_topic_, "/AS/P/urinay/markers/midpoints");
+    pnh_.param<std::string>("urinay_way_topic", urinay_way_topic_, "/AS/P/urinay/markers/way");
 
     pnh_.param<std::string>("cone_marker_topic", cone_marker_topic_, "/coneMarker");
     pnh_.param<std::string>("car_body_topic", car_body_topic_, "/carBody");
     pnh_.param<std::string>("wheels_topic", wheels_topic_, "/whole");
     pnh_.param<std::string>("path_out_topic", path_out_topic_, "/viz/path");
+    pnh_.param<std::string>("urinay_triangulation_out_topic", urinay_triangulation_out_topic_, "/viz/urinay/markers/triangulation");
+    pnh_.param<std::string>("urinay_midpoints_out_topic", urinay_midpoints_out_topic_, "/viz/urinay/markers/midpoints");
+    pnh_.param<std::string>("urinay_way_out_topic", urinay_way_out_topic_, "/viz/urinay/markers/way");
 
     pnh_.param<bool>("publish_tf", publish_tf_, true);
 
@@ -87,6 +95,16 @@ public:
     car_body_pub_ = nh_.advertise<visualization_msgs::Marker>(car_body_topic_, 10);
     wheels_pub_ = nh_.advertise<visualization_msgs::Marker>(wheels_topic_, 10);
     path_pub_ = nh_.advertise<nav_msgs::Path>(path_out_topic_, 10);
+
+    if (publish_urinay_markers_)
+    {
+      urinay_triangulation_sub_ = nh_.subscribe(urinay_triangulation_topic_, 10, &RaceRvizViz::urinayTriangulationCallback, this);
+      urinay_midpoints_sub_ = nh_.subscribe(urinay_midpoints_topic_, 10, &RaceRvizViz::urinayMidpointsCallback, this);
+      urinay_way_sub_ = nh_.subscribe(urinay_way_topic_, 10, &RaceRvizViz::urinayWayCallback, this);
+      urinay_triangulation_pub_ = nh_.advertise<visualization_msgs::MarkerArray>(urinay_triangulation_out_topic_, 10);
+      urinay_midpoints_pub_ = nh_.advertise<visualization_msgs::MarkerArray>(urinay_midpoints_out_topic_, 10);
+      urinay_way_pub_ = nh_.advertise<visualization_msgs::MarkerArray>(urinay_way_out_topic_, 10);
+    }
 
     ROS_INFO("[RaceRvizViz] Initialized.");
   }
@@ -146,6 +164,21 @@ public:
       pose.header.frame_id = global_frame_;
     }
     path_pub_.publish(path);
+  }
+
+  void urinayTriangulationCallback(const visualization_msgs::MarkerArray::ConstPtr& msg)
+  {
+    urinay_triangulation_pub_.publish(*msg);
+  }
+
+  void urinayMidpointsCallback(const visualization_msgs::MarkerArray::ConstPtr& msg)
+  {
+    urinay_midpoints_pub_.publish(*msg);
+  }
+
+  void urinayWayCallback(const visualization_msgs::MarkerArray::ConstPtr& msg)
+  {
+    urinay_way_pub_.publish(*msg);
   }
 
   void carstateCallback(const common_msgs::HUAT_Carstate::ConstPtr& msg)
@@ -282,23 +315,36 @@ private:
   ros::Subscriber cones_sub_;
   ros::Subscriber carstate_sub_;
   ros::Subscriber path_sub_;
+  ros::Subscriber urinay_triangulation_sub_;
+  ros::Subscriber urinay_midpoints_sub_;
+  ros::Subscriber urinay_way_sub_;
 
   ros::Publisher cone_marker_pub_;
   ros::Publisher car_body_pub_;
   ros::Publisher wheels_pub_;
   ros::Publisher path_pub_;
+  ros::Publisher urinay_triangulation_pub_;
+  ros::Publisher urinay_midpoints_pub_;
+  ros::Publisher urinay_way_pub_;
 
   std::string global_frame_;
   std::string vehicle_frame_;
   std::string cones_topic_;
   std::string carstate_topic_;
   std::string path_topic_;
+  std::string urinay_triangulation_topic_;
+  std::string urinay_midpoints_topic_;
+  std::string urinay_way_topic_;
   std::string cone_marker_topic_;
   std::string car_body_topic_;
   std::string wheels_topic_;
   std::string path_out_topic_;
+  std::string urinay_triangulation_out_topic_;
+  std::string urinay_midpoints_out_topic_;
+  std::string urinay_way_out_topic_;
   bool publish_tf_;
   bool publish_cones_;
+  bool publish_urinay_markers_;
 
   double cone_radius_;
   double cone_height_;

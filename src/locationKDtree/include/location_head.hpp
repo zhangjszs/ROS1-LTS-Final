@@ -63,6 +63,7 @@ namespace coordinate
 
         private:
         ros::Subscriber INS_sub;//订阅惯导消息
+        ros::Subscriber carstate_sub;//订阅外部车辆状态
         ros::Subscriber cone_sub;//订阅锥筒消息
 
         ros::Publisher carState_pub;//发布车辆在全局坐标系下的坐标
@@ -94,8 +95,9 @@ namespace coordinate
         double dir_y = 0.0;
         double dir_z = 0.0;
     
-        bool isfirstINSreceived = false;//判断是否是第一次接收惯导消息
         bool firstConeMsg = false;//判断是否是第一次接收锥筒消息
+        bool use_external_carstate_ = false;
+        bool has_carstate_ = false;
         bool publish_visualization_ = true;
         pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud;
@@ -106,6 +108,7 @@ namespace coordinate
         void calcVehicleDirection(double roll, double pitch, double yaw, double &x, double &y, double &z); 
 
         void doINSMsg(const common_msgs::HUAT_ASENSING::ConstPtr& msgs);
+        void carstateCallback(const common_msgs::HUAT_Carstate::ConstPtr& msg);
         void doConeMsg(const common_msgs::Cone::ConstPtr& msgs);
         
         void visWhole();

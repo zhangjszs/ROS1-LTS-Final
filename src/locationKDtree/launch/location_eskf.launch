@@ -1,0 +1,10 @@
+<launch>
+  <rosparam command="load" file="$(find location)/config/location.yaml" />
+  <param name="use_external_carstate" value="true" />
+
+  <node pkg="location" type="state_estimator_node" name="state_estimator_node" output="screen">
+    <rosparam command="load" file="$(find location)/config/state_estimator.yaml" />
+  </node>
+
+  <node pkg="location" type="location_node" name="location_node" output="screen" />
+</launch>

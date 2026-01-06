@@ -11,6 +11,7 @@
 | 锥桶可视化（可选） | `/coneMap` | `common_msgs/HUAT_map` | `/coneMarker` | Marker (CYLINDER) |
 | 车辆可视化 | `/Carstate` | `common_msgs/HUAT_Carstate` | `/carBody` `/whole` | CUBE 车身 + 四轮 |
 | 路径可视化 | `/path_global` | `nav_msgs/Path` | `/viz/path` | 直接转发，frame_id=global_frame |
+| Urinay MarkerArray 可视化（可选） | `/AS/P/urinay/markers/*` | `visualization_msgs/MarkerArray` | `/viz/urinay/markers/*` | 原样转发 |
 | TF 广播 | `/Carstate` | `common_msgs/HUAT_Carstate` | TF: `global_frame` → `vehicle_frame` | 可配置 |
 
 ---
@@ -42,6 +43,7 @@ roslaunch race_rviz_viz viz.launch \
   global_frame:=velodyne \
   cones_topic:=/coneMap \
   carstate_topic:=/Carstate \
+  publish_urinay_markers:=true \
   cone_radius:=0.15 \
   wheel_half_track:=0.35
 ```
@@ -59,10 +61,17 @@ roslaunch race_rviz_viz viz.launch \
 | `cones_topic` | string | `/coneMap` | 锥桶地图输入话题 |
 | `carstate_topic` | string | `/Carstate` | 车辆位姿输入话题 |
 | `path_topic` | string | `/path_global` | 路径输入话题 |
+| `publish_urinay_markers` | bool | `false` | 是否转发 Urinay MarkerArray |
+| `urinay_triangulation_topic` | string | `/AS/P/urinay/markers/triangulation` | Urinay 三角剖分 MarkerArray 输入 |
+| `urinay_midpoints_topic` | string | `/AS/P/urinay/markers/midpoints` | Urinay 中点 MarkerArray 输入 |
+| `urinay_way_topic` | string | `/AS/P/urinay/markers/way` | Urinay 路径 MarkerArray 输入 |
 | `cone_marker_topic` | string | `/coneMarker` | 锥桶 Marker 输出话题 |
 | `car_body_topic` | string | `/carBody` | 车身 Marker 输出话题 |
 | `wheels_topic` | string | `/whole` | 车轮 Marker 输出话题 |
 | `path_out_topic` | string | `/viz/path` | 路径转发输出话题 |
+| `urinay_triangulation_out_topic` | string | `/viz/urinay/markers/triangulation` | Urinay 三角剖分 MarkerArray 输出 |
+| `urinay_midpoints_out_topic` | string | `/viz/urinay/markers/midpoints` | Urinay 中点 MarkerArray 输出 |
+| `urinay_way_out_topic` | string | `/viz/urinay/markers/way` | Urinay 路径 MarkerArray 输出 |
 | `cone_radius` | double | `0.15` | 锥桶半径（米） |
 | `cone_height` | double | `0.35` | 锥桶高度（米） |
 | `cone_color_r/g/b/a` | double | `1.0/0.5/0.0/1.0` | 锥桶颜色 |
@@ -88,6 +97,7 @@ roslaunch race_rviz_viz viz.launch \
 3. 添加 `/carBody` → `Marker`。
 4. 添加 `/whole` → `Marker`。
 5. 如需路径显示，添加 `/viz/path` → `Path`。
+6. 如需 Urinay 可视化，添加 `/viz/urinay/markers/triangulation` `/viz/urinay/markers/midpoints` `/viz/urinay/markers/way` → `MarkerArray`。
 
 ---
 

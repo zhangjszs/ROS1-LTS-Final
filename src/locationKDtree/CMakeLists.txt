@@ -149,6 +149,11 @@ add_executable(location_node
   src/location.cpp
   )
 
+add_executable(state_estimator_node
+  src/state_estimator_node.cpp
+  src/imu_state_estimator.cpp
+)
+
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -164,6 +169,10 @@ add_executable(location_node
 target_link_libraries(location_node
    ${catkin_LIBRARIES}
    ${PCL_LIBRARIES}
+)
+
+target_link_libraries(state_estimator_node
+  ${catkin_LIBRARIES}
 )
 #target_link_libraries(location_node
 #   ${catkin_LIBRARIES}

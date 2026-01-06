@@ -1,0 +1,22 @@
+use_gnss: true
+use_velocity: true
+use_yaw: true
+
+accel_noise: 1.0
+gyro_noise: 0.05
+
+meas_pos_noise: 0.5
+meas_vel_noise: 0.2
+meas_yaw_noise: 0.05
+
+init_pos_var: 1.0
+init_vel_var: 1.0
+init_yaw_var: 0.1
+
+min_dt: 0.001
+max_dt: 0.1
+
+accel_gravity: 9.79
+
+imu_topic: /pbox_pub/Ins
+carstate_topic: /Carstate

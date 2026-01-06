@@ -9,7 +9,14 @@ namespace coordinate
         loadParameters();
         cloud.reset(new pcl::PointCloud<pcl::PointXYZ>);
 
-        INS_sub = nh_.subscribe<common_msgs::HUAT_ASENSING>("/pbox_pub/Ins",10,&Location::doINSMsg,this);
+        if (use_external_carstate_)
+        {
+            carstate_sub = nh_.subscribe<common_msgs::HUAT_Carstate>("/Carstate", 10, &Location::carstateCallback, this);
+        }
+        else
+        {
+            INS_sub = nh_.subscribe<common_msgs::HUAT_ASENSING>("/pbox_pub/Ins",10,&Location::doINSMsg,this);
+        }
         cone_sub = nh_.subscribe<common_msgs::Cone>("/cone_position",10,&Location::doConeMsg,this);
         //ROS_INFO("callback!!!");
         carState_pub = nh_.advertise<common_msgs::HUAT_Carstate>("/Carstate",10);
@@ -77,6 +84,10 @@ namespace coordinate
             //订阅的话题名称
             ROS_WARN_STREAM("Did not load topic name. Standard value is: " << subTopic_);
         }
+        if (!nh_.param("use_external_carstate", use_external_carstate_, false))
+        {
+            ROS_WARN_STREAM("Did not load use_external_carstate. Standard value is: " << (use_external_carstate_ ? "true" : "false"));
+        }
         if (!nh_.param("publish_visualization", publish_visualization_, true))
         {
             ROS_WARN_STREAM("Did not load publish_visualization. Standard value is: " << (publish_visualization_ ? "true" : "false"));
@@ -106,7 +117,7 @@ namespace coordinate
         Mins.y_acc = imu_data.y_acc * 9.79;
         Mins.z_acc = ( imu_data.z_acc + cos(imu_data.roll) * cos(imu_data.pitch) ) * 9.79; 
 
-        if (!isfirstINSreceived) 
+        if (!has_carstate_) 
         {
             //第一次接收到消息
             Carstate.car_state.theta = 0;
@@ -123,7 +134,7 @@ namespace coordinate
             Carstate.car_state.y = 0;
             //saveGPS(first_lat,first_lon,first_alt);
             carState_pub.publish(Carstate);
-            isfirstINSreceived = true;//表示已经收到了第一条消息。
+            has_carstate_ = true;//表示已经收到了第一条消息。
         } 
         else 
         {
@@ -150,6 +161,18 @@ namespace coordinate
         }
         calcVehicleDirection(imu_data.roll, imu_data.pitch, Carstate.car_state.theta,  dir_x, dir_y, dir_z);//计算车辆的方向向量
         //可视化车辆和整个场景
+        if (publish_visualization_)
+        {
+            visCar();
+            visWhole();
+        }
+    }
+
+    void Location::carstateCallback(const common_msgs::HUAT_Carstate::ConstPtr& msg)
+    {
+        Carstate = *msg;
+        has_carstate_ = true;
+        calcVehicleDirection(0.0, 0.0, Carstate.car_state.theta, dir_x, dir_y, dir_z);
         if (publish_visualization_)
         {
             visCar();
@@ -257,7 +280,7 @@ namespace coordinate
 
         // 发布车辆状态的消息，并设置接收标志位为真
         carState_pub.publish(Carstate);
-        isfirstINSreceived = true;//表示已经收到了第一条消息。
+        has_carstate_ = true;//表示已经收到了第一条消息。
     }
 
     // 计算车辆前进方向单位向量的函数
@@ -276,7 +299,7 @@ namespace coordinate
     void Location::doConeMsg(const common_msgs::Cone::ConstPtr& msgs)
     {
         //ROS_DEBUG("callback!!!doConMsg");    
-        if(!isfirstINSreceived)
+        if(!has_carstate_)
         {
             ROS_WARN("INS 数据没更新!");
             return;
