@@ -229,7 +229,7 @@ size_t WayComputer::treeSearch(std::vector<HeurInd> &nextEdges, const KDTree &mi
   ros::WallTime searchBeginTime = ros::WallTime::now();
   while (not cua.empty()) {
     if (ros::WallTime::now() - searchBeginTime > ros::WallDuration(params.max_treeSearch_time)) {
-      ROS_WARN("[urinay] Time limit exceeded in tree search.");
+      ROS_WARN("[high_speed_tracking] Time limit exceeded in tree search.");
       break;
     }
     //列的第一个元素并将其存储在`Trace`类型的变量`t`中，然后将这个元素从队列中移除
@@ -363,7 +363,7 @@ void WayComputer::stateCallback(const common_msgs::HUAT_Carstate::ConstPtr &ins)
 
 void WayComputer::update(TriangleSet &triangulation, const ros::Time &stamp) {
   if (not this->localTfValid_) {
-    ROS_WARN("[urinay] CarState not being received.");
+    ROS_WARN("[high_speed_tracking] CarState not being received.");
     return;
   }
 
@@ -422,7 +422,7 @@ void WayComputer::update(TriangleSet &triangulation, const ros::Time &stamp) {
   //总的来说，这段代码的目的是检查是否需要启用一般失败安全机制，即当前路径长度不足且没有闭环时预先计算一条新的路径，以保证安全性。
   //如果满足条件，则输出警告信息并调用 `computeWay()` 方法生成新路径。
   if (this->params_.general_failsafe and this->way_.sizeAheadOfCar() < MIN_FAILSAFE_WAY_SIZE and !this->isLoopClosed_) {
-    ROS_WARN("[urinay] GENERAL FAILSAFE ACTIVATED!");
+    ROS_WARN("[high_speed_tracking] GENERAL FAILSAFE ACTIVATED!");
     this->computeWay(edgeVec, this->generalFailsafe_);
   }
 

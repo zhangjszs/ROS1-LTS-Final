@@ -5,11 +5,11 @@
 
   <param name="use_sim_time" value="true" />
 
-  <include file="$(find urinay)/launch/urinay.launch" />
+  <include file="$(find high_speed_tracking)/launch/high_speed_tracking.launch" />
   <include file="$(find lidar_cluster)/launch/lidar_cluster.launch" />
   <include file="$(find control)/launch/controler.launch" />
-  <include file="$(find location)/launch/location.launch" />
-  <include file="$(find urinay)/launch/high_speed_rviz.launch" />
+  <include file="$(find location_kdtree)/launch/location.launch" />
+  <include file="$(find high_speed_tracking)/launch/high_speed_rviz.launch" />
 
   <node pkg="rosbag" type="play" name="rosbag_play" output="screen"
         args="$(eval '--clock -r {} {} {} /INS/ASENSING_INS:=/pbox_pub/Ins'.format(arg('rate'), '-l' if arg('loop')=='true' else '', arg('bag')) )" />

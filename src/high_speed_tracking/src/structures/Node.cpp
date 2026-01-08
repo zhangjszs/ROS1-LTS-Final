@@ -25,7 +25,7 @@ Node::Node(const double &x, const double &y)
 
 Node::Node(const double &x, const double &y, const double &xGlobal, const double &yGlobal, const uint32_t &id)
     : point_(x, y), pointGlobal_(xGlobal, yGlobal), id(id), belongsToSuperTriangle_(false) {
-  if (this->id >= (1 << HASH_SHIFT_NUM) - 3) ROS_ERROR("[urinay] Cone ID is above the allowed threshold, see utils/constants.hpp/HASH_SHIFT_NUM");
+  if (this->id >= (1 << HASH_SHIFT_NUM) - 3) ROS_ERROR("[high_speed_tracking] Cone ID is above the allowed threshold, see utils/constants.hpp/HASH_SHIFT_NUM");
 }
 
 Node::Node(const common_msgs::HUAT_cone &c)

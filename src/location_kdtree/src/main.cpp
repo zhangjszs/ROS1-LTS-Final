@@ -5,7 +5,7 @@
 int main(int argc ,char* argv[])
 {
     
-    ros::init(argc, argv, "location");
+    ros::init(argc, argv, "location_kdtree");
     ros::NodeHandle nh;
     
     coordinate::Location loc(nh);
