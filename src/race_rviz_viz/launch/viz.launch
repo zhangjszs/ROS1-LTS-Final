@@ -5,24 +5,31 @@
   <arg name="vehicle_frame" default="base_link"/>
   <arg name="publish_tf" default="true"/>
   <arg name="publish_cones" default="false"/>
+  <arg name="publish_high_speed_tracking_markers" default="false"/>
   <arg name="publish_urinay_markers" default="false"/>
 
   <!-- Input topics -->
   <arg name="cones_topic" default="/coneMap"/>
   <arg name="carstate_topic" default="/Carstate"/>
   <arg name="path_topic" default="/path_global"/>
-  <arg name="urinay_triangulation_topic" default="/AS/P/urinay/markers/triangulation"/>
-  <arg name="urinay_midpoints_topic" default="/AS/P/urinay/markers/midpoints"/>
-  <arg name="urinay_way_topic" default="/AS/P/urinay/markers/way"/>
+  <arg name="high_speed_tracking_triangulation_topic" default="/AS/P/high_speed_tracking/markers/triangulation"/>
+  <arg name="high_speed_tracking_midpoints_topic" default="/AS/P/high_speed_tracking/markers/midpoints"/>
+  <arg name="high_speed_tracking_way_topic" default="/AS/P/high_speed_tracking/markers/way"/>
+  <arg name="urinay_triangulation_topic" default="/AS/P/high_speed_tracking/markers/triangulation"/>
+  <arg name="urinay_midpoints_topic" default="/AS/P/high_speed_tracking/markers/midpoints"/>
+  <arg name="urinay_way_topic" default="/AS/P/high_speed_tracking/markers/way"/>
 
   <!-- Output topics -->
   <arg name="cone_marker_topic" default="/coneMarker"/>
   <arg name="car_body_topic" default="/carBody"/>
   <arg name="wheels_topic" default="/whole"/>
   <arg name="path_out_topic" default="/viz/path"/>
-  <arg name="urinay_triangulation_out_topic" default="/viz/urinay/markers/triangulation"/>
-  <arg name="urinay_midpoints_out_topic" default="/viz/urinay/markers/midpoints"/>
-  <arg name="urinay_way_out_topic" default="/viz/urinay/markers/way"/>
+  <arg name="high_speed_tracking_triangulation_out_topic" default="/viz/high_speed_tracking/markers/triangulation"/>
+  <arg name="high_speed_tracking_midpoints_out_topic" default="/viz/high_speed_tracking/markers/midpoints"/>
+  <arg name="high_speed_tracking_way_out_topic" default="/viz/high_speed_tracking/markers/way"/>
+  <arg name="urinay_triangulation_out_topic" default="/viz/high_speed_tracking/markers/triangulation"/>
+  <arg name="urinay_midpoints_out_topic" default="/viz/high_speed_tracking/markers/midpoints"/>
+  <arg name="urinay_way_out_topic" default="/viz/high_speed_tracking/markers/way"/>
 
   <!-- Cone visualization parameters -->
   <arg name="cone_radius" default="0.15"/>
@@ -59,11 +66,19 @@
     <param name="vehicle_frame" value="$(arg vehicle_frame)"/>
     <param name="publish_tf" value="$(arg publish_tf)"/>
     <param name="publish_cones" value="$(arg publish_cones)"/>
+    <param name="publish_high_speed_tracking_markers"
+           value="$(eval arg('publish_high_speed_tracking_markers') if arg('publish_high_speed_tracking_markers') != 'false' else arg('publish_urinay_markers'))"/>
     <param name="publish_urinay_markers" value="$(arg publish_urinay_markers)"/>
 
     <param name="cones_topic" value="$(arg cones_topic)"/>
     <param name="carstate_topic" value="$(arg carstate_topic)"/>
     <param name="path_topic" value="$(arg path_topic)"/>
+    <param name="high_speed_tracking_triangulation_topic"
+           value="$(eval arg('high_speed_tracking_triangulation_topic') if arg('high_speed_tracking_triangulation_topic') != '/AS/P/high_speed_tracking/markers/triangulation' else arg('urinay_triangulation_topic'))"/>
+    <param name="high_speed_tracking_midpoints_topic"
+           value="$(eval arg('high_speed_tracking_midpoints_topic') if arg('high_speed_tracking_midpoints_topic') != '/AS/P/high_speed_tracking/markers/midpoints' else arg('urinay_midpoints_topic'))"/>
+    <param name="high_speed_tracking_way_topic"
+           value="$(eval arg('high_speed_tracking_way_topic') if arg('high_speed_tracking_way_topic') != '/AS/P/high_speed_tracking/markers/way' else arg('urinay_way_topic'))"/>
     <param name="urinay_triangulation_topic" value="$(arg urinay_triangulation_topic)"/>
     <param name="urinay_midpoints_topic" value="$(arg urinay_midpoints_topic)"/>
     <param name="urinay_way_topic" value="$(arg urinay_way_topic)"/>
@@ -72,6 +87,12 @@
     <param name="car_body_topic" value="$(arg car_body_topic)"/>
     <param name="wheels_topic" value="$(arg wheels_topic)"/>
     <param name="path_out_topic" value="$(arg path_out_topic)"/>
+    <param name="high_speed_tracking_triangulation_out_topic"
+           value="$(eval arg('high_speed_tracking_triangulation_out_topic') if arg('high_speed_tracking_triangulation_out_topic') != '/viz/high_speed_tracking/markers/triangulation' else arg('urinay_triangulation_out_topic'))"/>
+    <param name="high_speed_tracking_midpoints_out_topic"
+           value="$(eval arg('high_speed_tracking_midpoints_out_topic') if arg('high_speed_tracking_midpoints_out_topic') != '/viz/high_speed_tracking/markers/midpoints' else arg('urinay_midpoints_out_topic'))"/>
+    <param name="high_speed_tracking_way_out_topic"
+           value="$(eval arg('high_speed_tracking_way_out_topic') if arg('high_speed_tracking_way_out_topic') != '/viz/high_speed_tracking/markers/way' else arg('urinay_way_out_topic'))"/>
     <param name="urinay_triangulation_out_topic" value="$(arg urinay_triangulation_out_topic)"/>
     <param name="urinay_midpoints_out_topic" value="$(arg urinay_midpoints_out_topic)"/>
     <param name="urinay_way_out_topic" value="$(arg urinay_way_out_topic)"/>

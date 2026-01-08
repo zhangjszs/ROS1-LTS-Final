@@ -125,7 +125,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /AS/P/urinay/markers/midpoints
+      Marker Topic: /AS/P/high_speed_tracking/markers/midpoints
       Name: minpoint
       Namespaces:
         "": true
@@ -133,7 +133,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /AS/P/urinay/markers/triangulation
+      Marker Topic: /AS/P/high_speed_tracking/markers/triangulation
       Name: triangle
       Namespaces:
         "": true
@@ -141,7 +141,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /AS/P/urinay/markers/way
+      Marker Topic: /AS/P/high_speed_tracking/markers/way
       Name: way
       Namespaces:
         "": true

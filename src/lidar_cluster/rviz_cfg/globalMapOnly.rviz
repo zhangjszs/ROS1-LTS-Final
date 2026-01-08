@@ -178,7 +178,7 @@ Visualization Manager:
       Value: false
     - Class: rviz/MarkerArray
       Enabled: false
-      Marker Topic: /AS/P/urinay/markers/way
+      Marker Topic: /AS/P/high_speed_tracking/markers/way
       Name: MarkerArray
       Namespaces:
         {}
@@ -186,7 +186,7 @@ Visualization Manager:
       Value: false
     - Class: rviz/MarkerArray
       Enabled: false
-      Marker Topic: /AS/P/urinay/markers/midpoints
+      Marker Topic: /AS/P/high_speed_tracking/markers/midpoints
       Name: MarkerArray
       Namespaces:
         {}
@@ -194,7 +194,7 @@ Visualization Manager:
       Value: false
     - Class: rviz/MarkerArray
       Enabled: false
-      Marker Topic: /AS/P/urinay/markers/triangulation
+      Marker Topic: /AS/P/high_speed_tracking/markers/triangulation
       Name: MarkerArray
       Namespaces:
         {}

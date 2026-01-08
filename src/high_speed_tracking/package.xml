@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>urinay</name>
+  <name>high_speed_tracking</name>
   <version>1.0.0</version>
   <description>The ultimate track limits + centerline using a Delaunay triangulation and Oriol's magic.</description>
 

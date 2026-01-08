@@ -1,6 +1,6 @@
-# Urinay
+# High Speed Tracking
 
-Urinay is a color-blind path+tracklimits algorithm developed for computing the centerline and track limits of the Formula Student driverless autocross track without the need of sensing the cones' color. It uses Delaunay triangulation and a limited-heuristic-ponderated tree search and only takes the cone positions and the car pose. Made for [BCN eMotorsport Formula Student team](https://bcnemotorsport.upc.edu) by me (Oriol Gorriz) entirely in C++ and to work with ROS.
+High Speed Tracking is a color-blind path+tracklimits algorithm developed for computing the centerline and track limits of the Formula Student driverless autocross track without the need of sensing the cones' color. It uses Delaunay triangulation and a limited-heuristic-ponderated tree search and only takes the cone positions and the car pose. Made for [BCN eMotorsport Formula Student team](https://bcnemotorsport.upc.edu) by me (Oriol Gorriz) entirely in C++ and to work with ROS.
 
 ***NEW!*** For a **color dependant / hybrid** version check out the branch **`color`**.
 
@@ -18,7 +18,7 @@ The first step of this approach consists in obtaining the Delaunay triangulation
 This set is computed using my implementation of the [Bowyer-Watson algorithm](https://en.wikipedia.org/wiki/Bowyer%E2%80%93Watson_algorithm). This is an iterative process that is computed in O(*n*log*n*), being *n* the number of points. The execution time of the triangulation with a high number of cones is approximately 1ms. *Fig. 1* shows the triangle set (red) and the midpoints of every edge (green).
 
 <p align="center">
-  <img src="./documentation/assets/urinay_triangulation_1.png" alt="Delaunay triangulation" width="500" /><br />
+  <img src="./documentation/assets/high_speed_tracking_triangulation_1.png" alt="Delaunay triangulation" width="500" /><br />
   Figure 1: Delaunay triangulation
 </p>
 
@@ -30,14 +30,14 @@ Next step would be to find the midline of the track using the midpoints, but as 
 As shown in *Fig. 2*, we can already see a very clear path (midline) out of the green points.
 
 <p align="center">
-  <img src="./documentation/assets/urinay_triangulation_3.png" alt="Filtered Delaunay triangulation" width="500" /><br />
+  <img src="./documentation/assets/high_speed_tracking_triangulation_3.png" alt="Filtered Delaunay triangulation" width="500" /><br />
   Figure 2: Filtered Delaunay triangulation
 </p>
 
 ## 3. Midline calculation
 Now we need to obtain a midline from the filtered midpoints. This midline will be an array of midpoints in the order in which the car will reach them.
 
-Urinay solves this problem by implementing an iterative heuristic-ponderated height-limited tree search.
+High Speed Tracking solves this problem by implementing an iterative heuristic-ponderated height-limited tree search.
 
 ### 3.1. Tree search
 Tree search provides a certain "intelligence" to the algorithm, of course we can iteratively append the best midpoint to the midline by just looking at the distance and angle but this will not end up with the best overall midline. We need to consider options that are not "the best" at a local sight.
@@ -61,10 +61,10 @@ The search is defined as follows:
 8. Find the best path. This will be the **longest path** (note that a path length will be at most the tree height). If two paths have equal length the one with smallest sum of heuristics will prevail.
 
 ### 3.2. Fail-safe
-Fail-safe(s) allow Urinay to continue the path when certain circumstances cannot be met. When track layout not being perfect/adequate, the angle or distance from a certain midpoint to another is too big, so the search will stop there (effect of midpoint filtering). To solve this issue, Urinay implements a "general" fail-safe mechanism, i.e. when the car gets too close to the end of the path (aka midline), until the normal sight horizon gets recovered, higher values of these parameters (max angle, distance, etc) are set. During this extraordinary functioning, the sight horizon will be artificially limited (keep in mind that the objective is to get out of this "misbuilt" zone). Results can be seen in *Fig. 4*.
+Fail-safe(s) allow High Speed Tracking to continue the path when certain circumstances cannot be met. When track layout not being perfect/adequate, the angle or distance from a certain midpoint to another is too big, so the search will stop there (effect of midpoint filtering). To solve this issue, High Speed Tracking implements a "general" fail-safe mechanism, i.e. when the car gets too close to the end of the path (aka midline), until the normal sight horizon gets recovered, higher values of these parameters (max angle, distance, etc) are set. During this extraordinary functioning, the sight horizon will be artificially limited (keep in mind that the objective is to get out of this "misbuilt" zone). Results can be seen in *Fig. 4*.
 
 ### 3.3. Loop closure
-Obviously we want to detect and compute the whole track midline. Urinay does so by checking if the loop is closed every time a new midpoint is added to the midline. There are two problems here:
+Obviously we want to detect and compute the whole track midline. High Speed Tracking does so by checking if the loop is closed every time a new midpoint is added to the midline. There are two problems here:
 1. How we detect a loop closure? If the following conditions are met:
     - The midline has a **length** greater than a threshold.
     - The first and last points of the midline are **closer** than a threshold.
@@ -83,23 +83,23 @@ We need to accumulate the midline so when the car moves we still know which was 
 This is why program has also the car's position in the track. Knowing where the car is at every moment gives the possibility to compute the midline from the car's position and then merge it with last iteration's midline, as seen in *Fig. 3*. This way, when a circular midline is detected, the program can communicate it to the path planning (and loop path optimizer) and stop.
 
 ## 6. Result
-The result can be seen in *Fig. 3*. Urinay always chooses the best-longest way, this is why sometimes it wants to take an incorrect path but amends it once the correct path is perceived.
+The result can be seen in *Fig. 3*. High Speed Tracking always chooses the best-longest way, this is why sometimes it wants to take an incorrect path but amends it once the correct path is perceived.
 
 <p align="center">
-  <img src="./documentation/assets/urinay_1.gif" alt="Urinay's path+tracklimits" width="500" /><br />
-  Figure 3: Urinay's path+tracklimits
+  <img src="./documentation/assets/high_speed_tracking_1.gif" alt="High Speed Tracking's path+tracklimits" width="500" /><br />
+  Figure 3: High Speed Tracking's path+tracklimits
 </p>
 
 In *Fig. 4*, you can see at the left-most point of the path, there is a very tight turn. You can see that the path does not continue until the car gets close the end of it. Then, the fail-safe gets triggered and momentarily the path continues for only a limited length. When the car gets passed this situation, normal parameters and "long" path get restored.
 
 <p align="center">
-  <img src="./documentation/assets/urinay_colorBlind_failsafe.gif" alt="Urinay's fail-safe situation" width="500" /><br />
-  Figure 4: Urinay's fail-safe situation.
+  <img src="./documentation/assets/high_speed_tracking_colorBlind_failsafe.gif" alt="High Speed Tracking's fail-safe situation" width="500" /><br />
+  Figure 4: High Speed Tracking's fail-safe situation.
 </p>
 
 
 ## 7. Considerations
-The following considerations have been taken into account when design and implementation of Urinay:
+The following considerations have been taken into account when design and implementation of High Speed Tracking:
 1. Cone position gets more accurate when car comes close to cones: It is assumed that the closer a cone is, the more probable it is that this cone has the real position. The algorithm is constantly updating the cones (and the path). This way the path just ahead of the car always is as accurate as possible.
 2. Calculated path considered behind the car is always right: Cones belonging to a sector the car already went through may also move (due to perception). In this case, since the car has already been there, it is no further re-calculated.
 3. Car may go off-track (or run over cones): Due to control or mechanical issues, the car may deviate from the calculated path. It is very important that the path does not follow the car (we want the car to go back to the correct path). To do so (and also achieving consideration 2.), the path is always calculated FROM the midpoint closest to the car.

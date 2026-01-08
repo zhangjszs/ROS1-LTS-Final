@@ -16,7 +16,7 @@
     <include file="$(find control)/launch/controler.launch" />
   </group>
 
-  <include file="$(find location)/launch/location.launch" />
+  <include file="$(find location_kdtree)/launch/location.launch" />
 
   <!-- RViz Visualization (display only, no TF publish) -->
   <include file="$(find race_rviz_viz)/launch/viz.launch">
@@ -24,7 +24,7 @@
     <arg name="publish_cones" value="false" />
   </include>
   <node pkg="rviz" type="rviz" name="rviz_skidpad"
-        args="-d $(find location)/config/display_skidpad.rviz" />
+        args="-d $(find location_kdtree)/config/display_skidpad.rviz" />
 
   <!-- Rosbag Play -->
   <node pkg="rosbag" type="play" name="rosbag_play" output="screen"

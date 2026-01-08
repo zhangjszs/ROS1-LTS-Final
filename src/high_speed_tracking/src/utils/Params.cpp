@@ -17,7 +17,7 @@
 Params::Params(ros::NodeHandle *const nh) {
   std::string ns = ros::this_node::getName();
   // Main
-  main.package_path = ros::package::getPath("urinay");
+  main.package_path = ros::package::getPath("high_speed_tracking");
   nh->param<std::string>(ns + "/input_cones_topic", main.input_cones_topic, "/AS/P/ccat/cones");
   nh->param<std::string>(ns + "/input_pose_topic", main.input_pose_topic, "/AS/C/state");
   nh->param<std::string>(ns + "/output_full_topic", main.output_full_topic, "/AS/P/tracklimits/full");
@@ -54,7 +54,7 @@ Params::Params(ros::NodeHandle *const nh) {
 
   // Visualization
   nh->param<bool>(ns + "/publish_markers", visualization.publish_markers, false);
-  nh->param<std::string>(ns + "/marker_topics/triangulation", visualization.triangulation_topic, "/AS/P/urinay/markers/triangulation");
-  nh->param<std::string>(ns + "/marker_topics/midpoints", visualization.midpoints_topic, "/AS/P/urinay/markers/midpoints");
-  nh->param<std::string>(ns + "/marker_topics/way", visualization.way_topic, "/AS/P/urinay/markers/way");
+  nh->param<std::string>(ns + "/marker_topics/triangulation", visualization.triangulation_topic, "/AS/P/high_speed_tracking/markers/triangulation");
+  nh->param<std::string>(ns + "/marker_topics/midpoints", visualization.midpoints_topic, "/AS/P/high_speed_tracking/markers/midpoints");
+  nh->param<std::string>(ns + "/marker_topics/way", visualization.way_topic, "/AS/P/high_speed_tracking/markers/way");
 }

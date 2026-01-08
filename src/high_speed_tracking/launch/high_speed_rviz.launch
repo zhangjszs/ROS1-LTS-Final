@@ -1,7 +1,7 @@
 <launch>
   <arg name="publish_tf" default="false" />
   <arg name="publish_cones" default="false" />
-  <arg name="rviz_config" default="$(find urinay)/config/display_high_speed.rviz" />
+  <arg name="rviz_config" default="$(find high_speed_tracking)/config/display_high_speed.rviz" />
 
   <include file="$(find race_rviz_viz)/launch/viz.launch">
     <arg name="publish_tf" value="$(arg publish_tf)" />

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(location)
+project(location_kdtree)
 
 ## Compile as C++14, supported in ROS Kinetic and newer
 add_compile_options(-std=c++17)
@@ -111,7 +111,7 @@ find_package(PCL REQUIRED)
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
   INCLUDE_DIRS include
-#  LIBRARIES location
+#  LIBRARIES location_kdtree
   CATKIN_DEPENDS geometry_msgs nav_msgs nodelet pcl_ros roscpp sensor_msgs std_msgs common_msgs
 #  DEPENDS system_lib
 )
@@ -130,7 +130,7 @@ include_directories(
 )
 
 ## Declare a C++ library
-# add_library(location
+# add_library(location_kdtree
 #  include/location_head.hpp
 #  src/main.cpp
 #  src/location_node.cpp

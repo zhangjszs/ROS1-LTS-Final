@@ -8,9 +8,9 @@ stop_topic:                     "/stopTheCar"                   #发布车辆停
 # Markers
 publish_markers:                true    # bool   [-]   whether or not to publish the markers.
 marker_topics:
-  triangulation:                "/AS/P/urinay/markers/triangulation"    #发布可视化三角剖分
-  midpoints:                    "/AS/P/urinay/markers/midpoints"        #发布可视化中点信息
-  way:                          "/AS/P/urinay/markers/way"              #发布可视化路径信息
+  triangulation:                "/AS/P/high_speed_tracking/markers/triangulation"    #发布可视化三角剖分
+  midpoints:                    "/AS/P/high_speed_tracking/markers/midpoints"        #发布可视化中点信息
+  way:                          "/AS/P/high_speed_tracking/markers/way"              #发布可视化路径信息
 
 ## Params
 

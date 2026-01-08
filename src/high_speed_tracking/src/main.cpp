@@ -1,7 +1,7 @@
 /**
  * @file main.cpp
  * @author yzh
- * @brief Main file of Urinay, creates all modules, subcribers and publishers.
+ * @brief Main file of High Speed Tracking, creates all modules, subcribers and publishers.
  * @version 1.0
  * @date 2022-10-31
  */
@@ -69,7 +69,7 @@ void txtClear();
 void doWayMsg(const common_msgs::HUAT_PathLimits &msgs)
 {
   std::ofstream f;
-  std::string path = ros::package::getPath("urinay") + "/testData/wayPartial.txt";
+  std::string path = ros::package::getPath("high_speed_tracking") + "/testData/wayPartial.txt";
   f.open(path.c_str(), std::ios_base::app);
   if (f.fail())
   {
@@ -94,7 +94,7 @@ void doWayMsg(const common_msgs::HUAT_PathLimits &msgs)
 void doWayFullMsg(const common_msgs::HUAT_PathLimits &msgs)
 {
   std::ofstream f;
-  std::string path = ros::package::getPath("urinay") + "/testData/wayFull.txt";
+  std::string path = ros::package::getPath("high_speed_tracking") + "/testData/wayFull.txt";
   f.open(path.c_str(), std::ios_base::app);
   if (f.fail())
   {
@@ -118,7 +118,7 @@ void doWayFullMsg(const common_msgs::HUAT_PathLimits &msgs)
 
 void txtClear()
 {
-  std::string dir = ros::package::getPath("urinay") + "/testData";
+  std::string dir = ros::package::getPath("high_speed_tracking") + "/testData";
   mkdir(dir.c_str(), 0777);
   std::string path1 = dir + "/wayPartial.txt";
   std::string path2 = dir + "/wayFull.txt";
@@ -145,13 +145,13 @@ void callback_ccat(const common_msgs::HUAT_map::ConstPtr &data)
 {
   if (!wayComputer || !wayComputer->isLocalTfValid())
   {
-    ROS_WARN("[urinay] CarState not being received or wayComputer is invalid.");
+    ROS_WARN("[high_speed_tracking] CarState not being received or wayComputer is invalid.");
     return;
   }
 
   if (data->cone.empty())
   {
-    ROS_WARN("[urinay] Reading empty set of cones.");
+    ROS_WARN("[high_speed_tracking] Reading empty set of cones.");
     return;
   }
 
@@ -195,7 +195,7 @@ void callback_ccat(const common_msgs::HUAT_map::ConstPtr &data)
     pubFull.publish(wayComputer->getPathLimitsGlobal(3));//params->main.the_mode_of_full_path
     // doWayMsg(wayComputer->getPathLimitsGlobal(params->main.the_mode_of_partial_path));
     // pubPartial.publish(wayComputer->getPathLimitsGlobal(params->main.the_mode_of_partial_path));
-    // ROS_INFO("[urinay] Tanco loop");
+    // ROS_INFO("[high_speed_tracking] Tanco loop");
     wasLoopClosed = true;
     std::string loopDir = params->main.package_path + "/loops";
     mkdir(loopDir.c_str(), 0777);
@@ -203,7 +203,7 @@ void callback_ccat(const common_msgs::HUAT_map::ConstPtr &data)
     //可能都没用上下面这个
     if (params->main.shutdown_on_loop_closure) {
       // Time::tock("computation");  //结束测量时间
-      // ROS_INFO("[urinay] Tingui bon dia :)");
+      // ROS_INFO("[high_speed_tracking] Tingui bon dia :)");
       ros::shutdown();
     }
   } else {
@@ -223,7 +223,7 @@ int main(int argc, char **argv)
   // 文件清空
   common_msgs::HUAT_PathLimits msgs;
   txtClear();
-  ros::init(argc, argv, "urinay");
+  ros::init(argc, argv, "high_speed_tracking");
   ros::NodeHandle *const nh = new ros::NodeHandle;
   params = new Params(nh);                                      // 加载参数
   wayComputer = new WayComputer(params->wayComputer);           // 创建一个名为wayComputer的指针，指向一个WayComputer对象，该对象的构造函数使用params->wayComputer参数来初始化。然后，使用wayComputer计算新的轨迹。

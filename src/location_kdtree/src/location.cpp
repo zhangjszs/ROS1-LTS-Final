@@ -728,7 +728,7 @@ namespace coordinate
             ss<< "lat = " <<lat<<"\t"<< "lon = " <<lon<<"\t"<< "alt = " <<alt<<std::endl;
         std::string str = ss.str();
         std::ofstream f;
-        std::string path = ros::package::getPath("location") + "/testData/gps.txt";
+        std::string path = ros::package::getPath("location_kdtree") + "/testData/gps.txt";
         f.open(path.c_str(),std::ios_base::app);
         if(f.fail())
         {
@@ -745,7 +745,7 @@ namespace coordinate
             ss<< "first = " <<first<<"\t"<< "now = " << now<<"\t"<< "diff" <<diff<<std::endl; //上一次方位角与方位角以及差值
         std::string str = ss.str();
         std::ofstream f;
-        std::string path = ros::package::getPath("location") + "/testData/angleChange.txt";
+        std::string path = ros::package::getPath("location_kdtree") + "/testData/angleChange.txt";
         f.open(path.c_str(),std::ios_base::app); 
         if (f.fail()) 
         { 
@@ -764,7 +764,7 @@ namespace coordinate
             ss << rear_x << "\t" << rear_y << "\t" << rear_z << "\n" <<std::endl;
         std::string str = ss.str();
         std::ofstream f;
-        std::string path = ros::package::getPath("location") + "/testData/state.txt";
+        std::string path = ros::package::getPath("location_kdtree") + "/testData/state.txt";
         f.open(path.c_str(),std::ios_base::app);
         if(f.fail())
         {
@@ -786,7 +786,7 @@ namespace coordinate
         }
         std::string str = ss.str();
         std::ofstream f;
-        std::string path = ros::package::getPath("location") + "/testData/map.txt";
+        std::string path = ros::package::getPath("location_kdtree") + "/testData/map.txt";
         f.open(path.c_str(), std::ios_base::app);
         if (f.fail())
         {
@@ -804,7 +804,7 @@ namespace coordinate
         ss << cone.id << "\t" << cone.position_global.x << "\t" << cone.position_global.y << std::endl;
         std::string str = ss.str();
         std::ofstream f;
-        std::string path = ros::package::getPath("location") + "/testData/cone.txt";
+        std::string path = ros::package::getPath("location_kdtree") + "/testData/cone.txt";
         f.open(path.c_str(), std::ios_base::app);
         if (f.fail())
         {
@@ -821,7 +821,7 @@ namespace coordinate
         ss  << id << "\t" << x << "\t" << y << "\t" << z << std::endl;
         std::string str = ss.str();
         std::ofstream f;
-        std::string path = ros::package::getPath("location") + "/testData/point.txt";
+        std::string path = ros::package::getPath("location_kdtree") + "/testData/point.txt";
         f.open(path.c_str(), std::ios_base::app);
         if (f.fail())
         {
@@ -839,7 +839,7 @@ namespace coordinate
         ss << x << "\t" << y <<std::endl;
         std::string str = ss.str();
         std::ofstream f;
-        std::string path = ros::package::getPath("location") + "/testData/carstate.txt";
+        std::string path = ros::package::getPath("location_kdtree") + "/testData/carstate.txt";
         f.open(path.c_str(), std::ios_base::app);
         if (f.fail())
         {
@@ -856,7 +856,7 @@ namespace coordinate
         ss << V << "\t" << W << "\t" << A <<std::endl;
         std::string str = ss.str();
         std::ofstream f;
-        std::string path = ros::package::getPath("location") + "/testData/allvelocity.txt";
+        std::string path = ros::package::getPath("location_kdtree") + "/testData/allvelocity.txt";
         f.open(path.c_str(), std::ios_base::app);
         if (f.fail())
         {
@@ -873,7 +873,7 @@ namespace coordinate
         ss << E << "\t" << N << "\t" << G <<std::endl;
         std::string str = ss.str();
         std::ofstream f;
-        std::string path = ros::package::getPath("location") + "/testData/velocity.txt";
+        std::string path = ros::package::getPath("location_kdtree") + "/testData/velocity.txt";
         f.open(path.c_str(), std::ios_base::app);
         if (f.fail())
         {
@@ -890,7 +890,7 @@ namespace coordinate
         ss << x_acc << "\t" << y_acc << "\t" << z_acc <<std::endl;
         std::string str = ss.str();
         std::ofstream f;
-        std::string path = ros::package::getPath("location") + "/testData/acc.txt";
+        std::string path = ros::package::getPath("location_kdtree") + "/testData/acc.txt";
         f.open(path.c_str(), std::ios_base::app);
         if (f.fail())
         {
