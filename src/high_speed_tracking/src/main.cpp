@@ -13,6 +13,7 @@
 #include "common_msgs/HUAT_stop.h"
 #include <ros/package.h>
 #include <ros/ros.h>
+#include <ros/serialization.h>
 #include <sys/stat.h>
 
 #include <iostream>
@@ -21,6 +22,7 @@
 #include "modules/Visualization.hpp"
 #include "modules/WayComputer.hpp"
 #include "utils/Time.hpp"
+#include "utils/PerfStats.hpp"
 bool wasLoopClosed = false;
 
 // Publishers are initialized here
@@ -30,6 +32,7 @@ ros::Publisher stopPub;    // 停止发布
 
 WayComputer *wayComputer; // 使用wayComputer指针变量来访问WayComputer对象的成员函数和成员变量。
 Params *params;           // 使用params指针变量来访问Params对象的成员函数和成员变量。
+PerfStats perf_stats;
 
 int interTimes = 0; // 圈数
 bool inter = false; // 进入判断区域
@@ -155,11 +158,15 @@ void callback_ccat(const common_msgs::HUAT_map::ConstPtr &data)
     return;
   }
 
+  ros::WallTime total_start = ros::WallTime::now();
+  size_t bytes_pub = 0;
+
   if (finish())
   {
     common_msgs::HUAT_stop msg;
     msg.stop = true;
     stopPub.publish(msg);
+    bytes_pub += ros::serialization::serializationLength(msg);
     std::cout << "完成" << std::endl;
     ros::shutdown();
   }
@@ -183,16 +190,22 @@ void callback_ccat(const common_msgs::HUAT_map::ConstPtr &data)
   }
 
   //把节点传入三角剖分模块,进行三角剖分
+  ros::WallTime delaunay_start = ros::WallTime::now();
   TriangleSet triangles = DelaunayTri::compute(nodes);
+  ros::WallDuration delaunay_dur = ros::WallTime::now() - delaunay_start;
 
   // 把三角剖分结果传入路径规划模块
+  ros::WallTime way_start = ros::WallTime::now();
   wayComputer->update(triangles, data->header.stamp);
+  ros::WallDuration way_dur = ros::WallTime::now() - way_start;
 
   // 发布循环和将轨迹限制写入文件
     if (wayComputer->isLoopClosed()) {
   //这个用于把路径消息存到文件中，加上发布调用两次，相当于两次插值，参数5代表全部插值(局部坐标系)，反正也是环，懒得管车前车后了
-    doWayFullMsg(wayComputer->getPathLimitsGlobal(3));//params->main.the_mode_of_full_path
-    pubFull.publish(wayComputer->getPathLimitsGlobal(3));//params->main.the_mode_of_full_path
+    common_msgs::HUAT_PathLimits full_msg = wayComputer->getPathLimitsGlobal(3);//params->main.the_mode_of_full_path
+    doWayFullMsg(full_msg);
+    pubFull.publish(full_msg);//params->main.the_mode_of_full_path
+    bytes_pub += ros::serialization::serializationLength(full_msg);
     // doWayMsg(wayComputer->getPathLimitsGlobal(params->main.the_mode_of_partial_path));
     // pubPartial.publish(wayComputer->getPathLimitsGlobal(params->main.the_mode_of_partial_path));
     // ROS_INFO("[high_speed_tracking] Tanco loop");
@@ -209,9 +222,21 @@ void callback_ccat(const common_msgs::HUAT_map::ConstPtr &data)
   } else {
     //这个用于把路径消息存到文件中，加上发布调用两次，相当于两次插值,参数4代表局部插值(局部坐标)，也就是只对车前方的路径插值
     if(!wasLoopClosed){
-    doWayMsg(wayComputer->getPathLimitsGlobal(2));//params->main.the_mode_of_partial_path
-    pubPartial.publish(wayComputer->getPathLimitsGlobal(2));}//params->main.the_mode_of_partial_path
+    common_msgs::HUAT_PathLimits partial_msg = wayComputer->getPathLimitsGlobal(2);//params->main.the_mode_of_partial_path
+    doWayMsg(partial_msg);
+    pubPartial.publish(partial_msg);//params->main.the_mode_of_partial_path
+    bytes_pub += ros::serialization::serializationLength(partial_msg);}
   }
+  ros::WallDuration total_dur = ros::WallTime::now() - total_start;
+  PerfSample sample;
+  sample.t_delaunay_ms = delaunay_dur.toSec() * 1000.0;
+  sample.t_way_ms = way_dur.toSec() * 1000.0;
+  sample.t_total_ms = total_dur.toSec() * 1000.0;
+  sample.n_points = static_cast<double>(nodes.size());
+  sample.n_triangles = static_cast<double>(wayComputer->lastTriangleCount());
+  sample.n_edges = static_cast<double>(wayComputer->lastEdgeCount());
+  sample.bytes_pub = static_cast<double>(bytes_pub);
+  perf_stats.Add(sample);
   // Time::tock("computation");  //结束测量时间
 }
 
@@ -225,6 +250,15 @@ int main(int argc, char **argv)
   txtClear();
   ros::init(argc, argv, "high_speed_tracking");
   ros::NodeHandle *const nh = new ros::NodeHandle;
+  ros::NodeHandle pnh("~");
+  bool perf_enabled = true;
+  int perf_window = 300;
+  int perf_log_every = 30;
+  pnh.param("perf_stats_enable", perf_enabled, true);
+  pnh.param("perf_stats_window", perf_window, 300);
+  pnh.param("perf_stats_log_every", perf_log_every, 30);
+  perf_stats.Configure("high_speed_tracking", perf_enabled, static_cast<size_t>(perf_window),
+                       static_cast<size_t>(perf_log_every));
   params = new Params(nh);                                      // 加载参数
   wayComputer = new WayComputer(params->wayComputer);           // 创建一个名为wayComputer的指针，指向一个WayComputer对象，该对象的构造函数使用params->wayComputer参数来初始化。然后，使用wayComputer计算新的轨迹。
   Visualization::getInstance().init(nh, params->visualization); //  //获取可视化处理  init()函数可能是用于初始化Visualization对象的状态或资源

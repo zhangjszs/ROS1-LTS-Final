@@ -376,6 +376,7 @@ void WayComputer::update(TriangleSet &triangulation, const ros::Time &stamp) {
   // #1: Remove all triangles which we know will not be part of the track.用于从三角测量中移除那些不会成为轨迹的三角形
   // 实际上里面的运算还是一个局部坐标系上的点进行操作。
   this->filterTriangulation(triangulation);
+  last_triangle_count_ = triangulation.size();
 
   // #2: Extract all midpoints without repetitions, do that through an EdgeSet
   // so no midpoint is got twice.
@@ -393,6 +394,7 @@ void WayComputer::update(TriangleSet &triangulation, const ros::Time &stamp) {
   // left.
   //只保留那些与三角形外接圆心距离较近的中点。
   this->filterMidpoints(edgeSet, triangulation);
+  last_edge_count_ = edgeSet.size();
 
   // Convert this set to a vector
   //`edgeSet`中的边被转换成了一个向量`edgeVec`，这可能是为了方便后续处理，例如对边进行排序或其他操作。
@@ -577,4 +579,12 @@ common_msgs::HUAT_PathLimits WayComputer::getPathLimitsGlobal(int x)  {
 
 common_msgs::HUAT_Carstate WayComputer::getCarState(){
   return CarState;
+}
+
+size_t WayComputer::lastTriangleCount() const {
+  return last_triangle_count_;
+}
+
+size_t WayComputer::lastEdgeCount() const {
+  return last_edge_count_;
 }

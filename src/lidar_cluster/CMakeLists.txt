@@ -44,3 +44,10 @@ target_link_libraries(${PROJECT_NAME}
 
 add_executable(test_conf test/confidence.cpp)
 target_link_libraries(test_conf ${PROJECT_NAME} ${catkin_LIBRARIES})
+
+if(CATKIN_ENABLE_TESTING)
+  catkin_add_gtest(lidar_cluster_perf_stats_test test/test_perf_stats.cpp)
+  if(TARGET lidar_cluster_perf_stats_test)
+    target_link_libraries(lidar_cluster_perf_stats_test ${catkin_LIBRARIES})
+  endif()
+endif()

@@ -7,6 +7,7 @@ import cv2
 from ultralytics import YOLO
 import threading
 from queue import Queue
+from collections import deque
 
 from sensor_msgs.msg import PointCloud2, PointField, Image
 from cv_bridge import CvBridge, CvBridgeError
@@ -15,6 +16,7 @@ from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import PoseArray, Pose, Point
 from std_msgs.msg import Header, ColorRGBA
 from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
+from perf_stats import PerfStats, estimate_message_bytes
 
 class MultiModalFusion:
     def __init__(self):
@@ -28,6 +30,8 @@ class MultiModalFusion:
         self.z_axis_max = rospy.get_param('~z_axis_max', 1.5)
         self.cluster_size_min = rospy.get_param('~cluster_size_min', 10)
         self.cluster_size_max = rospy.get_param('~cluster_size_max', 2000)
+        self.cluster_tolerance_base = rospy.get_param('~cluster_tolerance_base', 0.1)
+        self.cluster_tolerance_step = rospy.get_param('~cluster_tolerance_step', 0.1)
         self.camera_topic = rospy.get_param('~camera_topic', '/camera/color/image_raw')
         self.lidar_topic = rospy.get_param('~lidar_topic', '/livox/lidar')
         self.yolo_confidence = rospy.get_param('~yolo_confidence', 0.5)
@@ -97,6 +101,13 @@ class MultiModalFusion:
         except Exception as e:
             rospy.logerr(f"加载YOLO模型失败: {e}")
             self.model = None
+
+        perf_enabled = rospy.get_param('~perf_stats_enable', True)
+        perf_window = rospy.get_param('~perf_stats_window', 300)
+        perf_log_every = rospy.get_param('~perf_stats_log_every', 30)
+        self.perf_stats = PerfStats(
+            "fusion_detection", window_size=perf_window, log_every=perf_log_every, enabled=perf_enabled
+        )
         
         # 设置点云处理线程
         self.lidar_thread = threading.Thread(target=self.process_lidar_thread)
@@ -159,30 +170,28 @@ class MultiModalFusion:
                     # 将ROS点云转换为numpy数组
                     pc_array = self.ros_to_numpy(lidar_msg)
                     
-                    # 创建Open3D点云
-                    pcd = o3d.geometry.PointCloud()
-                    pcd.points = o3d.utility.Vector3dVector(pc_array[:, :3])
-                    
                     # 处理点云
-                    filtered_pcd, clusters, centroids, boxes = self.process_point_cloud(pcd)
+                    filtered_points, centroids, boxes, perf = self.process_point_cloud(pc_array)
                     
                     # 发布过滤后的点云
+                    bytes_pub = 0
                     if self.cloud_filtered_pub.get_num_connections() > 0:
-                        filtered_points = np.asarray(filtered_pcd.points)
                         filtered_cloud_msg = self.numpy_to_ros(lidar_msg.header, filtered_points)
                         self.cloud_filtered_pub.publish(filtered_cloud_msg)
+                        bytes_pub += estimate_message_bytes(filtered_cloud_msg)
                     
                     # 发布未标记的聚类
-                    self.publish_cluster_markers(lidar_msg.header, clusters, boxes, None)
+                    self.publish_cluster_markers(lidar_msg.header, centroids, boxes, None)
+                    perf["bytes"] = float(bytes_pub)
                     
                     # 存储处理结果，等待与图像检测结果融合
                     lidar_data = {
                         'timestamp': lidar_msg.header.stamp,
                         'frame_id': lidar_msg.header.frame_id,
                         'header': lidar_msg.header,
-                        'clusters': clusters,
                         'centroids': centroids,
-                        'boxes': boxes
+                        'boxes': boxes,
+                        'perf': perf
                     }
                     
                     # 结果放入融合队列
@@ -199,6 +208,7 @@ class MultiModalFusion:
             try:
                 if not self.image_queue.empty() and self.model is not None:
                     image_msg = self.image_queue.get()
+                    image_start = time.time()
                     
                     # 将ROS图像转换为OpenCV格式
                     try:
@@ -239,6 +249,8 @@ class MultiModalFusion:
                                 'class_name': class_name
                             })
                     
+                    image_time_ms = (time.time() - image_start) * 1000.0
+                    
                     # 发布处理后的图像
                     try:
                         detection_image_msg = self.bridge.cv2_to_imgmsg(processed_img, "bgr8")
@@ -254,7 +266,11 @@ class MultiModalFusion:
                         'header': image_msg.header,
                         'detections': yolo_detections,
                         'image': cv_img,
-                        'processed_image': processed_img
+                        'processed_image': processed_img,
+                        'perf': {
+                            't_total_ms': image_time_ms,
+                            'D': float(len(yolo_detections))
+                        }
                     }
                     
                     # 结果放入融合队列
@@ -306,11 +322,13 @@ class MultiModalFusion:
     def fuse_lidar_and_image(self, lidar_data, image_data):
         """融合LiDAR聚类和图像检测结果"""
         try:
+            fusion_start = time.time()
+            bytes_pub = 0
             # 获取变换矩阵 (使用提供的雷达到相机的变换矩阵)
             transform_matrix = self.lidar_to_camera
             
             # 从聚类中提取边界框
-            clusters = lidar_data['clusters']
+            centroids = lidar_data['centroids']
             boxes = lidar_data['boxes']
             detections = image_data['detections']
             cv_image = image_data['processed_image'].copy()  # 使用已处理的图像
@@ -460,27 +478,101 @@ class MultiModalFusion:
             
             # 发布3D边界框消息
             self.bbox3d_pub.publish(bbox3d_array)
+            bytes_pub += estimate_message_bytes(bbox3d_array)
             
             # 发布带有分类信息的聚类标记
-            self.publish_cluster_markers(lidar_data['header'], lidar_data['clusters'], lidar_data['boxes'], classified_clusters)
+            self.publish_cluster_markers(lidar_data['header'], centroids, lidar_data['boxes'], classified_clusters)
             
             # 发布融合后的图像
             try:
                 fusion_image_msg = self.bridge.cv2_to_imgmsg(cv_image, "bgr8")
                 fusion_image_msg.header = image_data['header']
                 self.detection_image_pub.publish(fusion_image_msg)
+                bytes_pub += estimate_message_bytes(fusion_image_msg)
             except CvBridgeError as e:
                 rospy.logerr(f"CV Bridge错误: {e}")
+
+            fusion_time_ms = (time.time() - fusion_start) * 1000.0
+            lidar_perf = lidar_data.get('perf', {})
+            image_perf = image_data.get('perf', {})
+            sample = {
+                "t_pass_ms": float(lidar_perf.get("t_pass_ms", 0.0)),
+                "t_cluster_ms": float(lidar_perf.get("t_cluster_ms", 0.0)),
+                "t_total_ms": float(lidar_perf.get("t_total_ms", 0.0))
+                + float(image_perf.get("t_total_ms", 0.0))
+                + fusion_time_ms,
+                "N": float(lidar_perf.get("N", 0.0)),
+                "K": float(lidar_perf.get("K", 0.0)),
+                "D": float(image_perf.get("D", 0.0)),
+                "bytes": float(lidar_perf.get("bytes", 0.0)) + float(bytes_pub),
+            }
+            self.perf_stats.add(sample)
                 
         except Exception as e:
             rospy.logerr(f"融合处理错误: {e}")
     
+    def _pointfield_dtype(self, datatype, is_bigendian):
+        type_map = {
+            PointField.INT8: np.int8,
+            PointField.UINT8: np.uint8,
+            PointField.INT16: np.int16,
+            PointField.UINT16: np.uint16,
+            PointField.INT32: np.int32,
+            PointField.UINT32: np.uint32,
+            PointField.FLOAT32: np.float32,
+            PointField.FLOAT64: np.float64,
+        }
+        np_type = type_map.get(datatype, np.float32)
+        dtype = np.dtype(np_type)
+        return dtype.newbyteorder('>' if is_bigendian else '<')
+
     def ros_to_numpy(self, ros_point_cloud):
         """将ROS点云转换为numpy数组"""
-        points_list = []
-        for point in pc2.read_points(ros_point_cloud, field_names=("x", "y", "z", "intensity"), skip_nans=True):
-            points_list.append(point)
-        return np.array(points_list)
+        if ros_point_cloud.width == 0 or ros_point_cloud.height == 0:
+            return np.zeros((0, 4), dtype=np.float32)
+        field_map = {f.name: f for f in ros_point_cloud.fields}
+        if not {"x", "y", "z"}.issubset(field_map):
+            return np.zeros((0, 4), dtype=np.float32)
+
+        if ros_point_cloud.row_step != ros_point_cloud.point_step * ros_point_cloud.width:
+            field_names = ("x", "y", "z", "intensity") if "intensity" in field_map else ("x", "y", "z")
+            points_list = []
+            for point in pc2.read_points(ros_point_cloud, field_names=field_names, skip_nans=True):
+                points_list.append(point)
+            points = np.array(points_list, dtype=np.float32)
+            if points.size == 0:
+                return np.zeros((0, 4), dtype=np.float32)
+            if points.shape[1] == 3:
+                zeros = np.zeros((points.shape[0], 1), dtype=np.float32)
+                points = np.hstack([points, zeros])
+            return points
+
+        names = []
+        formats = []
+        offsets = []
+        for name in ("x", "y", "z", "intensity"):
+            field = field_map.get(name)
+            if field is None:
+                continue
+            names.append(name)
+            formats.append(self._pointfield_dtype(field.datatype, ros_point_cloud.is_bigendian))
+            offsets.append(field.offset)
+
+        dtype = np.dtype({
+            "names": names,
+            "formats": formats,
+            "offsets": offsets,
+            "itemsize": ros_point_cloud.point_step,
+        })
+        data = np.frombuffer(ros_point_cloud.data, dtype=dtype)
+        points = np.zeros((data.shape[0], 4), dtype=np.float32)
+        points[:, 0] = data["x"]
+        points[:, 1] = data["y"]
+        points[:, 2] = data["z"]
+        if "intensity" in data.dtype.names:
+            points[:, 3] = data["intensity"]
+        mask = np.isfinite(points[:, 0]) & np.isfinite(points[:, 1]) & np.isfinite(points[:, 2])
+        return points[mask]
     
     def numpy_to_ros(self, header, points):
         """将numpy数组转换为ROS点云"""
@@ -499,111 +591,108 @@ class MultiModalFusion:
             
         return pc2.create_cloud(header, fields, points_with_intensity)
         
-    def filter_point_cloud(self, pcd):
+    def filter_point_cloud(self, points):
         """降采样和高度过滤"""
-        points = np.asarray(pcd.points)
-        
-        # 高度过滤和降采样
-        indices = []
-        for i in range(0, len(points), self.leaf):
-            if self.z_axis_min <= points[i, 2] <= self.z_axis_max:
-                indices.append(i)
-                
-        filtered_points = points[indices]
-        filtered_pcd = o3d.geometry.PointCloud()
-        filtered_pcd.points = o3d.utility.Vector3dVector(filtered_points)
-            
-        return filtered_pcd, indices
+        if points.size == 0:
+            return points, np.empty((0,), dtype=np.int32)
+        stride = max(int(self.leaf), 1)
+        indices = np.arange(0, points.shape[0], stride, dtype=np.int32)
+        sampled = points[indices]
+        z_vals = sampled[:, 2]
+        mask = (z_vals >= self.z_axis_min) & (z_vals <= self.z_axis_max) & np.isfinite(z_vals)
+        filtered_points = sampled[mask]
+        return filtered_points, indices[mask]
     
-    def divide_into_regions(self, pcd, indices):
+    def divide_into_regions(self, points_xyz, indices):
         """将点云分成嵌套的环形区域"""
-        points = np.asarray(pcd.points)
-        indices_array = [[] for _ in range(self.region_max)]
-        
-        for i in range(len(indices)):
-            point_idx = indices[i]
-            point = points[point_idx]
-            
-            # 计算点到原点的距离
-            distance = np.sqrt(point[0]**2 + point[1]**2 + point[2]**2)
-            
-            range_val = 0.0
-            for j in range(self.region_max):
-                next_range = range_val + self.regions[j]
-                if range_val < distance <= next_range:
-                    indices_array[j].append(point_idx)
-                    break
-                range_val = next_range
-        
+        indices_array = [np.empty((0,), dtype=np.int32) for _ in range(self.region_max)]
+        if indices.size == 0:
+            return indices_array
+        points = points_xyz[indices]
+        distances = np.linalg.norm(points, axis=1)
+        boundaries = np.cumsum(self.regions[:self.region_max])
+        region_ids = np.searchsorted(boundaries, distances, side="right")
+        valid = region_ids < self.region_max
+        if not np.any(valid):
+            return indices_array
+        region_ids = region_ids[valid]
+        region_indices = indices[valid]
+        for i in range(self.region_max):
+            mask = region_ids == i
+            if np.any(mask):
+                indices_array[i] = region_indices[mask]
         return indices_array
     
-    def euclidean_clustering(self, pcd, indices_array):
+    def euclidean_clustering(self, points_xyz, indices_array):
         """对每个区域执行欧几里得聚类"""
-        all_clusters = []
-        boxes = []
-        points = np.asarray(pcd.points)
-        
-        tolerance = 0.0
-        for i in range(self.region_max):
-            tolerance += 0.1  # 容差随区域递增
-            
-            if len(indices_array[i]) > self.cluster_size_min:
-                # 创建该区域的点云
-                region_pcd = o3d.geometry.PointCloud()
-                region_pcd.points = o3d.utility.Vector3dVector(points[indices_array[i]])
-                
-                # 使用Open3D的DBSCAN聚类
-                with o3d.utility.VerbosityContextManager(o3d.utility.VerbosityLevel.Error):
-                    labels = np.array(region_pcd.cluster_dbscan(eps=tolerance, min_points=self.cluster_size_min, print_progress=False))
-                
-                # 处理聚类结果
-                max_label = labels.max() if len(labels) > 0 and labels.max() > -1 else -1
-                for j in range(max_label + 1):
-                    cluster_indices = np.where(labels == j)[0]
-                    if self.cluster_size_min <= len(cluster_indices) <= self.cluster_size_max:
-                        # 获取该聚类的原始点云索引
-                        original_indices = [indices_array[i][idx] for idx in cluster_indices]
-                        
-                        # 创建该聚类的点云
-                        cluster_pcd = o3d.geometry.PointCloud()
-                        cluster_pcd.points = o3d.utility.Vector3dVector(points[original_indices])
-                        
-                        # 计算边界框
-                        cluster_points = np.asarray(cluster_pcd.points)
-                        min_point = np.min(cluster_points, axis=0)
-                        max_point = np.max(cluster_points, axis=0)
-                        
-                        box = {
-                            'min': min_point,
-                            'max': max_point
-                        }
-                        
-                        all_clusters.append(cluster_pcd)
-                        boxes.append(box)
-        
-        return all_clusters, boxes
-    
-    def compute_centroids(self, clusters):
-        """计算每个聚类的中心点"""
         centroids = []
-        for cluster in clusters:
-            centroid = np.mean(np.asarray(cluster.points), axis=0)
-            centroids.append(centroid)
-        return centroids
+        boxes = []
+
+        for i in range(self.region_max):
+            tolerance = self.cluster_tolerance_base + i * self.cluster_tolerance_step
+            region_indices = indices_array[i]
+            if region_indices.size < self.cluster_size_min:
+                continue
+
+            region_points = points_xyz[region_indices]
+            if region_points.shape[0] == 0:
+                continue
+
+            region_pcd = o3d.geometry.PointCloud()
+            region_pcd.points = o3d.utility.Vector3dVector(region_points)
+            kdtree = o3d.geometry.KDTreeFlann(region_pcd)
+            visited = np.zeros(region_points.shape[0], dtype=bool)
+
+            for idx in range(region_points.shape[0]):
+                if visited[idx]:
+                    continue
+                queue = deque([idx])
+                visited[idx] = True
+                cluster_indices = []
+                while queue:
+                    current = queue.popleft()
+                    cluster_indices.append(current)
+                    _, neighbors, _ = kdtree.search_radius_vector_3d(region_points[current], tolerance)
+                    for nb in neighbors:
+                        if not visited[nb]:
+                            visited[nb] = True
+                            queue.append(nb)
+
+                if self.cluster_size_min <= len(cluster_indices) <= self.cluster_size_max:
+                    cluster_points = region_points[cluster_indices]
+                    min_point = np.min(cluster_points, axis=0)
+                    max_point = np.max(cluster_points, axis=0)
+                    centroid = np.mean(cluster_points, axis=0)
+                    boxes.append({"min": min_point, "max": max_point})
+                    centroids.append(centroid)
+
+        return centroids, boxes
     
-    def process_point_cloud(self, pcd):
+    def process_point_cloud(self, points):
         """处理点云的主函数"""
+        start_time = time.time()
         # 1. 降采样和高度过滤
-        filtered_pcd, indices = self.filter_point_cloud(pcd)
+        pass_start = time.time()
+        filtered_points, indices = self.filter_point_cloud(points)
+        t_pass_ms = (time.time() - pass_start) * 1000.0
         # 2. 点云分区
-        indices_array = self.divide_into_regions(pcd, indices)
+        cluster_start = time.time()
+        points_xyz = points[:, :3] if points.size > 0 else points.reshape((-1, 3))
+        indices_array = self.divide_into_regions(points_xyz, indices)
         # 3. 欧几里得聚类
-        clusters, boxes = self.euclidean_clustering(pcd, indices_array)
-        # 4. 计算聚类中心
-        centroids = self.compute_centroids(clusters)
-        return filtered_pcd, clusters, centroids, boxes
+        centroids, boxes = self.euclidean_clustering(points_xyz, indices_array)
+        t_cluster_ms = (time.time() - cluster_start) * 1000.0
+        t_total_ms = (time.time() - start_time) * 1000.0
+        perf = {
+            "t_pass_ms": t_pass_ms,
+            "t_cluster_ms": t_cluster_ms,
+            "t_total_ms": t_total_ms,
+            "N": float(points.shape[0]),
+            "K": float(len(boxes)),
+        }
+        return filtered_points, centroids, boxes, perf
     
-    def publish_cluster_markers(self, header, clusters, boxes, classified_clusters):
+    def publish_cluster_markers(self, header, centroids, boxes, classified_clusters):
         """发布聚类标记"""
         clear_marker = Marker()
         clear_marker.header = header
@@ -619,9 +708,7 @@ class MultiModalFusion:
             pose_array = PoseArray()
             pose_array.header = header
             
-            for i, cluster in enumerate(clusters):
-                # 计算质心
-                centroid = np.mean(np.asarray(cluster.points), axis=0)
+            for centroid in centroids:
                 
                 pose = Pose()
                 pose.position.x = centroid[0]

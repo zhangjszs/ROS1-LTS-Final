@@ -1,4 +1,5 @@
 #include <utility.h>
+#include <ros/serialization.h>
 
 struct comp
 {
@@ -275,6 +276,24 @@ void lidar_cluster::init()
 
     splitString(str_range_, dis_range);
     splitString(str_seg_distance_, seg_distances);
+
+    bool perf_enabled = true;
+    int perf_window = 300;
+    int perf_log_every = 30;
+    if (!private_nh_.param<bool>("perf_stats_enable", perf_enabled, true))
+    {
+        ROS_WARN_STREAM("Did not load perf_stats_enable. Standard value is: " << perf_enabled);
+    }
+    if (!private_nh_.param<int>("perf_stats_window", perf_window, 300))
+    {
+        ROS_WARN_STREAM("Did not load perf_stats_window. Standard value is: " << perf_window);
+    }
+    if (!private_nh_.param<int>("perf_stats_log_every", perf_log_every, 30))
+    {
+        ROS_WARN_STREAM("Did not load perf_stats_log_every. Standard value is: " << perf_log_every);
+    }
+    perf_stats_.Configure("lidar_cluster", perf_enabled, static_cast<size_t>(perf_window),
+                          static_cast<size_t>(perf_log_every));
 
     getPointClouds = false;
     g_seeds_pc.reset(new pcl::PointCloud<PointType>());
@@ -661,6 +680,8 @@ void lidar_cluster::EuclideanAdaptiveClusterMethod(
 
 void lidar_cluster::clusterMethod32()
 {
+    last_cluster_count_ = 0;
+    last_cluster_pub_bytes_ = 0;
     if (vis_)
     {
         vis_init_status = vis_init();
@@ -688,6 +709,11 @@ void lidar_cluster::clusterMethod32()
 
     EuclideanAdaptiveClusterMethod(g_not_ground_pc, cluster_indices,
                                    cloud_segments_array);
+    size_t total_clusters = 0;
+    for (const auto &segment : cluster_indices)
+    {
+        total_clusters += segment.size();
+    }
 
     // EucClusterMethod(g_not_ground_pc, cluster_indices, 0.3);
     int j = 0;
@@ -850,6 +876,7 @@ void lidar_cluster::clusterMethod32()
     pcl::toROSMsg(*final_cluster, pub_pc);
     pub_pc.header = in_pc.header;
     pub_filtered_points__.publish(pub_pc);
+    last_cluster_pub_bytes_ += pub_pc.data.size();
 
     position.pc_whole = pub_pc;
     position.pc_whole.header = in_pc.header;
@@ -859,15 +886,20 @@ void lidar_cluster::clusterMethod32()
     pcl::toROSMsg(*skidpad_detection_pc, pub_pc);
     pub_pc.header = in_pc.header;
     skidpad_detection.publish(pub_pc);
+    last_cluster_pub_bytes_ += pub_pc.data.size();
     position.header = in_pc.header;
 
     cone_position.publish(position);
+    last_cluster_pub_bytes_ += ros::serialization::serializationLength(position);
+    last_cluster_count_ = total_clusters;
 
     // ROS_INFO_STREAM("PUBLISH HEADERS" << in_pc.header.stamp);
 }
 
 void lidar_cluster::clusterMethod16()
 {
+    last_cluster_count_ = 0;
+    last_cluster_pub_bytes_ = 0;
     if (vis_)
     {
         bool vis_init_status = vis_init();
@@ -880,6 +912,7 @@ void lidar_cluster::clusterMethod16()
     std::vector<pcl::PointIndices> cluster_indices;
 
     EucClusterMethod(g_not_ground_pc, cluster_indices, 0.3);
+    size_t total_clusters = cluster_indices.size();
     int j = 0;
     int clusterId = 0;
     pcl::PointCloud<PointType>::Ptr final_cluster(
@@ -994,10 +1027,14 @@ void lidar_cluster::clusterMethod16()
     pcl::toROSMsg(*final_cluster, pub_pc);
     pub_pc.header = in_pc.header;
     pub_filtered_points__.publish(pub_pc);
+    last_cluster_pub_bytes_ += pub_pc.data.size();
 
     pcl::toROSMsg(*skidpad_detection_pc, pub_pc);
     pub_pc.header = in_pc.header;
     skidpad_detection.publish(pub_pc);
+    last_cluster_pub_bytes_ += pub_pc.data.size();
 
     cone_position.publish(position);
+    last_cluster_pub_bytes_ += ros::serialization::serializationLength(position);
+    last_cluster_count_ = total_clusters;
 }

@@ -95,6 +95,8 @@ void lidar_cluster::runAlgorithm()
   // getPointClouds = false;
   lidar_mutex.lock();
   // *current_pc_ptr = *source;
+  size_t bytes_pub = 0;
+  const size_t input_points = current_pc_ptr ? current_pc_ptr->points.size() : 0;
   auto startTimePassThrough = std::chrono::steady_clock::now();
   PassThrough(current_pc_ptr, StatisticalOutlierFilter);
   cloud_filtered = current_pc_ptr;
@@ -104,6 +106,7 @@ void lidar_cluster::runAlgorithm()
 
   pcl::toROSMsg(*cloud_filtered, pub_pc);
   pub_pc.header = in_pc.header;           // making headers are same
+  bytes_pub += pub_pc.data.size();
 
   // first: passthrough publish
   pub_filtered_points_.publish(pub_pc);
@@ -127,6 +130,7 @@ void lidar_cluster::runAlgorithm()
   pcl::toROSMsg(*g_not_ground_pc, pub_pc);
   pub_pc.header = in_pc.header; 
   pub_filtered_points___.publish(pub_pc); // publish not_ground_cloud
+  bytes_pub += pub_pc.data.size();
 
   // startTime = std::chrono::steady_clock::now();
 
@@ -165,6 +169,15 @@ void lidar_cluster::runAlgorithm()
   // logging_pub.publish(ros_path_);
 
   // logging_pub = n.advertise<nav_msgs::Path>("log_path",10);
+  PerfSample sample;
+  sample.t_pass_ms = static_cast<double>(elapsedTimePassThrough.count()) / 1000.0;
+  sample.t_ground_ms = static_cast<double>(elapsedTimeSeg.count()) / 1000.0;
+  sample.t_cluster_ms = static_cast<double>(elapsedTimeCluster.count()) / 1000.0;
+  sample.t_total_ms = static_cast<double>(elapsedTime.count()) / 1000.0;
+  sample.n_points = static_cast<double>(input_points);
+  sample.n_clusters = static_cast<double>(last_cluster_count_);
+  sample.bytes_pub = static_cast<double>(bytes_pub + last_cluster_pub_bytes_);
+  perf_stats_.Add(sample);
 }
 // std::ofstream out("data_test.txt",std::ios::app);
 

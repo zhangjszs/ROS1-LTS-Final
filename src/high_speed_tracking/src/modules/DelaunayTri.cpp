@@ -10,6 +10,8 @@
 
 #include "modules/DelaunayTri.hpp"
 
+#include <unordered_map>
+
 /* ----------------------------- Private Methods ---------------------------- */
 //超级三角形是用来包围一组节点的初始三角形，在进行Delaunay三角剖分时，这个超级三角形会被去除。
 Triangle DelaunayTri::superTriangle(const std::vector<Node> &nodes) {
@@ -45,6 +47,7 @@ TriangleSet DelaunayTri::compute(const std::vector<Node> &nodes) {
   if (nodes.size() < 3) return {};
   //创建一个TriangleSet对象用于存储三角剖分结果
   TriangleSet triangulation;
+  triangulation.reserve(nodes.size() * 2 + 1);
   //添加一个足够大以包含所有点的超级三角形到三角剖分中
   //可以确保算法在进行后续的三角剖分操作时能够准确地考虑到所有的点，并生成一个正确的Delaunay三角剖分结果。
   triangulation.insert(superTriangle(nodes));
@@ -52,6 +55,7 @@ TriangleSet DelaunayTri::compute(const std::vector<Node> &nodes) {
   // 将每个节点逐个添加到三角剖分中
   for (const Node &n : nodes) {
     TriangleSet badTriangles;
+    badTriangles.reserve(triangulation.size());
 
     // First find all the triangles that are no longer valid due to the insertion
     for (const Triangle &t : triangulation) {
@@ -61,20 +65,25 @@ TriangleSet DelaunayTri::compute(const std::vector<Node> &nodes) {
     }
 
     EdgeSet polygon;
+    std::unordered_map<Edge, int> edgeCount;
+    edgeCount.reserve(badTriangles.size() * 3);
 
     // Find the boundary of the polygonal hole
     for (const Triangle &t : badTriangles) {
       for (const Edge &e : t.edges) {
-        bool shared = false;
-        for (const Triangle &t2 : badTriangles) {
-          if (&t != &t2 and t2.containsEdge(e)) {
-            shared = true;
-            break;
-          }
+        auto it = edgeCount.find(e);
+        if (it == edgeCount.end()) {
+          edgeCount.emplace(e, 1);
+        } else {
+          ++it->second;
         }
-        if (not shared) {
-          polygon.insert(e);
-        }
+      }
+    }
+
+    polygon.reserve(edgeCount.size());
+    for (const auto &kv : edgeCount) {
+      if (kv.second == 1) {
+        polygon.insert(kv.first);
       }
     }
 

@@ -52,6 +52,7 @@
 #include <pcl/common/transforms.h>
 #include <common_msgs/Cone.h>
 #include <common_msgs/ins_p2.h>
+#include "perf_stats.hpp"
 
 using namespace Eigen;
 using namespace Eigen::internal;
@@ -172,6 +173,9 @@ public:
   // std::string eval_file = "/home/adams/postsynced_msf/evaluation/lidar_cluster/lidar_cluster_single_track_time_1.txt";
   std::ofstream ofs;
   int frame_count = 0;
+  PerfStats perf_stats_;
+  size_t last_cluster_count_ = 0;
+  size_t last_cluster_pub_bytes_ = 0;
 
 public:
   void init();

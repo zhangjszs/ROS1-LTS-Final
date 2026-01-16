@@ -16,6 +16,12 @@
 
 #include <Eigen/Geometry>
 #include <list>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+#include <cstdint>
+#include <cmath>
+#include <algorithm>
 
 #include "structures/Edge.hpp"
 #include "structures/Node.hpp"
@@ -80,6 +86,21 @@ class Way {
    */
   uint32_t sizeToCar_;
 
+  struct Segment {
+    Point a;
+    Point b;
+  };
+
+  mutable std::unordered_set<Edge> edge_set_;
+  mutable bool edge_set_dirty_ = true;
+
+  mutable std::vector<Segment> segments_;
+  mutable std::unordered_map<uint64_t, std::vector<size_t>> segment_grid_;
+  mutable std::vector<uint32_t> segment_seen_;
+  mutable uint32_t segment_seen_token_ = 1;
+  mutable bool segment_index_dirty_ = true;
+  mutable double segment_cell_size_ = 1.0;
+
   /**
    * @brief Updates the \a closestToCarElem_ attribute accordingly.
    */
@@ -94,6 +115,11 @@ class Way {
    * @param[in] D 
    */
   static bool segmentsIntersect(const Point &A, const Point &B, const Point &C, const Point &D);
+
+  static uint64_t cellKey(int x, int y);
+  void rebuildEdgeSet_() const;
+  void rebuildSegmentIndex_() const;
+  void addSegmentToIndex_(const Point &a, const Point &b) const;
 
  public:
   /**
