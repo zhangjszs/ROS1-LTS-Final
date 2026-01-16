@@ -54,3 +54,10 @@ install(
   DIRECTORY include/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
 )
+
+if(CATKIN_ENABLE_TESTING)
+  catkin_add_gtest(high_speed_tracking_perf_stats_test test/test_perf_stats.cpp)
+  if(TARGET high_speed_tracking_perf_stats_test)
+    target_link_libraries(high_speed_tracking_perf_stats_test ${catkin_LIBRARIES})
+  endif()
+endif()

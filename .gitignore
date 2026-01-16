@@ -18,6 +18,18 @@ cmake-build-debug/
 __pycache__/
 *.pyc
 
+# Python env / tooling
+.venv/
+venv/
+.env
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+*.egg-info/
+dist/
+
 # Editor directories
 .vscode/
 .idea/
@@ -30,3 +42,18 @@ __pycache__/
 
 # Logs
 *.log
+**/testData/*.txt
+perf_reports/data/*.json
+src/location_kdtree/testData/carstate.txt
+
+# CMake/build artifacts
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+out/build/
+**/out/build/
+
+# ROS bag files
+*.bag
+*.bag.active

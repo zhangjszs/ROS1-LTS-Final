@@ -5,7 +5,7 @@ import rospy
 import numpy as np
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
-from sensor_msgs.msg import Image, PointCloud2
+from sensor_msgs.msg import Image, PointCloud2, PointField
 import sensor_msgs.point_cloud2 as pc2
 from std_msgs.msg import Header
 from visualization_msgs.msg import Marker, MarkerArray
@@ -14,7 +14,10 @@ from message_filters import ApproximateTimeSynchronizer, Subscriber
 import time
 import os
 import torch
+import threading
+from queue import Queue, Empty
 from ultralytics import YOLO
+from perf_stats import PerfStats, estimate_message_bytes
 
 class YoloLidarFusion:
     def __init__(self):
@@ -40,6 +43,10 @@ class YoloLidarFusion:
             [0, fy, cy],
             [0, 0, 1]
         ])
+        self.fx = fx
+        self.fy = fy
+        self.cx = cx
+        self.cy = cy
         
         # 激光雷达到相机的外参矩阵
         extrinsic_matrix = rospy.get_param('~extrinsic_matrix', None)
@@ -52,6 +59,9 @@ class YoloLidarFusion:
             ])
         else:
             self.extrinsic_matrix = np.array(extrinsic_matrix).reshape(4, 4)
+
+        self.extrinsic_R = self.extrinsic_matrix[:3, :3]
+        self.extrinsic_t = self.extrinsic_matrix[:3, 3]
         
         # 相机到激光雷达的变换矩阵（用于将相机坐标转换到激光雷达坐标）
         self.camera_to_lidar_matrix = np.linalg.inv(self.extrinsic_matrix)
@@ -70,6 +80,18 @@ class YoloLidarFusion:
         except Exception as e:
             rospy.logerr("Failed to load YOLOv11 model: {}".format(e))
             raise
+
+        perf_enabled = rospy.get_param('~perf_stats_enable', True)
+        perf_window = rospy.get_param('~perf_stats_window', 300)
+        perf_log_every = rospy.get_param('~perf_stats_log_every', 30)
+        self.perf_stats = PerfStats(
+            "camera_lidar_detection", window_size=perf_window, log_every=perf_log_every, enabled=perf_enabled
+        )
+
+        self.pair_queue = Queue(maxsize=1)
+        self.worker_thread = threading.Thread(target=self.process_worker)
+        self.worker_thread.daemon = True
+        self.worker_thread.start()
         
         # 创建发布者
         self.detection_image_pub = rospy.Publisher(self.detection_image_topic, Image, queue_size=1)
@@ -111,44 +133,131 @@ class YoloLidarFusion:
     
     def callback(self, image_msg, pointcloud_msg):
         """处理同步到的图像和点云数据"""
+        if self.pair_queue.full():
+            try:
+                self.pair_queue.get_nowait()
+            except Empty:
+                pass
         try:
-            start_time = time.time()
-            
-            # 将ROS图像消息转换为OpenCV图像
-            cv_image = self.bridge.imgmsg_to_cv2(image_msg, "bgr8")
-            
-            # 从点云消息中提取点云数据
+            self.pair_queue.put_nowait((image_msg, pointcloud_msg))
+        except Exception:
+            pass
+
+    def process_worker(self):
+        while not rospy.is_shutdown():
+            try:
+                image_msg, pointcloud_msg = self.pair_queue.get(timeout=0.1)
+            except Empty:
+                continue
+            self.process_pair(image_msg, pointcloud_msg)
+
+    def _pointfield_dtype(self, datatype, is_bigendian):
+        type_map = {
+            PointField.INT8: np.int8,
+            PointField.UINT8: np.uint8,
+            PointField.INT16: np.int16,
+            PointField.UINT16: np.uint16,
+            PointField.INT32: np.int32,
+            PointField.UINT32: np.uint32,
+            PointField.FLOAT32: np.float32,
+            PointField.FLOAT64: np.float64,
+        }
+        np_type = type_map.get(datatype, np.float32)
+        dtype = np.dtype(np_type)
+        return dtype.newbyteorder('>' if is_bigendian else '<')
+
+    def ros_to_numpy(self, pointcloud_msg):
+        if pointcloud_msg.width == 0 or pointcloud_msg.height == 0:
+            return np.zeros((0, 3), dtype=np.float32)
+
+        field_map = {f.name: f for f in pointcloud_msg.fields}
+        if not {"x", "y", "z"}.issubset(field_map):
+            return np.zeros((0, 3), dtype=np.float32)
+
+        if pointcloud_msg.row_step != pointcloud_msg.point_step * pointcloud_msg.width:
             points_list = []
             for point in pc2.read_points(pointcloud_msg, field_names=("x", "y", "z"), skip_nans=True):
                 points_list.append(point)
-            
-            # 将点云数据转换为NumPy数组
-            points = np.array(points_list)
-            
+            return np.array(points_list, dtype=np.float32)
+
+        names = []
+        formats = []
+        offsets = []
+        for name in ("x", "y", "z"):
+            field = field_map.get(name)
+            if field is None:
+                continue
+            names.append(name)
+            formats.append(self._pointfield_dtype(field.datatype, pointcloud_msg.is_bigendian))
+            offsets.append(field.offset)
+
+        dtype = np.dtype({
+            "names": names,
+            "formats": formats,
+            "offsets": offsets,
+            "itemsize": pointcloud_msg.point_step,
+        })
+        data = np.frombuffer(pointcloud_msg.data, dtype=dtype)
+        points = np.column_stack((data["x"], data["y"], data["z"])).astype(np.float32, copy=False)
+        mask = np.isfinite(points[:, 0]) & np.isfinite(points[:, 1]) & np.isfinite(points[:, 2])
+        return points[mask]
+
+    def process_pair(self, image_msg, pointcloud_msg):
+        """处理同步到的图像和点云数据"""
+        try:
+            start_time = time.time()
+
+            # 将ROS图像消息转换为OpenCV图像
+            cv_image = self.bridge.imgmsg_to_cv2(image_msg, "bgr8")
+
+            # 从点云消息中提取点云数据
+            pass_start = time.time()
+            points = self.ros_to_numpy(pointcloud_msg)
+            t_pass_ms = (time.time() - pass_start) * 1000.0
+
             # 使用YOLOv11进行目标检测
+            det_start = time.time()
             detections = self.detect_objects(cv_image)
-            
+            t_detect_ms = (time.time() - det_start) * 1000.0
+
             # 在图像上绘制检测结果
             detection_image = self.draw_detections_on_image(cv_image, detections)
-            
+
             # 为点云中的检测对象创建3D边界框
-            markers = self.create_3d_bboxes(points, detections, pointcloud_msg.header)
-            
+            proj_start = time.time()
+            if detections:
+                markers = self.create_3d_bboxes(points, detections, pointcloud_msg.header)
+            else:
+                markers = MarkerArray()
+            t_project_ms = (time.time() - proj_start) * 1000.0
+
             # 发布检测结果图像
             detection_image_msg = self.bridge.cv2_to_imgmsg(detection_image, "bgr8")
             detection_image_msg.header = image_msg.header
             self.detection_image_pub.publish(detection_image_msg)
-            
+
             # 发布3D边界框标记
             self.bbox_markers_pub.publish(markers)
-            
+
             processing_time = time.time() - start_time
             rospy.logdebug("Processing time: {:.3f} seconds".format(processing_time))
-            
+
+            bytes_pub = estimate_message_bytes(detection_image_msg) + estimate_message_bytes(markers)
+            sample = {
+                "t_pass_ms": t_pass_ms,
+                "t_detect_ms": t_detect_ms,
+                "t_project_ms": t_project_ms,
+                "t_total_ms": processing_time * 1000.0,
+                "N": float(points.shape[0]),
+                "D": float(len(detections)),
+                "bytes": float(bytes_pub),
+            }
+            self.perf_stats.add(sample)
+
         except CvBridgeError as e:
             rospy.logerr("CvBridge Error: {0}".format(e))
         except Exception as e:
-            rospy.logerr("Error in callback: {0}".format(e))
+            rospy.logerr("Error in processing: {0}".format(e))
     
     def detect_objects(self, image):
         """使用ultralytics YOLO进行目标检测"""
@@ -239,12 +348,11 @@ class YoloLidarFusion:
     
     def project_points_to_image(self, points):
         """将点云投影到图像平面上"""
-        # 为点云添加第四个坐标（齐次坐标）
-        points_homogeneous = np.ones((points.shape[0], 4))
-        points_homogeneous[:, :3] = points
-        
+        if points.size == 0:
+            return None, None, None
+
         # 使用外参矩阵将点从激光雷达坐标系变换到相机坐标系
-        points_camera = np.dot(self.extrinsic_matrix, points_homogeneous.T).T
+        points_camera = points @ self.extrinsic_R.T + self.extrinsic_t
         
         # 过滤掉相机后方的点（Z < 0）
         valid_indices = points_camera[:, 2] > 0
@@ -255,15 +363,18 @@ class YoloLidarFusion:
             return None, None, None
         
         # 归一化坐标
-        points_normalized = points_camera[:, :3] / points_camera[:, 2:3]
-        
+        z = points_camera[:, 2]
+        x_norm = points_camera[:, 0] / z
+        y_norm = points_camera[:, 1] / z
+
         # 使用相机内参矩阵将归一化坐标投影到像素坐标
-        pixel_coords = np.dot(self.camera_matrix, points_normalized[:, :3].T).T
-        
+        u = self.fx * x_norm + self.cx
+        v = self.fy * y_norm + self.cy
+
         # 取整得到像素坐标
-        pixel_coords = np.round(pixel_coords[:, :2]).astype(np.int32)
+        pixel_coords = np.round(np.stack([u, v], axis=1)).astype(np.int32)
         
-        return pixel_coords, valid_original_points, points_camera[:, 2]  # 返回像素坐标、对应的原始点和深度
+        return pixel_coords, valid_original_points, z  # 返回像素坐标、对应的原始点和深度
     
     def create_3d_bboxes(self, points, detections, header):
         """为检测到的对象创建3D边界框"""

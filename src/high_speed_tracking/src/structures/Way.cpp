@@ -52,6 +52,75 @@ bool Way::segmentsIntersect(const Point &A, const Point &B, const Point &C, cons
   return Point::ccw(A, C, D) != Point::ccw(B, C, D) and Point::ccw(A, B, C) != Point::ccw(A, B, D);
 }
 
+uint64_t Way::cellKey(int x, int y)
+{
+  return (static_cast<uint64_t>(static_cast<uint32_t>(x)) << 32) |
+         static_cast<uint32_t>(y);
+}
+
+void Way::rebuildEdgeSet_() const
+{
+  this->edge_set_.clear();
+  this->edge_set_.reserve(this->path_.size());
+  for (const Edge &e : this->path_)
+  {
+    this->edge_set_.insert(e);
+  }
+  this->edge_set_dirty_ = false;
+}
+
+void Way::addSegmentToIndex_(const Point &a, const Point &b) const
+{
+  const size_t idx = this->segments_.size();
+  this->segments_.push_back({a, b});
+  this->segment_seen_.push_back(0);
+
+  const double min_x = std::min(a.x, b.x);
+  const double max_x = std::max(a.x, b.x);
+  const double min_y = std::min(a.y, b.y);
+  const double max_y = std::max(a.y, b.y);
+
+  const int min_x_cell = static_cast<int>(std::floor(min_x / this->segment_cell_size_));
+  const int max_x_cell = static_cast<int>(std::floor(max_x / this->segment_cell_size_));
+  const int min_y_cell = static_cast<int>(std::floor(min_y / this->segment_cell_size_));
+  const int max_y_cell = static_cast<int>(std::floor(max_y / this->segment_cell_size_));
+
+  for (int x = min_x_cell; x <= max_x_cell; ++x)
+  {
+    for (int y = min_y_cell; y <= max_y_cell; ++y)
+    {
+      this->segment_grid_[cellKey(x, y)].push_back(idx);
+    }
+  }
+}
+
+void Way::rebuildSegmentIndex_() const
+{
+  this->segments_.clear();
+  this->segment_grid_.clear();
+  this->segment_seen_.clear();
+  this->segment_seen_token_ = 1;
+  this->segment_cell_size_ = std::max(1e-3, this->avgEdgeLen_);
+  if (this->path_.size() < 3)
+  {
+    this->segment_index_dirty_ = false;
+    return;
+  }
+
+  this->segments_.reserve(this->path_.size());
+  this->segment_grid_.reserve(this->path_.size() * 2);
+
+  auto it_prev = this->path_.cbegin();
+  auto it_curr = std::next(it_prev);
+  auto it_next = std::next(it_curr);
+  for (; it_next != this->path_.cend(); ++it_prev, ++it_curr, ++it_next)
+  {
+    this->addSegmentToIndex_(it_prev->midPoint(), it_curr->midPoint());
+  }
+
+  this->segment_index_dirty_ = false;
+}
+
 /* ----------------------------- Public Methods ----------------------------- */
 
 void Way::init(const Params::WayComputer::Way &params)
@@ -100,11 +169,22 @@ void Way::updateLocal(const Eigen::Affine3d &tf)
   }
   // Update closest
   this->updateClosestToCarElem();
+  this->segment_index_dirty_ = true;
 }
 
 void Way::addEdge(const Edge &edge)
 {
   this->path_.push_back(edge);
+  this->edge_set_.insert(edge);
+  if (!this->segment_index_dirty_ && this->path_.size() >= 3)
+  {
+    auto it = this->path_.rbegin();
+    ++it; // previous last
+    Point prev = it->midPoint();
+    ++it; // previous previous
+    Point prev_prev = it->midPoint();
+    this->addSegmentToIndex_(prev_prev, prev);
+  }
   if (this->path_.size() == 1)
     closestToCarElem_ = this->path_.cbegin();
   this->avgEdgeLen_ += (edge.len - this->avgEdgeLen_) / this->size();
@@ -140,6 +220,12 @@ void Way::trimByLocal()
 
   // Recalculate sizeToCar_ attribute计算 `sizeToCar_` 属性的值
   this->sizeToCar_ = this->size();
+  this->edge_set_dirty_ = true;
+  this->segment_index_dirty_ = true;
+  this->edge_set_.clear();
+  this->segments_.clear();
+  this->segment_grid_.clear();
+  this->segment_seen_.clear();
 }
 
 bool Way::closesLoop() const
@@ -199,6 +285,10 @@ Way Way::restructureClosure() const
     res.path_.pop_back();
   }
   res.path_.push_back(res.front());
+  res.edge_set_dirty_ = true;
+  res.segment_index_dirty_ = true;
+  res.rebuildEdgeSet_();
+  res.rebuildSegmentIndex_();
 
   return res;
 }
@@ -207,31 +297,57 @@ bool Way::intersectsWith(const Edge &e) const
 {
   if (this->size() <= 2)
     return false;
-  Point s1p1, s1p2;
+  if (this->segment_index_dirty_)
+    this->rebuildSegmentIndex_();
+  if (this->segments_.empty())
+    return false;
+
   const Point s2p1 = this->back().midPoint();
   const Point s2p2 = e.midPoint();
-  auto it1 = std::next(this->path_.crbegin());
-  auto it2 = std::next(it1);
-  while (it2 != this->path_.crend())
+
+  const double min_x = std::min(s2p1.x, s2p2.x);
+  const double max_x = std::max(s2p1.x, s2p2.x);
+  const double min_y = std::min(s2p1.y, s2p2.y);
+  const double max_y = std::max(s2p1.y, s2p2.y);
+
+  const int min_x_cell = static_cast<int>(std::floor(min_x / this->segment_cell_size_));
+  const int max_x_cell = static_cast<int>(std::floor(max_x / this->segment_cell_size_));
+  const int min_y_cell = static_cast<int>(std::floor(min_y / this->segment_cell_size_));
+  const int max_y_cell = static_cast<int>(std::floor(max_y / this->segment_cell_size_));
+
+  ++this->segment_seen_token_;
+  if (this->segment_seen_token_ == 0)
   {
-    s1p1 = it1->midPoint();
-    s1p2 = it2->midPoint();
-    if (this->segmentsIntersect(s1p1, s1p2, s2p1, s2p2))
-      return true;
-    it1++;
-    it2++;
+    std::fill(this->segment_seen_.begin(), this->segment_seen_.end(), 0);
+    this->segment_seen_token_ = 1;
+  }
+
+  for (int x = min_x_cell; x <= max_x_cell; ++x)
+  {
+    for (int y = min_y_cell; y <= max_y_cell; ++y)
+    {
+      auto it = this->segment_grid_.find(cellKey(x, y));
+      if (it == this->segment_grid_.end())
+        continue;
+      for (const size_t seg_idx : it->second)
+      {
+        if (this->segment_seen_[seg_idx] == this->segment_seen_token_)
+          continue;
+        this->segment_seen_[seg_idx] = this->segment_seen_token_;
+        const Segment &seg = this->segments_[seg_idx];
+        if (this->segmentsIntersect(seg.a, seg.b, s2p1, s2p2))
+          return true;
+      }
+    }
   }
   return false;
 }
 
 bool Way::containsEdge(const Edge &e) const
 {
-  for (const Edge &edge : this->path_)
-  {
-    if (e == edge)
-      return true;
-  }
-  return false;
+  if (this->edge_set_dirty_)
+    this->rebuildEdgeSet_();
+  return this->edge_set_.find(e) != this->edge_set_.end();
 }
 
 std::vector<Point> Way::getPath() const
@@ -332,6 +448,12 @@ Way &Way::operator=(const Way &way)
   this->avgEdgeLen_ = way.avgEdgeLen_;
   this->sizeToCar_ = way.sizeToCar_;
   this->updateClosestToCarElem(); // A copy of the attribute would be unsafe
+  this->edge_set_dirty_ = true;
+  this->segment_index_dirty_ = true;
+  this->edge_set_.clear();
+  this->segments_.clear();
+  this->segment_grid_.clear();
+  this->segment_seen_.clear();
   return *this;
 }
 

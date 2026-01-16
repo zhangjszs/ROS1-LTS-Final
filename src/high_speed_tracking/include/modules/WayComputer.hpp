@@ -80,6 +80,9 @@ class WayComputer {
    */
   bool localTfValid_ = false;
 
+  size_t last_triangle_count_ = 0;
+  size_t last_edge_count_ = 0;
+
   /**
    * @brief 车身位置
   */
@@ -247,4 +250,7 @@ class WayComputer {
   common_msgs::HUAT_PathLimits getPathLimitsGlobal(int x = 0);
 
   common_msgs::HUAT_Carstate getCarState();
+
+  size_t lastTriangleCount() const;
+  size_t lastEdgeCount() const;
 };
