@@ -880,8 +880,11 @@ void lidar_cluster::clusterMethod32()
 
     position.pc_whole = pub_pc;
     position.pc_whole.header = in_pc.header;
-    markerPub.publish(marker_array);
-    markerPubAll.publish(marker_array_all);
+    if (vis_ != 0)
+    {
+        markerPub.publish(marker_array);
+        markerPubAll.publish(marker_array_all);
+    }
 
     pcl::toROSMsg(*skidpad_detection_pc, pub_pc);
     pub_pc.header = in_pc.header;
@@ -1021,7 +1024,10 @@ void lidar_cluster::clusterMethod16()
 
     // gettimeofday(&end,NULL);
 
-    markerPub.publish(marker_array);
+    if (vis_ != 0)
+    {
+        markerPub.publish(marker_array);
+    }
     // sensor_msgs::PointCloud2 pub_pc;
     // out = final_cluster;
     pcl::toROSMsg(*final_cluster, pub_pc);

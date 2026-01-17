@@ -36,6 +36,7 @@ class MultiModalFusion:
         self.lidar_topic = rospy.get_param('~lidar_topic', '/livox/lidar')
         self.yolo_confidence = rospy.get_param('~yolo_confidence', 0.5)
         self.yolo_model_path = rospy.get_param('~yolo_model_path', 'yolo11s.pt')
+        self.publish_markers = rospy.get_param('~publish_markers', False)
 
         """realsense 相机"""
         # 相机参数
@@ -130,7 +131,9 @@ class MultiModalFusion:
         
         # 设置发布者
         self.cloud_filtered_pub = rospy.Publisher('~cloud_filtered', PointCloud2, queue_size=1)
-        self.cluster_marker_pub = rospy.Publisher('~cluster_markers', MarkerArray, queue_size=1)
+        self.cluster_marker_pub = None
+        if self.publish_markers:
+            self.cluster_marker_pub = rospy.Publisher('~cluster_markers', MarkerArray, queue_size=1)
         self.pose_array_pub = rospy.Publisher('~cluster_poses', PoseArray, queue_size=1)
         self.detection_image_pub = rospy.Publisher('~detection_image', Image, queue_size=1)
         self.bbox3d_pub = rospy.Publisher('~bounding_boxes3d', BoundingBoxArray, queue_size=1)
@@ -693,6 +696,8 @@ class MultiModalFusion:
         return filtered_points, centroids, boxes, perf
     
     def publish_cluster_markers(self, header, centroids, boxes, classified_clusters):
+        if not self.publish_markers or self.cluster_marker_pub is None:
+            return
         """发布聚类标记"""
         clear_marker = Marker()
         clear_marker.header = header

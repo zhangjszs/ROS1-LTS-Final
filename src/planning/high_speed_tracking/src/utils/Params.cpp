@@ -53,8 +53,6 @@ Params::Params(ros::NodeHandle *const nh) {
   nh->param<int>(ns + "/vital_num_midpoints", wayComputer.way.vital_num_midpoints, 5);
 
   // Visualization
-  nh->param<bool>(ns + "/publish_markers", visualization.publish_markers, false);
-  nh->param<std::string>(ns + "/marker_topics/triangulation", visualization.triangulation_topic, "/AS/P/high_speed_tracking/markers/triangulation");
-  nh->param<std::string>(ns + "/marker_topics/midpoints", visualization.midpoints_topic, "/AS/P/high_speed_tracking/markers/midpoints");
-  nh->param<std::string>(ns + "/marker_topics/way", visualization.way_topic, "/AS/P/high_speed_tracking/markers/way");
+  nh->param<bool>(ns + "/publish_viz_data", visualization.publish_viz_data, true);
+  nh->param<std::string>(ns + "/viz_topic", visualization.viz_topic, "/AS/P/high_speed_tracking/viz");
 }

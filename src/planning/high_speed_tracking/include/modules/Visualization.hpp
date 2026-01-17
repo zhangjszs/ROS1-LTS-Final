@@ -11,8 +11,7 @@
 #pragma once
 
 #include <ros/ros.h>
-#include <visualization_msgs/Marker.h>
-#include <visualization_msgs/MarkerArray.h>
+#include <common_msgs/HUAT_HighSpeedViz.h>
 
 #include "structures/Way.hpp"
 #include "utils/Params.hpp"
@@ -27,7 +26,7 @@ class Visualization {
   /**
    * @brief All Markers publishers.
    */
-  ros::Publisher trianglesPub, midpointsPub, wayPub;
+  ros::Publisher viz_pub_;
   
   /**
    * @brief All parameters related to the Visualization class.
@@ -38,6 +37,7 @@ class Visualization {
    * @brief All Markers will be published with this timestamp.
    */
   ros::Time stamp_;
+  common_msgs::HUAT_HighSpeedViz viz_msg_;
 
  public:
   /**
@@ -71,19 +71,19 @@ class Visualization {
    * 
    * @param[in] triSet 
    */
-  void visualize(const TriangleSet &triSet) const;
+  void visualize(const TriangleSet &triSet);
   
   /**
    * @brief Method to visualize an EdgeSet.
    * 
    * @param[in] edgeSet 
    */
-  void visualize(const EdgeSet &edgeSet) const;
+  void visualize(const EdgeSet &edgeSet);
 
   /**
    * @brief Method to visualize a Way.
    * 
    * @param[in] way 
    */
-  void visualize(const Way &way) const;
+  void visualize(const Way &way);
 };

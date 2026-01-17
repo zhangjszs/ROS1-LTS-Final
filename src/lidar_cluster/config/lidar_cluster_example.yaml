@@ -16,7 +16,7 @@ th_seeds: 0.03            # seeds to the plane threshold   0.03  大可能会导
 th_dist: 0.03             # points to the plane threshold  0.03         如果你希望更少的点被认为是属于平面的点，你可以减小`th_dist`的值。这将要求点到平面的距离更接近于阈值，才会被归类为平面上的点。
                           # 变大这将允许更大的点到平面的距离被认为是属于平面的点。这可以有助于将更多的点归类为平面上的点，从而更好地分割出平面区域。
 road_type: 1              # {1:八字, 2:直线, 3:track_drive}
-vis: 1                    # 可视化选项（包括：euc 和 bbox）
+vis: 0                    # 可视化选项（包括：euc 和 bbox）
 
 # PassThrough settings
 # general

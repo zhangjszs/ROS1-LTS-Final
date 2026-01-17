@@ -54,9 +54,7 @@ class Params {
     } way;
   } wayComputer;
   struct Visualization {
-    bool publish_markers;
-    std::string triangulation_topic;
-    std::string midpoints_topic;
-    std::string way_topic;
+    bool publish_viz_data;
+    std::string viz_topic;
   } visualization;
 };

@@ -5,19 +5,17 @@
   <arg name="vehicle_frame" default="base_link"/>
   <arg name="publish_tf" default="true"/>
   <arg name="publish_cones" default="false"/>
-  <arg name="publish_high_speed_tracking_markers" default="false"/>
-  <arg name="publish_urinay_markers" default="false"/>
+  <arg name="publish_high_speed_tracking_viz" default="false"/>
+  <arg name="publish_lidar_cluster_bboxes" default="true"/>
+  <arg name="publish_pathlimits" default="false"/>
 
   <!-- Input topics -->
   <arg name="cones_topic" default="/coneMap"/>
   <arg name="carstate_topic" default="/Carstate"/>
   <arg name="path_topic" default="/path_global"/>
-  <arg name="high_speed_tracking_triangulation_topic" default="/AS/P/high_speed_tracking/markers/triangulation"/>
-  <arg name="high_speed_tracking_midpoints_topic" default="/AS/P/high_speed_tracking/markers/midpoints"/>
-  <arg name="high_speed_tracking_way_topic" default="/AS/P/high_speed_tracking/markers/way"/>
-  <arg name="urinay_triangulation_topic" default="/AS/P/high_speed_tracking/markers/triangulation"/>
-  <arg name="urinay_midpoints_topic" default="/AS/P/high_speed_tracking/markers/midpoints"/>
-  <arg name="urinay_way_topic" default="/AS/P/high_speed_tracking/markers/way"/>
+  <arg name="high_speed_tracking_viz_topic" default="/AS/P/high_speed_tracking/viz"/>
+  <arg name="lidar_cluster_cone_topic" default="/cone_position"/>
+  <arg name="pathlimits_topic" default="/AS/P/pathlimits/partial"/>
 
   <!-- Output topics -->
   <arg name="cone_marker_topic" default="/coneMarker"/>
@@ -27,9 +25,27 @@
   <arg name="high_speed_tracking_triangulation_out_topic" default="/viz/high_speed_tracking/markers/triangulation"/>
   <arg name="high_speed_tracking_midpoints_out_topic" default="/viz/high_speed_tracking/markers/midpoints"/>
   <arg name="high_speed_tracking_way_out_topic" default="/viz/high_speed_tracking/markers/way"/>
-  <arg name="urinay_triangulation_out_topic" default="/viz/high_speed_tracking/markers/triangulation"/>
-  <arg name="urinay_midpoints_out_topic" default="/viz/high_speed_tracking/markers/midpoints"/>
-  <arg name="urinay_way_out_topic" default="/viz/high_speed_tracking/markers/way"/>
+  <arg name="lidar_cluster_bbox_out_topic" default="/viz/lidar_cluster/bounding_box"/>
+  <arg name="pathlimits_path_topic" default="/viz/pathlimits/path"/>
+  <arg name="pathlimits_left_topic" default="/viz/pathlimits/left"/>
+  <arg name="pathlimits_right_topic" default="/viz/pathlimits/right"/>
+
+  <!-- PathLimits visualization parameters -->
+  <arg name="pathlimits_line_width" default="0.03"/>
+  <arg name="pathlimits_path_color_r" default="1.0"/>
+  <arg name="pathlimits_path_color_g" default="0.5"/>
+  <arg name="pathlimits_path_color_b" default="0.0"/>
+  <arg name="pathlimits_path_color_a" default="0.6"/>
+  <arg name="pathlimits_left_color_r" default="0.0"/>
+  <arg name="pathlimits_left_color_g" default="0.4"/>
+  <arg name="pathlimits_left_color_b" default="1.0"/>
+  <arg name="pathlimits_left_color_a" default="0.45"/>
+  <arg name="pathlimits_right_color_r" default="1.0"/>
+  <arg name="pathlimits_right_color_g" default="1.0"/>
+  <arg name="pathlimits_right_color_b" default="0.0"/>
+  <arg name="pathlimits_right_color_a" default="0.45"/>
+  <arg name="pathlimits_z_offset_path" default="0.07"/>
+  <arg name="pathlimits_z_offset_lr" default="0.06"/>
 
   <!-- Cone visualization parameters -->
   <arg name="cone_radius" default="0.15"/>
@@ -61,41 +77,100 @@
   <arg name="wheel_color_b" default="0.0"/>
   <arg name="wheel_color_a" default="1.0"/>
 
+  <!-- High-speed visualization parameters -->
+  <arg name="high_speed_triangulation_line_width" default="0.05"/>
+  <arg name="high_speed_triangulation_color_r" default="1.0"/>
+  <arg name="high_speed_triangulation_color_g" default="0.0"/>
+  <arg name="high_speed_triangulation_color_b" default="0.0"/>
+  <arg name="high_speed_triangulation_color_a" default="1.0"/>
+
+  <arg name="high_speed_circumcenter_scale" default="0.1"/>
+  <arg name="high_speed_circumcenter_color_r" default="0.0"/>
+  <arg name="high_speed_circumcenter_color_g" default="1.0"/>
+  <arg name="high_speed_circumcenter_color_b" default="1.0"/>
+  <arg name="high_speed_circumcenter_color_a" default="1.0"/>
+
+  <arg name="high_speed_tri_midpoint_scale" default="0.1"/>
+  <arg name="high_speed_tri_midpoint_color_r" default="1.0"/>
+  <arg name="high_speed_tri_midpoint_color_g" default="0.0"/>
+  <arg name="high_speed_tri_midpoint_color_b" default="1.0"/>
+  <arg name="high_speed_tri_midpoint_color_a" default="0.3"/>
+
+  <arg name="high_speed_midpoint_scale" default="0.04"/>
+  <arg name="high_speed_midpoint_color_r" default="0.2"/>
+  <arg name="high_speed_midpoint_color_g" default="0.8"/>
+  <arg name="high_speed_midpoint_color_b" default="1.0"/>
+  <arg name="high_speed_midpoint_color_a" default="0.4"/>
+
+  <arg name="high_speed_path_width" default="0.2"/>
+  <arg name="high_speed_path_color_r" default="0.0"/>
+  <arg name="high_speed_path_color_g" default="1.0"/>
+  <arg name="high_speed_path_color_b" default="0.0"/>
+  <arg name="high_speed_path_color_a" default="1.0"/>
+
+  <arg name="high_speed_left_width" default="0.15"/>
+  <arg name="high_speed_left_color_r" default="0.0"/>
+  <arg name="high_speed_left_color_g" default="0.0"/>
+  <arg name="high_speed_left_color_b" default="0.7"/>
+  <arg name="high_speed_left_color_a" default="1.0"/>
+
+  <arg name="high_speed_right_width" default="0.15"/>
+  <arg name="high_speed_right_color_r" default="0.7"/>
+  <arg name="high_speed_right_color_g" default="0.7"/>
+  <arg name="high_speed_right_color_b" default="0.0"/>
+  <arg name="high_speed_right_color_a" default="1.0"/>
+
+  <!-- Lidar cluster bbox parameters -->
+  <arg name="lidar_cluster_bbox_line_width" default="0.01"/>
+  <arg name="lidar_cluster_bbox_color_r" default="1.0"/>
+  <arg name="lidar_cluster_bbox_color_g" default="1.0"/>
+  <arg name="lidar_cluster_bbox_color_b" default="1.0"/>
+  <arg name="lidar_cluster_bbox_color_a" default="0.25"/>
+  <arg name="lidar_cluster_bbox_z_offset" default="0.03"/>
+
   <node pkg="race_rviz_viz" type="viz_node" name="race_rviz_viz_node" output="screen">
     <param name="global_frame" value="$(arg global_frame)"/>
     <param name="vehicle_frame" value="$(arg vehicle_frame)"/>
     <param name="publish_tf" value="$(arg publish_tf)"/>
     <param name="publish_cones" value="$(arg publish_cones)"/>
-    <param name="publish_high_speed_tracking_markers"
-           value="$(eval arg('publish_high_speed_tracking_markers') if arg('publish_high_speed_tracking_markers') != 'false' else arg('publish_urinay_markers'))"/>
-    <param name="publish_urinay_markers" value="$(arg publish_urinay_markers)"/>
+    <param name="publish_high_speed_tracking_viz" value="$(arg publish_high_speed_tracking_viz)"/>
+    <param name="publish_lidar_cluster_bboxes" value="$(arg publish_lidar_cluster_bboxes)"/>
+    <param name="publish_pathlimits" value="$(arg publish_pathlimits)"/>
 
     <param name="cones_topic" value="$(arg cones_topic)"/>
     <param name="carstate_topic" value="$(arg carstate_topic)"/>
     <param name="path_topic" value="$(arg path_topic)"/>
-    <param name="high_speed_tracking_triangulation_topic"
-           value="$(eval arg('high_speed_tracking_triangulation_topic') if arg('high_speed_tracking_triangulation_topic') != '/AS/P/high_speed_tracking/markers/triangulation' else arg('urinay_triangulation_topic'))"/>
-    <param name="high_speed_tracking_midpoints_topic"
-           value="$(eval arg('high_speed_tracking_midpoints_topic') if arg('high_speed_tracking_midpoints_topic') != '/AS/P/high_speed_tracking/markers/midpoints' else arg('urinay_midpoints_topic'))"/>
-    <param name="high_speed_tracking_way_topic"
-           value="$(eval arg('high_speed_tracking_way_topic') if arg('high_speed_tracking_way_topic') != '/AS/P/high_speed_tracking/markers/way' else arg('urinay_way_topic'))"/>
-    <param name="urinay_triangulation_topic" value="$(arg urinay_triangulation_topic)"/>
-    <param name="urinay_midpoints_topic" value="$(arg urinay_midpoints_topic)"/>
-    <param name="urinay_way_topic" value="$(arg urinay_way_topic)"/>
+    <param name="high_speed_tracking_viz_topic" value="$(arg high_speed_tracking_viz_topic)"/>
+    <param name="lidar_cluster_cone_topic" value="$(arg lidar_cluster_cone_topic)"/>
+    <param name="pathlimits_topic" value="$(arg pathlimits_topic)"/>
 
     <param name="cone_marker_topic" value="$(arg cone_marker_topic)"/>
     <param name="car_body_topic" value="$(arg car_body_topic)"/>
     <param name="wheels_topic" value="$(arg wheels_topic)"/>
     <param name="path_out_topic" value="$(arg path_out_topic)"/>
-    <param name="high_speed_tracking_triangulation_out_topic"
-           value="$(eval arg('high_speed_tracking_triangulation_out_topic') if arg('high_speed_tracking_triangulation_out_topic') != '/viz/high_speed_tracking/markers/triangulation' else arg('urinay_triangulation_out_topic'))"/>
-    <param name="high_speed_tracking_midpoints_out_topic"
-           value="$(eval arg('high_speed_tracking_midpoints_out_topic') if arg('high_speed_tracking_midpoints_out_topic') != '/viz/high_speed_tracking/markers/midpoints' else arg('urinay_midpoints_out_topic'))"/>
-    <param name="high_speed_tracking_way_out_topic"
-           value="$(eval arg('high_speed_tracking_way_out_topic') if arg('high_speed_tracking_way_out_topic') != '/viz/high_speed_tracking/markers/way' else arg('urinay_way_out_topic'))"/>
-    <param name="urinay_triangulation_out_topic" value="$(arg urinay_triangulation_out_topic)"/>
-    <param name="urinay_midpoints_out_topic" value="$(arg urinay_midpoints_out_topic)"/>
-    <param name="urinay_way_out_topic" value="$(arg urinay_way_out_topic)"/>
+    <param name="high_speed_tracking_triangulation_out_topic" value="$(arg high_speed_tracking_triangulation_out_topic)"/>
+    <param name="high_speed_tracking_midpoints_out_topic" value="$(arg high_speed_tracking_midpoints_out_topic)"/>
+    <param name="high_speed_tracking_way_out_topic" value="$(arg high_speed_tracking_way_out_topic)"/>
+    <param name="lidar_cluster_bbox_out_topic" value="$(arg lidar_cluster_bbox_out_topic)"/>
+    <param name="pathlimits_path_topic" value="$(arg pathlimits_path_topic)"/>
+    <param name="pathlimits_left_topic" value="$(arg pathlimits_left_topic)"/>
+    <param name="pathlimits_right_topic" value="$(arg pathlimits_right_topic)"/>
+
+    <param name="pathlimits_line_width" value="$(arg pathlimits_line_width)"/>
+    <param name="pathlimits_path_color_r" value="$(arg pathlimits_path_color_r)"/>
+    <param name="pathlimits_path_color_g" value="$(arg pathlimits_path_color_g)"/>
+    <param name="pathlimits_path_color_b" value="$(arg pathlimits_path_color_b)"/>
+    <param name="pathlimits_path_color_a" value="$(arg pathlimits_path_color_a)"/>
+    <param name="pathlimits_left_color_r" value="$(arg pathlimits_left_color_r)"/>
+    <param name="pathlimits_left_color_g" value="$(arg pathlimits_left_color_g)"/>
+    <param name="pathlimits_left_color_b" value="$(arg pathlimits_left_color_b)"/>
+    <param name="pathlimits_left_color_a" value="$(arg pathlimits_left_color_a)"/>
+    <param name="pathlimits_right_color_r" value="$(arg pathlimits_right_color_r)"/>
+    <param name="pathlimits_right_color_g" value="$(arg pathlimits_right_color_g)"/>
+    <param name="pathlimits_right_color_b" value="$(arg pathlimits_right_color_b)"/>
+    <param name="pathlimits_right_color_a" value="$(arg pathlimits_right_color_a)"/>
+    <param name="pathlimits_z_offset_path" value="$(arg pathlimits_z_offset_path)"/>
+    <param name="pathlimits_z_offset_lr" value="$(arg pathlimits_z_offset_lr)"/>
 
     <param name="cone_radius" value="$(arg cone_radius)"/>
     <param name="cone_height" value="$(arg cone_height)"/>
@@ -124,5 +199,54 @@
     <param name="wheel_color_g" value="$(arg wheel_color_g)"/>
     <param name="wheel_color_b" value="$(arg wheel_color_b)"/>
     <param name="wheel_color_a" value="$(arg wheel_color_a)"/>
+
+    <param name="high_speed_triangulation_line_width" value="$(arg high_speed_triangulation_line_width)"/>
+    <param name="high_speed_triangulation_color_r" value="$(arg high_speed_triangulation_color_r)"/>
+    <param name="high_speed_triangulation_color_g" value="$(arg high_speed_triangulation_color_g)"/>
+    <param name="high_speed_triangulation_color_b" value="$(arg high_speed_triangulation_color_b)"/>
+    <param name="high_speed_triangulation_color_a" value="$(arg high_speed_triangulation_color_a)"/>
+
+    <param name="high_speed_circumcenter_scale" value="$(arg high_speed_circumcenter_scale)"/>
+    <param name="high_speed_circumcenter_color_r" value="$(arg high_speed_circumcenter_color_r)"/>
+    <param name="high_speed_circumcenter_color_g" value="$(arg high_speed_circumcenter_color_g)"/>
+    <param name="high_speed_circumcenter_color_b" value="$(arg high_speed_circumcenter_color_b)"/>
+    <param name="high_speed_circumcenter_color_a" value="$(arg high_speed_circumcenter_color_a)"/>
+
+    <param name="high_speed_tri_midpoint_scale" value="$(arg high_speed_tri_midpoint_scale)"/>
+    <param name="high_speed_tri_midpoint_color_r" value="$(arg high_speed_tri_midpoint_color_r)"/>
+    <param name="high_speed_tri_midpoint_color_g" value="$(arg high_speed_tri_midpoint_color_g)"/>
+    <param name="high_speed_tri_midpoint_color_b" value="$(arg high_speed_tri_midpoint_color_b)"/>
+    <param name="high_speed_tri_midpoint_color_a" value="$(arg high_speed_tri_midpoint_color_a)"/>
+
+    <param name="high_speed_midpoint_scale" value="$(arg high_speed_midpoint_scale)"/>
+    <param name="high_speed_midpoint_color_r" value="$(arg high_speed_midpoint_color_r)"/>
+    <param name="high_speed_midpoint_color_g" value="$(arg high_speed_midpoint_color_g)"/>
+    <param name="high_speed_midpoint_color_b" value="$(arg high_speed_midpoint_color_b)"/>
+    <param name="high_speed_midpoint_color_a" value="$(arg high_speed_midpoint_color_a)"/>
+
+    <param name="high_speed_path_width" value="$(arg high_speed_path_width)"/>
+    <param name="high_speed_path_color_r" value="$(arg high_speed_path_color_r)"/>
+    <param name="high_speed_path_color_g" value="$(arg high_speed_path_color_g)"/>
+    <param name="high_speed_path_color_b" value="$(arg high_speed_path_color_b)"/>
+    <param name="high_speed_path_color_a" value="$(arg high_speed_path_color_a)"/>
+
+    <param name="high_speed_left_width" value="$(arg high_speed_left_width)"/>
+    <param name="high_speed_left_color_r" value="$(arg high_speed_left_color_r)"/>
+    <param name="high_speed_left_color_g" value="$(arg high_speed_left_color_g)"/>
+    <param name="high_speed_left_color_b" value="$(arg high_speed_left_color_b)"/>
+    <param name="high_speed_left_color_a" value="$(arg high_speed_left_color_a)"/>
+
+    <param name="high_speed_right_width" value="$(arg high_speed_right_width)"/>
+    <param name="high_speed_right_color_r" value="$(arg high_speed_right_color_r)"/>
+    <param name="high_speed_right_color_g" value="$(arg high_speed_right_color_g)"/>
+    <param name="high_speed_right_color_b" value="$(arg high_speed_right_color_b)"/>
+    <param name="high_speed_right_color_a" value="$(arg high_speed_right_color_a)"/>
+
+    <param name="lidar_cluster_bbox_line_width" value="$(arg lidar_cluster_bbox_line_width)"/>
+    <param name="lidar_cluster_bbox_color_r" value="$(arg lidar_cluster_bbox_color_r)"/>
+    <param name="lidar_cluster_bbox_color_g" value="$(arg lidar_cluster_bbox_color_g)"/>
+    <param name="lidar_cluster_bbox_color_b" value="$(arg lidar_cluster_bbox_color_b)"/>
+    <param name="lidar_cluster_bbox_color_a" value="$(arg lidar_cluster_bbox_color_a)"/>
+    <param name="lidar_cluster_bbox_z_offset" value="$(arg lidar_cluster_bbox_z_offset)"/>
   </node>
 </launch>
