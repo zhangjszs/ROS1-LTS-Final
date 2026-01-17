@@ -27,6 +27,7 @@ add_message_files(  # Tell catkin which custom message files to include
   vehicle_status.msg
   HUAT_cone.msg
   HUAT_map.msg
+  HUAT_HighSpeedViz.msg
   HUAT_PathLimits.msg
   HUAT_Tracklimits.msg
   HUAT_ASENSING.msg
@@ -55,4 +56,3 @@ include_directories(
   #${roscpp_INCLUDE_DIRS}
   #${rospy_INCLUDE_DIRS}
 )
-

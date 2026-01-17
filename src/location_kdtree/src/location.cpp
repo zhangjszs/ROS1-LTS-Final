@@ -7,6 +7,7 @@ namespace coordinate
     {
         //ROS_INFO("load parameters");
         loadParameters();
+        publish_visualization_ = false;
         cloud.reset(new pcl::PointCloud<pcl::PointXYZ>);
 
         if (use_external_carstate_)
@@ -88,7 +89,7 @@ namespace coordinate
         {
             ROS_WARN_STREAM("Did not load use_external_carstate. Standard value is: " << (use_external_carstate_ ? "true" : "false"));
         }
-        if (!nh_.param("publish_visualization", publish_visualization_, true))
+        if (!nh_.param("publish_visualization", publish_visualization_, false))
         {
             ROS_WARN_STREAM("Did not load publish_visualization. Standard value is: " << (publish_visualization_ ? "true" : "false"));
         }

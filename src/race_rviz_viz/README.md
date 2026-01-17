@@ -11,7 +11,9 @@
 | 锥桶可视化（可选） | `/coneMap` | `common_msgs/HUAT_map` | `/coneMarker` | Marker (CYLINDER) |
 | 车辆可视化 | `/Carstate` | `common_msgs/HUAT_Carstate` | `/carBody` `/whole` | CUBE 车身 + 四轮 |
 | 路径可视化 | `/path_global` | `nav_msgs/Path` | `/viz/path` | 直接转发，frame_id=global_frame |
-| High Speed Tracking MarkerArray 可视化（可选） | `/AS/P/high_speed_tracking/markers/*` | `visualization_msgs/MarkerArray` | `/viz/high_speed_tracking/markers/*` | 原样转发 |
+| High Speed Tracking 可视化（可选） | `/AS/P/high_speed_tracking/viz` | `common_msgs/HUAT_HighSpeedViz` | `/viz/high_speed_tracking/markers/*` | 基于 HUAT_HighSpeedViz 绘制 |
+| PathLimits 可视化（可选） | `/AS/P/pathlimits/partial` | `common_msgs/HUAT_PathLimits` | `/viz/pathlimits/path` `/viz/pathlimits/left` `/viz/pathlimits/right` | 基于 PathLimits 绘制 |
+| Lidar Cluster BoundingBox 可视化（可选） | `/cone_position` | `common_msgs/Cone` | `/viz/lidar_cluster/bounding_box` | 基于 min/max 生成包围框 |
 | TF 广播 | `/Carstate` | `common_msgs/HUAT_Carstate` | TF: `global_frame` → `vehicle_frame` | 可配置 |
 
 ---
@@ -43,7 +45,8 @@ roslaunch race_rviz_viz viz.launch \
   global_frame:=velodyne \
   cones_topic:=/coneMap \
   carstate_topic:=/Carstate \
-  publish_high_speed_tracking_markers:=true \
+  publish_high_speed_tracking_viz:=true \
+  high_speed_tracking_viz_topic:=/AS/P/high_speed_tracking/viz \
   cone_radius:=0.15 \
   wheel_half_track:=0.35
 ```
@@ -61,10 +64,19 @@ roslaunch race_rviz_viz viz.launch \
 | `cones_topic` | string | `/coneMap` | 锥桶地图输入话题 |
 | `carstate_topic` | string | `/Carstate` | 车辆位姿输入话题 |
 | `path_topic` | string | `/path_global` | 路径输入话题 |
-| `publish_high_speed_tracking_markers` | bool | `false` | 是否转发 High Speed Tracking MarkerArray |
-| `high_speed_tracking_triangulation_topic` | string | `/AS/P/high_speed_tracking/markers/triangulation` | High Speed Tracking 三角剖分 MarkerArray 输入 |
-| `high_speed_tracking_midpoints_topic` | string | `/AS/P/high_speed_tracking/markers/midpoints` | High Speed Tracking 中点 MarkerArray 输入 |
-| `high_speed_tracking_way_topic` | string | `/AS/P/high_speed_tracking/markers/way` | High Speed Tracking 路径 MarkerArray 输入 |
+| `publish_high_speed_tracking_viz` | bool | `false` | 是否开启 High Speed Tracking 可视化 |
+| `high_speed_tracking_viz_topic` | string | `/AS/P/high_speed_tracking/viz` | High Speed Tracking 可视化输入（HUAT_HighSpeedViz） |
+| `publish_pathlimits` | bool | `false` | 是否发布 PathLimits 可视化 |
+| `pathlimits_topic` | string | `/AS/P/pathlimits/partial` | PathLimits 输入话题 |
+| `pathlimits_path_topic` | string | `/viz/pathlimits/path` | PathLimits 路径输出 |
+| `pathlimits_left_topic` | string | `/viz/pathlimits/left` | PathLimits 左侧锥桶输出 |
+| `pathlimits_right_topic` | string | `/viz/pathlimits/right` | PathLimits 右侧锥桶输出 |
+| `pathlimits_line_width` | double | `0.2` | PathLimits 路径线宽 |
+| `pathlimits_path_color_r/g/b/a` | double | `0.0/1.0/0.0/1.0` | PathLimits 路径颜色 |
+| `pathlimits_left_color_r/g/b/a` | double | `0.0/0.4/1.0/1.0` | PathLimits 左侧锥桶颜色 |
+| `pathlimits_right_color_r/g/b/a` | double | `1.0/1.0/0.0/1.0` | PathLimits 右侧锥桶颜色 |
+| `publish_lidar_cluster_bboxes` | bool | `true` | 是否发布 Lidar Cluster 包围框 |
+| `lidar_cluster_cone_topic` | string | `/cone_position` | Lidar Cluster 锥桶输入 |
 | `cone_marker_topic` | string | `/coneMarker` | 锥桶 Marker 输出话题 |
 | `car_body_topic` | string | `/carBody` | 车身 Marker 输出话题 |
 | `wheels_topic` | string | `/whole` | 车轮 Marker 输出话题 |
@@ -72,6 +84,7 @@ roslaunch race_rviz_viz viz.launch \
 | `high_speed_tracking_triangulation_out_topic` | string | `/viz/high_speed_tracking/markers/triangulation` | High Speed Tracking 三角剖分 MarkerArray 输出 |
 | `high_speed_tracking_midpoints_out_topic` | string | `/viz/high_speed_tracking/markers/midpoints` | High Speed Tracking 中点 MarkerArray 输出 |
 | `high_speed_tracking_way_out_topic` | string | `/viz/high_speed_tracking/markers/way` | High Speed Tracking 路径 MarkerArray 输出 |
+| `lidar_cluster_bbox_out_topic` | string | `/viz/lidar_cluster/bounding_box` | Lidar Cluster BoundingBox 输出 |
 | `cone_radius` | double | `0.15` | 锥桶半径（米） |
 | `cone_height` | double | `0.35` | 锥桶高度（米） |
 | `cone_color_r/g/b/a` | double | `1.0/0.5/0.0/1.0` | 锥桶颜色 |
@@ -98,6 +111,8 @@ roslaunch race_rviz_viz viz.launch \
 4. 添加 `/whole` → `Marker`。
 5. 如需路径显示，添加 `/viz/path` → `Path`。
 6. 如需 High Speed Tracking 可视化，添加 `/viz/high_speed_tracking/markers/triangulation` `/viz/high_speed_tracking/markers/midpoints` `/viz/high_speed_tracking/markers/way` → `MarkerArray`。
+7. 如需 PathLimits 可视化，添加 `/viz/pathlimits/path` `/viz/pathlimits/left` `/viz/pathlimits/right` → `Marker`。
+8. 如需 Lidar Cluster 可视化，添加 `/viz/lidar_cluster/bounding_box` → `MarkerArray`。
 
 ---
 

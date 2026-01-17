@@ -57,8 +57,11 @@ lidar_cluster::lidar_cluster(ros::NodeHandle node,
   sub_point_cloud_ = nh_.subscribe(input_topic, 100, &lidar_cluster::point_callback, this);
 
   // init publishers
-  markerPub = nh_.advertise<visualization_msgs::MarkerArray>("/BoundingBox", 1);                  // bbox of cones
-  markerPubAll = nh_.advertise<visualization_msgs::MarkerArray>("/BoundingBoxAll", 1);            // bboxs that is not been identifed as cones
+  if (vis_ != 0)
+  {
+    markerPub = nh_.advertise<visualization_msgs::MarkerArray>("/BoundingBox", 1);                  // bbox of cones
+    markerPubAll = nh_.advertise<visualization_msgs::MarkerArray>("/BoundingBoxAll", 1);            // bboxs that is not been identifed as cones
+  }
   // TODO rename pub_node_var
   pub_filtered_points_ = nh_.advertise<sensor_msgs::PointCloud2>("/PassThrough_points", 1);
   pub_filtered_points__ = nh_.advertise<sensor_msgs::PointCloud2>("/filtered_points", 1);

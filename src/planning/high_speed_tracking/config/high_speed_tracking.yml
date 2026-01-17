@@ -5,12 +5,9 @@ output_full_topic:              "/AS/P/pathlimits/full"         #在路径回环
 output_partial_topic:           "/AS/P/pathlimits/partial"      #在没有回环的时候发布部分路径用的
 stop_topic:                     "/stopTheCar"                   #发布车辆停止信号
 
-# Markers
-publish_markers:                true    # bool   [-]   whether or not to publish the markers.
-marker_topics:
-  triangulation:                "/AS/P/high_speed_tracking/markers/triangulation"    #发布可视化三角剖分
-  midpoints:                    "/AS/P/high_speed_tracking/markers/midpoints"        #发布可视化中点信息
-  way:                          "/AS/P/high_speed_tracking/markers/way"              #发布可视化路径信息
+# Visualization data
+publish_viz_data:              true    # bool   [-]   whether or not to publish visualization data.
+viz_topic:                     "/AS/P/high_speed_tracking/viz"                      # visualization data output
 
 ## Params
 

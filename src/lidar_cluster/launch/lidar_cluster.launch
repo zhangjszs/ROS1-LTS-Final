@@ -1,4 +1,6 @@
 <launch>
+    <arg name="launch_rviz" default="true" />
+    <arg name="rviz_config" default="$(find lidar_cluster)/rviz_cfg/yuansshi1.rviz" />
     <node pkg="nodelet" type="nodelet" name="lidar_cluster_nodelet_manager" args="manager"
         output="screen" />
     <node pkg="nodelet" type="nodelet" name="lidar_cluster_node"
@@ -7,8 +9,8 @@
         <rosparam command="load" file="$(find lidar_cluster)/config/lidar_cluster_example.yaml" />
     </node>
 
-    <node pkg="rviz" type="rviz" name="rviz"
-        args="-d $(find lidar_cluster)/rviz_cfg/lidar_cluster_c.rviz" />
+    <node if="$(arg launch_rviz)" pkg="rviz" type="rviz" name="rviz"
+        args="-d $(arg rviz_config)" />
 
     <!-- <node pkg="rosbag" type="play" name="player" args="/home/neko/rosbags/accel_cy_no_img.bag" /> -->
     <!-- <node pkg="rosbag" type="play" name="player" args="/home/neko/rosbags/skidpad_jx_w_img.bag" /> -->

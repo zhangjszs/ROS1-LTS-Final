@@ -13,6 +13,20 @@ If you use this algorithm for a Formula Student competition, the **only** thing 
 - [Eigen](http://eigen.tuxfamily.org/index.php?title=Main_Page)
 - *as_msgs*: The team's proprietary communication messages package. Change it for yours. See [this issue](https://github.com/origovi/urinay/issues/1) for more info.
 
+## Visualization (HUAT_HighSpeedViz)
+This fork publishes visualization **data** (not `visualization_msgs`) to support a decoupled RViz pipeline. The node can publish `common_msgs/HUAT_HighSpeedViz` on `viz_topic` when `publish_viz_data` is enabled (see [config/high_speed_tracking.yml](config/high_speed_tracking.yml)).
+
+`HUAT_HighSpeedViz` contains:
+- `triangulation_lines`
+- `circumcenters`
+- `triangle_edge_midpoints`
+- `edge_midpoints`
+- `path`
+- `left`
+- `right`
+
+Use `race_rviz_viz` to render these fields as Marker/MarkerArray outputs (e.g. `/viz/high_speed_tracking/markers/*`).
+
 ## 1. Delaunay Triangulation
 The first step of this approach consists in obtaining the Delaunay triangulation (a set of triangles) using the detected cones as points in a 2D space.
 This set is computed using my implementation of the [Bowyer-Watson algorithm](https://en.wikipedia.org/wiki/Bowyer%E2%80%93Watson_algorithm). This is an iterative process that is computed in O(*n*log*n*), being *n* the number of points. The execution time of the triangulation with a high number of cones is approximately 1ms. *Fig. 1* shows the triangle set (red) and the midpoints of every edge (green).

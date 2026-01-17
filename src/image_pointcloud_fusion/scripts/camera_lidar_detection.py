@@ -32,6 +32,7 @@ class YoloLidarFusion:
         self.lidar_frame = rospy.get_param('~lidar_frame', 'livox_frame')
         self.detection_threshold = rospy.get_param('~detection_threshold', 0.7)
         self.yolo_model_path = rospy.get_param('~yolo_model_path', 'yolo11s.pt')
+        self.publish_markers = rospy.get_param('~publish_markers', False)
         
         # 相机内参矩阵
         fx = rospy.get_param('~fx', 909.783)
@@ -95,7 +96,9 @@ class YoloLidarFusion:
         
         # 创建发布者
         self.detection_image_pub = rospy.Publisher(self.detection_image_topic, Image, queue_size=1)
-        self.bbox_markers_pub = rospy.Publisher(self.bbox_markers_topic, MarkerArray, queue_size=1)
+        self.bbox_markers_pub = None
+        if self.publish_markers:
+            self.bbox_markers_pub = rospy.Publisher(self.bbox_markers_topic, MarkerArray, queue_size=1)
         
         # 创建订阅者并进行时间同步
         self.image_sub = Subscriber(self.camera_topic, Image)
@@ -224,12 +227,15 @@ class YoloLidarFusion:
             detection_image = self.draw_detections_on_image(cv_image, detections)
 
             # 为点云中的检测对象创建3D边界框
-            proj_start = time.time()
-            if detections:
-                markers = self.create_3d_bboxes(points, detections, pointcloud_msg.header)
-            else:
-                markers = MarkerArray()
-            t_project_ms = (time.time() - proj_start) * 1000.0
+            markers = None
+            t_project_ms = 0.0
+            if self.publish_markers and self.bbox_markers_pub is not None:
+                proj_start = time.time()
+                if detections:
+                    markers = self.create_3d_bboxes(points, detections, pointcloud_msg.header)
+                else:
+                    markers = MarkerArray()
+                t_project_ms = (time.time() - proj_start) * 1000.0
 
             # 发布检测结果图像
             detection_image_msg = self.bridge.cv2_to_imgmsg(detection_image, "bgr8")
@@ -237,12 +243,15 @@ class YoloLidarFusion:
             self.detection_image_pub.publish(detection_image_msg)
 
             # 发布3D边界框标记
-            self.bbox_markers_pub.publish(markers)
+            if markers is not None:
+                self.bbox_markers_pub.publish(markers)
 
             processing_time = time.time() - start_time
             rospy.logdebug("Processing time: {:.3f} seconds".format(processing_time))
 
-            bytes_pub = estimate_message_bytes(detection_image_msg) + estimate_message_bytes(markers)
+            bytes_pub = estimate_message_bytes(detection_image_msg)
+            if markers is not None:
+                bytes_pub += estimate_message_bytes(markers)
             sample = {
                 "t_pass_ms": t_pass_ms,
                 "t_detect_ms": t_detect_ms,
