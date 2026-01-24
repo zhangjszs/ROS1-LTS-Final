@@ -3,13 +3,11 @@
   定位子系统：KD-tree 定位、状态估计
 -->
 <launch>
-  <arg name="use_eskf" default="false" doc="使用 ESKF 滤波器"/>
-  
-  <!-- Location KD-Tree -->
-  <include unless="$(arg use_eskf)" 
-           file="$(find localization_ros)/launch/location.launch"/>
-  
-  <!-- Location ESKF (可选) -->
-  <include if="$(arg use_eskf)"
-           file="$(find localization_ros)/launch/location_eskf.launch"/>
+    <arg name="use_eskf" default="false" doc="使用 ESKF 滤波器"/>
+
+    <!-- Location KD-Tree -->
+    <include unless="$(arg use_eskf)" file="$(find localization_ros)/launch/location.launch"/>
+
+    <!-- Location ESKF (可选) -->
+    <include if="$(arg use_eskf)" file="$(find localization_ros)/launch/location_eskf.launch"/>
 </launch>

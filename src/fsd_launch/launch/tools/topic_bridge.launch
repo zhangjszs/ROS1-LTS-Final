@@ -3,14 +3,13 @@
   话题桥接/重映射工具（legacy <-> fsd 话题转换）
 -->
 <launch>
-  <arg name="enable" default="true"/>
-  
-  <!-- Topic Remaps (如需要可在此添加 relay 或 topic_tools) -->
-  <group if="$(arg enable)">
-    <!-- 示例：使用 topic_tools/relay 转发话题 -->
-    <!-- <node pkg="topic_tools" type="relay" name="cone_relay"
-          args="/cone_position /fsd/perception/cones"/> -->
-    
-    <!-- 或者直接使用 remap（需要在相应节点中配置） -->
-  </group>
+    <arg name="enable" default="true"/>
+
+    <!-- Topic Remaps (如需要可在此添加 relay 或 topic_tools) -->
+    <group if="$(arg enable)">
+        <!-- 示例：使用 topic_tools/relay 转发话题 -->
+        <!-- <node pkg="topic_tools" type="relay" name="cone_relay" args="/cone_position /fsd/perception/cones"/> -->
+
+        <!-- 或者直接使用 remap（需要在相应节点中配置） -->
+    </group>
 </launch>

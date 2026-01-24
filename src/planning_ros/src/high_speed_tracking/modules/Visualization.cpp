@@ -15,7 +15,7 @@
 void Visualization::setTimestamp(const ros::Time &stamp) {
   this->stamp_ = stamp;
   viz_msg_.header.stamp = stamp;
-  viz_msg_.header.frame_id = "velodyne";
+  viz_msg_.header.frame_id = "world";  // 全局坐标系
 }
 
 /* ------------------------------ Public Methods ---------------------------- */

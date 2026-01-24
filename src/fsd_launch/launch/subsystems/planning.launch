@@ -3,18 +3,14 @@
   规划子系统：路径规划（支持多种规划器）
 -->
 <launch>
-  <arg name="planner" default="high_speed" 
-       doc="规划器类型: high_speed, skidpad, line"/>
-  
-  <!-- High Speed Tracking -->
-  <include if="$(eval planner == 'high_speed')"
-           file="$(find planning_ros)/launch/high_speed_tracking.launch"/>
-  
-  <!-- Skidpad Detection -->
-  <include if="$(eval planner == 'skidpad')"
-           file="$(find planning_ros)/launch/skidpad_detection.launch"/>
-  
-  <!-- Line Detection -->
-  <include if="$(eval planner == 'line')"
-           file="$(find planning_ros)/launch/line_detection.launch"/>
+    <arg name="planner" default="high_speed" doc="规划器类型: high_speed, skidpad, line"/>
+
+    <!-- High Speed Tracking -->
+    <include if="$(eval planner == 'high_speed')" file="$(find planning_ros)/launch/high_speed_tracking.launch"/>
+
+    <!-- Skidpad Detection -->
+    <include if="$(eval planner == 'skidpad')" file="$(find planning_ros)/launch/skidpad_detection.launch"/>
+
+    <!-- Line Detection -->
+    <include if="$(eval planner == 'line')" file="$(find planning_ros)/launch/line_detection.launch"/>
 </launch>

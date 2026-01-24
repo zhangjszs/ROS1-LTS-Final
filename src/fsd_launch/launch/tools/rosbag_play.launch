@@ -3,12 +3,20 @@
   通用 rosbag 回放工具
 -->
 <launch>
-  <arg name="bag" doc="Rosbag 文件路径"/>
-  <arg name="rate" default="1.0" doc="回放速率"/>
-  <arg name="start" default="0" doc="起始时间(秒)"/>
-  <arg name="loop" default="false" doc="循环播放"/>
-  
-  <!-- Rosbag Player -->
-  <node pkg="rosbag" type="play" name="rosbag_player" output="screen"
-        args="$(arg bag) -r $(arg rate) -s $(arg start) --clock /INS/ASENSING_INS:=/pbox_pub/Ins"/>
+    <arg name="bag" doc="Rosbag 文件路径"/>
+    <arg name="rate" default="1.0" doc="回放速率"/>
+    <arg name="start" default="0" doc="起始时间(秒)"/>
+    <arg name="loop" default="false" doc="循环播放"/>
+
+    <!-- INS Message Bridge (ins/ASENSING -> autodrive_msgs/HUAT_Asensing) -->
+    <node pkg="ins" type="ins_bridge.py" name="ins_bridge" output="screen"/>
+
+    <!-- Rosbag Player: 使用两个 group 根据 loop 参数选择是否添加 loop 参数 -->
+    <group if="$(arg loop)">
+        <node pkg="rosbag" type="play" name="rosbag_player" output="screen" args="$(arg bag) -r $(arg rate) -s $(arg start) --loop --clock"/>
+    </group>
+
+    <group unless="$(arg loop)">
+        <node pkg="rosbag" type="play" name="rosbag_player" output="screen" args="$(arg bag) -r $(arg rate) -s $(arg start) --clock"/>
+    </group>
 </launch>

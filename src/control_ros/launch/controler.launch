@@ -1,0 +1,5 @@
+<launch>
+  <rosparam command="load" file="$(find control_ros)/config/param.yaml" />
+  <node name="control" pkg="control_ros" type="control_node" output="screen" />
+  <node name="PP_Car" pkg="control_ros" type="pp_car_node" output="screen" />
+</launch>

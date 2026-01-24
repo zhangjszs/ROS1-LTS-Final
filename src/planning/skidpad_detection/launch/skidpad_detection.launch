@@ -1,9 +1,0 @@
-<launch>
-    <node pkg="skidpad_detection" type="skidpad_detection_node" name="skidpad_detection_node" output="screen">
-        <rosparam command="load" file="$(find skidpad_detection)/config/skidpad_detection.yaml" />
-    </node>
-    <!--    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find skidpad_detection)/config/lidar_cluster.rviz" required="true" /> -->
-    <!-- node pkg="rosbag" type="play" name="player" output="log" args="/home/adams/32C.bag -l" -->
-</launch>
-<!--这行代码的含义是通过 rosparam 命令加载位于 skidpad_detection 软件包的 /config/skidpad_detection.yaml 参数文件。
-参数文件可能包含了节点运行所需的配置和参数信息，以便节点能够根据这些参数进行初始化和运行。-->

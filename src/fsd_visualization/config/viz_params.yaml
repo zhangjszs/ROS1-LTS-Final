@@ -1,0 +1,28 @@
+# FSD Visualization Config
+# 可视化参数配置
+
+# 颜色配置 - 这些可以在运行时通过 dynamic_reconfigure 调整
+
+# 锥桶
+cone:
+  radius: 0.15
+  height: 0.30
+
+# 路径
+path:
+  width: 0.08
+  point_size: 0.10
+
+# 车辆
+vehicle:
+  length: 2.8
+  width: 1.4
+  height: 0.5
+  wheelbase: 1.55
+  wheel_radius: 0.25
+  wheel_width: 0.15
+
+# 轨迹
+trail:
+  max_size: 200
+  width: 0.05

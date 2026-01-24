@@ -103,7 +103,7 @@ void SkidpadDetectionNode::CarStateCallback(const autodrive_msgs::HUAT_CarState:
 void SkidpadDetectionNode::PublishPath(const std::vector<planning_core::Pose> &path_points)
 {
   nav_msgs::Path path_msg;
-  path_msg.header.frame_id = "velodyne";
+  path_msg.header.frame_id = "world";  // 全局坐标系
   path_msg.poses.reserve(path_points.size());
 
   for (const auto &pose : path_points)

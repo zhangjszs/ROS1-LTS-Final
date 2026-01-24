@@ -3,6 +3,6 @@
   控制子系统：路径跟踪、车辆控制
 -->
 <launch>
-  <!-- Controller -->
-  <include file="$(find control)/launch/controler.launch"/>
+    <!-- Controller -->
+    <include file="$(find control_ros)/launch/controler.launch"/>
 </launch>
