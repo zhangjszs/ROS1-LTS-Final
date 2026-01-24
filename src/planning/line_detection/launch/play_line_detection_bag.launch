@@ -9,14 +9,14 @@
   <include file="$(find line_detection)/launch/line_detection.launch" />
 
   <!-- Other Modules -->
-  <include file="$(find lidar_cluster)/launch/lidar_cluster.launch" />
+  <include file="$(find perception_ros)/launch/lidar_cluster.launch" />
   
   <group>
     <param name="control/mode" value="3" />
     <include file="$(find control)/launch/controler.launch" />
   </group>
 
-  <include file="$(find location_kdtree)/launch/location.launch" />
+  <include file="$(find localization_ros)/launch/location.launch" />
 
   <!-- RViz Visualization (display only, no TF publish) -->
   <include file="$(find race_rviz_viz)/launch/viz.launch">
@@ -24,7 +24,7 @@
     <arg name="publish_cones" value="true" />
   </include>
   <node pkg="rviz" type="rviz" name="rviz_line_detection"
-        args="-d $(find location_kdtree)/config/display_high.rviz" />
+        args="-d $(find localization_ros)/config/display_high.rviz" />
 
   <!-- Rosbag Play -->
   <node pkg="rosbag" type="play" name="rosbag_play" output="screen"

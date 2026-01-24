@@ -8,13 +8,13 @@ namespace control
         {
             get_param("pp");
 
-            pub_cmd = nh.advertise<common_msgs::HUAT_VehcileCmd>("vehcileCMDMsg", 1000);
+            pub_cmd = nh.advertise<autodrive_msgs::HUAT_VehicleCmd>("vehcileCMDMsg", 1000);
             sub_pose = nh.subscribe("/Carstate", 10, &High::pose_callback, this);                                 // 订阅车辆状态 								// 发布控制命令
             sub_path = nh.subscribe("/AS/P/pathlimits/partial", 100, &High::path_callback, this);                 // 订阅路径
             sub_last = nh.subscribe("/skidpad_detection_node/approaching_goal", 100, &High::last_callback, this); // 订阅目标点抵达判断
         }
 
-        void pose_callback(const common_msgs::HUAT_Carstate::ConstPtr &msgs)
+        void pose_callback(const autodrive_msgs::HUAT_CarState::ConstPtr &msgs)
         {
             geometry_msgs::Pose pose;
             car_x = pose.position.x = msgs->car_state.x;
@@ -29,7 +29,7 @@ namespace control
             get_pose_judge = true;
         }
 
-        void path_callback(const common_msgs::HUAT_PathLimits::ConstPtr &msgs)
+        void path_callback(const autodrive_msgs::HUAT_PathLimits::ConstPtr &msgs)
         {
             if (!get_pose_judge)
             {

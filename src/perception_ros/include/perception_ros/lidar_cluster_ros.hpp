@@ -1,0 +1,86 @@
+#pragma once
+
+#include <string>
+
+#include <ros/ros.h>
+#include <autodrive_msgs/HUAT_ConeDetections.h>
+#include <geometry_msgs/Point.h>
+#include <nav_msgs/Path.h>
+#include <sensor_msgs/PointCloud.h>
+#include <sensor_msgs/PointCloud2.h>
+#include <std_msgs/Header.h>
+#include <visualization_msgs/MarkerArray.h>
+
+#include <perception_core/lidar_cluster_core.hpp>
+#include <perception_ros/perf_stats.hpp>
+
+namespace perception_ros {
+
+class LidarClusterRos {
+ public:
+  LidarClusterRos(ros::NodeHandle nh, ros::NodeHandle private_nh);
+
+  void RunOnce();
+
+ private:
+  void loadParams();
+  void pointCallback(const sensor_msgs::PointCloud2ConstPtr &msg);
+  void publishOutput(const LidarClusterOutput &output);
+
+  bool visInit();
+  void visForMarker(const PointType max,
+                    const PointType min,
+                    float euc,
+                    float intensity_max,
+                    float intensity_min,
+                    float intensity_mean,
+                    bool type);
+
+  ros::NodeHandle nh_;
+  ros::NodeHandle private_nh_;
+  ros::Subscriber sub_point_cloud_;
+
+  ros::Publisher pub_filtered_points_;
+  ros::Publisher pub_filtered_points__;
+  ros::Publisher pub_filtered_points___;
+  ros::Publisher pub_filtered_points____;
+  ros::Publisher lidarClusterPublisher_;
+  ros::Publisher adjust_check_front_;
+  ros::Publisher adjust_check_back_;
+  ros::Publisher logging_pub_;
+  ros::Publisher cone_position_;
+  ros::Publisher skidpad_detection_;
+  ros::Publisher marker_pub_;
+  ros::Publisher marker_pub_all_;
+
+  LidarClusterConfig config_;
+  lidar_cluster core_;
+  LidarClusterOutput output_;
+  PerfStats perf_stats_;
+
+  std_msgs::Header last_header_;
+  bool got_cloud_ = false;
+
+  int vis_ = 0;
+  int sensor_model_ = 16;
+
+  std::string input_topic_;
+  std::string no_ground_topic_;
+  std::string ground_topic_;
+  std::string all_points_topic_;
+
+  bool perf_enabled_ = true;
+  size_t perf_window_ = 300;
+  size_t perf_log_every_ = 30;
+
+  visualization_msgs::MarkerArray marker_array_;
+  visualization_msgs::MarkerArray marker_array_all_;
+  visualization_msgs::Marker euc_marker_;
+  visualization_msgs::Marker bbox_marker_;
+  visualization_msgs::Marker intensity_max_marker_;
+  geometry_msgs::Point p_;
+  int marker_id_ = 0;
+  bool vis_init_status_ = false;
+};
+
+}  // namespace perception_ros

@@ -62,7 +62,7 @@ namespace control
 		ofs.close();
 	}
 
-	void Car::control_cmd(common_msgs::HUAT_VehcileCmd &cmd)
+	void Car::control_cmd(autodrive_msgs::HUAT_VehicleCmd &cmd)
 	{
 		std::ifstream ifs;
 		std::string home_path = getenv("HOME");

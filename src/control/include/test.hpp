@@ -6,7 +6,7 @@ namespace control
     public:
         Test()
         {
-            pub_cmd = nh.advertise<common_msgs::HUAT_VehcileCmd>("vehcileCMDMsg", 1000);
+            pub_cmd = nh.advertise<autodrive_msgs::HUAT_VehicleCmd>("vehcileCMDMsg", 1000);
         }
 
         int get_steering() override

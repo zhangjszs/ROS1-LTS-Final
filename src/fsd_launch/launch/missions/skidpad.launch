@@ -1,0 +1,48 @@
+<!--
+  FSD Skidpad Mission - 八字绕环
+  
+  用法:
+    roslaunch fsd_launch skidpad.launch
+    roslaunch fsd_launch skidpad.launch simulation:=true bag:=/path/to/bag.bag
+-->
+<launch>
+  <!-- ========== Arguments ========== -->
+  <arg name="simulation" default="false" doc="仿真模式"/>
+  <arg name="bag" default="" doc="Rosbag 路径（仿真模式必填）"/>
+  <arg name="rate" default="1.0" doc="回放速率"/>
+  <arg name="launch_rviz" default="true" doc="启动 RViz"/>
+  
+  <!-- ========== Simulation Time ========== -->
+  <param name="/use_sim_time" value="$(arg simulation)"/>
+  
+  <!-- ========== Subsystems ========== -->
+  <include file="$(find fsd_launch)/launch/subsystems/perception.launch">
+    <arg name="launch_rviz" value="false"/>
+  </include>
+  
+  <include file="$(find fsd_launch)/launch/subsystems/localization.launch"/>
+  
+  <include file="$(find fsd_launch)/launch/subsystems/planning.launch">
+    <arg name="planner" value="skidpad"/>
+  </include>
+  
+  <include file="$(find fsd_launch)/launch/subsystems/control.launch"/>
+  
+  <!-- Vehicle Interface (非仿真模式) -->
+  <include unless="$(arg simulation)"
+           file="$(find fsd_launch)/launch/subsystems/vehicle.launch"/>
+  
+  <!-- ========== Tools ========== -->
+  <!-- Rosbag Player (仿真模式) -->
+  <include if="$(arg simulation)"
+           file="$(find fsd_launch)/launch/tools/rosbag_play.launch">
+    <arg name="bag" value="$(arg bag)"/>
+    <arg name="rate" value="$(arg rate)"/>
+  </include>
+  
+  <!-- RViz -->
+  <include if="$(arg launch_rviz)"
+           file="$(find fsd_launch)/launch/tools/rviz.launch">
+    <arg name="config" value="skidpad"/>
+  </include>
+</launch>

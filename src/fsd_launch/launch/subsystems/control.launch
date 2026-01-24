@@ -1,0 +1,8 @@
+<!--
+  FSD Control Subsystem
+  控制子系统：路径跟踪、车辆控制
+-->
+<launch>
+  <!-- Controller -->
+  <include file="$(find control)/launch/controler.launch"/>
+</launch>

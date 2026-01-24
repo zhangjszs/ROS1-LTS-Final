@@ -1,0 +1,22 @@
+<!--
+  FSD Debug Mode
+  调试模式：启动更多日志、可视化
+-->
+<launch>
+  <arg name="mission" default="trackdrive" doc="任务类型"/>
+  <arg name="bag" default="" doc="Rosbag 路径"/>
+  
+  <!-- 设置日志级别 -->
+  <env name="ROSCONSOLE_CONFIG_FILE" 
+       value="$(find fsd_launch)/config/debug_console.conf"/>
+  
+  <!-- 启动对应任务（仿真模式 + RViz） -->
+  <include file="$(find fsd_launch)/launch/missions/$(arg mission).launch">
+    <arg name="simulation" value="true"/>
+    <arg name="bag" value="$(arg bag)"/>
+    <arg name="launch_rviz" value="true"/>
+  </include>
+  
+  <!-- 额外调试工具 -->
+  <node pkg="rqt_graph" type="rqt_graph" name="rqt_graph"/>
+</launch>

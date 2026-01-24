@@ -10,8 +10,8 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Path.h>
-#include <common_msgs/Cone.h>
-#include <common_msgs/HUAT_Carstate.h>
+#include <autodrive_msgs/HUAT_ConeDetections.h>
+#include <autodrive_msgs/HUAT_CarState.h>
 #include <Eigen/Dense>
 
 namespace fsac
@@ -78,13 +78,13 @@ private:
    * @brief Callback for cone position messages from perception
    * @param cone_msg Cone position message
    */
-  void coneCallback(const common_msgs::Cone::ConstPtr &cone_msg);
+  void coneCallback(const autodrive_msgs::HUAT_ConeDetections::ConstPtr &cone_msg);
 
   /**
    * @brief Callback for vehicle state messages
    * @param car_state Vehicle state message
    */
-  void carStateCallback(const common_msgs::HUAT_Carstate::ConstPtr &car_state);
+  void carStateCallback(const autodrive_msgs::HUAT_CarState::ConstPtr &car_state);
 
   /**
    * @brief Load parameters from parameter server

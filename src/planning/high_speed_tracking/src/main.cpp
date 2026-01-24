@@ -6,11 +6,11 @@
  * @date 2022-10-31
  */
 
-#include <common_msgs/HUAT_cone.h>
-#include <common_msgs/HUAT_PathLimits.h>
-#include <common_msgs/HUAT_Tracklimits.h>
-#include <common_msgs/HUAT_map.h>
-#include "common_msgs/HUAT_stop.h"
+#include <autodrive_msgs/HUAT_Cone.h>
+#include <autodrive_msgs/HUAT_PathLimits.h>
+#include <autodrive_msgs/HUAT_TrackLimits.h>
+#include <autodrive_msgs/HUAT_ConeMap.h>
+#include "autodrive_msgs/HUAT_Stop.h"
 #include <ros/package.h>
 #include <ros/ros.h>
 #include <ros/serialization.h>
@@ -65,11 +65,11 @@ bool finish()
 
 // 用于把路径存放到txt的函数
 /*****************************test*********************************/
-void doWayMsg(const common_msgs::HUAT_PathLimits &msgs);
-void doWayFullMsg(const common_msgs::HUAT_PathLimits &msgs);
+void doWayMsg(const autodrive_msgs::HUAT_PathLimits &msgs);
+void doWayFullMsg(const autodrive_msgs::HUAT_PathLimits &msgs);
 void txtClear();
 
-void doWayMsg(const common_msgs::HUAT_PathLimits &msgs)
+void doWayMsg(const autodrive_msgs::HUAT_PathLimits &msgs)
 {
   std::ofstream f;
   std::string path = ros::package::getPath("high_speed_tracking") + "/testData/wayPartial.txt";
@@ -94,7 +94,7 @@ void doWayMsg(const common_msgs::HUAT_PathLimits &msgs)
   f.close();
 }
 
-void doWayFullMsg(const common_msgs::HUAT_PathLimits &msgs)
+void doWayFullMsg(const autodrive_msgs::HUAT_PathLimits &msgs)
 {
   std::ofstream f;
   std::string path = ros::package::getPath("high_speed_tracking") + "/testData/wayFull.txt";
@@ -144,7 +144,7 @@ void txtClear()
 /*****************************test*********************************/
 
 // 这是地图回调
-void callback_ccat(const common_msgs::HUAT_map::ConstPtr &data)
+void callback_ccat(const autodrive_msgs::HUAT_ConeMap::ConstPtr &data)
 {
   if (!wayComputer || !wayComputer->isLocalTfValid())
   {
@@ -163,7 +163,7 @@ void callback_ccat(const common_msgs::HUAT_map::ConstPtr &data)
 
   if (finish())
   {
-    common_msgs::HUAT_stop msg;
+    autodrive_msgs::HUAT_Stop msg;
     msg.stop = true;
     stopPub.publish(msg);
     bytes_pub += ros::serialization::serializationLength(msg);
@@ -179,7 +179,7 @@ void callback_ccat(const common_msgs::HUAT_map::ConstPtr &data)
   //把锥筒坐标转为一个一个的节点,包括锥筒的局部坐标全局坐标和唯一id,忽略置信度问题
   std::vector<Node> nodes;
   nodes.reserve(data->cone.size());
-   for (const common_msgs::HUAT_cone &c : data->cone) {
+   for (const autodrive_msgs::HUAT_Cone &c : data->cone) {
     //if (c.confidence >= params->main.min_cone_confidence) 
       nodes.emplace_back(c);
   }
@@ -202,7 +202,7 @@ void callback_ccat(const common_msgs::HUAT_map::ConstPtr &data)
   // 发布循环和将轨迹限制写入文件
     if (wayComputer->isLoopClosed()) {
   //这个用于把路径消息存到文件中，加上发布调用两次，相当于两次插值，参数5代表全部插值(局部坐标系)，反正也是环，懒得管车前车后了
-    common_msgs::HUAT_PathLimits full_msg = wayComputer->getPathLimitsGlobal(3);//params->main.the_mode_of_full_path
+    autodrive_msgs::HUAT_PathLimits full_msg = wayComputer->getPathLimitsGlobal(3);//params->main.the_mode_of_full_path
     doWayFullMsg(full_msg);
     pubFull.publish(full_msg);//params->main.the_mode_of_full_path
     bytes_pub += ros::serialization::serializationLength(full_msg);
@@ -222,7 +222,7 @@ void callback_ccat(const common_msgs::HUAT_map::ConstPtr &data)
   } else {
     //这个用于把路径消息存到文件中，加上发布调用两次，相当于两次插值,参数4代表局部插值(局部坐标)，也就是只对车前方的路径插值
     if(!wasLoopClosed){
-    common_msgs::HUAT_PathLimits partial_msg = wayComputer->getPathLimitsGlobal(2);//params->main.the_mode_of_partial_path
+    autodrive_msgs::HUAT_PathLimits partial_msg = wayComputer->getPathLimitsGlobal(2);//params->main.the_mode_of_partial_path
     doWayMsg(partial_msg);
     pubPartial.publish(partial_msg);//params->main.the_mode_of_partial_path
     bytes_pub += ros::serialization::serializationLength(partial_msg);}
@@ -246,7 +246,7 @@ void callback_ccat(const common_msgs::HUAT_map::ConstPtr &data)
 int main(int argc, char **argv)
 {
   // 文件清空
-  common_msgs::HUAT_PathLimits msgs;
+  autodrive_msgs::HUAT_PathLimits msgs;
   txtClear();
   ros::init(argc, argv, "high_speed_tracking");
   ros::NodeHandle *const nh = new ros::NodeHandle;
@@ -266,8 +266,8 @@ int main(int argc, char **argv)
   ros::Subscriber subCones = nh->subscribe(params->main.input_cones_topic, 1, callback_ccat);
   ros::Subscriber subPose = nh->subscribe(params->main.input_pose_topic, 1, &WayComputer::stateCallback, wayComputer);
 
-  pubPartial = nh->advertise<common_msgs::HUAT_PathLimits>(params->main.output_partial_topic, 1);
-  pubFull = nh->advertise<common_msgs::HUAT_PathLimits>(params->main.output_full_topic, 1);
-  stopPub = nh->advertise<common_msgs::HUAT_stop>(params->main.stop_topic, 1);
+  pubPartial = nh->advertise<autodrive_msgs::HUAT_PathLimits>(params->main.output_partial_topic, 1);
+  pubFull = nh->advertise<autodrive_msgs::HUAT_PathLimits>(params->main.output_full_topic, 1);
+  stopPub = nh->advertise<autodrive_msgs::HUAT_Stop>(params->main.stop_topic, 1);
   ros::spin();
 }

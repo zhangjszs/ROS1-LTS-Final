@@ -1,0 +1,19 @@
+<launch>
+  <!-- <include file="$(find velodyne_pointcloud)/launch/VLP-32C_points.launch"/>
+  <include file="$(find perception_ros)/launch/lidar_cluster.launch"/> -->
+
+    <node pkg="localization_ros" type="location_node" name="location_node" output="screen"/>
+    <rosparam command="load" file="$(find localization_ros)/config/location.yaml" />
+
+  <!-- <node name="high_speed_tracking" pkg="high_speed_tracking" type="high_speed_tracking_exec" output="screen" ns="/AS/P">
+    <rosparam command="load" file="$(find high_speed_tracking)/config/high_speed_tracking.yml" />
+  </node>  -->
+
+  <!-- <node pkg="skidpad_detection" type="skidpad_detection_node" name="skidpad_detection_node" output="screen">
+    <rosparam command="load" file="$(find skidpad_detection)/config/skidpad_detection.yaml" />
+  </node> -->
+
+  <!-- <node pkg="rviz" type="rviz" name="cone_rviz_high" args="-d $(find localization_ros)/config/display_high.rviz"/> -->
+  <!-- <node pkg="rviz" type="rviz" name="cone_rviz_skidpad" args="-d $(find localization_ros)/config/display_skidpad.rviz"/> -->
+
+</launch>

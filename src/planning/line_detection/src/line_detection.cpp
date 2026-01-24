@@ -61,7 +61,7 @@ void LineDetection::loadParameters()
            cone_topic_.c_str(), car_state_topic_.c_str(), path_topic_.c_str());
 }
 
-void LineDetection::coneCallback(const common_msgs::Cone::ConstPtr &cone_msg)
+void LineDetection::coneCallback(const autodrive_msgs::HUAT_ConeDetections::ConstPtr &cone_msg)
 {
   std::lock_guard<std::mutex> lock(data_mutex_);
 
@@ -82,7 +82,7 @@ void LineDetection::coneCallback(const common_msgs::Cone::ConstPtr &cone_msg)
   ROS_INFO("[LineDetection] Received %zu cones", cone_positions_.size());
 }
 
-void LineDetection::carStateCallback(const common_msgs::HUAT_Carstate::ConstPtr &car_state)
+void LineDetection::carStateCallback(const autodrive_msgs::HUAT_CarState::ConstPtr &car_state)
 {
   std::lock_guard<std::mutex> lock(data_mutex_);
 

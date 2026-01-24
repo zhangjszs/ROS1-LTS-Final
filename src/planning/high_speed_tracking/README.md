@@ -14,7 +14,7 @@ If you use this algorithm for a Formula Student competition, the **only** thing 
 - *as_msgs*: The team's proprietary communication messages package. Change it for yours. See [this issue](https://github.com/origovi/urinay/issues/1) for more info.
 
 ## Visualization (HUAT_HighSpeedViz)
-This fork publishes visualization **data** (not `visualization_msgs`) to support a decoupled RViz pipeline. The node can publish `common_msgs/HUAT_HighSpeedViz` on `viz_topic` when `publish_viz_data` is enabled (see [config/high_speed_tracking.yml](config/high_speed_tracking.yml)).
+This fork publishes visualization **data** (not `visualization_msgs`) to support a decoupled RViz pipeline. The node can publish `autodrive_msgs/HUAT_HighSpeedViz` on `viz_topic` when `publish_viz_data` is enabled (see [config/high_speed_tracking.yml](config/high_speed_tracking.yml)).
 
 `HUAT_HighSpeedViz` contains:
 - `triangulation_lines`

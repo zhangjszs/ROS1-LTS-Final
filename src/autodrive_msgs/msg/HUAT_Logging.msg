@@ -1,0 +1,11 @@
+uint8 steering
+float32 heading
+uint8 pedal_ratio
+uint8 working_mode
+float32 e
+float32 currentSpeed
+float64 currentLat
+float64 currentLong
+float32 currentX
+float32 currentY
+HUAT_LocalPlanning planning

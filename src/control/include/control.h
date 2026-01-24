@@ -16,11 +16,11 @@
 #include <std_msgs/MultiArrayLayout.h>
 #include <std_msgs/Float64MultiArray.h>
 
-#include "common_msgs/HUAT_ASENSING.h"
-#include "common_msgs/HUAT_Carstate.h"
-#include "common_msgs/HUAT_ControlCommand.h"
-#include "common_msgs/HUAT_PathLimits.h"
-#include "common_msgs/HUAT_VehcileCmd.h"
+#include "autodrive_msgs/HUAT_Asensing.h"
+#include "autodrive_msgs/HUAT_CarState.h"
+#include "autodrive_msgs/HUAT_ControlCommand.h"
+#include "autodrive_msgs/HUAT_PathLimits.h"
+#include "autodrive_msgs/HUAT_VehicleCmd.h"
 
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Path.h>
@@ -49,7 +49,7 @@ namespace control
 
         std::vector<position> path_coordinate; // 路径坐标
 
-        common_msgs::HUAT_VehcileCmd stop_cmd; // 车辆中止指令
+        autodrive_msgs::HUAT_VehicleCmd stop_cmd; // 车辆中止指令
 
         int car_mode = 0; // 车辆模式
 
@@ -93,7 +93,7 @@ namespace control
 
         void file_write(int i);             // 写入车辆状态
 
-        void control_cmd(common_msgs::HUAT_VehcileCmd &cmd); // 发布车辆控制
+        void control_cmd(autodrive_msgs::HUAT_VehicleCmd &cmd); // 发布车辆控制
     };
 }
 

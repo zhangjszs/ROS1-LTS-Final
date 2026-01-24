@@ -8,13 +8,13 @@
 
 | 功能 | 订阅话题 | 消息类型 | 发布话题 | 说明 |
 |------|----------|----------|----------|------|
-| 锥桶可视化（可选） | `/coneMap` | `common_msgs/HUAT_map` | `/coneMarker` | Marker (CYLINDER) |
-| 车辆可视化 | `/Carstate` | `common_msgs/HUAT_Carstate` | `/carBody` `/whole` | CUBE 车身 + 四轮 |
+| 锥桶可视化（可选） | `/coneMap` | `autodrive_msgs/HUAT_ConeMap` | `/coneMarker` | Marker (CYLINDER) |
+| 车辆可视化 | `/Carstate` | `autodrive_msgs/HUAT_CarState` | `/carBody` `/whole` | CUBE 车身 + 四轮 |
 | 路径可视化 | `/path_global` | `nav_msgs/Path` | `/viz/path` | 直接转发，frame_id=global_frame |
-| High Speed Tracking 可视化（可选） | `/AS/P/high_speed_tracking/viz` | `common_msgs/HUAT_HighSpeedViz` | `/viz/high_speed_tracking/markers/*` | 基于 HUAT_HighSpeedViz 绘制 |
-| PathLimits 可视化（可选） | `/AS/P/pathlimits/partial` | `common_msgs/HUAT_PathLimits` | `/viz/pathlimits/path` `/viz/pathlimits/left` `/viz/pathlimits/right` | 基于 PathLimits 绘制 |
-| Lidar Cluster BoundingBox 可视化（可选） | `/cone_position` | `common_msgs/Cone` | `/viz/lidar_cluster/bounding_box` | 基于 min/max 生成包围框 |
-| TF 广播 | `/Carstate` | `common_msgs/HUAT_Carstate` | TF: `global_frame` → `vehicle_frame` | 可配置 |
+| High Speed Tracking 可视化（可选） | `/AS/P/high_speed_tracking/viz` | `autodrive_msgs/HUAT_HighSpeedViz` | `/viz/high_speed_tracking/markers/*` | 基于 HUAT_HighSpeedViz 绘制 |
+| PathLimits 可视化（可选） | `/AS/P/pathlimits/partial` | `autodrive_msgs/HUAT_PathLimits` | `/viz/pathlimits/path` `/viz/pathlimits/left` `/viz/pathlimits/right` | 基于 PathLimits 绘制 |
+| Lidar Cluster BoundingBox 可视化（可选） | `/cone_position` | `autodrive_msgs/HUAT_ConeDetections` | `/viz/lidar_cluster/bounding_box` | 基于 min/max 生成包围框 |
+| TF 广播 | `/Carstate` | `autodrive_msgs/HUAT_CarState` | TF: `global_frame` → `vehicle_frame` | 可配置 |
 
 ---
 

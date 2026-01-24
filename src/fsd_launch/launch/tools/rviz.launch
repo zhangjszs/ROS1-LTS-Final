@@ -1,0 +1,17 @@
+<!--
+  FSD RViz Visualization Tool
+  可视化工具
+-->
+<launch>
+  <arg name="config" default="high_speed" 
+       doc="配置类型: high_speed, skidpad, line, default"/>
+  
+  <!-- RViz Config Selection -->
+  <arg name="rviz_config" default="$(eval 
+    '$(find planning)/high_speed_tracking/rviz/high_speed.rviz' if config == 'high_speed' else
+    '$(find race_rviz_viz)/rviz/viz.rviz')"/>
+  
+  <!-- RViz -->
+  <node pkg="rviz" type="rviz" name="rviz" output="screen"
+        args="-d $(arg rviz_config)"/>
+</launch>

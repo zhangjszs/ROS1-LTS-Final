@@ -16,8 +16,8 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Path.h>
-#include <common_msgs/Cone.h>
-#include <common_msgs/HUAT_Carstate.h>
+#include <autodrive_msgs/HUAT_ConeDetections.h>
+#include <autodrive_msgs/HUAT_CarState.h>
 #include <set>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -104,8 +104,8 @@ namespace fsac
 		double mid_x_fir, mid_y_fir, mid_x_sec, mid_y_sec;
 
 	private:
-		void skidpadCallback(const common_msgs::Cone::ConstPtr &skidpad_msg);
-		void positionback(const common_msgs::HUAT_Carstate::ConstPtr &carposition);
+		void skidpadCallback(const autodrive_msgs::HUAT_ConeDetections::ConstPtr &skidpad_msg);
+		void positionback(const autodrive_msgs::HUAT_CarState::ConstPtr &carposition);
 		void loadParameters();
 	};
 }

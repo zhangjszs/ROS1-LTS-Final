@@ -91,7 +91,7 @@ namespace fsac
     //   std::cout << "PassThrough took " << elapsedTime.count() << " milliseconds" << std::endl;
   }
 
-  void Skidpad_detection::skidpadCallback(const common_msgs::Cone::ConstPtr &skidpad_msg)
+  void Skidpad_detection::skidpadCallback(const autodrive_msgs::HUAT_ConeDetections::ConstPtr &skidpad_msg)
   {
     // ROS_WARN("d253a4d5a5da4d");
     skidpad_msg_ptr->clear();
@@ -168,7 +168,7 @@ namespace fsac
     }
   }
 
-  void Skidpad_detection::positionback(const common_msgs::HUAT_Carstate::ConstPtr &carposition)
+  void Skidpad_detection::positionback(const autodrive_msgs::HUAT_CarState::ConstPtr &carposition)
   {
     // 提取位置信息
     current_pose.x = carposition->car_state.x;

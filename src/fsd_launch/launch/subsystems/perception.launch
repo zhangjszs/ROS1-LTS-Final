@@ -1,0 +1,13 @@
+<!--
+  FSD Perception Subsystem
+  感知子系统：点云处理、锥桶检测
+-->
+<launch>
+  <arg name="input_topic" default="/velodyne_points"/>
+  <arg name="launch_rviz" default="false"/>
+  
+  <!-- LiDAR Cluster -->
+  <include file="$(find perception_ros)/launch/lidar_cluster.launch">
+    <arg name="launch_rviz" value="$(arg launch_rviz)"/>
+  </include>
+</launch>

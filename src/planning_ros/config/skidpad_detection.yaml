@@ -1,0 +1,22 @@
+filtered_topic_name: /skidpad_detection
+inverse_flag: 1 #1 means inverse matrix else 0 means do not inverse ,inverse means car need turn right a little 
+length:
+  circle2lidar: 15.5
+  stopdistance: 5.0
+  targetX: 16.0
+  targetY: -1.0
+  FinTargetX: 40.0
+  FinTargetY: 0.0
+  distanceThreshold: 0.7
+  leavedistanceThreshold: 1.0
+#参数可能代表车辆或系统中的某种物理距离或尺寸，具体是从圆心到激光雷达（Lidar）的距离。
+#filtered_topic_name: /skidpad_detection: 这个键值对指定了一个名为 "filtered_topic_name" 的参数，
+#其值为 "/skidpad_detection"。这可能是用于指定某个话题或主题的名称，用于与其他组件进行通信。
+#: 这个键值对指定了一个名为 "inverse_flag" 的参数，其值为 "0"。
+#FinTargetX: 40.0: 这个表示终点的X坐标
+#FinTargetY: 0.0: 这个表示终点的Y坐标
+#inverse_flag: 1: 这个表示是否需要对矩阵进行反转
+#当该值为 "1" 时，表示需要对矩阵进行反转；当值为 "0" 时，表示不需要反转。这可能是用于控制某个算法或函数的行为
+#target是转换发布路径的那个点,distanceThreshold是判断距离 以target画个圆在以这个为半径 判断是否进入
+#leavedistanceThreshold是判断离开的距离 是一个圆环 distanceThreshold是进入圆环的距离 leavedistanceThreshold是离开圆环的距离
+#以上需要根据实际情况调整
