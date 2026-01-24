@@ -4,7 +4,7 @@ project(control)
 add_compile_options(-std=c++17)
 
 find_package(catkin REQUIRED COMPONENTS
-  common_msgs
+  autodrive_msgs
   eigen_conversions
   geometry_msgs
   nav_msgs
@@ -33,7 +33,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 # generate_messages(
 #   DEPENDENCIES
-#   common_msgs#   geometry_msgs#   huat_msgs#   nav_msgs#   std_msgs
+#   autodrive_msgs#   geometry_msgs#   huat_msgs#   nav_msgs#   std_msgs
 # )
 
 

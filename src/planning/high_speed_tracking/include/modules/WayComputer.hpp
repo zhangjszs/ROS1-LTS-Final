@@ -10,9 +10,9 @@
 
 #pragma once
 
-#include <common_msgs/HUAT_Carstate.h>
-#include <common_msgs/HUAT_PathLimits.h>
-#include <common_msgs/HUAT_Tracklimits.h>
+#include <autodrive_msgs/HUAT_CarState.h>
+#include <autodrive_msgs/HUAT_PathLimits.h>
+#include <autodrive_msgs/HUAT_TrackLimits.h>
 #include <eigen_conversions/eigen_msg.h>
 #include <ros/ros.h>
 #include <tf/transform_datatypes.h>
@@ -88,7 +88,7 @@ class WayComputer {
   */
   geometry_msgs::Pose pose;
 
-  common_msgs::HUAT_Carstate CarState;
+  autodrive_msgs::HUAT_CarState CarState;
 
   /**
    * @brief Filters the TriangleSet and removes all unwanted triangles.
@@ -190,7 +190,7 @@ class WayComputer {
    *
    * @param[in] data
    */
-  void stateCallback(const common_msgs::HUAT_Carstate::ConstPtr &data);
+  void stateCallback(const autodrive_msgs::HUAT_CarState::ConstPtr &data);
 
   /**
    * @brief Takes the Delaunay triangle set and computes the Way.
@@ -236,7 +236,7 @@ class WayComputer {
    * @brief Returns the centerline and track limits in as_msgs format
    * in global coordinates.
    */
-  common_msgs::HUAT_PathLimits getPathLimits() const;
+  autodrive_msgs::HUAT_PathLimits getPathLimits() const;
 
   /**
    * @brief 通过不同的x传出不同的路径
@@ -247,9 +247,9 @@ class WayComputer {
    *          3：全路径插值
    *          default:局部坐标系下的路径
   */
-  common_msgs::HUAT_PathLimits getPathLimitsGlobal(int x = 0);
+  autodrive_msgs::HUAT_PathLimits getPathLimitsGlobal(int x = 0);
 
-  common_msgs::HUAT_Carstate getCarState();
+  autodrive_msgs::HUAT_CarState getCarState();
 
   size_t lastTriangleCount() const;
   size_t lastEdgeCount() const;

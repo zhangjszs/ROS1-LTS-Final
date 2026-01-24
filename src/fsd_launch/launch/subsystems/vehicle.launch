@@ -1,0 +1,9 @@
+<!--
+  FSD Vehicle Interface Subsystem
+  车辆接口子系统：CAN/UDP 通信
+-->
+<launch>
+  <!-- Vehicle Interface -->
+  <node pkg="ros_vehicle_interface" type="ros_vehicle_interface_node"
+        name="ros_vehicle_interface" output="screen"/>
+</launch>

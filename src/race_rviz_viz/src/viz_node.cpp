@@ -3,8 +3,8 @@
  * @brief RViz visualization node for cones, vehicle body, and wheels.
  *
  * Subscriptions:
- *   - /coneMap     (common_msgs/HUAT_map)      : Cone map in global frame
- *   - /Carstate    (common_msgs/HUAT_Carstate) : Vehicle pose in global frame
+ *   - /coneMap     (autodrive_msgs/HUAT_ConeMap)      : Cone map in global frame
+ *   - /Carstate    (autodrive_msgs/HUAT_CarState) : Vehicle pose in global frame
  *   - /path_global (nav_msgs/Path)             : Optional path in global frame
  *
  * Publications:
@@ -18,11 +18,11 @@
 #include <algorithm>
 #include <cmath>
 #include <ros/ros.h>
-#include <common_msgs/HUAT_Carstate.h>
-#include <common_msgs/HUAT_PathLimits.h>
-#include <common_msgs/HUAT_HighSpeedViz.h>
-#include <common_msgs/HUAT_map.h>
-#include <common_msgs/Cone.h>
+#include <autodrive_msgs/HUAT_CarState.h>
+#include <autodrive_msgs/HUAT_PathLimits.h>
+#include <autodrive_msgs/HUAT_HighSpeedViz.h>
+#include <autodrive_msgs/HUAT_ConeMap.h>
+#include <autodrive_msgs/HUAT_ConeDetections.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <nav_msgs/Path.h>
 #include <visualization_msgs/Marker.h>
@@ -203,7 +203,7 @@ public:
     ROS_INFO("[RaceRvizViz] Initialized.");
   }
 
-  void conesCallback(const common_msgs::HUAT_map::ConstPtr& msg)
+  void conesCallback(const autodrive_msgs::HUAT_ConeMap::ConstPtr& msg)
   {
     visualization_msgs::Marker delete_marker;
     delete_marker.action = visualization_msgs::Marker::DELETEALL;
@@ -260,7 +260,7 @@ public:
     path_pub_.publish(path);
   }
 
-  void highSpeedTrackingVizCallback(const common_msgs::HUAT_HighSpeedViz::ConstPtr& msg)
+  void highSpeedTrackingVizCallback(const autodrive_msgs::HUAT_HighSpeedViz::ConstPtr& msg)
   {
     const std::string frame_id = msg->header.frame_id.empty() ? global_frame_ : msg->header.frame_id;
     const ros::Time stamp = ros::Time(0);
@@ -381,7 +381,7 @@ public:
     high_speed_tracking_way_pub_.publish(way_array);
   }
 
-  void pathlimitsCallback(const common_msgs::HUAT_PathLimits::ConstPtr& msg)
+  void pathlimitsCallback(const autodrive_msgs::HUAT_PathLimits::ConstPtr& msg)
   {
     const std::string frame_id = msg->header.frame_id.empty() ? global_frame_ : msg->header.frame_id;
     const ros::Time stamp = msg->header.stamp.isZero() ? ros::Time::now() : msg->header.stamp;
@@ -452,7 +452,7 @@ public:
     pathlimits_right_pub_.publish(right_marker);
   }
 
-  void lidarClusterConeCallback(const common_msgs::Cone::ConstPtr& msg)
+  void lidarClusterConeCallback(const autodrive_msgs::HUAT_ConeDetections::ConstPtr& msg)
   {
     visualization_msgs::MarkerArray markers;
     visualization_msgs::Marker clear;
@@ -485,7 +485,7 @@ public:
     lidar_cluster_bbox_pub_.publish(markers);
   }
 
-  void carstateCallback(const common_msgs::HUAT_Carstate::ConstPtr& msg)
+  void carstateCallback(const autodrive_msgs::HUAT_CarState::ConstPtr& msg)
   {
     const ros::Time stamp = msg->header.stamp.isZero() ? ros::Time::now() : msg->header.stamp;
     const double yaw = msg->car_state.theta;

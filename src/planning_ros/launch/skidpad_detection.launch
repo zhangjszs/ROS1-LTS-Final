@@ -1,0 +1,5 @@
+<launch>
+    <node pkg="planning_ros" type="skidpad_detection_node" name="skidpad_detection_node" output="screen">
+        <rosparam command="load" file="$(find planning_ros)/config/skidpad_detection.yaml" />
+    </node>
+</launch>

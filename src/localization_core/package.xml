@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>localization_core</name>
+  <version>0.0.0</version>
+  <description>Core (non-ROS) localization algorithms.</description>
+
+  <maintainer email="adams_aka@126.com">adams</maintainer>
+  <license>TODO</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>eigen</build_depend>
+  <build_depend>libpcl-dev</build_depend>
+
+  <exec_depend>eigen</exec_depend>
+  <exec_depend>libpcl-dev</exec_depend>
+
+  <export>
+  </export>
+</package>

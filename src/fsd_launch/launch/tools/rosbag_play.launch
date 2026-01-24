@@ -1,0 +1,20 @@
+<!--
+  FSD Rosbag Player Tool
+  通用 rosbag 回放工具
+-->
+<launch>
+  <arg name="bag" doc="Rosbag 文件路径"/>
+  <arg name="rate" default="1.0" doc="回放速率"/>
+  <arg name="start" default="0" doc="起始时间(秒)"/>
+  <arg name="loop" default="false" doc="循环播放"/>
+  <arg name="clock" default="true" doc="发布 /clock"/>
+  
+  <!-- Rosbag Player -->
+  <node pkg="rosbag" type="play" name="rosbag_player" output="screen"
+        args="$(arg bag) 
+              -r $(arg rate) 
+              -s $(arg start)
+              $(eval '--clock' if arg('clock') else '')
+              $(eval '-l' if arg('loop') else '')
+              /INS/ASENSING_INS:=/pbox_pub/Ins"/>
+</launch>

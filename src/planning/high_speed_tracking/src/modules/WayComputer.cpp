@@ -346,7 +346,7 @@ WayComputer::WayComputer(const Params::WayComputer &params) : params_(params) {
 }
 
 //作用是获取车辆在全局坐标系下的姿态，获取TF，然后通过TF完成全局转局部的方案。
-void WayComputer::stateCallback(const common_msgs::HUAT_Carstate::ConstPtr &ins) {
+void WayComputer::stateCallback(const autodrive_msgs::HUAT_CarState::ConstPtr &ins) {
   CarState.car_state = ins->car_state;
   CarState.header = ins->header;
   CarState.V = ins->V;
@@ -461,8 +461,8 @@ Tracklimits WayComputer::getTracklimits() const {
   return this->wayToPublish_.getTracklimits();
 }
 
-common_msgs::HUAT_PathLimits WayComputer::getPathLimits() const  {
-  common_msgs::HUAT_PathLimits res;
+autodrive_msgs::HUAT_PathLimits WayComputer::getPathLimits() const  {
+  autodrive_msgs::HUAT_PathLimits res;
   res.stamp = this->lastStamp_;
 
   // res.replan indicates if the Way is different from last iteration's
@@ -504,8 +504,8 @@ common_msgs::HUAT_PathLimits WayComputer::getPathLimits() const  {
  * @param x 5：全路径插值(局部坐标)
  * @param x 6：局部坐标系下的路径
 */
-common_msgs::HUAT_PathLimits WayComputer::getPathLimitsGlobal(int x)  {
-  common_msgs::HUAT_PathLimits res;
+autodrive_msgs::HUAT_PathLimits WayComputer::getPathLimitsGlobal(int x)  {
+  autodrive_msgs::HUAT_PathLimits res;
   res.stamp = ros::Time::now();
   std::vector<geometry_msgs::Point> path_;
   std::vector<Point> path;
@@ -577,7 +577,7 @@ common_msgs::HUAT_PathLimits WayComputer::getPathLimitsGlobal(int x)  {
 }
 
 
-common_msgs::HUAT_Carstate WayComputer::getCarState(){
+autodrive_msgs::HUAT_CarState WayComputer::getCarState(){
   return CarState;
 }
 

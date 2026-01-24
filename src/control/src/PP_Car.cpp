@@ -10,11 +10,11 @@
 #include <std_msgs/Bool.h>
 #include <ros/package.h>
 #include "geometry_msgs/Point.h"
-#include "common_msgs/HUAT_ASENSING.h"
-#include "common_msgs/HUAT_Carstate.h"
-#include "common_msgs/HUAT_ControlCommand.h"
-#include "common_msgs/HUAT_PathLimits.h"
-#include "common_msgs/HUAT_VehcileCmd.h"
+#include "autodrive_msgs/HUAT_Asensing.h"
+#include "autodrive_msgs/HUAT_CarState.h"
+#include "autodrive_msgs/HUAT_ControlCommand.h"
+#include "autodrive_msgs/HUAT_PathLimits.h"
+#include "autodrive_msgs/HUAT_VehicleCmd.h"
 
 using namespace std;
 #define l 1.55
@@ -47,7 +47,7 @@ public:
         my_racing_num = 0;
         my_racing_status = 1;
         my_checksum = 100;
-        pub_finall_cmd = nh.advertise<common_msgs::HUAT_VehcileCmd>("vehcileCMDMsg", 1000);
+        pub_finall_cmd = nh.advertise<autodrive_msgs::HUAT_VehicleCmd>("vehcileCMDMsg", 1000);
         sub = nh.subscribe("/Carstate", 10, &PPControl::posecallback, this);                                  // 回调函数在此只是一个声明，只有遇到ros::spin()或ros::spinOnce()才开始处理被调用的数据
         sub_path = nh.subscribe("/line_creat/line_global_path", 100, &PPControl::locationcallback, this);
         sub_approachingGoalPub = nh.subscribe("/skidpad_detection_node/approaching_goal", 100, &PPControl::approachingGoalPubcallback, this);
@@ -78,7 +78,7 @@ public:
         pathmode++;
     }
 
-    void posecallback(const common_msgs::HUAT_Carstate::ConstPtr &msgs)
+    void posecallback(const autodrive_msgs::HUAT_CarState::ConstPtr &msgs)
     {
         geometry_msgs::Pose pose;
         pose.position.x = msgs->car_state.x;
@@ -139,7 +139,7 @@ public:
         return idx;
     }
 
-    void controlcommand(common_msgs::HUAT_ControlCommand &cmd, common_msgs::HUAT_VehcileCmd &finall_cmd)
+    void controlcommand(autodrive_msgs::HUAT_ControlCommand &cmd, autodrive_msgs::HUAT_VehicleCmd &finall_cmd)
     {
         if (refx.empty() || refy.empty())
         {
@@ -247,7 +247,7 @@ private:
     ros::Subscriber sub, sub_path, sub_approachingGoalPub;
     ros::Publisher pub_finall_cmd;
     double heading, gx, gy, gz;
-    common_msgs::HUAT_VehcileCmd vehcile_cmd;
+    autodrive_msgs::HUAT_VehicleCmd vehcile_cmd;
     // 速度  刹车力 踏板比例 齿轮位置 工作模式 比赛号码 赛车状态
     int head1, head2, my_steering, my_brake_force, my_pedal_ratio, my_gear_position, my_working_mode, my_racing_num, my_racing_status;
     long my_checksum;   // 检查数
@@ -271,8 +271,8 @@ int main(int argc, char **argv)
     ofs.close();
 
     PPControl car;
-    common_msgs::HUAT_ControlCommand cc;
-    common_msgs::HUAT_VehcileCmd a;
+    autodrive_msgs::HUAT_ControlCommand cc;
+    autodrive_msgs::HUAT_VehicleCmd a;
     ros::Rate rate(10);
     ros::Duration(1).sleep();
     while (ros::ok())

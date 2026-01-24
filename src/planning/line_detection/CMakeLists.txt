@@ -5,7 +5,7 @@ add_compile_options(-std=c++17)
 
 # Find required catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  common_msgs
+  autodrive_msgs
   geometry_msgs
   nav_msgs
   roscpp
@@ -19,14 +19,13 @@ find_package(Eigen3 REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS include
-  CATKIN_DEPENDS roscpp sensor_msgs geometry_msgs common_msgs roslib std_msgs nav_msgs
+  CATKIN_DEPENDS roscpp sensor_msgs geometry_msgs autodrive_msgs roslib std_msgs nav_msgs
 )
 
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
-  ${CMAKE_CURRENT_SOURCE_DIR}/common_msgs/msg
 )
 
 # Create executable

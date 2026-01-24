@@ -1,0 +1,58 @@
+# I/O Topics
+input_cones_topic:              "/coneMap"                      #用于接收锥筒
+input_pose_topic:                "/Carstate"                    #用于接受车身位姿消息
+output_full_topic:              "/AS/P/pathlimits/full"         #在路径回环之后发布全部路径用的
+output_partial_topic:           "/AS/P/pathlimits/partial"      #在没有回环的时候发布部分路径用的
+stop_topic:                     "/stopTheCar"                   #发布车辆停止信号
+
+# Visualization data
+publish_viz_data:              true    # bool   [-]   whether or not to publish visualization data.
+viz_topic:                     "/AS/P/high_speed_tracking/viz"                      # visualization data output
+
+## Params
+
+# stop
+number_of_stopped_turns:        1       # int    [-]   赛车停止的圈数（需要完成的圈数）
+
+# path
+    # 通过不同的x传出不同的类型路径,供不同种类的控制模块使用,插值都是线性的,默认为0模式
+    # 0：获取全部的全局坐标系下的路径
+    # 1：对车到下一目标点中间进行插值
+    # 2：局部路径插值
+    # 3：全路径插值
+    # 4：局部路径插值(局部坐标)
+    # 5：全路径插值(局部坐标)
+    # 6：局部坐标系下的路径
+the_mode_of_partial_path:       4       # int    [-]   选择发布路径的方式(未回环)
+the_mode_of_full_path:          5       # int    [-]   选择发布路径的方式(已回环)
+
+# Filtering
+min_cone_confidence:            0.0     # float  [-]   这个压根没有用到,是置信度的判定
+max_triangle_edge_len:          7.0     # double [m]   过滤掉有边长大于此值的三角形
+min_triangle_angle:             0.35    # double [-]   内角小于此值的三角形被删除(弧度制)
+max_dist_circum_midPoint:       10.0    # double [m]   中点与三角形外接圆心之间的最大距离限制,超过此限制会被删除
+
+# Search
+max_way_horizon_size:           0       # int    [num] 车前方路径点的最大值,0等于无穷,也就是有多少就找多少路径点
+max_search_tree_height:         7       # int    [num] 树搜索的最大值, 越大越好
+search_radius:                  15.0    # double [m]   搜索路径的半径,多了会增大耗时,少了不好出路径
+max_angle_diff:                 1.2     # double [rad] 中点构成的路径之间最大的角度差范围是( 0, pi/2)
+edge_len_diff_factor:           1.2     # double [-]   如果路径的平均边长为x，则只有当x-this*x < length(e) <= x+x*this时，才会考虑属于边e的中点
+max_search_options:             2       # int    [num] 搜索过程中树中每个节点的最大子节点数，2是稳定的，3是危险的
+max_next_heuristic:             4.0     # double [-]   启发值门槛,需要根据锥筒间距来进行调整,如果太小会规划不出来路径,太大则会让路径不可靠
+heur_dist_ponderation:          0.4     # float  [-]   范围( 0.0,  1.0)计算启发值的时候给长度的权重
+allow_intersection:             false   # bool   [-]   是否允许路径交叉(路径中的循环)
+max_treeSearch_time:            0.05    # float  [s]   树搜索所能花费的最大时间，否则，搜索将停止，并选择最好的中点(并添加到路径中)
+
+# Loop Closure                  #这个应该不用怎么碰,关于圈数和关闭节点是用的另外的判定方式
+shutdown_on_loop_closure:       false   # bool   [-]   路线闭环之后是否关闭节点
+max_dist_loop_closure:          1.0     # double [m]   用于表示首尾中间点之间的最大距离,只有小于此距离才会被判定回环
+max_angle_diff_loop_closure:    0.65    # double [rad] 用于确定闭环中首尾中间点之间的最大角度差
+
+# Replan flag
+vital_num_midpoints:            10      # int    [num] 没搞清楚,建议没问题就别动.number of midpoints that are considered "vital" from the car's position on. This is taken into account when computing the (inner) replan flag.
+
+# Fail safe(s)                  #没搞明白,没问题建议别动
+failsafe_max_way_horizon_size:  6       # int    [num] 在故障安全触发的时候，车前方的大小将设置为此值。避免不良影响
+general_failsafe:               true    # bool   [-]   当没有可能找到一条不使用颜色的路径（路径长度小于一个常数）时，通用故障保护机制会自动将所有搜索参数增加一个因子。一旦使用正常参数计算出的路径长度足够长，它将切换回正常的功能。简单来说，这个设置项控制是否允许在无法找到足够长的不使用颜色的路径时，自动增加搜索参数来进行故障保护
+general_failsafe_safetyFactor:  1.4     # double [-]   当启动通用故障保护时，搜索参数将增加一个系数,干嘛的我也不知道

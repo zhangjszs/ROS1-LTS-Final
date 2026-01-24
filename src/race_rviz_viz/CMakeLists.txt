@@ -7,7 +7,7 @@ add_compile_options(-std=c++17)
 ## Find catkin macros and libraries
 find_package(catkin REQUIRED COMPONENTS
   roscpp
-  common_msgs
+  autodrive_msgs
   geometry_msgs
   nav_msgs
   visualization_msgs
@@ -23,7 +23,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
   CATKIN_DEPENDS
     roscpp
-    common_msgs
+    autodrive_msgs
     geometry_msgs
     nav_msgs
     visualization_msgs

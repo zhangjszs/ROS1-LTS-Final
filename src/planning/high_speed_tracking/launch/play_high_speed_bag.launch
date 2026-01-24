@@ -6,9 +6,9 @@
   <param name="use_sim_time" value="true" />
 
   <include file="$(find high_speed_tracking)/launch/high_speed_tracking.launch" />
-  <include file="$(find lidar_cluster)/launch/lidar_cluster.launch" />
+  <include file="$(find perception_ros)/launch/lidar_cluster.launch" />
   <include file="$(find control)/launch/controler.launch" />
-  <include file="$(find location_kdtree)/launch/location.launch" />
+  <include file="$(find localization_ros)/launch/location.launch" />
   <include file="$(find high_speed_tracking)/launch/high_speed_rviz.launch" />
 
   <node pkg="rosbag" type="play" name="rosbag_play" output="screen"

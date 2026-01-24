@@ -4,7 +4,7 @@ project(high_speed_tracking)
 add_compile_options(-std=c++17)
 set(CMAKE_BUILD_TYPE "Release")
 
-find_package(catkin REQUIRED COMPONENTS roscpp std_msgs common_msgs sensor_msgs roslib eigen_conversions)
+find_package(catkin REQUIRED COMPONENTS roscpp std_msgs autodrive_msgs sensor_msgs roslib eigen_conversions)
 find_package(Eigen3 REQUIRED)
 
 # generate_messages(DEPENDENCIES as_msgs)

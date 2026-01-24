@@ -117,8 +117,8 @@ rosparam load /home/kerwin/2025huat/src/planning/line_detection/config/line_dete
 
 | 话题 | 类型 | 说明 |
 |------|------|------|
-| /cone_position | common_msgs/Cone | 锥桶位置 |
-| /Carstate | common_msgs/HUAT_Carstate | 车辆状态 |
+| /cone_position | autodrive_msgs/HUAT_ConeDetections | 锥桶位置 |
+| /Carstate | autodrive_msgs/HUAT_CarState | 车辆状态 |
 
 ### 发布的话题
 
@@ -130,7 +130,7 @@ rosparam load /home/kerwin/2025huat/src/planning/line_detection/config/line_dete
 ## 依赖
 
 - ROS Noetic
-- common_msgs
+- autodrive_msgs
 - geometry_msgs
 - nav_msgs
 - sensor_msgs

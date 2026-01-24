@@ -50,7 +50,7 @@
   <!--   <doc_depend>doxygen</doc_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
   <depend>roscpp</depend>
-  <depend>common_msgs</depend>
+  <depend>autodrive_msgs</depend>
   <depend>eigen_conversions</depend>
   <depend>geometry_msgs</depend>
   <depend>nav_msgs</depend>

@@ -1,0 +1,58 @@
+# Line Detection Configuration File
+# This file contains all configurable parameters for the straight line detection
+# and path planning using Hough transform algorithm.
+
+# Hough Transform Parameters
+hough:
+  # Resolution for rho (distance from origin) in meters
+  rho_resolution: 0.1
+
+  # Resolution for theta (angle) in radians
+  theta_resolution: 0.01
+
+  # Minimum number of votes to consider a line valid
+  min_votes: 3
+
+  # Tolerance for theta angle when selecting parallel boundary lines (radians)
+  theta_tolerance: 0.2
+
+# Cone Filtering Parameters
+cones:
+  # Maximum cone distance to consider from vehicle (meters)
+  max_distance: 50.0
+
+  # Minimum cone distance to consider from vehicle (meters)
+  min_distance: 2.0
+
+# Path Generation Parameters
+path:
+  # Interval between path points (meters)
+  interval: 0.1
+
+  # Maximum path distance for the straight track (meters)
+  # This is typically the length of the acceleration track (75m for FSAE)
+  max_distance: 75.0
+
+# Vehicle Parameters
+vehicle:
+  # IMU to lidar offset in x direction (meters)
+  # Used for coordinate transformation from vehicle to world frame
+  imu_offset_x: 1.88
+
+# Finish Line Detection
+finish:
+  # Distance threshold for detecting finish line (meters)
+  # When vehicle reaches within this distance of the finish line,
+  # the finish signal is published
+  threshold: 2.0
+
+# Topic Names
+topics:
+  # Cone position topic from perception module
+  cone: "/cone_position"
+
+  # Vehicle state topic from localization
+  car_state: "/Carstate"
+
+  # Planned path output topic
+  path: "/line_planned_path"

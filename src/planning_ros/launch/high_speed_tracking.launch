@@ -1,0 +1,5 @@
+<launch>
+  <node name="high_speed_tracking" pkg="planning_ros" type="high_speed_tracking_node" output="screen" ns="/AS/P">
+    <rosparam command="load" file="$(find planning_ros)/config/high_speed_tracking.yml" />
+  </node>
+</launch>

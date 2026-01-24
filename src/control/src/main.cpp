@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
 
     ros::NodeHandle nh;
     ros::NodeHandle private_nh("~");
-    common_msgs::HUAT_VehcileCmd cmd;
+    autodrive_msgs::HUAT_VehicleCmd cmd;
     ros::Duration(1).sleep();
     ros::Rate rate(10);
     control::Car *my_car;
