@@ -1,0 +1,4 @@
+<launch>
+  <node pkg="vehicle_interface_ros" type="vehicle_interface_node"
+        name="vehicle_interface" output="screen"/>
+</launch>

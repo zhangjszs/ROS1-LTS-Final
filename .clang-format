@@ -1,0 +1,70 @@
+# HUAT FSD C++ Code Style
+# Based on Google Style with ROS1 conventions
+
+Language: Cpp
+BasedOnStyle: Google
+
+# Indentation
+IndentWidth: 2
+TabWidth: 2
+UseTab: Never
+AccessModifierOffset: -1
+IndentCaseLabels: true
+NamespaceIndentation: None
+
+# Line width
+ColumnLimit: 100
+
+# Braces
+BreakBeforeBraces: Attach
+AllowShortBlocksOnASingleLine: Empty
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+
+# Alignment
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignOperands: true
+AlignTrailingComments: true
+
+# Includes
+IncludeBlocks: Regroup
+IncludeCategories:
+  # ROS headers
+  - Regex: '^<ros/.*>'
+    Priority: 2
+  # Standard library
+  - Regex: '^<[a-z_]+>'
+    Priority: 3
+  # Third party (Eigen, PCL, etc.)
+  - Regex: '^<.*>'
+    Priority: 4
+  # Project headers
+  - Regex: '.*'
+    Priority: 1
+
+# Pointers and references
+PointerAlignment: Left
+ReferenceAlignment: Left
+DerivePointerAlignment: false
+
+# Spaces
+SpaceAfterCStyleCast: false
+SpaceAfterTemplateKeyword: true
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeParens: ControlStatements
+SpaceInEmptyParentheses: false
+SpacesInAngles: false
+SpacesInCStyleCastParentheses: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+
+# Other
+BinPackArguments: true
+BinPackParameters: true
+BreakConstructorInitializers: BeforeColon
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
+Cpp11BracedListStyle: true
+SortIncludes: true
+SortUsingDeclarations: true

@@ -3,7 +3,6 @@
   车辆接口子系统：CAN/UDP 通信
 -->
 <launch>
-  <!-- Vehicle Interface -->
-  <node pkg="ros_vehicle_interface" type="ros_vehicle_interface_node"
-        name="ros_vehicle_interface" output="screen"/>
+    <!-- Vehicle Interface -->
+    <include file="$(find vehicle_interface_ros)/launch/vehicle_interface.launch"/>
 </launch>

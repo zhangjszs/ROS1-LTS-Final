@@ -87,7 +87,7 @@ void LocationNode::imuCallback(const autodrive_msgs::HUAT_Asensing::ConstPtr &ms
     autodrive_msgs::HUAT_CarState out;
     ToRos(state, &out);
     out.header.stamp = ros::Time::now();
-    out.header.frame_id = "velodyne";
+    out.header.frame_id = "world";  // 全局 ENU 坐标系
     carstate_pub_.publish(out);
   }
 }
@@ -122,14 +122,14 @@ void LocationNode::coneCallback(const autodrive_msgs::HUAT_ConeDetections::Const
   autodrive_msgs::HUAT_ConeMap out_map;
   ToRos(map, &out_map);
   out_map.header.stamp = ros::Time::now();
-  out_map.header.frame_id = "velodyne";
+  out_map.header.frame_id = "world";  // 全局 ENU 坐标系
   map_pub_.publish(out_map);
 
   if (cloud)
   {
     sensor_msgs::PointCloud2 global_cloud_msg;
     pcl::toROSMsg(*cloud, global_cloud_msg);
-    global_cloud_msg.header.frame_id = "velodyne";
+    global_cloud_msg.header.frame_id = "world";  // 全局 ENU 坐标系
     global_cloud_msg.header.stamp = ros::Time::now();
     global_map_pub_.publish(global_cloud_msg);
   }

@@ -6,43 +6,50 @@
     roslaunch fsd_launch acceleration.launch simulation:=true bag:=/path/to/bag.bag
 -->
 <launch>
-  <!-- ========== Arguments ========== -->
-  <arg name="simulation" default="false" doc="仿真模式"/>
-  <arg name="bag" default="" doc="Rosbag 路径（仿真模式必填）"/>
-  <arg name="rate" default="1.0" doc="回放速率"/>
-  <arg name="launch_rviz" default="true" doc="启动 RViz"/>
-  
-  <!-- ========== Simulation Time ========== -->
-  <param name="/use_sim_time" value="$(arg simulation)"/>
-  
-  <!-- ========== Subsystems ========== -->
-  <include file="$(find fsd_launch)/launch/subsystems/perception.launch">
-    <arg name="launch_rviz" value="false"/>
-  </include>
-  
-  <include file="$(find fsd_launch)/launch/subsystems/localization.launch"/>
-  
-  <include file="$(find fsd_launch)/launch/subsystems/planning.launch">
-    <arg name="planner" value="line"/>
-  </include>
-  
-  <include file="$(find fsd_launch)/launch/subsystems/control.launch"/>
-  
-  <!-- Vehicle Interface (非仿真模式) -->
-  <include unless="$(arg simulation)"
-           file="$(find fsd_launch)/launch/subsystems/vehicle.launch"/>
-  
-  <!-- ========== Tools ========== -->
-  <!-- Rosbag Player (仿真模式) -->
-  <include if="$(arg simulation)"
-           file="$(find fsd_launch)/launch/tools/rosbag_play.launch">
-    <arg name="bag" value="$(arg bag)"/>
-    <arg name="rate" value="$(arg rate)"/>
-  </include>
-  
-  <!-- RViz -->
-  <include if="$(arg launch_rviz)"
-           file="$(find fsd_launch)/launch/tools/rviz.launch">
-    <arg name="config" value="line"/>
-  </include>
+    <!-- ========== Arguments ========== -->
+    <arg name="simulation" default="false" doc="仿真模式"/>
+    <arg name="bag" default="" doc="Rosbag 路径（仿真模式必填）"/>
+    <arg name="rate" default="1.0" doc="回放速率"/>
+    <arg name="launch_rviz" default="true" doc="启动 RViz"/>
+    <arg name="launch_viz" default="true" doc="启动可视化节点"/>
+    <arg name="rviz_mode" default="dual" doc="RViz模式: global(全局), pointcloud(点云), dual(双窗口)"/>
+
+    <!-- ========== Simulation Time ========== -->
+    <param name="/use_sim_time" value="$(arg simulation)"/>
+
+    <!-- ========== Subsystems ========== -->
+    <include file="$(find fsd_launch)/launch/subsystems/perception.launch">
+        <arg name="launch_rviz" value="false"/>
+    </include>
+
+    <include file="$(find fsd_launch)/launch/subsystems/localization.launch"/>
+
+    <include file="$(find fsd_launch)/launch/subsystems/planning.launch">
+        <arg name="planner" value="line"/>
+    </include>
+
+    <include file="$(find fsd_launch)/launch/subsystems/control.launch"/>
+
+    <!-- Vehicle Interface (非仿真模式) -->
+    <include unless="$(arg simulation)" file="$(find fsd_launch)/launch/subsystems/vehicle.launch"/>
+
+    <!-- ========== Tools ========== -->
+    <!-- Rosbag Player (仿真模式) -->
+    <include if="$(arg simulation)" file="$(find fsd_launch)/launch/tools/rosbag_play.launch">
+        <arg name="bag" value="$(arg bag)"/>
+        <arg name="rate" value="$(arg rate)"/>
+    </include>
+
+    <!-- FSD Visualization Node -->
+    <include if="$(arg launch_viz)" file="$(find fsd_visualization)/launch/visualization.launch">
+        <arg name="frame_id" value="velodyne"/>
+        <arg name="show_trail" value="true"/>
+    </include>
+
+    <!-- RViz -->
+    <include if="$(arg launch_rviz)" file="$(find fsd_launch)/launch/tools/rviz.launch">
+        <arg name="config" value="line"/>
+        <arg name="enable_viz_node" value="false"/>
+        <arg name="mode" value="$(arg rviz_mode)"/>
+    </include>
 </launch>

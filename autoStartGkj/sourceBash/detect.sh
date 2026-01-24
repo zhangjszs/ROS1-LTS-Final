@@ -1,2 +1,3 @@
 #!/bin/bash
-/home/tb/autoStartGkj/sourceBash/cameraDetect.sh & /home/tb/autoStartGkj/sourceBash/lidarDetect.sh & /home/tb/autoStartGkj/sourceBash/imuDetect.sh
+dataROOT="$HOME/2025huat/autoStartGkj"
+${dataROOT}/sourceBash/cameraDetect.sh & ${dataROOT}/sourceBash/lidarDetect.sh & ${dataROOT}/sourceBash/imuDetect.sh

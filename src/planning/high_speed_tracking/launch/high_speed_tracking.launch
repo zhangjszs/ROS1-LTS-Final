@@ -1,5 +1,0 @@
-<launch>
-  <node name="high_speed_tracking" pkg="high_speed_tracking" type="high_speed_tracking_exec" output="screen" ns="/AS/P">
-    <rosparam command="load" file="$(find high_speed_tracking)/config/high_speed_tracking.yml" />
-  </node>
-</launch>

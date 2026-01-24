@@ -27,7 +27,7 @@ echo $var
             ;;
         *)
 	    echo "Successfully entered control"
-	    gnome-terminal --window -- bash -c "source $HOME/.bashrc; source $HOME/2025huat/devel/setup.bash; rosrun control control_new"
+	    gnome-terminal --window -- bash -c "source $HOME/.bashrc; source $HOME/2025huat/devel/setup.bash; roslaunch fsd_launch trackdrive.launch"
             succ=2025
             ;;
     esac

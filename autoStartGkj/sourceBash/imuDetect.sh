@@ -2,6 +2,7 @@
 cd ~/
 source ~/.bashrc
 
+dataROOT="$HOME/2025huat/autoStartGkj"
 imuPath="/dev/ttyUSB0"
 
 while [ -e "$imuPath" ]
@@ -12,4 +13,4 @@ done
 
 echo "imu is not found!"
 
-echo '0' > /home/tb/autoStartGkj/command
+echo '0' > ${dataROOT}/command

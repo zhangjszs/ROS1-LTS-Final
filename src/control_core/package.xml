@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>control_core</name>
+  <version>0.0.0</version>
+  <description>Core control algorithms without ROS dependencies.</description>
+
+  <maintainer email="czy@todo.todo">czy</maintainer>
+  <license>TODO</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <export>
+  </export>
+</package>

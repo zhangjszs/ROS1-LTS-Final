@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package format="2">
+    <name>fsd_visualization</name>
+    <version>1.0.0</version>
+    <description>FSD 统一可视化包 - 锥桶、路径、车辆、三角网格可视化</description>
+    <maintainer email="fsd@huat.edu.cn">FSD Team</maintainer>
+    <license>MIT</license>
+
+    <buildtool_depend>catkin</buildtool_depend>
+
+    <depend>roscpp</depend>
+    <depend>std_msgs</depend>
+    <depend>geometry_msgs</depend>
+    <depend>visualization_msgs</depend>
+    <depend>nav_msgs</depend>
+    <depend>tf2</depend>
+    <depend>tf2_ros</depend>
+    <depend>autodrive_msgs</depend>
+
+    <exec_depend>rviz</exec_depend>
+
+    <export></export>
+</package>

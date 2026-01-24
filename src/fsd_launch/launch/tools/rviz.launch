@@ -1,12 +1,42 @@
 <!--
   FSD RViz Visualization Tool
   可视化工具
+  
+  用法:
+    roslaunch fsd_launch rviz.launch                     # 默认：主视图（综合）
+    roslaunch fsd_launch rviz.launch mode:=global        # 全局俯视图
+    roslaunch fsd_launch rviz.launch mode:=pointcloud    # 仅点云
+    roslaunch fsd_launch rviz.launch mode:=dual          # 双窗口
 -->
 <launch>
-  <arg name="config" default="default" 
-       doc="配置类型: high_speed, skidpad, line, default"/>
-  
-  <!-- RViz -->
-  <node pkg="rviz" type="rviz" name="rviz" output="screen"
-        args="-d $(find race_rviz_viz)/rviz/viz.rviz"/>
+    <arg name="config" default="default" doc="配置类型: high_speed, skidpad, line, default"/>
+    <arg name="mode" default="main" doc="显示模式: main(综合), global(全局俯视图), pointcloud(仅点云), dual(双窗口)"/>
+    <arg name="enable_viz_node" default="true" doc="启动可视化节点"/>
+
+    <!-- FSD Visualization Node -->
+    <include file="$(find fsd_visualization)/launch/visualization.launch" if="$(arg enable_viz_node)">
+        <arg name="frame_id" value="velodyne"/>
+        <arg name="show_trail" value="true"/>
+    </include>
+
+    <!-- 模式0: 综合主视图 (推荐，可自行修改保存) -->
+    <group if="$(eval mode == 'main')">
+        <node pkg="rviz" type="rviz" name="rviz_main" output="screen" args="-d $(find fsd_visualization)/rviz/fsd_main.rviz"/>
+    </group>
+
+    <!-- 模式1: 仅全局可视化 -->
+    <group if="$(eval mode == 'global')">
+        <node pkg="rviz" type="rviz" name="rviz_global" output="screen" args="-d $(find fsd_visualization)/rviz/global_viz.rviz"/>
+    </group>
+
+    <!-- 模式2: 仅点云 -->
+    <group if="$(eval mode == 'pointcloud')">
+        <node pkg="rviz" type="rviz" name="rviz_pointcloud" output="screen" args="-d $(find fsd_visualization)/rviz/pointcloud_only.rviz"/>
+    </group>
+
+    <!-- 模式3: 双窗口 -->
+    <group if="$(eval mode == 'dual')">
+        <node pkg="rviz" type="rviz" name="rviz_pointcloud" output="screen" args="-d $(find fsd_visualization)/rviz/pointcloud_only.rviz"/>
+        <node pkg="rviz" type="rviz" name="rviz_global" output="screen" args="-d $(find fsd_visualization)/rviz/global_viz.rviz"/>
+    </group>
 </launch>

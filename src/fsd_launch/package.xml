@@ -1,26 +1,26 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>fsd_launch</name>
-  <version>2.0.0</version>
-  <description>FSD 统一启动包 - 提供按任务/模式组织的 launch 文件</description>
-  <maintainer email="fsd@huat.edu.cn">FSD Team</maintainer>
-  <license>MIT</license>
+    <name>fsd_launch</name>
+    <version>2.0.0</version>
+    <description>FSD 统一启动包 - 提供按任务/模式组织的 launch 文件</description>
+    <maintainer email="fsd@huat.edu.cn">FSD Team</maintainer>
+    <license>MIT</license>
 
-  <buildtool_depend>catkin</buildtool_depend>
-  
-  <exec_depend>roslaunch</exec_depend>
-  
-  <!-- 子系统依赖 -->
-  <exec_depend>perception_ros</exec_depend>
-  <exec_depend>localization_ros</exec_depend>
-  <exec_depend>planning_ros</exec_depend>
-  <exec_depend>control</exec_depend>
-  <exec_depend>ros_vehicle_interface</exec_depend>
-  <exec_depend>race_rviz_viz</exec_depend>
-  
-  <!-- 工具依赖 -->
-  <exec_depend>rosbag</exec_depend>
-  <exec_depend>rviz</exec_depend>
+    <buildtool_depend>catkin</buildtool_depend>
 
-  <export></export>
+    <exec_depend>roslaunch</exec_depend>
+
+    <!-- 子系统依赖 -->
+    <exec_depend>perception_ros</exec_depend>
+    <exec_depend>localization_ros</exec_depend>
+    <exec_depend>planning_ros</exec_depend>
+    <exec_depend>control_ros</exec_depend>
+    <exec_depend>vehicle_interface_ros</exec_depend>
+    <exec_depend>race_rviz_viz</exec_depend>
+
+    <!-- 工具依赖 -->
+    <exec_depend>rosbag</exec_depend>
+    <exec_depend>rviz</exec_depend>
+
+    <export></export>
 </package>
