@@ -1,7 +1,7 @@
 #include "App.h"
 
 Application::Application(int argc, char **argv)
-        : userNode(argc, argv)
+        : userNode(argc, argv), is_running(true)
 {
     start();
 
@@ -15,10 +15,15 @@ Application::Application(int argc, char **argv)
 
 Application::~Application()
 {
-    vehicleUdpSocket->disconnect();
-    insUdpSocket->disconnect();
+    is_running = false;
+    vehicleUdpSocket->shutdownSocket();
+    insUdpSocket->shutdownSocket();
     vehicleThread->join();
     insThread->join();
+    delete vehicleThread;
+    delete insThread;
+    delete vehicleUdpSocket;
+    delete insUdpSocket;
 }
 
 void Application::start(void) {
@@ -34,16 +39,17 @@ void Application::processPendingDatagramsVehicle( void){
     int iLen;
     uint8_t vehicle_buf[1024];
 
-    std::cout << "vehicle Thread"<< std::endl;
+    // std::cout << "vehicle Thread"<< std::endl;
 
-    while(true){
+    while(is_running){
         iLen = vehicleUdpSocket->recvFrom(vehicle_buf, VEHICLE_INFO_LENGHT, vehicleUrl, vehiclePort);
+        if (iLen < 0) break;
 
         if((0xAA == vehicle_buf[0]) && (0x55 == vehicle_buf[1]) &&(iLen == VEHICLE_INFO_LENGHT) &&(userNode.getReady()))
         {
             memcpy(vehicle_rx_msg,vehicle_buf,VEHICLE_INFO_LENGHT);
 			userNode.publishVehicle((void*) vehicle_rx_msg);
-			std::cout << ".";
+			// std::cout << ".";
         }
     }
 }
@@ -52,11 +58,12 @@ void Application::processPendingDatagramsIns( void) {
     int iLen;
     uint8_t ins_buf[1024];
 
-    std::cout << "ins Thread"<< std::endl;
+    // std::cout << "ins Thread"<< std::endl;
 
-    while (true) {
+    while (is_running) {
         iLen = insUdpSocket->recvFrom(ins_buf, INS_INFO_LENGTH, insUrl, insPort);
-        std::cout<<"iLen:"<<iLen<<" "<<INS_INFO_LENGTH<<std::endl;
+        if (iLen < 0) break;
+        // std::cout<<"iLen:"<<iLen<<" "<<INS_INFO_LENGTH<<std::endl;
         if ((iLen == INS_INFO_LENGTH) &&(userNode.getReady())) {
             memcpy(ins_rx_msg, ins_buf, INS_INFO_LENGTH);
 			userNode.publishIns((void*) ins_rx_msg);
@@ -67,7 +74,7 @@ void Application::processPendingDatagramsIns( void) {
 void Application::vehicleSendUdp(){
     uint8_t msgLength;
     msgLength = userNode.getVehicleUdpMessage((void*)vehicle_tx_cmd_msg);
-    std::cout <<"sending"<<std::endl;
+    // std::cout <<"sending"<<std::endl;
     vehicleUdpSocket->sendTo((void*)vehicle_tx_cmd_msg, msgLength, vehicleUrl, vehiclePort);
 }
 

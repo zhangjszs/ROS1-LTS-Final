@@ -78,6 +78,11 @@ public:
     static unsigned short resolveService(const string &service,
                                          const string &protocol = "tcp");
 
+    /**
+     *   Shutdown the socket to interrupt blocking calls
+     */
+    void shutdownSocket();
+
 private:
     // Prevent the user from trying to use value semantics on this object
     Socket(const Socket &sock);

@@ -64,24 +64,27 @@ double ControllerBase::angle_pid(double delta)
 {
   double error = delta - car_fangle_;
 
-  if (error <= steering_delta_max_)
+  double differ = error - last_angle_error_;
+  last_angle_error_ = error;
+
+  if (std::abs(error) <= steering_delta_max_)
+  {
+    angle_integra_ += error;
+  }
+  else
   {
     angle_integra_ = 0.0;
   }
-  angle_integra_ += error;
 
-  double differ = error - car_fangle_;
-  differ = error;
+  double output = angle_kp_ * error + angle_ki_ * angle_integra_ + angle_kd_ * differ + car_fangle_;
 
-  delta = angle_kp_ * error + angle_ki_ * angle_integra_ + angle_kd_ * differ + car_fangle_;
+  if (output > steering_delta_max_)
+    output = steering_delta_max_;
+  else if (output < -steering_delta_max_)
+    output = -steering_delta_max_;
 
-  if (delta > steering_delta_max_)
-    delta = steering_delta_max_;
-  else if (delta < -steering_delta_max_)
-    delta = -steering_delta_max_;
-
-  car_fangle_ = delta;
-  return delta;
+  car_fangle_ = output;
+  return output;
 }
 
 void ControllerBase::RequestStop()

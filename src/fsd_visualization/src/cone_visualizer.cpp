@@ -7,15 +7,18 @@ ConeVisualizer::ConeVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh) {
     pnh.param<std::string>("frame_id", frame_id_, FRAME_GLOBAL);
     pnh.param<double>("cone_radius", cone_radius_, CONE_RADIUS);
     pnh.param<double>("cone_height", cone_height_, CONE_HEIGHT);
+    pnh.param<std::string>("topics/cone_detections", cone_detections_topic_, "perception/lidar_cluster/detections");
+    pnh.param<std::string>("topics/cone_map", cone_map_topic_, "localization/cone_map");
+    pnh.param<std::string>("topics/markers", markers_topic_, "fsd/viz/cones");
     
     // 订阅
-    sub_cone_detections_ = nh.subscribe("/cone_position", 1, 
+    sub_cone_detections_ = nh.subscribe(cone_detections_topic_, 1, 
         &ConeVisualizer::coneDetectionsCallback, this);
-    sub_cone_map_ = nh.subscribe("/coneMap", 1,
+    sub_cone_map_ = nh.subscribe(cone_map_topic_, 1,
         &ConeVisualizer::coneMapCallback, this);
     
     // 发布
-    pub_markers_ = nh.advertise<visualization_msgs::MarkerArray>("/fsd/viz/cones", 1);
+    pub_markers_ = nh.advertise<visualization_msgs::MarkerArray>(markers_topic_, 1);
     
     ROS_INFO("[ConeVisualizer] Initialized");
 }

@@ -2,34 +2,12 @@
 
 #include <cstdlib>
 #include <iostream>
-#include <set>
 #include <sstream>
 #include <boost/make_shared.hpp>
 
-using std::set;
 using std::string;
 using std::vector;
 using std::stod;
-
-struct comp
-{
-    bool operator()(PointType a, PointType b)
-    {
-        if (a.x < b.x)
-            return true;
-        else if (a.x > b.x)
-            return false;
-        else if (a.y < b.y)
-            return true;
-        else if (a.y > b.y)
-            return false;
-        else if (a.z > b.z)
-            return true;
-        else if (a.z > b.z)
-            return false;
-    }
-};
-set<PointType, comp> orderCloud;
 
 float euc_distance(PointType a) { return float(sqrt(a.x * a.x + a.y * a.y)); }
 
@@ -43,8 +21,6 @@ void point_clip(const pcl::PointCloud<PointType>::Ptr in)
     for (size_t i = 0; i < in->points.size(); i++)
     {
         tmp_euc = euc_distance(in->points[i]);
-        //    if ( tmp_euc<=15 && in->points[i].x>0 && tmp_euc>=0.5)
-        //    //in->points[i].x>0
         if (tmp_euc <= 15 && in->points[i].x > 0 &&
             tmp_euc >= 1) // in->points[i].x>0
         {
@@ -60,10 +36,7 @@ void point_clip(const pcl::PointCloud<PointType>::Ptr in)
 void lidar_cluster::Configure(const LidarClusterConfig &config)
 {
     config_ = config;
-    clip_height_ = config.clip_height;
     sensor_height_ = config.sensor_height;
-    min_distance_ = config.min_distance;
-    max_distance_ = config.max_distance;
     sensor_model_ = config.sensor_model;
     num_iter_ = config.num_iter;
     num_lpr_ = config.num_lpr;
@@ -109,11 +82,8 @@ void lidar_cluster::init()
     g_seeds_pc.reset(new pcl::PointCloud<PointType>());
     g_ground_pc.reset(new pcl::PointCloud<PointType>());
     g_not_ground_pc.reset(new pcl::PointCloud<PointType>());
-    g_all_pc.reset(new pcl::PointCloud<PointType>());
     current_pc_ptr.reset(new pcl::PointCloud<PointType>());
     cloud_filtered.reset(new pcl::PointCloud<PointType>());
-    StatisticalOutlierFilter.reset(new pcl::PointCloud<PointType>());
-    skidpad_detection_pc.reset(new pcl::PointCloud<PointType>());
 }
 
 double lidar_cluster::getConfidence(PointType max, PointType min,
@@ -154,7 +124,6 @@ double lidar_cluster::getConfidence(PointType max, PointType min,
     if (height < min_height_) score -= 0.1;
     if (area < min_area_) score -= 4 * (min_area_ - area);
 
-    // ROS_INFO("Conf: %f", score);
     // centerness measurement
     return score;
 }
@@ -170,65 +139,19 @@ void lidar_cluster::splitString(const std::string &in_string,
     }
 }
 
-void lidar_cluster::octreeRemovePoints(pcl::PointCloud<PointType>::Ptr &cloud,
-                                       pcl::PointCloud<PointType>::Ptr &output)
-{
-    pcl::octree::OctreePointCloud<PointType> octree(0.1);
-    octree.setInputCloud(cloud);
-    octree.addPointsFromInputCloud(); // 构建Octree
-    vector<int> vec_point_index,
-        vec_total_index; //  体素内点的索引，   要删除的点的索引
-    vector<pcl::octree::OctreeKey> vec_key;
-    for (auto iter = octree.leaf_depth_begin(); iter != octree.leaf_depth_end(); ++iter)
-    {
-        auto key = iter.getCurrentOctreeKey();
-        vec_key.emplace_back(key);
-        auto it_key = octree.findLeaf(key.x, key.y, key.z);
-        if (it_key != nullptr)
-        {
-            vec_point_index = iter.getLeafContainer().getPointIndicesVector();
-            if (vec_point_index.size() < 20) // 体素内点小于10时删除
-            {
-                for (size_t i = 0; i < vec_point_index.size(); i++)
-                {
-                    vec_total_index.push_back(vec_point_index[i]);
-                }
-            }
-        }
-    }
-
-    // 使用pcl index 滤波
-    pcl::PointIndices::Ptr outliners(new pcl::PointIndices());
-    outliners->indices.resize(vec_total_index.size());
-    for (size_t i = 0; i < vec_total_index.size(); i++)
-    {
-        outliners->indices[i] = vec_total_index[i];
-    }
-    // pcl::ExtractIndices<PointType> cliper;
-    pcl::ExtractIndices<PointType> extract;
-    extract.setInputCloud(cloud);
-    extract.setIndices(outliners);
-    extract.setNegative(false);
-    extract.filter(*output);
-}
-
 // 直通滤波
 void lidar_cluster::PassThrough(
-    pcl::PointCloud<PointType>::Ptr &cloud_filtered,
-    pcl::PointCloud<PointType>::Ptr &StatisticalOutlierFilter)
+    pcl::PointCloud<PointType>::Ptr &cloud_filtered)
 {
     // 当线由车后延到车头这个方向，左右是y，前后是x，上下是z，右y是负的，左y是正的
     // 前x为正
     pcl::PassThrough<PointType> pass;
-    // ROS_INFO_STREAM("Before PassThrough: " << cloud_filtered->points.size());
     pass.setInputCloud(cloud_filtered);
 
     if (road_type_ == 1)
     {
         // skidpad
         point_clip(cloud_filtered);
-        // pass.setFilterFieldName("x");//x:-1 represent down +1 represent
-        // forward pass.setFilterLimits(0.1,20); pass.filter(*cloud_filtered);
     }
     else if (road_type_ == 2)
     {
@@ -268,8 +191,6 @@ void lidar_cluster::PassThrough(
 
     //-0.5 0.85 符合3
 
-    // ROS_INFO_STREAM("Before SOR: " << cloud_filtered->points.size());
-
     // 离群点移除 (Statistical Outlier Removal)
     pcl::VoxelGrid<PointType> sor;
     sor.setInputCloud(cloud_filtered);
@@ -277,134 +198,7 @@ void lidar_cluster::PassThrough(
                     0.05f); // 设置体素过滤器的体素大为(0.05, 0.05,
                             // 0.05)。体素大小越小，过滤效果越好，但计算量也越大
     sor.filter(*cloud_filtered);
-
-    // pcl::io::savePCDFileASCII("/home/adams/postsynced_msf/pcdtest/filter/cloud_filtered.pcd",
-    // *cloud_filtered);
-
-    // auto startTimeSeg = std::chrono::steady_clock::now();
-    // octreeRemovePoints(cloud_filtered,StatisticalOutlierFilter);
-    // pcl::StatisticalOutlierRemoval<PointType> s;
-    // s.setInputCloud(cloud_filtered);
-    // s.setMeanK(10);
-    // s.setStddevMulThresh(1);
-    // s.filter(*StatisticalOutlierFilter);
-    // auto endTimeSeg = std::chrono::steady_clock::now();
-    // auto elapsedTimeSeg =
-    // std::chrono::duration_cast<std::chrono::microseconds>(endTimeSeg -
-    // startTimeSeg); std::cout << "inner took " << elapsedTimeSeg.count() << "
-    // milliseconds" << std::endl;
-
-    // pcl::toROSMsg(*cloud_filtered, pub_pc);
-    // pub_pc.header = in_pc.header;
-    // pub_filtered_points_.publish(pub_pc);
-
-    // sof: Statistical Outlier Filter 的缩写,表示统计学离群点滤波
-    // std::cout << "before sof pointsize:" << cloud_filtered->points.size() <<
-    // std::endl; std::cout << "after sof pointsize:" <<
-    // StatisticalOutlierFilter->points.size() << std::endl;
-
-    // pcl::io::savePCDFileASCII("/home/adams/postsynced_msf/pcdtest/filter/StatisticalOutlierFilter.pcd",
-    // *StatisticalOutlierFilter); exit(0);
 }
-
-// void lidar_cluster::guidedFilter(const pcl::PointCloud<PointType>::Ptr&
-// cloud_filtered, pcl::PointCloud<PointType>::Ptr& cloud_filtered_out, unsigned
-// int k, float eps){
-//     if (!cloud_filtered->points.size())
-//         return ;
-//     std::cout<<"before sor
-//     pointsize:"<<cloud_filtered->points.size()<<std::endl;
-//     pcl::KdTreeFLANN<PointType> kdtree;
-//     // unsigned int k = 20;//参数1
-//     // double epsilon = 0.05;//参数2
-//     kdtree.setInputCloud(cloud_filtered);
-//     std::cout<<"shared:"<<std::endl;
-//     for (size_t i = 0; i < cloud_filtered->points.size(); ++i)
-//     {
-//         std::vector<int>indices(0,0);
-//         indices.reserve(k);
-//         std::vector<float>dist(0,0.0);
-//         pcl::PointCloud<PointType>::Ptr neigh_points(new
-//         pcl::PointCloud<PointType>); dist.reserve(k); if
-//         (kdtree.nearestKSearch(cloud_filtered->points[i], k, indices, dist) >
-//         0)
-//         {
-//             pcl::copyPointCloud(*cloud_filtered, indices, *neigh_points);
-//             PointType point_mean(0.0, 0.0, 0.0);
-//             double neigh_mean_2=0.0;
-//             for (auto neigh_point : neigh_points->points)
-//             {
-//                 point_mean.x += neigh_point.x;
-//                 point_mean.y += neigh_point.y;
-//                 point_mean.z += neigh_point.z;
-//                 neigh_mean_2 += ((neigh_point.x) *
-//                 double(neigh_point.x))+(double(neigh_point.y) *
-//                 double(neigh_point.y))+(double(neigh_point.z) *
-//                 double(neigh_point.z));
-
-//             }
-//             point_mean.x /= neigh_points->points.size();
-//             point_mean.y /= neigh_points->points.size();
-//             point_mean.z /= neigh_points->points.size();
-//             neigh_mean_2 /= neigh_points->points.size();
-
-//             double point_mean_2 = (point_mean.x * point_mean.x) +
-//             (point_mean.y*point_mean.y) +( point_mean.z * point_mean.z);
-//             double a = (neigh_mean_2 - point_mean_2) / (neigh_mean_2 -
-//             point_mean_2 + eps); PointType b; b.x = (1.0 - a) * point_mean.x;
-//             b.y = (1.0 - a) * point_mean.y;
-//             b.z = (1.0 - a) * point_mean.z;
-
-//             PointType smoothed_point(0.0, 0.0, 0.0);
-//             smoothed_point.x =a* cloud_filtered->points[i].x + b.x;
-//             smoothed_point.y = a * cloud_filtered->points[i].y + b.y;
-//             smoothed_point.z = a * cloud_filtered->points[i].z + b.z;
-//             cloud_filtered_out->points.push_back(smoothed_point);
-//        }
-//     }
-//     std::cout<<"before sor
-//     pointsize:"<<cloud_filtered_out->points.size()<<std::endl; return ;
-// }
-
-// void lidar_cluster::EucClusterMethod(const pcl::PointCloud<PointType>::Ptr&
-// in_cloud,
-//     std::vector<ClusterPtr>& clusters, const double& max_cluster_dis)
-// {
-//     pcl::search::KdTree<PointType>::Ptr tree(new
-//     pcl::search::KdTree<PointType>);
-
-//     pcl::PointCloud<PointType>::Ptr cloud_2d(new pcl::PointCloud<PointType>);
-
-//     pcl::copyPointCloud(*in_cloud, *cloud_2d);
-
-//     for (size_t i = 0; i < cloud_2d->points.size(); i++) {
-//         cloud_2d->points[i].z = 0;
-//     }
-
-//     tree->setInputCloud(cloud_2d);
-//     std::vector<pcl::PointIndices> cluster_indices;
-
-//     pcl::EuclideanClusterExtraction<PointType> euc;
-//     // setClusterTolerance(). If you take a very small value, it can happen
-//     that
-//     // an actual object can be seen as multiple clusters. On the other hand,
-//     if
-//     // you set the value too high, it could happen, that multiple objects are
-//     // seen as one cluster. So our recommendation is to just test and try out
-//     // which value suits your dataset.
-//     euc.setClusterTolerance(max_cluster_dis);
-//     euc.setMinClusterSize(cluster_min_points);
-//     euc.setMaxClusterSize(cluster_max_points);
-//     euc.setSearchMethod(tree);
-//     euc.setInputCloud(cloud_2d);
-//     euc.extract(cluster_indices);
-
-//     for (size_t j = 0; j < cluster_indices.size(); j++) {
-//         ClusterPtr one_cluster;
-//         one_cluster->setCloud(in_cloud, color_table,
-//         cluster_indices[j].indices, j); clusters.push_back(one_cluster);
-//     }
-// }
 
 void lidar_cluster::EucClusterMethod(
     pcl::PointCloud<PointType>::Ptr inputcloud,
@@ -413,11 +207,8 @@ void lidar_cluster::EucClusterMethod(
 {
     if (inputcloud->points.size() == 0)
     {
-        // ROS_WARN("EucClusterMethod recived empty input cloud! Exiting...");
         return;
     }
-
-    // auto startTime = std::chrono::steady_clock::now();
     pcl::search::KdTree<PointType>::Ptr tree(
         new pcl::search::KdTree<PointType>);
     tree->setInputCloud(inputcloud);
@@ -428,11 +219,6 @@ void lidar_cluster::EucClusterMethod(
     ec.setSearchMethod(tree);     // 设置点云的搜索机制
     ec.setInputCloud(inputcloud); // 设置原始点云
     ec.extract(cluster_indices);  // 从点云中提取聚类
-    // auto endTime = std::chrono::steady_clock::now();
-    // auto elapsedTime =
-    // std::chrono::duration_cast<std::chrono::milliseconds>(endTime -
-    // startTime); std::cout << "EucCluster took " << elapsedTime.count() << "
-    // milliseconds" << std::endl;
 }
 
 void lidar_cluster::EuclideanAdaptiveClusterMethod(
@@ -447,7 +233,6 @@ void lidar_cluster::EuclideanAdaptiveClusterMethod(
     // 3 => 45-60 d=2.1
     // 4 => >60   d=2.6
 
-    float interval = 0;
     for (size_t i = 0; i < inputcloud->points.size(); i++)
     {
         PointType p;
@@ -456,7 +241,6 @@ void lidar_cluster::EuclideanAdaptiveClusterMethod(
         p.z = inputcloud->points[i].z;
         p.intensity = inputcloud->points[i].intensity;
         float origin_dis = sqrt(pow(p.x, 2) + pow(p.y, 2)); // 点到原点距离
-        // float origin_dis = p.x;
         if (origin_dis < dis_range[0])
         {
             cloud_segments_array[0]->points.push_back(p);
@@ -499,7 +283,6 @@ void lidar_cluster::clusterMethod32(LidarClusterOutput *output)
     output->cones.clear();
     output->non_cones.clear();
     output->cones_cloud.reset(new pcl::PointCloud<PointType>);
-    skidpad_detection_pc->points.clear();
 
     std::vector<std::vector<pcl::PointIndices>> cluster_indices;
 
@@ -529,10 +312,6 @@ void lidar_cluster::clusterMethod32(LidarClusterOutput *output)
         {
             pcl::PointCloud<PointType>::Ptr cloud_cluster(
                 new pcl::PointCloud<PointType>);
-
-            intensity_count = 0;
-            intensity_min = 99999;
-            intensity_max = -99999;
 
             std::vector<int> indices = it->indices;
             for (int idx : indices)
@@ -570,12 +349,6 @@ void lidar_cluster::clusterMethod32(LidarClusterOutput *output)
             {
                 output->cones.push_back(det);
                 *final_cluster = *final_cluster + *cloud_cluster;
-
-                PointType tmp_pXYZ;
-                tmp_pXYZ.x = centroid[0];
-                tmp_pXYZ.y = centroid[1];
-                tmp_pXYZ.z = centroid[2];
-                skidpad_detection_pc->points.push_back(tmp_pXYZ);
             }
             else if (vis_)
             {
@@ -585,7 +358,9 @@ void lidar_cluster::clusterMethod32(LidarClusterOutput *output)
     }
 
     output->cones_cloud = final_cluster;
-    output->skidpad_detection = skidpad_detection_pc;
+    output->cones_cloud->width = output->cones_cloud->points.size();
+    output->cones_cloud->height = 1;
+    output->cones_cloud->is_dense = g_not_ground_pc->is_dense;
     last_cluster_count_ = total_clusters;
 }
 
@@ -600,9 +375,7 @@ void lidar_cluster::clusterMethod16(LidarClusterOutput *output)
     output->cones.clear();
     output->non_cones.clear();
     output->cones_cloud.reset(new pcl::PointCloud<PointType>);
-    skidpad_detection_pc->points.clear();
 
-    orderCloud.clear();
     std::vector<pcl::PointIndices> cluster_indices;
 
     EucClusterMethod(g_not_ground_pc, cluster_indices, 0.3);
@@ -618,13 +391,15 @@ void lidar_cluster::clusterMethod16(LidarClusterOutput *output)
         pcl::PointCloud<PointType>::Ptr cloud_cluster(
             new pcl::PointCloud<PointType>);
 
-        intensity_count = 0;
         for (std::vector<int>::const_iterator pit = it->indices.begin();
              pit != it->indices.end(); pit++)
         {
             cloud_cluster->points.push_back(
                 g_not_ground_pc->points[*pit]);
         }
+        cloud_cluster->width = cloud_cluster->points.size();
+        cloud_cluster->height = 1;
+        cloud_cluster->is_dense = g_not_ground_pc->is_dense;
 
         Eigen::Vector4f centroid;
         pcl::compute3DCentroid(*cloud_cluster, centroid);
@@ -653,12 +428,6 @@ void lidar_cluster::clusterMethod16(LidarClusterOutput *output)
         {
             output->cones.push_back(det);
             *final_cluster = *final_cluster + *cloud_cluster;
-
-            PointType tmp_pXYZ;
-            tmp_pXYZ.x = centroid[0];
-            tmp_pXYZ.y = centroid[1];
-            tmp_pXYZ.z = centroid[2];
-            skidpad_detection_pc->points.push_back(tmp_pXYZ);
         }
         else if (vis_)
         {
@@ -667,6 +436,8 @@ void lidar_cluster::clusterMethod16(LidarClusterOutput *output)
     }
 
     output->cones_cloud = final_cluster;
-    output->skidpad_detection = skidpad_detection_pc;
+    output->cones_cloud->width = output->cones_cloud->points.size();
+    output->cones_cloud->height = 1;
+    output->cones_cloud->is_dense = g_not_ground_pc->is_dense;
     last_cluster_count_ = total_clusters;
 }

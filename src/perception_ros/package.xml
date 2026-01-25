@@ -4,7 +4,7 @@
   <version>0.0.1</version>
   <description>ROS runtime package for lidar clustering (nodelet/node wrapper).</description>
 
-  <maintainer email="adams_aka@126.com">adams</maintainer>
+  <maintainer email="zhangjszs@foxmail.com">kerwin</maintainer>
 
 
   <license>HUAT</license>

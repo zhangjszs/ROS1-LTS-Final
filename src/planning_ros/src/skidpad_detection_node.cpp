@@ -7,69 +7,81 @@ namespace planning_ros
 {
 
 SkidpadDetectionNode::SkidpadDetectionNode(ros::NodeHandle &nh)
-  : nh_(nh), core_(params_)
+  : nh_(nh), pnh_("~"), core_(params_)
 {
   LoadParameters();
   core_.SetParams(params_);
 
-  cone_sub_ = nh_.subscribe("/cone_position", 100000, &SkidpadDetectionNode::ConeCallback, this);
-  car_state_sub_ = nh_.subscribe("/Carstate", 1000, &SkidpadDetectionNode::CarStateCallback, this);
-  log_path_pub_ = nh_.advertise<nav_msgs::Path>("log_path", 10, true);
-  approaching_goal_pub_ = nh_.advertise<std_msgs::Bool>("approaching_goal", 10);
+  cone_sub_ = nh_.subscribe(cone_topic_, 100000, &SkidpadDetectionNode::ConeCallback, this);
+  car_state_sub_ = nh_.subscribe(car_state_topic_, 1000, &SkidpadDetectionNode::CarStateCallback, this);
+  log_path_pub_ = nh_.advertise<nav_msgs::Path>(log_path_topic_, 10, true);
+  approaching_goal_pub_ = nh_.advertise<std_msgs::Bool>(approaching_goal_topic_, 10);
 }
 
 void SkidpadDetectionNode::LoadParameters()
 {
   ROS_INFO("skidpad_detection loading Parameters");
-  if (!nh_.param("length/circle2lidar", params_.circle2lidar, 15.0))
+  if (!pnh_.param("length/circle2lidar", params_.circle2lidar, 15.0))
   {
     ROS_WARN_STREAM("Did not load circle2lidar. Standard value is: " << params_.circle2lidar);
   }
 
   ROS_INFO("load parameters");
-  if (!nh_.param("length/targetX", params_.targetX, 16.0))
+  if (!pnh_.param("length/targetX", params_.targetX, 16.0))
   {
     ROS_WARN_STREAM("Did not load targetX. Standard value is: " << params_.targetX);
   }
 
-  if (!nh_.param("length/targetY", params_.targetY, -1.0))
+  if (!pnh_.param("length/targetY", params_.targetY, -1.0))
   {
     ROS_WARN_STREAM("Did not load targetY. Standard value is " << params_.targetY);
   }
 
-  if (!nh_.param("length/FinTargetX", params_.FinTargetX, 40.0))
+  if (!pnh_.param("length/FinTargetX", params_.FinTargetX, 40.0))
   {
     ROS_WARN_STREAM("Did not load FinTargetX. Standard value is: " << params_.FinTargetX);
   }
 
-  if (!nh_.param("length/FinTargetY", params_.FinTargetY, 0.0))
+  if (!pnh_.param("length/FinTargetY", params_.FinTargetY, 0.0))
   {
     ROS_WARN_STREAM("Did not load FinTargetY. Standard value is " << params_.FinTargetY);
   }
 
-  if (!nh_.param("length/distanceThreshold", params_.distanceThreshold, 0.5))
+  if (!pnh_.param("length/distanceThreshold", params_.distanceThreshold, 0.5))
   {
     ROS_WARN_STREAM("Did not load distanceThreshold. Standard value is " << params_.distanceThreshold);
   }
 
-  if (!nh_.param("length/leavedistanceThreshold", params_.leavedistanceThreshold, 1.0))
+  if (!pnh_.param("length/leavedistanceThreshold", params_.leavedistanceThreshold, 1.0))
   {
     ROS_WARN_STREAM("Did not load distanceThreshold. Standard value is " << params_.leavedistanceThreshold);
   }
 
-  if (!nh_.param<std::string>("filtered_topic_name", filtered_topic_name_, "/skidpad_detection"))
-  {
-    ROS_WARN_STREAM("Did not load topic name. Standard value is: " << filtered_topic_name_);
-  }
-
-  if (!nh_.param("inverse_flag", params_.inverse_flag, 1))
+  if (!pnh_.param("inverse_flag", params_.inverse_flag, 1))
   {
     ROS_WARN_STREAM("Did not load topic name. Standard value is: " << params_.inverse_flag);
   }
 
-  if (!nh_.param("length/stopdistance", params_.stopdistance, 5.0))
+  if (!pnh_.param("length/stopdistance", params_.stopdistance, 5.0))
   {
     ROS_WARN_STREAM("Did not load topic name. Standard value is: " << params_.stopdistance);
+  }
+
+  if (!pnh_.param<std::string>("topics/cone", cone_topic_, "perception/lidar_cluster/detections"))
+  {
+    ROS_WARN_STREAM("Did not load topics/cone. Standard value is: " << cone_topic_);
+  }
+  if (!pnh_.param<std::string>("topics/car_state", car_state_topic_, "localization/car_state"))
+  {
+    ROS_WARN_STREAM("Did not load topics/car_state. Standard value is: " << car_state_topic_);
+  }
+  if (!pnh_.param<std::string>("topics/log_path", log_path_topic_, "planning/skidpad/log_path"))
+  {
+    ROS_WARN_STREAM("Did not load topics/log_path. Standard value is: " << log_path_topic_);
+  }
+  if (!pnh_.param<std::string>("topics/approaching_goal", approaching_goal_topic_, "planning/skidpad/approaching_goal"))
+  {
+    ROS_WARN_STREAM("Did not load topics/approaching_goal. Standard value is: " << approaching_goal_topic_);
   }
 }
 

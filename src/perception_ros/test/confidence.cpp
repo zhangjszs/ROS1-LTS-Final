@@ -21,7 +21,7 @@ int main(int argc, char *argv[])
     ros::init(argc, argv, "test_conf");
 
     ros::NodeHandle nh;
-    ros::Subscriber cone_msg_sub = nh.subscribe("/cone_position", 1, coneMsgCallback);
+    ros::Subscriber cone_msg_sub = nh.subscribe("/perception/lidar_cluster/detections", 1, coneMsgCallback);
 
     ros::spin();
 }

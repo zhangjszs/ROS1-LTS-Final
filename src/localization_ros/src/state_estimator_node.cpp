@@ -13,8 +13,8 @@ public:
         params_(LoadParams()),
         estimator_(params_)
   {
-    pnh_.param<std::string>("imu_topic", imu_topic_, "/pbox_pub/Ins");
-    pnh_.param<std::string>("carstate_topic", carstate_topic_, "/Carstate");
+    pnh_.param<std::string>("topics/ins", imu_topic_, "sensors/ins");
+    pnh_.param<std::string>("topics/car_state", carstate_topic_, "localization/car_state");
 
     imu_sub_ = nh_.subscribe(imu_topic_, 50, &StateEstimatorNode::ImuCallback, this);
     carstate_pub_ = nh_.advertise<autodrive_msgs::HUAT_CarState>(carstate_topic_, 10);
@@ -45,12 +45,30 @@ private:
 
     pnh_.param("accel_gravity", params.accel_gravity, 9.79);
 
-    nh_.param("length/frontToIMUdistanceX", params.front_to_imu_x, 0.0);
-    nh_.param("length/frontToIMUdistanceY", params.front_to_imu_y, 0.0);
-    nh_.param("length/frontToIMUdistanceZ", params.front_to_imu_z, 0.0);
-    nh_.param("length/rearToIMUdistanceX", params.rear_to_imu_x, 0.0);
-    nh_.param("length/rearToIMUdistanceY", params.rear_to_imu_y, 0.0);
-    nh_.param("length/rearToIMUdistanceZ", params.rear_to_imu_z, 0.0);
+    if (!pnh_.param("length/frontToIMUdistanceX", params.front_to_imu_x, 0.0))
+    {
+      nh_.param("length/frontToIMUdistanceX", params.front_to_imu_x, 0.0);
+    }
+    if (!pnh_.param("length/frontToIMUdistanceY", params.front_to_imu_y, 0.0))
+    {
+      nh_.param("length/frontToIMUdistanceY", params.front_to_imu_y, 0.0);
+    }
+    if (!pnh_.param("length/frontToIMUdistanceZ", params.front_to_imu_z, 0.0))
+    {
+      nh_.param("length/frontToIMUdistanceZ", params.front_to_imu_z, 0.0);
+    }
+    if (!pnh_.param("length/rearToIMUdistanceX", params.rear_to_imu_x, 0.0))
+    {
+      nh_.param("length/rearToIMUdistanceX", params.rear_to_imu_x, 0.0);
+    }
+    if (!pnh_.param("length/rearToIMUdistanceY", params.rear_to_imu_y, 0.0))
+    {
+      nh_.param("length/rearToIMUdistanceY", params.rear_to_imu_y, 0.0);
+    }
+    if (!pnh_.param("length/rearToIMUdistanceZ", params.rear_to_imu_z, 0.0))
+    {
+      nh_.param("length/rearToIMUdistanceZ", params.rear_to_imu_z, 0.0);
+    }
 
     return params;
   }

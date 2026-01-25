@@ -26,6 +26,9 @@ private:
     
     ros::Subscriber sub_car_state_;
     ros::Publisher pub_markers_;
+
+    std::string car_state_topic_;
+    std::string markers_topic_;
     
     std::string frame_id_;
     int trail_max_size_;

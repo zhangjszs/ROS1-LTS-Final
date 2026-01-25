@@ -9,6 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   geometry_msgs
   nav_msgs
+  tf2_ros
   pcl_ros
   pcl_conversions
   autodrive_msgs
@@ -19,7 +20,7 @@ find_package(PCL REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS include
-  CATKIN_DEPENDS roscpp roslib sensor_msgs geometry_msgs nav_msgs pcl_ros pcl_conversions autodrive_msgs localization_core
+  CATKIN_DEPENDS roscpp roslib sensor_msgs geometry_msgs nav_msgs tf2_ros pcl_ros pcl_conversions autodrive_msgs localization_core
 )
 
 include_directories(

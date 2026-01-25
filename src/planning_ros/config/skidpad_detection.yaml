@@ -1,5 +1,9 @@
-filtered_topic_name: /skidpad_detection
 inverse_flag: 1 #1 means inverse matrix else 0 means do not inverse ,inverse means car need turn right a little 
+topics:
+  cone: "perception/lidar_cluster/detections"
+  car_state: "localization/car_state"
+  log_path: "planning/skidpad/log_path"
+  approaching_goal: "planning/skidpad/approaching_goal"
 length:
   circle2lidar: 15.5
   stopdistance: 5.0
@@ -10,8 +14,6 @@ length:
   distanceThreshold: 0.7
   leavedistanceThreshold: 1.0
 #参数可能代表车辆或系统中的某种物理距离或尺寸，具体是从圆心到激光雷达（Lidar）的距离。
-#filtered_topic_name: /skidpad_detection: 这个键值对指定了一个名为 "filtered_topic_name" 的参数，
-#其值为 "/skidpad_detection"。这可能是用于指定某个话题或主题的名称，用于与其他组件进行通信。
 #: 这个键值对指定了一个名为 "inverse_flag" 的参数，其值为 "0"。
 #FinTargetX: 40.0: 这个表示终点的X坐标
 #FinTargetY: 0.0: 这个表示终点的Y坐标

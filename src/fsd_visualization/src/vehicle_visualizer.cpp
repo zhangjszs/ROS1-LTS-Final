@@ -8,13 +8,15 @@ VehicleVisualizer::VehicleVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh) 
     pnh.param<std::string>("frame_id", frame_id_, FRAME_GLOBAL);
     pnh.param<int>("trail_length", trail_max_size_, 200);
     pnh.param<bool>("show_trail", show_trail_, true);
+    pnh.param<std::string>("topics/car_state", car_state_topic_, "localization/car_state");
+    pnh.param<std::string>("topics/markers", markers_topic_, "fsd/viz/vehicle");
     
     // 订阅
-    sub_car_state_ = nh.subscribe("/Carstate", 1,
+    sub_car_state_ = nh.subscribe(car_state_topic_, 1,
         &VehicleVisualizer::carStateCallback, this);
     
     // 发布
-    pub_markers_ = nh.advertise<visualization_msgs::MarkerArray>("/fsd/viz/vehicle", 1);
+    pub_markers_ = nh.advertise<visualization_msgs::MarkerArray>(markers_topic_, 1);
     
     ROS_INFO("[VehicleVisualizer] Initialized, trail_length=%d", trail_max_size_);
 }

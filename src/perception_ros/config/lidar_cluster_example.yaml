@@ -1,14 +1,16 @@
-filtered_topic_name: /skidpad_detection
-inverse_flag: 0           # 1: inverse matrix; 0: DO NOT inverse. inverse means car need turn right a little 
-input_topic: /velodyne_points
-no_ground_point_topic: /points_no_ground
-ground_point_topic: /points_ground
-all_points_topic: /all_points
+# topic naming (relative, namespaced by launch)
+topics:
+  input: points/raw
+  points:
+    passthrough: points/passthrough
+    no_ground: points/no_ground
+    cones: points/cones
+  detections: detections
+  markers:
+    cones: markers/cones
+    all: markers/all
 
-clip_height: 2.0          # ?
 sensor_height: 0.12       # 0.18   0.135        这里存在的意义是把低于这个-sensor_height的点都先剔除掉  0.12
-min_distance: 0.1         # unit?
-max_distance: 100.0       # default: 100.0      seems no use
 
 num_iter: 10              # iteration num 3  5   拟合平面次数   越高越精准 同时消耗越高
 num_lpr: 5                # seeds num           地面种子数选取5    越大精度越高

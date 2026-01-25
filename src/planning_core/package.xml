@@ -4,7 +4,7 @@
   <version>1.0.0</version>
   <description>Core planning algorithms without ROS dependencies.</description>
 
-  <maintainer email="adams_aka@126.com">adams</maintainer>
+  <maintainer email="zhangjszs@foxmail.com">kerwin</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>catkin</buildtool_depend>

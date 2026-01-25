@@ -26,8 +26,8 @@ static void fillAddr(const string &address, unsigned short port,
 
     hostent *host;  // Resolve name
     if ((host = gethostbyname(address.c_str())) == NULL) {
-        // strerror() will not work for gethostbyname() and hstrerror()
-        // is supposedly obsolete
+        std::cerr << "Failed to resolve name: " << address << std::endl;
+        return; // Avoid crash
     }
     addr.sin_addr.s_addr = *((unsigned long *) host->h_addr_list[0]);
 
@@ -94,6 +94,10 @@ void Socket::setLocalAddressAndPort(const string &localAddress,
     if (bind(sockDesc, (sockaddr *) &localAddr, sizeof(sockaddr_in)) < 0) {
         std::cout<<"Set of local address and port failed (bind())"<<std::endl;
     }
+}
+
+void Socket::shutdownSocket() {
+    ::shutdown(sockDesc, SHUT_RDWR);
 }
 
 void Socket::cleanUp(){

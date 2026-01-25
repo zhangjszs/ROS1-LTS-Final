@@ -30,6 +30,7 @@ private:
   void PublishApproachingGoal(bool approaching);
 
   ros::NodeHandle nh_;
+  ros::NodeHandle pnh_;
   ros::Subscriber cone_sub_;
   ros::Subscriber car_state_sub_;
   ros::Publisher log_path_pub_;
@@ -38,7 +39,10 @@ private:
   planning_core::SkidpadParams params_{};
   planning_core::SkidpadDetectionCore core_;
 
-  std::string filtered_topic_name_;
+  std::string cone_topic_;
+  std::string car_state_topic_;
+  std::string log_path_topic_;
+  std::string approaching_goal_topic_;
   int inverse_flag_{1};
 };
 

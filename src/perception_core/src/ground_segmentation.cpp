@@ -1,48 +1,9 @@
 #include <perception_core/lidar_cluster_core.hpp>
-#include <set>
 // 地面分割处理
 
 bool point_cmp(PointType a, PointType b) // PointType表明XYZ点云库的一个点坐标
 {
     return a.z < b.z;
-}
-
-// 地面分割采用RANSAC算法
-void lidar_cluster::RANSAC(const pcl::PointCloud<PointType>::Ptr &cloud_filtered,
-                           pcl::PointCloud<PointType>::Ptr &cloud_filtered_out, int maxIterations, float thre)
-{
-
-    pcl::SACSegmentation<PointType> seg; // 点云库中实现RANSAC算法的对象
-    // pcl::PointCloud<PointType>::Ptr  cloud_f (new pcl::PointCloud<PointType>);//提取除开平面点云的剩余点云集合
-    pcl::PointIndices::Ptr inliers(new pcl::PointIndices);                         // 点云索引   用于存储与平面模型拟合程度较高的点的索引
-    pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);          // 存储拟合的平面模型的系数
-    pcl::PointCloud<PointType>::Ptr cloud_plane(new pcl::PointCloud<PointType>()); // 提取平面的点云集
-
-    seg.setOptimizeCoefficients(true);
-    seg.setModelType(pcl::SACMODEL_PLANE); // 使用平面模型进行分割
-    seg.setMethodType(pcl::SAC_RANSAC);    // RANSAC
-    seg.setMaxIterations(maxIterations);
-    seg.setDistanceThreshold(thre);
-
-    // 从剩余的点云中分割最大平面组成部分
-    seg.setInputCloud(cloud_filtered);    // 传入点云数据
-    seg.segment(*inliers, *coefficients); // TODO RANSC//将与平面模型拟合程度较高的点的索引保存到inliers对象中，将平面模型的系数保存到coefficients对象中
-
-    // Extract the planar inliers from the input cloud  从输入云中提取平面内层
-    pcl::ExtractIndices<PointType> extract;
-    extract.setInputCloud(cloud_filtered); // 从这个里面提取点集
-    extract.setIndices(inliers);           // 要提取点集索引  这里给出了与地面点集重合度较高的索引
-    extract.setNegative(false);            // setNegative表示，删除自己设置的Indices
-
-    // Write the planar inliers to disk    将平面内存写入磁盘             表示平面组件的PointCloud：   输出了平面点云有多少
-    extract.filter(*cloud_plane); // 设置完之后执行filter才能实现
-    std::cout << "PointCloud representing the planar component: " << cloud_plane->points.size() << " data points." << std::endl;
-
-    // Remove the planar inliers, extract the rest    拆下平面内衬，取出其余部分
-    extract.setNegative(true); // true代表保留剩余的点，方便下次循环使用。  取的是除了 `inliers` 中指定的点以外的所有点。这样做的目的是保留剩余的点，方便下次循环使用
-    extract.filter(*cloud_filtered_out);
-
-    // cloud_filtered = cloud_f;
 }
 
 // ground_segmentation     地面分段
@@ -54,13 +15,7 @@ void lidar_cluster::ground_segmentation(const pcl::PointCloud<PointType>::Ptr &i
     // 1.Msg to pointcloud   消息转换可使用点云库
     pcl::PointCloud<PointType> laserCloudIn, laserCloudIn_org;
     laserCloudIn = laserCloudIn_org = *in_pc; // 消息赋值
-    // cloud = *cloud_Ptr;
-    // cloud_Ptr = cloud.makeShared();
     //  For mark ground points and hold all points
-    PointType point;
-    g_all_pc = laserCloudIn.makeShared(); // 动态管理避免内存泄漏
-    // std::vector<int> indices;
-    // pcl::removeNaNFromPointCloud(laserCloudIn, laserCloudIn,indices);
     //  2.Sort on Z-axis value.  按Z轴值排序。
     sort(laserCloudIn.points.begin(), laserCloudIn.end(), point_cmp); // 从小往大排
     // 3.Error point removal   删除错误点
@@ -112,17 +67,20 @@ void lidar_cluster::ground_segmentation(const pcl::PointCloud<PointType>::Ptr &i
         {
             if (result[r] < th_dist_d_) // 越大 就把越多的数据放进地面里面   所以分割不均可以考虑把数值放大
             {
-                // g_all_pc->points[r].label = 1u; // means ground
                 g_ground_pc->points.push_back(laserCloudIn_org[r]);
             }
             else
             {
-                // g_all_pc->points[r].label = 0u; // means not ground and non clusterred
                 g_not_ground_pc->points.push_back(laserCloudIn_org[r]);
             }
         }
     }
-    g_all_pc->clear();
+    g_ground_pc->width = g_ground_pc->points.size();
+    g_ground_pc->height = 1;
+    g_ground_pc->is_dense = in_pc->is_dense;
+    g_not_ground_pc->width = g_not_ground_pc->points.size();
+    g_not_ground_pc->height = 1;
+    g_not_ground_pc->is_dense = in_pc->is_dense;
 }
 
 // extract_initial_seeds_  extract_initial_seds（提取初始设置）_
@@ -158,9 +116,7 @@ void lidar_cluster::extract_initial_seeds_(const pcl::PointCloud<PointType> &p_s
 void lidar_cluster::estimate_plane_(void)
 {
     // Create covarian matrix in single pass.
-    // TODO: compare the efficiency.
     // 在单程中创建协变矩阵。
-    // TODO:比较效率。
     Eigen::Matrix3f cov;     // 协方差矩阵
     Eigen::Vector4f pc_mean; // 4维的均值向量pc_mean
     pcl::computeMeanAndCovarianceMatrix(*g_ground_pc, cov, pc_mean);

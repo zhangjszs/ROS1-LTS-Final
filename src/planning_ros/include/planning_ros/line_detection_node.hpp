@@ -32,6 +32,7 @@ private:
   void PublishFinishOnce();
 
   ros::NodeHandle nh_;
+  ros::NodeHandle pnh_;
   ros::Subscriber cone_sub_;
   ros::Subscriber car_state_sub_;
   ros::Publisher path_pub_;
@@ -43,6 +44,7 @@ private:
   std::string cone_topic_;
   std::string car_state_topic_;
   std::string path_topic_;
+  std::string finish_topic_;
 
   bool finish_published_{false};
   std::mutex data_mutex_;

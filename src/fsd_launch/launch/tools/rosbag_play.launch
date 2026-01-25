@@ -8,15 +8,22 @@
     <arg name="start" default="0" doc="起始时间(秒)"/>
     <arg name="loop" default="false" doc="循环播放"/>
 
+    <!-- 参数校验：确保bag路径不为空 -->
+    <group unless="$(eval bag != '')">
+        <node pkg="rospy" type="message" name="error_check" output="screen" args="错误：仿真模式必须指定bag文件路径！使用参数 bag:=/path/to/bag.bag"/>
+    </group>
+
     <!-- INS Message Bridge (ins/ASENSING -> autodrive_msgs/HUAT_Asensing) -->
     <node pkg="ins" type="ins_bridge.py" name="ins_bridge" output="screen"/>
 
     <!-- Rosbag Player: 使用两个 group 根据 loop 参数选择是否添加 loop 参数 -->
-    <group if="$(arg loop)">
-        <node pkg="rosbag" type="play" name="rosbag_player" output="screen" args="$(arg bag) -r $(arg rate) -s $(arg start) --loop --clock"/>
-    </group>
+    <group if="$(eval bag != '')">
+        <group if="$(arg loop)">
+            <node pkg="rosbag" type="play" name="rosbag_player" output="screen" args="$(arg bag) -r $(arg rate) -s $(arg start) --loop --clock"/>
+        </group>
 
-    <group unless="$(arg loop)">
-        <node pkg="rosbag" type="play" name="rosbag_player" output="screen" args="$(arg bag) -r $(arg rate) -s $(arg start) --clock"/>
+        <group unless="$(arg loop)">
+            <node pkg="rosbag" type="play" name="rosbag_player" output="screen" args="$(arg bag) -r $(arg rate) -s $(arg start) --clock"/>
+        </group>
     </group>
 </launch>

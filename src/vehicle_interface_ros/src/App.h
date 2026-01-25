@@ -50,5 +50,6 @@ private:
     uint8_t vehicle_rx_msg[VEHICLE_INFO_LENGHT];
 
     uint8_t vehicle_tx_cmd_msg[VEHICLE_CMD_LENGHT];
+    bool is_running;
 };
 #endif

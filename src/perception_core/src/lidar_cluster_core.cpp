@@ -52,7 +52,7 @@ bool lidar_cluster::Process(LidarClusterOutput *output)
   const size_t input_points = current_pc_ptr->points.size();
 
   auto startTimePassThrough = std::chrono::steady_clock::now();
-  PassThrough(current_pc_ptr, StatisticalOutlierFilter);
+  PassThrough(current_pc_ptr);
   cloud_filtered = current_pc_ptr;
   auto endTimePassThrough = std::chrono::steady_clock::now();
   auto elapsedTimePassThrough =
@@ -90,7 +90,6 @@ bool lidar_cluster::Process(LidarClusterOutput *output)
   output->t_total_ms = static_cast<double>(elapsedTimeTotal.count()) / 1000.0;
   output->input_points = input_points;
   output->total_clusters = last_cluster_count_;
-  output->skidpad_detection = skidpad_detection_pc;
 
   if (eval) {
     ofs << num2Str<int>(frame_count, 0) << "\t" << num2Str<float>(elapsedTimePassThrough.count(), 5)

@@ -53,11 +53,11 @@ int main(int argc, char** argv) {
     }
     
     ROS_INFO("-------------------------------------------");
-    ROS_INFO("Published Topics:");
-    ROS_INFO("  /fsd/viz/cones      - Cone markers");
-    ROS_INFO("  /fsd/viz/path       - Path markers");
-    ROS_INFO("  /fsd/viz/boundaries - Boundary markers");
-    ROS_INFO("  /fsd/viz/vehicle    - Vehicle markers");
+    ROS_INFO("Published Topics (defaults):");
+    ROS_INFO("  fsd/viz/cones      - Cone markers");
+    ROS_INFO("  fsd/viz/path       - Path markers");
+    ROS_INFO("  fsd/viz/boundaries - Boundary markers");
+    ROS_INFO("  fsd/viz/vehicle    - Vehicle markers");
     ROS_INFO("-------------------------------------------");
     
     ros::spin();

@@ -39,7 +39,7 @@ std::vector<ConePoint> LineDetectionCore::FilterCones(const std::vector<ConePoin
 
     if (distance >= params_.min_cone_distance && distance <= params_.max_cone_distance)
     {
-      if (std::abs(cone.y) <= 10.0)
+      if (std::abs(cone.y) <= params_.max_cone_lateral_distance)
       {
         filtered.push_back(cone);
       }
@@ -128,7 +128,7 @@ std::pair<HoughLine, HoughLine> LineDetectionCore::SelectBoundaryLines(
       {
         double rho_diff = std::abs(line1.rho - line2.rho);
 
-        if (rho_diff > 2.0 && rho_diff < 20.0)
+        if (rho_diff > params_.min_rho_diff && rho_diff < params_.max_rho_diff)
         {
           int total_votes = line1.votes + line2.votes;
           if (total_votes > best_votes)
@@ -205,6 +205,9 @@ std::vector<Pose> LineDetectionCore::ConvertToWorldCoordinates(const std::vector
   std::vector<Pose> world_path;
   world_path.reserve(path.size());
 
+  double cos_theta = std::cos(vehicle_state_.theta);
+  double sin_theta = std::sin(vehicle_state_.theta);
+
   for (const auto &pose : path)
   {
     Pose world_pose;
@@ -212,8 +215,8 @@ std::vector<Pose> LineDetectionCore::ConvertToWorldCoordinates(const std::vector
     double x_shifted = pose.x + params_.imu_offset_x;
     double y_shifted = pose.y;
 
-    world_pose.x = x_shifted * std::sin(vehicle_state_.theta);
-    world_pose.y = y_shifted * std::cos(vehicle_state_.theta);
+    world_pose.x = x_shifted * cos_theta - y_shifted * sin_theta + vehicle_state_.x;
+    world_pose.y = x_shifted * sin_theta + y_shifted * cos_theta + vehicle_state_.y;
     world_pose.z = pose.z;
     world_pose.qx = pose.qx;
     world_pose.qy = pose.qy;

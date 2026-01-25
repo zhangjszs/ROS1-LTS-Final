@@ -1,6 +1,8 @@
 #ifndef MULTI_SENSOR_FUSION_IMU_SUBSCRIBER_HPP_
 #define MULTI_SENSOR_FUSION_IMU_SUBSCRIBER_HPP_
 
+#include <deque>
+#include <mutex>
 #include <string>
 
 #include <Eigen/Dense>
@@ -22,15 +24,12 @@ public:
   private:
   	ros::NodeHandle nh_;
   	ros::Subscriber subscriber_;
-    // boost::shared_ptr<IMUSubscriber> imusub_; 
   	std::deque<IMUData> imu_data_buff_;
     std::deque<IMUData> new_imu_data_;
     IMUData pre_imu_data;
     std::mutex mtx; 
     void msg_callback(const autodrive_msgs::HUAT_InsP2ConstPtr imu_msg_ptr);
-    // 把四元数转换成旋转矩阵送出去
-    // void ParseData(std::deque<IMUData>& imu_data_buff);
-      Eigen::Matrix3f GetOrientationMatrix();
+    Eigen::Matrix3f GetOrientationMatrix();
     
 };
 #endif

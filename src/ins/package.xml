@@ -3,7 +3,7 @@
     <name>ins</name>
     <version>0.0.1</version>
     <description>INS message definitions for legacy bag compatibility</description>
-    <maintainer email="fsd@huat.edu.cn">FSD Team</maintainer>
+    <maintainer email="zhangjszs@foxmail.com">kerwin</maintainer>
     <license>MIT</license>
 
     <buildtool_depend>catkin</buildtool_depend>
