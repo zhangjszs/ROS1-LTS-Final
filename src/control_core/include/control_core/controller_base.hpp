@@ -55,6 +55,7 @@ protected:
 
   double angle_integra_{0.0};
   double veloc_integra_{0.0};
+  double last_angle_error_{0.0};
 
   int tar_{0};
   int now_{0};

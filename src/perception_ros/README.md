@@ -17,15 +17,15 @@
   2. `lidar_cluster_ros.cpp` 中的回调函数接受到原始点云，存入 core。使用 `pcl::fromROSMsg(*original_cloud_ptr, *current_pc_ptr)` 将点云数据存入新的 `current_pc_ptr` 变量中。
 
   3. 在 `RunOnce()` 中，首先使用直通滤波 `PassThrough()` 进行处理并发布。  
-    此后 `ground_segmentation()` 进行地面分割，同样发布数据到 `/SAC`。
+    此后 `ground_segmentation()` 进行地面分割，同样发布数据到 `points/no_ground`。
 
   4. 然后进行聚类 `clusterMethod32()`,在非地面点云中查找锥桶。
 
-  5. 把最终识别结果发布至 `/cone_position` 和 `/skidpad_detection`
+  5. 把最终识别结果发布至 `detections`
 
 ### 直线
 
-  1. 订阅 `velodyne_points` 原始点云数据
+  1. 订阅 `points/raw` 原始点云数据（默认由 launch 中的 `topics/input` 指定）
 
   2. 进行直通滤波 (Passthrough) 处理
     在 `perception_core` 中被调用
@@ -58,29 +58,29 @@
 
 ## Rviz Config 解析 （使用 lidar_cluster(_c).rviz）
 
-- lidar_cluster 提供 raw、pass（？）、filtered（锥桶）三个聚类，和markerArray（识别为锥桶的点云聚类）;
+- lidar_cluster 提供 raw、passthrough、cones 三个点云输出，和 markerArray（识别为锥桶的点云聚类）;
 
 - markerArray(all) 提供所有已识别的聚类的 bbox
 
 ## Topic
 
-### /skidpad_detection
-
-给出了`filtered` 每个锥桶的中心位置
-
-### raw（/velodyne_points）
+### raw（/perception/lidar_cluster/points/raw）
 
 原始激光雷达数据
 
-### pass（/filtered_points）
+### passthrough（/perception/lidar_cluster/points/passthrough）
 
 使用直通滤波后的结果
 
-### SAC（/sac）
+### no_ground（/perception/lidar_cluster/points/no_ground）
 
 滤除了地面，效果尚可
 
-### cone (/cone_position)
+### cones（/perception/lidar_cluster/points/cones）
+
+识别为锥桶的点云
+
+### detections (/perception/lidar_cluster/detections)
 
 以数组形式给出当前push中所有的锥桶信息：
   

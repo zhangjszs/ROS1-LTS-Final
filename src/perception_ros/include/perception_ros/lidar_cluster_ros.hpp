@@ -5,7 +5,6 @@
 #include <ros/ros.h>
 #include <autodrive_msgs/HUAT_ConeDetections.h>
 #include <geometry_msgs/Point.h>
-#include <nav_msgs/Path.h>
 #include <sensor_msgs/PointCloud.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <std_msgs/Header.h>
@@ -40,16 +39,10 @@ class LidarClusterRos {
   ros::NodeHandle private_nh_;
   ros::Subscriber sub_point_cloud_;
 
-  ros::Publisher pub_filtered_points_;
-  ros::Publisher pub_filtered_points__;
-  ros::Publisher pub_filtered_points___;
-  ros::Publisher pub_filtered_points____;
-  ros::Publisher lidarClusterPublisher_;
-  ros::Publisher adjust_check_front_;
-  ros::Publisher adjust_check_back_;
-  ros::Publisher logging_pub_;
-  ros::Publisher cone_position_;
-  ros::Publisher skidpad_detection_;
+  ros::Publisher passthrough_pub_;
+  ros::Publisher no_ground_pub_;
+  ros::Publisher cones_pub_;
+  ros::Publisher detections_pub_;
   ros::Publisher marker_pub_;
   ros::Publisher marker_pub_all_;
 
@@ -65,9 +58,12 @@ class LidarClusterRos {
   int sensor_model_ = 16;
 
   std::string input_topic_;
+  std::string passthrough_topic_;
   std::string no_ground_topic_;
-  std::string ground_topic_;
-  std::string all_points_topic_;
+  std::string cones_topic_;
+  std::string detections_topic_;
+  std::string markers_topic_;
+  std::string markers_all_topic_;
 
   bool perf_enabled_ = true;
   size_t perf_window_ = 300;

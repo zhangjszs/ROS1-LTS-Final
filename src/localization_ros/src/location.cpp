@@ -1,11 +1,42 @@
 #include <localization_ros/location_node.hpp>
 
+#include <cmath>
+
+#include <geometry_msgs/TransformStamped.h>
 #include <ros/package.h>
 
 namespace localization_ros {
 
+namespace {
+template <typename T>
+bool LoadParam(ros::NodeHandle &pnh, ros::NodeHandle &nh, const std::string &key, T &out, const T &default_value)
+{
+  if (pnh.param(key, out, default_value))
+  {
+    return true;
+  }
+  if (nh.param(key, out, default_value))
+  {
+    return true;
+  }
+  return false;
+}
+
+geometry_msgs::Quaternion YawToQuaternion(double yaw)
+{
+  geometry_msgs::Quaternion q;
+  const double half = 0.5 * yaw;
+  q.x = 0.0;
+  q.y = 0.0;
+  q.z = std::sin(half);
+  q.w = std::cos(half);
+  return q;
+}
+}  // namespace
+
 LocationNode::LocationNode(ros::NodeHandle &nh)
     : nh_(nh),
+      pnh_("~"),
       mapper_(params_)
 {
   loadParameters();
@@ -15,66 +46,140 @@ LocationNode::LocationNode(ros::NodeHandle &nh)
 
   if (use_external_carstate_)
   {
-    carstate_sub_ = nh_.subscribe<autodrive_msgs::HUAT_CarState>("/Carstate", 10, &LocationNode::carstateCallback, this);
+    carstate_sub_ = nh_.subscribe<autodrive_msgs::HUAT_CarState>(carstate_in_topic_, 10, &LocationNode::carstateCallback, this);
   }
   else
   {
-    ins_sub_ = nh_.subscribe<autodrive_msgs::HUAT_Asensing>("/pbox_pub/Ins", 10, &LocationNode::imuCallback, this);
+    ins_sub_ = nh_.subscribe<autodrive_msgs::HUAT_Asensing>(ins_topic_, 10, &LocationNode::imuCallback, this);
   }
 
-  cone_sub_ = nh_.subscribe<autodrive_msgs::HUAT_ConeDetections>("/cone_position", 10, &LocationNode::coneCallback, this);
+  cone_sub_ = nh_.subscribe<autodrive_msgs::HUAT_ConeDetections>(cone_topic_, 10, &LocationNode::coneCallback, this);
 
-  carstate_pub_ = nh_.advertise<autodrive_msgs::HUAT_CarState>("/Carstate", 10);
-  map_pub_ = nh_.advertise<autodrive_msgs::HUAT_ConeMap>("/coneMap", 10);
-  global_map_pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/globalMapOnly", 10);
+  carstate_pub_ = nh_.advertise<autodrive_msgs::HUAT_CarState>(carstate_out_topic_, 10);
+  map_pub_ = nh_.advertise<autodrive_msgs::HUAT_ConeMap>(cone_map_topic_, 10);
+  global_map_pub_ = nh_.advertise<sensor_msgs::PointCloud2>(global_map_topic_, 10);
+  pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>(pose_topic_, 10);
+  odom_pub_ = nh_.advertise<nav_msgs::Odometry>(odom_topic_, 10);
 
-  (void)publish_visualization_;
-  (void)sub_topic_;
 }
 
 void LocationNode::loadParameters()
 {
-  if (!nh_.param("length/lidarToIMUDist", params_.lidar_to_imu_dist, 1.87))
+  if (!LoadParam(pnh_, nh_, "length/lidarToIMUDist", params_.lidar_to_imu_dist, 1.87))
   {
     ROS_WARN_STREAM("Did not load lidarToIMUDist. Standard value is: " << params_.lidar_to_imu_dist);
   }
-  if (!nh_.param("length/frontToIMUdistanceX", params_.front_to_imu_x, 0.0))
+  if (!LoadParam(pnh_, nh_, "length/frontToIMUdistanceX", params_.front_to_imu_x, 0.0))
   {
     ROS_WARN_STREAM("Did not load frontToIMUdistanceX. Standard value is: " << params_.front_to_imu_x);
   }
-  if (!nh_.param("length/frontToIMUdistanceY", params_.front_to_imu_y, 0.0))
+  if (!LoadParam(pnh_, nh_, "length/frontToIMUdistanceY", params_.front_to_imu_y, 0.0))
   {
     ROS_WARN_STREAM("Did not load frontToIMUdistanceY. Standard value is " << params_.front_to_imu_y);
   }
-  if (!nh_.param("length/frontToIMUdistanceZ", params_.front_to_imu_z, 0.0))
+  if (!LoadParam(pnh_, nh_, "length/frontToIMUdistanceZ", params_.front_to_imu_z, 0.0))
   {
     ROS_WARN_STREAM("Did not load frontToIMUdistanceZ. Standard value is: " << params_.front_to_imu_z);
   }
-  if (!nh_.param("length/rearToIMUdistanceX", params_.rear_to_imu_x, 0.0))
+  if (!LoadParam(pnh_, nh_, "length/rearToIMUdistanceX", params_.rear_to_imu_x, 0.0))
   {
     ROS_WARN_STREAM("Did not load rearToIMUdistanceX. Standard value is " << params_.rear_to_imu_x);
   }
-  if (!nh_.param("length/rearToIMUdistanceY", params_.rear_to_imu_y, 0.0))
+  if (!LoadParam(pnh_, nh_, "length/rearToIMUdistanceY", params_.rear_to_imu_y, 0.0))
   {
     ROS_WARN_STREAM("Did not load rearToIMUdistanceY. Standard value is " << params_.rear_to_imu_y);
   }
-  if (!nh_.param("length/rearToIMUdistanceZ", params_.rear_to_imu_z, 0.0))
+  if (!LoadParam(pnh_, nh_, "length/rearToIMUdistanceZ", params_.rear_to_imu_z, 0.0))
   {
     ROS_WARN_STREAM("Did not load rearToIMUdistanceZ. Standard value is " << params_.rear_to_imu_z);
   }
 
-  if (!nh_.param<std::string>("filtered_topic_name", sub_topic_, "/location"))
+  if (!LoadParam(pnh_, nh_, "topics/ins", ins_topic_, std::string("sensors/ins")))
   {
-    ROS_WARN_STREAM("Did not load topic name. Standard value is: " << sub_topic_);
+    ROS_WARN_STREAM("Did not load topics/ins. Standard value is: " << ins_topic_);
   }
-  if (!nh_.param("use_external_carstate", use_external_carstate_, false))
+  if (!LoadParam(pnh_, nh_, "topics/car_state_in", carstate_in_topic_, std::string("localization/car_state")))
+  {
+    ROS_WARN_STREAM("Did not load topics/car_state_in. Standard value is: " << carstate_in_topic_);
+  }
+  if (!LoadParam(pnh_, nh_, "topics/cone", cone_topic_, std::string("perception/lidar_cluster/detections")))
+  {
+    ROS_WARN_STREAM("Did not load topics/cone. Standard value is: " << cone_topic_);
+  }
+  if (!LoadParam(pnh_, nh_, "topics/car_state_out", carstate_out_topic_, std::string("localization/car_state")))
+  {
+    ROS_WARN_STREAM("Did not load topics/car_state_out. Standard value is: " << carstate_out_topic_);
+  }
+  if (!LoadParam(pnh_, nh_, "topics/cone_map", cone_map_topic_, std::string("localization/cone_map")))
+  {
+    ROS_WARN_STREAM("Did not load topics/cone_map. Standard value is: " << cone_map_topic_);
+  }
+  if (!LoadParam(pnh_, nh_, "topics/global_map", global_map_topic_, std::string("localization/global_map")))
+  {
+    ROS_WARN_STREAM("Did not load topics/global_map. Standard value is: " << global_map_topic_);
+  }
+  if (!LoadParam(pnh_, nh_, "topics/pose", pose_topic_, std::string("localization/pose")))
+  {
+    ROS_WARN_STREAM("Did not load topics/pose. Standard value is: " << pose_topic_);
+  }
+  if (!LoadParam(pnh_, nh_, "topics/odom", odom_topic_, std::string("localization/odom")))
+  {
+    ROS_WARN_STREAM("Did not load topics/odom. Standard value is: " << odom_topic_);
+  }
+  if (!LoadParam(pnh_, nh_, "frames/world", world_frame_, std::string("world")))
+  {
+    ROS_WARN_STREAM("Did not load frames/world. Standard value is: " << world_frame_);
+  }
+  if (!LoadParam(pnh_, nh_, "frames/base_link", base_link_frame_, std::string("base_link")))
+  {
+    ROS_WARN_STREAM("Did not load frames/base_link. Standard value is: " << base_link_frame_);
+  }
+  if (!LoadParam(pnh_, nh_, "use_external_carstate", use_external_carstate_, false))
   {
     ROS_WARN_STREAM("Did not load use_external_carstate. Standard value is: " << (use_external_carstate_ ? "true" : "false"));
   }
-  if (!nh_.param("publish_visualization", publish_visualization_, false))
+}
+
+void LocationNode::publishState(const localization_core::CarState &state, const ros::Time &stamp, bool publish_carstate)
+{
+  const geometry_msgs::Quaternion orientation = YawToQuaternion(state.car_state.theta);
+
+  if (publish_carstate)
   {
-    ROS_WARN_STREAM("Did not load publish_visualization. Standard value is: " << (publish_visualization_ ? "true" : "false"));
+    autodrive_msgs::HUAT_CarState out;
+    ToRos(state, &out);
+    out.header.stamp = stamp;
+    out.header.frame_id = world_frame_;
+    carstate_pub_.publish(out);
   }
+
+  geometry_msgs::PoseStamped pose_msg;
+  pose_msg.header.stamp = stamp;
+  pose_msg.header.frame_id = world_frame_;
+  pose_msg.pose.position.x = state.car_state.x;
+  pose_msg.pose.position.y = state.car_state.y;
+  pose_msg.pose.position.z = 0.0;
+  pose_msg.pose.orientation = orientation;
+  pose_pub_.publish(pose_msg);
+
+  nav_msgs::Odometry odom_msg;
+  odom_msg.header.stamp = stamp;
+  odom_msg.header.frame_id = world_frame_;
+  odom_msg.child_frame_id = base_link_frame_;
+  odom_msg.pose.pose = pose_msg.pose;
+  odom_msg.twist.twist.linear.x = state.V;
+  odom_msg.twist.twist.angular.z = state.W;
+  odom_pub_.publish(odom_msg);
+
+  geometry_msgs::TransformStamped tf_msg;
+  tf_msg.header.stamp = stamp;
+  tf_msg.header.frame_id = world_frame_;
+  tf_msg.child_frame_id = base_link_frame_;
+  tf_msg.transform.translation.x = state.car_state.x;
+  tf_msg.transform.translation.y = state.car_state.y;
+  tf_msg.transform.translation.z = 0.0;
+  tf_msg.transform.rotation = orientation;
+  tf_broadcaster_.sendTransform(tf_msg);
 }
 
 void LocationNode::imuCallback(const autodrive_msgs::HUAT_Asensing::ConstPtr &msg)
@@ -84,17 +189,16 @@ void LocationNode::imuCallback(const autodrive_msgs::HUAT_Asensing::ConstPtr &ms
 
   if (mapper_.UpdateFromIns(core_msg, &state))
   {
-    autodrive_msgs::HUAT_CarState out;
-    ToRos(state, &out);
-    out.header.stamp = ros::Time::now();
-    out.header.frame_id = "world";  // 全局 ENU 坐标系
-    carstate_pub_.publish(out);
+    publishState(state, ros::Time::now(), true);
   }
 }
 
 void LocationNode::carstateCallback(const autodrive_msgs::HUAT_CarState::ConstPtr &msg)
 {
   mapper_.UpdateFromCarState(ToCore(*msg));
+  const ros::Time stamp = msg->header.stamp.isZero() ? ros::Time::now() : msg->header.stamp;
+  const bool publish_carstate = carstate_out_topic_ != carstate_in_topic_;
+  publishState(mapper_.car_state(), stamp, publish_carstate);
 }
 
 void LocationNode::coneCallback(const autodrive_msgs::HUAT_ConeDetections::ConstPtr &msg)

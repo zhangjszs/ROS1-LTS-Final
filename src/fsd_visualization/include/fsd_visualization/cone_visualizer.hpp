@@ -24,6 +24,10 @@ private:
     ros::Subscriber sub_cone_map_;
     ros::Publisher pub_markers_;
     
+    std::string cone_detections_topic_;
+    std::string cone_map_topic_;
+    std::string markers_topic_;
+
     std::string frame_id_;
     double cone_radius_;
     double cone_height_;

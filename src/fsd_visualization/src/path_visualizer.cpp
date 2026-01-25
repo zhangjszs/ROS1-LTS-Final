@@ -7,18 +7,23 @@ PathVisualizer::PathVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh) {
     pnh.param<std::string>("frame_id", frame_id_, FRAME_GLOBAL);
     pnh.param<double>("path_width", path_width_, PATH_WIDTH);
     pnh.param<double>("point_size", point_size_, PATH_POINT_SIZE);
+    pnh.param<std::string>("topics/path_partial", partial_path_topic_, "planning/high_speed_tracking/pathlimits/partial");
+    pnh.param<std::string>("topics/path_full", full_path_topic_, "planning/high_speed_tracking/pathlimits/full");
+    pnh.param<std::string>("topics/nav_path", nav_path_topic_, "planning/line_detection/path");
+    pnh.param<std::string>("topics/markers", markers_topic_, "fsd/viz/path");
+    pnh.param<std::string>("topics/boundaries", boundaries_topic_, "fsd/viz/boundaries");
     
     // 订阅
-    sub_path_partial_ = nh.subscribe("/AS/P/pathlimits/partial", 1,
+    sub_path_partial_ = nh.subscribe(partial_path_topic_, 1,
         &PathVisualizer::pathLimitsPartialCallback, this);
-    sub_path_full_ = nh.subscribe("/AS/P/pathlimits/full", 1,
+    sub_path_full_ = nh.subscribe(full_path_topic_, 1,
         &PathVisualizer::pathLimitsFullCallback, this);
-    sub_nav_path_ = nh.subscribe("/path_global", 1,
+    sub_nav_path_ = nh.subscribe(nav_path_topic_, 1,
         &PathVisualizer::navPathCallback, this);
     
     // 发布
-    pub_path_markers_ = nh.advertise<visualization_msgs::MarkerArray>("/fsd/viz/path", 1);
-    pub_boundary_markers_ = nh.advertise<visualization_msgs::MarkerArray>("/fsd/viz/boundaries", 1);
+    pub_path_markers_ = nh.advertise<visualization_msgs::MarkerArray>(markers_topic_, 1);
+    pub_boundary_markers_ = nh.advertise<visualization_msgs::MarkerArray>(boundaries_topic_, 1);
     
     ROS_INFO("[PathVisualizer] Initialized");
 }

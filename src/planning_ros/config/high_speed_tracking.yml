@@ -1,13 +1,13 @@
 # I/O Topics
-input_cones_topic:              "/coneMap"                      #用于接收锥筒
-input_pose_topic:                "/Carstate"                    #用于接受车身位姿消息
-output_full_topic:              "/AS/P/pathlimits/full"         #在路径回环之后发布全部路径用的
-output_partial_topic:           "/AS/P/pathlimits/partial"      #在没有回环的时候发布部分路径用的
-stop_topic:                     "/stopTheCar"                   #发布车辆停止信号
+input_cones_topic:              "localization/cone_map"                 #用于接收锥筒
+input_pose_topic:               "localization/car_state"                #用于接受车身位姿消息
+output_full_topic:              "planning/high_speed_tracking/pathlimits/full"    #在路径回环之后发布全部路径用的
+output_partial_topic:           "planning/high_speed_tracking/pathlimits/partial" #在没有回环的时候发布部分路径用的
+stop_topic:                     "planning/high_speed_tracking/stop"     #发布车辆停止信号
 
 # Visualization data
 publish_viz_data:              true    # bool   [-]   whether or not to publish visualization data.
-viz_topic:                     "/AS/P/high_speed_tracking/viz"                      # visualization data output
+viz_topic:                     "planning/high_speed_tracking/viz"                   # visualization data output
 
 ## Params
 

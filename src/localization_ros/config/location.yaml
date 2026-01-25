@@ -1,6 +1,16 @@
-filtered_topic_name: /location
-publish_visualization: false
 use_external_carstate: false
+topics:
+  ins: "sensors/ins"
+  car_state_in: "localization/car_state"
+  cone: "perception/lidar_cluster/detections"
+  car_state_out: "localization/car_state"
+  cone_map: "localization/cone_map"
+  global_map: "localization/global_map"
+  pose: "localization/pose"
+  odom: "localization/odom"
+frames:
+  world: "world"
+  base_link: "base_link"
 length:
   lidarToIMUDist: 1.87
   frontToIMUdistanceX: 0.0

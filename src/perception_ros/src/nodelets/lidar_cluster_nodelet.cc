@@ -7,7 +7,6 @@
 #include <ros/ros.h>
 
 #include <perception_ros/lidar_cluster_ros.hpp>
-// #include "velodyne_driver/driver.h"
 
 namespace nodelet_lidar
 {
@@ -59,7 +58,6 @@ namespace nodelet_lidar
       loop_rate.sleep();
       // controls its process freq
     }
-    // ros::spin();
     running_ = false;
   }
 

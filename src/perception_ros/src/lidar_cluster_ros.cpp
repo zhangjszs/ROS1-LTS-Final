@@ -15,61 +15,50 @@ LidarClusterRos::LidarClusterRos(ros::NodeHandle nh, ros::NodeHandle private_nh)
   sub_point_cloud_ = nh_.subscribe(input_topic_, 100, &LidarClusterRos::pointCallback, this);
 
   if (vis_ != 0) {
-    marker_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("/BoundingBox", 1);
-    marker_pub_all_ = nh_.advertise<visualization_msgs::MarkerArray>("/BoundingBoxAll", 1);
+    marker_pub_ = nh_.advertise<visualization_msgs::MarkerArray>(markers_topic_, 1);
+    marker_pub_all_ = nh_.advertise<visualization_msgs::MarkerArray>(markers_all_topic_, 1);
   }
 
-  pub_filtered_points_ = nh_.advertise<sensor_msgs::PointCloud2>("/PassThrough_points", 1);
-  pub_filtered_points__ = nh_.advertise<sensor_msgs::PointCloud2>("/filtered_points", 1);
-  pub_filtered_points___ = nh_.advertise<sensor_msgs::PointCloud2>("/SAC", 1);
-  pub_filtered_points____ = nh_.advertise<sensor_msgs::PointCloud2>("/satis_filter", 1);
-  lidarClusterPublisher_ = nh_.advertise<sensor_msgs::PointCloud>("/perception/lidar_cluster", 1);
-  adjust_check_front_ = nh_.advertise<sensor_msgs::PointCloud2>("/adjust_check_front", 1);
-  adjust_check_back_ = nh_.advertise<sensor_msgs::PointCloud2>("/adjust_check_back", 1);
-
-  logging_pub_ = nh_.advertise<nav_msgs::Path>("/log_path", 10);
-  cone_position_ = nh_.advertise<autodrive_msgs::HUAT_ConeDetections>("/cone_position", 10);
-  skidpad_detection_ = nh_.advertise<sensor_msgs::PointCloud2>("/skidpad_detection", 1);
+  passthrough_pub_ = nh_.advertise<sensor_msgs::PointCloud2>(passthrough_topic_, 1);
+  no_ground_pub_ = nh_.advertise<sensor_msgs::PointCloud2>(no_ground_topic_, 1);
+  cones_pub_ = nh_.advertise<sensor_msgs::PointCloud2>(cones_topic_, 1);
+  detections_pub_ = nh_.advertise<autodrive_msgs::HUAT_ConeDetections>(detections_topic_, 10);
 
   ROS_INFO("lidar cluster finished initialization");
 }
 
 void LidarClusterRos::loadParams()
 {
-  if (!private_nh_.param<std::string>("input_topic", input_topic_, "/velodyne_points"))
+  if (!private_nh_.param<std::string>("topics/input", input_topic_, "points/raw"))
   {
-    ROS_WARN_STREAM("Did not load input_topic topic name. Standard value is: " << input_topic_);
+    ROS_WARN_STREAM("Did not load topics/input. Standard value is: " << input_topic_);
   }
-  if (!private_nh_.param<std::string>("no_ground_point_topic", no_ground_topic_, "/points_no_ground"))
+  if (!private_nh_.param<std::string>("topics/points/passthrough", passthrough_topic_, "points/passthrough"))
   {
-    ROS_WARN_STREAM("Did not load points_no_ground topic name. Standard value is: " << no_ground_topic_);
+    ROS_WARN_STREAM("Did not load topics/points/passthrough. Standard value is: " << passthrough_topic_);
   }
-  if (!private_nh_.param<std::string>("ground_point_topic", ground_topic_, "/points_ground"))
+  if (!private_nh_.param<std::string>("topics/points/no_ground", no_ground_topic_, "points/no_ground"))
   {
-    ROS_WARN_STREAM("Did not load points_ground topic name. Standard value is: " << ground_topic_);
+    ROS_WARN_STREAM("Did not load topics/points/no_ground. Standard value is: " << no_ground_topic_);
   }
-  if (!private_nh_.param<std::string>("all_points_topic", all_points_topic_, "/all_points"))
+  if (!private_nh_.param<std::string>("topics/points/cones", cones_topic_, "points/cones"))
   {
-    ROS_WARN_STREAM("Did not load points_ground topic name. Standard value is: " << all_points_topic_);
+    ROS_WARN_STREAM("Did not load topics/points/cones. Standard value is: " << cones_topic_);
+  }
+  if (!private_nh_.param<std::string>("topics/detections", detections_topic_, "detections"))
+  {
+    ROS_WARN_STREAM("Did not load topics/detections. Standard value is: " << detections_topic_);
+  }
+  if (!private_nh_.param<std::string>("topics/markers/cones", markers_topic_, "markers/cones"))
+  {
+    ROS_WARN_STREAM("Did not load topics/markers/cones. Standard value is: " << markers_topic_);
+  }
+  if (!private_nh_.param<std::string>("topics/markers/all", markers_all_topic_, "markers/all"))
+  {
+    ROS_WARN_STREAM("Did not load topics/markers/all. Standard value is: " << markers_all_topic_);
   }
 
-  if (!private_nh_.param<double>("clip_height", config_.clip_height, 2.0))
-  {
-    ROS_WARN_STREAM("Did not load clip_height. Standard value is: " << config_.clip_height);
-  }
   if (!private_nh_.param<double>("sensor_height", config_.sensor_height, 0.135))
-  {
-    ROS_WARN_STREAM("Did not load sensor_height. Standard value is: " << config_.sensor_height);
-  }
-  if (!private_nh_.param<double>("min_distance", config_.min_distance, 0.1))
-  {
-    ROS_WARN_STREAM("Did not load min_distance. Standard value is: " << config_.min_distance);
-  }
-  if (!private_nh_.param<double>("max_distance", config_.max_distance, 100.0))
-  {
-    ROS_WARN_STREAM("Did not load sensor_height. Standard value is: " << config_.max_distance);
-  }
-  if (!private_nh_.param<double>("sensor_height", config_.sensor_height, 100.0))
   {
     ROS_WARN_STREAM("Did not load sensor_height. Standard value is: " << config_.sensor_height);
   }
@@ -191,10 +180,7 @@ void LidarClusterRos::loadParams()
     ROS_WARN("Did not load max_box_altitude.");
   }
 
-  ROS_INFO("clip_height: %f", config_.clip_height);
   ROS_INFO("sensor_height: %f", config_.sensor_height);
-  ROS_INFO("min_distance: %f", config_.min_distance);
-  ROS_INFO("max_distance: %f", config_.max_distance);
   ROS_INFO("sensor_model: %d", config_.sensor_model);
   ROS_INFO("num_iter: %d", config_.num_iter);
   ROS_INFO("num_lpr: %d", config_.num_lpr);
@@ -261,7 +247,7 @@ void LidarClusterRos::publishOutput(const LidarClusterOutput &output)
   {
     pcl::toROSMsg(*output.passthrough, pc_msg);
     pc_msg.header = last_header_;
-    pub_filtered_points_.publish(pc_msg);
+    passthrough_pub_.publish(pc_msg);
     bytes_pub += pc_msg.data.size();
   }
 
@@ -269,7 +255,7 @@ void LidarClusterRos::publishOutput(const LidarClusterOutput &output)
   {
     pcl::toROSMsg(*output.not_ground, pc_msg);
     pc_msg.header = last_header_;
-    pub_filtered_points___.publish(pc_msg);
+    no_ground_pub_.publish(pc_msg);
     bytes_pub += pc_msg.data.size();
   }
 
@@ -278,16 +264,8 @@ void LidarClusterRos::publishOutput(const LidarClusterOutput &output)
   {
     pcl::toROSMsg(*output.cones_cloud, cones_msg);
     cones_msg.header = last_header_;
-    pub_filtered_points__.publish(cones_msg);
+    cones_pub_.publish(cones_msg);
     bytes_pub += cones_msg.data.size();
-  }
-
-  if (output.skidpad_detection)
-  {
-    pcl::toROSMsg(*output.skidpad_detection, pc_msg);
-    pc_msg.header = last_header_;
-    skidpad_detection_.publish(pc_msg);
-    bytes_pub += pc_msg.data.size();
   }
 
   autodrive_msgs::HUAT_ConeDetections detections;
@@ -332,7 +310,7 @@ void LidarClusterRos::publishOutput(const LidarClusterOutput &output)
     }
   }
 
-  cone_position_.publish(detections);
+  detections_pub_.publish(detections);
   bytes_pub += ros::serialization::serializationLength(detections);
 
   if (vis_ != 0)

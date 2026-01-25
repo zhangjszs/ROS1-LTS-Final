@@ -264,7 +264,11 @@ void ImuStateEstimator::Update(const Eigen::VectorXd &z,
   }
 
   Eigen::MatrixXd S = H * P_ * H.transpose() + R;
-  Eigen::MatrixXd K = P_ * H.transpose() * S.inverse();
+  // Use LDLT decomposition for better numerical stability instead of direct inverse
+  // K = P * H^T * S^-1
+  // K^T = S^-1 * H * P
+  // S * K^T = H * P
+  Eigen::MatrixXd K = (S.ldlt().solve(H * P_)).transpose();
 
   x_ = x_ + K * y;
   if (yaw_index >= 0)

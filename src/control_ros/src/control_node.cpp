@@ -39,7 +39,8 @@ public:
     if (CheckExternalStop())
     {
       PublishEmergencyStop();
-      std::exit(0);
+      ros::shutdown();
+      return;
     }
 
     if (!path_ready_ && !(mode_ == 1 || mode_ == 5))
@@ -216,8 +217,8 @@ private:
     ifs.open(cmd_path.c_str(), std::ios::in);
     if (!ifs.is_open())
     {
-      std::cout << "文件打开失败" << std::endl;
-      return true;
+      ROS_WARN_THROTTLE(1, "文件打开失败 (External Stop Check Failed to Open File)");
+      return false; // Don't stop on read error, just warn
     }
     int value = static_cast<char>(ifs.get()) - '0';
     if (value == 0)

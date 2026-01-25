@@ -5,12 +5,15 @@
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "line_detection");
-  ros::NodeHandle nh("~");
+  ros::NodeHandle nh;
+  ros::NodeHandle pnh("~");
 
   planning_ros::LineDetectionNode node(nh);
 
-  ros::Rate loop_rate(10);
-  ROS_INFO("[LineDetection] Node started, running at 10 Hz");
+  int rate = 10;
+  pnh.param("loop_rate", rate, 10);
+  ros::Rate loop_rate(rate);
+  ROS_INFO("[LineDetection] Node started, running at %d Hz", rate);
 
   while (ros::ok())
   {

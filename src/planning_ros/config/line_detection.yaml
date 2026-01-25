@@ -49,10 +49,13 @@ finish:
 # Topic Names
 topics:
   # Cone position topic from perception module
-  cone: "/cone_position"
+  cone: "perception/lidar_cluster/detections"
 
   # Vehicle state topic from localization
-  car_state: "/Carstate"
+  car_state: "localization/car_state"
 
   # Planned path output topic
-  path: "/line_planned_path"
+  path: "planning/line_detection/path"
+
+  # Finish signal output topic
+  finish: "planning/line_detection/finish_signal"

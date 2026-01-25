@@ -18,5 +18,6 @@ max_dt: 0.1
 
 accel_gravity: 9.79
 
-imu_topic: /pbox_pub/Ins
-carstate_topic: /Carstate
+topics:
+  ins: "sensors/ins"
+  car_state: "localization/car_state"

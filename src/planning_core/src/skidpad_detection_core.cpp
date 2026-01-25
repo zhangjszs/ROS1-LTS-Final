@@ -40,7 +40,7 @@ void SkidpadDetectionCore::ProcessConeDetections(const std::vector<ConePoint> &c
     pcl_point.y = point.y;
     pcl_point.z = point.z;
     skidpad_msg_ptr_->push_back(pcl_point);
-    std::cout << "Point: x = " << point.x << ", y = " << point.y << ", z = " << point.z << std::endl;
+    // std::cout << "Point: x = " << point.x << ", y = " << point.y << ", z = " << point.z << std::endl;
   }
 
   PassThrough(skidpad_msg_ptr_);
@@ -65,7 +65,7 @@ void SkidpadDetectionCore::ProcessConeDetections(const std::vector<ConePoint> &c
     {
       if (obtain_four == 4)
       {
-        std::cout << "find four " << std::endl;
+        // std::cout << "find four " << std::endl;
         find_four_bucket_ = true;
         break;
       }
@@ -75,14 +75,14 @@ void SkidpadDetectionCore::ProcessConeDetections(const std::vector<ConePoint> &c
 
     if (!find_four_bucket_)
     {
-      std::cout << "miss four -bucket！" << std::endl;
+      // std::cout << "miss four -bucket！" << std::endl;
       return;
     }
 
-    std::cout << "[0]:" << order[0].x << " " << order[0].y << std::endl;
-    std::cout << "[1]:" << order[1].x << " " << order[1].y << std::endl;
-    std::cout << "[2]:" << order[2].x << " " << order[2].y << std::endl;
-    std::cout << "[3]:" << order[3].x << " " << order[3].y << std::endl;
+    // std::cout << "[0]:" << order[0].x << " " << order[0].y << std::endl;
+    // std::cout << "[1]:" << order[1].x << " " << order[1].y << std::endl;
+    // std::cout << "[2]:" << order[2].x << " " << order[2].y << std::endl;
+    // std::cout << "[3]:" << order[3].x << " " << order[3].y << std::endl;
 
     mid_x_fir_ = (order[0].x + order[1].x) / 2;
     mid_y_fir_ = (order[0].y + order[1].y) / 2;
@@ -92,14 +92,14 @@ void SkidpadDetectionCore::ProcessConeDetections(const std::vector<ConePoint> &c
 
     at2_angle_mid_ = atan2(std::abs(mid_y_sec_ - mid_y_fir_), std::abs(mid_x_sec_ - mid_x_fir_));
     lipu = at2_angle_mid_;
-    std::cout << "angle_mid:" << at2_angle_mid_ << std::endl;
+    // std::cout << "angle_mid:" << at2_angle_mid_ << std::endl;
     if (find_four_bucket_)
       at2_angle_calced_ = true;
     return;
   }
   else
   {
-    std::cout << "wrong situation (matchFlag: " << matchFlag_ << ", find_four_bucket: " << find_four_bucket_ << ")" << std::endl;
+    // std::cout << "wrong situation (matchFlag: " << matchFlag_ << ", find_four_bucket: " << find_four_bucket_ << ")" << std::endl;
     return;
   }
 }
@@ -197,7 +197,7 @@ void SkidpadDetectionCore::RunAlgorithm()
   changFlag_ = ChangPathFlag(current_pose_.x, current_pose_.y, targetX_, targetY_, distanceThreshold_);
   ChangLeavePathFlag(current_pose_.x, current_pose_.y, targetX_, targetY_, LeavedistanceThreshold_);
   UpdateApproaching(current_pose_.x, current_pose_.y, FinTargetX_, FInTargetY_, stopdistance_);
-  std::cout << "runAlgorithm:" << matchFlag_ << "  " << at2_angle_calced_ << std::endl;
+  // std::cout << "runAlgorithm:" << matchFlag_ << "  " << at2_angle_calced_ << std::endl;
 
   if (matchFlag_ && at2_angle_calced_)
   {
@@ -218,7 +218,7 @@ void SkidpadDetectionCore::RunAlgorithm()
 
     path_output_ = TransformPath(path);
     path_updated_ = true;
-    std::cout << "发布第一段路径 " << modeFlag_ << std::endl;
+    // std::cout << "发布第一段路径 " << modeFlag_ << std::endl;
     modeFlag_++;
     matchFlag_ = false;
     at2_angle_calced_ = false;
@@ -250,7 +250,7 @@ void SkidpadDetectionCore::RunAlgorithm()
 
         path_output_ = TransformPath(path);
         path_updated_ = true;
-        std::cout << "发布第二段路径 " << modeFlag_ << std::endl;
+        // std::cout << "发布第二段路径 " << modeFlag_ << std::endl;
         modeFlag_++;
         haschanged_ = false;
         break;
@@ -267,7 +267,7 @@ void SkidpadDetectionCore::RunAlgorithm()
 
         path_output_ = TransformPath(path);
         path_updated_ = true;
-        std::cout << "发布第三段路径 " << modeFlag_ << std::endl;
+        // std::cout << "发布第三段路径 " << modeFlag_ << std::endl;
         modeFlag_++;
         haschanged_ = false;
         break;
@@ -283,12 +283,12 @@ void SkidpadDetectionCore::RunAlgorithm()
 
         path_output_ = TransformPath(path);
         path_updated_ = true;
-        std::cout << "发布第四段路径 " << modeFlag_ << std::endl;
+        // std::cout << "发布第四段路径 " << modeFlag_ << std::endl;
         modeFlag_++;
         haschanged_ = false;
         break;
       default:
-        std::cout << modeFlag_ << std::endl;
+        // std::cout << modeFlag_ << std::endl;
         break;
       }
     }

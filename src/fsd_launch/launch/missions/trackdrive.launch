@@ -18,6 +18,14 @@
     <!-- ========== Simulation Time ========== -->
     <param name="/use_sim_time" value="$(arg simulation)"/>
 
+    <!-- ========== 参数校验 ========== -->
+    <!-- 仿真模式必须指定bag路径 -->
+    <group if="$(arg simulation)">
+        <group unless="$(eval bag != '')">
+            <node pkg="rospy" type="message" name="error_check" output="screen" args="错误：仿真模式必须指定bag文件路径！使用参数 bag:=/path/to/bag.bag"/>
+        </group>
+    </group>
+
     <!-- ========== Subsystems ========== -->
     <include file="$(find fsd_launch)/launch/subsystems/perception.launch">
         <arg name="launch_rviz" value="false"/>

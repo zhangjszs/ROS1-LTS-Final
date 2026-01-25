@@ -32,6 +32,12 @@ private:
     ros::Publisher pub_path_markers_;
     ros::Publisher pub_boundary_markers_;
     
+    std::string partial_path_topic_;
+    std::string full_path_topic_;
+    std::string nav_path_topic_;
+    std::string markers_topic_;
+    std::string boundaries_topic_;
+
     std::string frame_id_;
     double path_width_;
     double point_size_;

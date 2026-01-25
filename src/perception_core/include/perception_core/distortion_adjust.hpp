@@ -11,9 +11,6 @@
 #include <pcl/common/transforms.h>
 #include <perception_core/imu_data.hpp>
 typedef pcl::PointXYZI PointType;
-// #include "perception_core/distortion_adjust.hpp"
-// #include "lidar_localization/sensor_data/velocity_data.hpp"
-// #include "lidar_localization/sensor_data/cloud_data.hpp"
 namespace lidar_distortion {
 
 
@@ -21,9 +18,7 @@ class DistortionAdjust {
   public:
     DistortionAdjust();
     void SetMotionInfo(float scan_period, IMUData velocity_data);
-    // bool AdjustCloud(CloudData::CLOUD_PTR& input_cloud_ptr, CloudData::CLOUD_PTR& output_cloud_ptr);
     void AdjustCloud(pcl::PointCloud<PointType>::Ptr& input_cloud_ptr, pcl::PointCloud<PointType>::Ptr& output_cloud_ptr);
-    // std::shared_ptr<DistortionAdjust> distadjust;
   private:
     inline Eigen::Matrix3f UpdateMatrix(float real_time);
   private:

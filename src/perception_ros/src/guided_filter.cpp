@@ -57,9 +57,4 @@ int main()
         }
     }
     return;
-    // cloud_out.width = cloud_out.size();
-    // cloud_out.height = 1;
-    // cloud_out.resize(double(cloud_out.width) * double(cloud_out.height));
-    // pcl::io::savePCDFile<point>("smoothed_chair.pcd", cloud_out);
-    // std::cout << "Hello World!\n";
 }

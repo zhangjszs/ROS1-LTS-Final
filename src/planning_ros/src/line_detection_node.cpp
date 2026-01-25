@@ -7,7 +7,7 @@ namespace planning_ros
 {
 
 LineDetectionNode::LineDetectionNode(ros::NodeHandle &nh)
-  : nh_(nh), core_(params_)
+  : nh_(nh), pnh_("~"), core_(params_)
 {
   LoadParameters();
   core_.SetParams(params_);
@@ -16,31 +16,32 @@ LineDetectionNode::LineDetectionNode(ros::NodeHandle &nh)
   car_state_sub_ = nh_.subscribe(car_state_topic_, 1, &LineDetectionNode::CarStateCallback, this);
 
   path_pub_ = nh_.advertise<nav_msgs::Path>(path_topic_, 1);
-  finish_pub_ = nh_.advertise<std_msgs::Bool>("line_finish_signal", 1);
+  finish_pub_ = nh_.advertise<std_msgs::Bool>(finish_topic_, 1);
 
   ROS_INFO("[LineDetection] Node initialized");
 }
 
 void LineDetectionNode::LoadParameters()
 {
-  nh_.param("hough/rho_resolution", params_.hough_rho_resolution, 0.1);
-  nh_.param("hough/theta_resolution", params_.hough_theta_resolution, 0.01);
-  nh_.param("hough/min_votes", params_.hough_min_votes, 3);
-  nh_.param("hough/theta_tolerance", params_.theta_tolerance, 0.2);
+  pnh_.param("hough/rho_resolution", params_.hough_rho_resolution, 0.1);
+  pnh_.param("hough/theta_resolution", params_.hough_theta_resolution, 0.01);
+  pnh_.param("hough/min_votes", params_.hough_min_votes, 3);
+  pnh_.param("hough/theta_tolerance", params_.theta_tolerance, 0.2);
 
-  nh_.param("cones/max_distance", params_.max_cone_distance, 50.0);
-  nh_.param("cones/min_distance", params_.min_cone_distance, 2.0);
+  pnh_.param("cones/max_distance", params_.max_cone_distance, 50.0);
+  pnh_.param("cones/min_distance", params_.min_cone_distance, 2.0);
 
-  nh_.param("path/interval", params_.path_interval, 0.1);
-  nh_.param("path/max_distance", params_.max_path_distance, 75.0);
+  pnh_.param("path/interval", params_.path_interval, 0.1);
+  pnh_.param("path/max_distance", params_.max_path_distance, 75.0);
 
-  nh_.param("vehicle/imu_offset_x", params_.imu_offset_x, 1.88);
+  pnh_.param("vehicle/imu_offset_x", params_.imu_offset_x, 1.88);
 
-  nh_.param("finish/threshold", params_.finish_line_threshold, 2.0);
+  pnh_.param("finish/threshold", params_.finish_line_threshold, 2.0);
 
-  nh_.param<std::string>("topics/cone", cone_topic_, "/cone_position");
-  nh_.param<std::string>("topics/car_state", car_state_topic_, "/Carstate");
-  nh_.param<std::string>("topics/path", path_topic_, "/line_planned_path");
+  pnh_.param<std::string>("topics/cone", cone_topic_, "perception/lidar_cluster/detections");
+  pnh_.param<std::string>("topics/car_state", car_state_topic_, "localization/car_state");
+  pnh_.param<std::string>("topics/path", path_topic_, "planning/line_detection/path");
+  pnh_.param<std::string>("topics/finish", finish_topic_, "planning/line_detection/finish_signal");
 }
 
 void LineDetectionNode::ConeCallback(const autodrive_msgs::HUAT_ConeDetections::ConstPtr &cone_msg)

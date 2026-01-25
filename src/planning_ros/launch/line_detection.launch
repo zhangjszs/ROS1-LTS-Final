@@ -23,8 +23,9 @@
     <param name="finish/threshold" value="2.0" />
 
     <!-- Topic Names -->
-    <param name="topics/cone" value="/cone_position" />
-    <param name="topics/car_state" value="/Carstate" />
-    <param name="topics/path" value="/line_planned_path" />
+    <param name="topics/cone" value="perception/lidar_cluster/detections" />
+    <param name="topics/car_state" value="localization/car_state" />
+    <param name="topics/path" value="planning/line_detection/path" />
+    <param name="topics/finish" value="planning/line_detection/finish_signal" />
   </node>
 </launch>
