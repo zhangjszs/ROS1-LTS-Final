@@ -1,4 +1,5 @@
 <launch>
-  <node pkg="vehicle_interface_ros" type="vehicle_interface_node"
-        name="vehicle_interface" output="screen"/>
+  <arg name="bag" default="" />
+  <node pkg="vehicle_interface_ros" type="vehicle_interface_node" name="vehicle_interface" output="screen"/>
+  <node pkg="rosbag" type="play" name="rosbag_play" output="screen" args="$(arg bag)" if="$(eval arg('bag') != '')" />
 </launch>

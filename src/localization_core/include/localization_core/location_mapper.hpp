@@ -1,5 +1,6 @@
 #pragma once
 
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -55,6 +56,8 @@ class LocationMapper {
   PointCloudPtr cloud_;
   std::vector<int> point_ids_;
   pcl::KdTreeFLANN<pcl::PointXYZ> kdtree_;
+
+  mutable std::mutex state_mutex_;
 };
 
 }  // namespace localization_core

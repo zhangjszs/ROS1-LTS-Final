@@ -1,23 +1,33 @@
 #include <perception_core/lidar_cluster_core.hpp>
-// 地面分割处理
 
-bool point_cmp(PointType a, PointType b) // PointType表明XYZ点云库的一个点坐标
+#include <algorithm>
+// 地面分割处理（改进 RANSAC）
+
+bool point_cmp(const PointType &a, const PointType &b) // PointType表明XYZ点云库的一个点坐标
 {
     return a.z < b.z;
 }
 
-// ground_segmentation     地面分段
-void lidar_cluster::ground_segmentation(const pcl::PointCloud<PointType>::Ptr &in_pc,
-                                        pcl::PointCloud<PointType>::Ptr &g_not_ground_pc)
+// ground_segmentation_ransac_     地面分段
+void lidar_cluster::ground_segmentation_ransac_(const pcl::PointCloud<PointType>::Ptr &in_pc,
+                                                pcl::PointCloud<PointType>::Ptr &g_not_ground_pc)
 {
-
     g_not_ground_pc->points.clear();
+    
+    // P0: 空云检查保护
+    if (!in_pc || in_pc->points.empty()) {
+        g_not_ground_pc->width = 0;
+        g_not_ground_pc->height = 1;
+        g_not_ground_pc->is_dense = true;
+        return;
+    }
+    
     // 1.Msg to pointcloud   消息转换可使用点云库
     pcl::PointCloud<PointType> laserCloudIn, laserCloudIn_org;
     laserCloudIn = laserCloudIn_org = *in_pc; // 消息赋值
     //  For mark ground points and hold all points
     //  2.Sort on Z-axis value.  按Z轴值排序。
-    sort(laserCloudIn.points.begin(), laserCloudIn.end(), point_cmp); // 从小往大排
+    std::sort(laserCloudIn.points.begin(), laserCloudIn.end(), point_cmp); // 从小往大排
     // 3.Error point removal   删除错误点
     // As there are some error mirror reflection under the ground,            存在错误的误差镜面反射点云
     // here regardless point under 2* sensor_height
@@ -39,14 +49,41 @@ void lidar_cluster::ground_segmentation(const pcl::PointCloud<PointType>::Ptr &i
     }
     // remove below sensor_height_* - 1.5 points   拆下传感器下方的重量_*-1.5分
     laserCloudIn.points.erase(laserCloudIn.points.begin(), it);
+    
+    // P0: 过滤后可能为空
+    if (laserCloudIn.points.empty()) {
+        // 如果过滤后为空，则所有点都是非地面点
+        *g_not_ground_pc = laserCloudIn_org;
+        g_not_ground_pc->width = g_not_ground_pc->points.size();
+        g_not_ground_pc->height = 1;
+        g_not_ground_pc->is_dense = in_pc->is_dense;
+        return;
+    }
+    
     // 4. Extract init ground seeds. 提取初始地面种子
     extract_initial_seeds_(laserCloudIn); // 这个可能压根都没用上  数据都被清空了  不对  estimate_plane_用上了
+    
+    // P0: 空种子检查
+    if (g_seeds_pc->points.empty()) {
+        // 无法估计地面平面，将所有点视为非地面点
+        *g_not_ground_pc = laserCloudIn_org;
+        g_not_ground_pc->width = g_not_ground_pc->points.size();
+        g_not_ground_pc->height = 1;
+        g_not_ground_pc->is_dense = in_pc->is_dense;
+        return;
+    }
+    
     g_ground_pc = g_seeds_pc;             // 获取的地面种子存放到地面里面
     // 5. Ground plane fitter mainloop
     // 在这段代码中，是地面平面拟合的主循环。通过多次迭代来估计地面平面模型，
     // 并将点云数据根据与地面平面的距离进行分类，存储在`g_ground_pc`和`g_not_ground_pc`中
     for (int i = 0; i < num_iter_; i++)
     {
+        // P0: 每次迭代前检查 g_ground_pc 是否为空
+        if (g_ground_pc->points.empty()) {
+            break;
+        }
+        
         estimate_plane_();
         g_ground_pc->clear();
         g_not_ground_pc->clear();
@@ -58,14 +95,12 @@ void lidar_cluster::ground_segmentation(const pcl::PointCloud<PointType>::Ptr &i
         {
             points.row(j++) << p.x, p.y, p.z;
         }
-        // ground plane model             ground plane model
-        // 首先，将点云数据`points`与平面的法线`normal_`进行点乘运算，
-        // 得到一个VectorXf对象`result`。这个运算相当于将每个点的坐标与平面的法线进行内积运算，得到每个点到平面的距离。
-        VectorXf result = points * normal_; // 平面的法线
+        // ground plane model: 点到平面距离 = |normal.T * point + d|
+        VectorXf result = points * normal_;
         // threshold filter
         for (int r = 0; r < result.rows(); r++)
         {
-            if (result[r] < th_dist_d_) // 越大 就把越多的数据放进地面里面   所以分割不均可以考虑把数值放大
+            if (std::abs(result[r] + d_) < th_dist_)
             {
                 g_ground_pc->points.push_back(laserCloudIn_org[r]);
             }
@@ -115,6 +150,11 @@ void lidar_cluster::extract_initial_seeds_(const pcl::PointCloud<PointType> &p_s
 // 而通过估计距离阈值，可以确定离地面的距离范围，从而将地面点和非地面点分离开来。
 void lidar_cluster::estimate_plane_(void)
 {
+    // P1: 空云保护
+    if (!g_ground_pc || g_ground_pc->points.empty()) {
+        return;
+    }
+
     // Create covarian matrix in single pass.
     // 在单程中创建协变矩阵。
     Eigen::Matrix3f cov;     // 协方差矩阵

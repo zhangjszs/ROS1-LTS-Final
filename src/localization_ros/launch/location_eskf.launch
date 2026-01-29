@@ -1,4 +1,5 @@
 <launch>
+  <arg name="bag" default="" />
   <node pkg="localization_ros" type="state_estimator_node" name="state_estimator_node" output="screen">
     <rosparam command="load" file="$(find localization_ros)/config/state_estimator.yaml" />
   </node>
@@ -7,4 +8,5 @@
     <rosparam command="load" file="$(find localization_ros)/config/location.yaml" />
     <param name="use_external_carstate" value="true" />
   </node>
+  <node pkg="rosbag" type="play" name="rosbag_play" output="screen" args="$(arg bag)" if="$(eval arg('bag') != '')" />
 </launch>

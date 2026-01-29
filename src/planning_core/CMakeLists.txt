@@ -6,8 +6,15 @@ add_compile_options(-std=c++17)
 find_package(catkin REQUIRED)
 find_package(PCL REQUIRED)
 find_package(Eigen3 REQUIRED)
-if(NOT EIGEN3_INCLUDE_DIRS AND EIGEN3_INCLUDE_DIR)
-  set(EIGEN3_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR})
+if(NOT Eigen3_INCLUDE_DIRS)
+  if(EIGEN3_INCLUDE_DIRS)
+    set(Eigen3_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIRS})
+  elseif(EIGEN3_INCLUDE_DIR)
+    set(Eigen3_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR})
+  endif()
+endif()
+if(NOT Eigen3_LIBRARIES)
+  set(Eigen3_LIBRARIES "")
 endif()
 
 catkin_package(
@@ -19,7 +26,7 @@ catkin_package(
 include_directories(
   include
   ${PCL_INCLUDE_DIRS}
-  ${EIGEN3_INCLUDE_DIRS}
+  ${Eigen3_INCLUDE_DIRS}
 )
 
 link_directories(${PCL_LIBRARY_DIRS})

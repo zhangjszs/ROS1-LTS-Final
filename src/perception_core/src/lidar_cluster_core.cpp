@@ -61,7 +61,7 @@ bool lidar_cluster::Process(LidarClusterOutput *output)
   output->passthrough = cloud_filtered;
 
   auto startTimeSeg = std::chrono::steady_clock::now();
-  ground_segmentation(cloud_filtered, g_not_ground_pc);
+  ground_segmentation_dispatch_(cloud_filtered, g_not_ground_pc);
   auto endTimeSeg = std::chrono::steady_clock::now();
   auto elapsedTimeSeg =
       std::chrono::duration_cast<std::chrono::microseconds>(endTimeSeg - startTimeSeg);

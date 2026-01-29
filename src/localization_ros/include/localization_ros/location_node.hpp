@@ -3,7 +3,7 @@
 #include <string>
 
 #include <ros/ros.h>
-#include <autodrive_msgs/HUAT_Asensing.h>
+#include <autodrive_msgs/HUAT_InsP2.h>
 #include <autodrive_msgs/HUAT_CarState.h>
 #include <autodrive_msgs/HUAT_Cone.h>
 #include <autodrive_msgs/HUAT_ConeDetections.h>
@@ -26,11 +26,11 @@ class LocationNode {
  private:
   void loadParameters();
   void publishState(const localization_core::CarState &state, const ros::Time &stamp, bool publish_carstate);
-  void imuCallback(const autodrive_msgs::HUAT_Asensing::ConstPtr &msg);
+  void imuCallback(const autodrive_msgs::HUAT_InsP2::ConstPtr &msg);
   void carstateCallback(const autodrive_msgs::HUAT_CarState::ConstPtr &msg);
   void coneCallback(const autodrive_msgs::HUAT_ConeDetections::ConstPtr &msg);
 
-  static localization_core::Asensing ToCore(const autodrive_msgs::HUAT_Asensing &msg);
+  static localization_core::Asensing ToCore(const autodrive_msgs::HUAT_InsP2 &msg);
   static localization_core::CarState ToCore(const autodrive_msgs::HUAT_CarState &msg);
   static void ToRos(const localization_core::CarState &state, autodrive_msgs::HUAT_CarState *out);
   static localization_core::ConeDetections ToCore(const autodrive_msgs::HUAT_ConeDetections &msg);
@@ -61,6 +61,10 @@ class LocationNode {
   std::string odom_topic_;
   std::string world_frame_;
   std::string base_link_frame_;
+
+  bool has_last_state_ = false;
+  localization_core::CarState last_state_;
+  ros::Time last_stamp_;
 
   localization_core::LocationParams params_;
   localization_core::LocationMapper mapper_;

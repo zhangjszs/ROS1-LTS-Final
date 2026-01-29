@@ -1,5 +1,7 @@
 <launch>
+  <arg name="bag" default="" />
   <node name="high_speed_tracking" pkg="planning_ros" type="high_speed_tracking_node" output="screen">
     <rosparam command="load" file="$(find planning_ros)/config/high_speed_tracking.yml" />
   </node>
+  <node pkg="rosbag" type="play" name="rosbag_play" output="screen" args="$(arg bag)" if="$(eval arg('bag') != '')" />
 </launch>

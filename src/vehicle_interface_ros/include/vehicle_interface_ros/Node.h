@@ -59,7 +59,7 @@ typedef struct {
     float Altitude;
     float Ve;
     float Vn;
-    float Vu;
+    float Vd;
     float Base;
     uint8_t NSV1;
     uint8_t NSV2;

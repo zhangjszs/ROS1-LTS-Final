@@ -202,7 +202,7 @@ void UserNode::Imu_Trans(){
     imu_data.gyro_z = imuPacket.heading_speed;
     imu_data.Ve=imuPacket.eas_speed;
     imu_data.Vn=imuPacket.nor_speed;
-    imu_data.Vu=imuPacket.down_speed;
+    imu_data.Vd=imuPacket.down_speed;
 }
 
 void UserNode::publishIns(void *data){
@@ -229,7 +229,7 @@ void UserNode::publishIns(void *data){
 
         global_insMsg.Ve =imu_data.Ve;
         global_insMsg.Vn =imu_data.Vn;
-        global_insMsg.Vu =imu_data.Vu;
+        global_insMsg.Vd =imu_data.Vd;
         // std::cout<<"Received Lat Lon:"<<global_insMsg.Lat<<std::endl;
         ros_pub_ins_info.publish(global_insMsg);
     }

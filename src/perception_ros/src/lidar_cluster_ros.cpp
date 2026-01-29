@@ -1,10 +1,77 @@
 #include <perception_ros/lidar_cluster_ros.hpp>
 
 #include <ros/serialization.h>
+#include <xmlrpcpp/XmlRpcValue.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <utility>
 
 namespace perception_ros {
+
+namespace {
+
+bool LoadIntVector(const ros::NodeHandle &nh, const std::string &key, std::vector<int> &out)
+{
+  XmlRpc::XmlRpcValue value;
+  if (!nh.getParam(key, value))
+  {
+    return false;
+  }
+  if (value.getType() != XmlRpc::XmlRpcValue::TypeArray)
+  {
+    return false;
+  }
+  out.clear();
+  out.reserve(static_cast<size_t>(value.size()));
+  for (int i = 0; i < value.size(); ++i)
+  {
+    if (value[i].getType() == XmlRpc::XmlRpcValue::TypeInt)
+    {
+      out.push_back(static_cast<int>(value[i]));
+    }
+    else if (value[i].getType() == XmlRpc::XmlRpcValue::TypeDouble)
+    {
+      out.push_back(static_cast<int>(static_cast<double>(value[i])));
+    }
+    else
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool LoadDoubleVector(const ros::NodeHandle &nh, const std::string &key, std::vector<double> &out)
+{
+  XmlRpc::XmlRpcValue value;
+  if (!nh.getParam(key, value))
+  {
+    return false;
+  }
+  if (value.getType() != XmlRpc::XmlRpcValue::TypeArray)
+  {
+    return false;
+  }
+  out.clear();
+  out.reserve(static_cast<size_t>(value.size()));
+  for (int i = 0; i < value.size(); ++i)
+  {
+    if (value[i].getType() == XmlRpc::XmlRpcValue::TypeDouble)
+    {
+      out.push_back(static_cast<double>(value[i]));
+    }
+    else if (value[i].getType() == XmlRpc::XmlRpcValue::TypeInt)
+    {
+      out.push_back(static_cast<double>(static_cast<int>(value[i])));
+    }
+    else
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+}  // namespace
 
 LidarClusterRos::LidarClusterRos(ros::NodeHandle nh, ros::NodeHandle private_nh)
     : nh_(std::move(nh)), private_nh_(std::move(private_nh))
@@ -12,7 +79,7 @@ LidarClusterRos::LidarClusterRos(ros::NodeHandle nh, ros::NodeHandle private_nh)
   loadParams();
   core_.Configure(config_);
 
-  sub_point_cloud_ = nh_.subscribe(input_topic_, 100, &LidarClusterRos::pointCallback, this);
+  sub_point_cloud_ = nh_.subscribe(input_topic_, 2, &LidarClusterRos::pointCallback, this);  // P2: 队列从100改为2
 
   if (vis_ != 0) {
     marker_pub_ = nh_.advertise<visualization_msgs::MarkerArray>(markers_topic_, 1);
@@ -23,6 +90,12 @@ LidarClusterRos::LidarClusterRos(ros::NodeHandle nh, ros::NodeHandle private_nh)
   no_ground_pub_ = nh_.advertise<sensor_msgs::PointCloud2>(no_ground_topic_, 1);
   cones_pub_ = nh_.advertise<sensor_msgs::PointCloud2>(cones_topic_, 1);
   detections_pub_ = nh_.advertise<autodrive_msgs::HUAT_ConeDetections>(detections_topic_, 10);
+
+  // Initialize distortion compensator (decoupled module)
+  auto compensator_config = DistortionCompensator::LoadConfig(private_nh_);
+  if (compensator_config.enable) {
+    compensator_ = std::make_unique<DistortionCompensator>(nh_, compensator_config);
+  }
 
   ROS_INFO("lidar cluster finished initialization");
 }
@@ -66,33 +139,237 @@ void LidarClusterRos::loadParams()
   {
     ROS_WARN_STREAM("Did not load sensor_model. Standard value is: " << config_.sensor_model);
   }
-  if (!private_nh_.param<int>("num_iter", config_.num_iter, 3))
+  if (!private_nh_.param<int>("ransac/num_iter", config_.ransac.num_iter, 3))
   {
-    ROS_WARN_STREAM("Did not load num_iter. Standard value is: " << config_.num_iter);
+    ROS_WARN_STREAM("Did not load ransac/num_iter. Standard value is: " << config_.ransac.num_iter);
   }
-  if (!private_nh_.param<int>("num_lpr", config_.num_lpr, 5))
+  if (!private_nh_.param<int>("ransac/num_lpr", config_.ransac.num_lpr, 5))
   {
-    ROS_WARN_STREAM("Did not load num_lpr. Standard value is: " << config_.num_lpr);
+    ROS_WARN_STREAM("Did not load ransac/num_lpr. Standard value is: " << config_.ransac.num_lpr);
   }
-  if (!private_nh_.param<double>("th_seeds", config_.th_seeds, 0.03))
+  if (!private_nh_.param<double>("ransac/th_seeds", config_.ransac.th_seeds, 0.03))
   {
-    ROS_WARN_STREAM("Did not load th_seed. Standard value is: " << config_.th_seeds);
+    ROS_WARN_STREAM("Did not load ransac/th_seeds. Standard value is: " << config_.ransac.th_seeds);
   }
-  if (!private_nh_.param<double>("th_dist", config_.th_dist, 0.03))
+  if (!private_nh_.param<double>("ransac/th_dist", config_.ransac.th_dist, 0.03))
   {
-    ROS_WARN_STREAM("Did not load th_seed. Standard value is: " << config_.th_seeds);
+    ROS_WARN_STREAM("Did not load ransac/th_dist. Standard value is: " << config_.ransac.th_dist);
   }
   if (!private_nh_.param<int>("road_type", config_.road_type, 2))
   {
     ROS_WARN_STREAM("Did not load road_type. Standard value is: " << config_.road_type);
   }
-  if (!private_nh_.param<double>("z_up", config_.z_up, 0.7))
+  if (!private_nh_.param<std::string>("ground_method", config_.ground_method, "ransac"))
   {
-    ROS_WARN_STREAM("Did not load z_up. Standard value is: " << config_.z_up);
+    ROS_WARN_STREAM("Did not load ground_method. Standard value is: " << config_.ground_method);
   }
-  if (!private_nh_.param<double>("z_down", config_.z_down, -1.0))
+  if (!private_nh_.param<std::string>("roi/mode", config_.roi.mode, "track"))
   {
-    ROS_WARN_STREAM("Did not load road_type. Standard value is: " << config_.z_down);
+    ROS_WARN_STREAM("Did not load roi/mode. Standard value is: " << config_.roi.mode);
+  }
+  if (!private_nh_.param<bool>("roi/use_point_clip", config_.roi.use_point_clip, false))
+  {
+    ROS_WARN_STREAM("Did not load roi/use_point_clip. Standard value is: " << config_.roi.use_point_clip);
+  }
+  if (!private_nh_.param<double>("roi/z_min", config_.roi.z_min, -1.0))
+  {
+    ROS_WARN_STREAM("Did not load roi/z_min. Standard value is: " << config_.roi.z_min);
+  }
+  if (!private_nh_.param<double>("roi/z_max", config_.roi.z_max, 0.7))
+  {
+    ROS_WARN_STREAM("Did not load roi/z_max. Standard value is: " << config_.roi.z_max);
+  }
+  if (!private_nh_.param<double>("roi/skidpad/x_min", config_.roi.skidpad.x_min, 0.0))
+  {
+    ROS_WARN_STREAM("Did not load roi/skidpad/x_min. Standard value is: " << config_.roi.skidpad.x_min);
+  }
+  if (!private_nh_.param<double>("roi/skidpad/x_max", config_.roi.skidpad.x_max, 10.0))
+  {
+    ROS_WARN_STREAM("Did not load roi/skidpad/x_max. Standard value is: " << config_.roi.skidpad.x_max);
+  }
+  if (!private_nh_.param<double>("roi/skidpad/y_min", config_.roi.skidpad.y_min, -3.0))
+  {
+    ROS_WARN_STREAM("Did not load roi/skidpad/y_min. Standard value is: " << config_.roi.skidpad.y_min);
+  }
+  if (!private_nh_.param<double>("roi/skidpad/y_max", config_.roi.skidpad.y_max, 3.0))
+  {
+    ROS_WARN_STREAM("Did not load roi/skidpad/y_max. Standard value is: " << config_.roi.skidpad.y_max);
+  }
+  if (!private_nh_.param<double>("roi/accel/x_min", config_.roi.accel.x_min, 0.0))
+  {
+    ROS_WARN_STREAM("Did not load roi/accel/x_min. Standard value is: " << config_.roi.accel.x_min);
+  }
+  if (!private_nh_.param<double>("roi/accel/x_max", config_.roi.accel.x_max, 100.0))
+  {
+    ROS_WARN_STREAM("Did not load roi/accel/x_max. Standard value is: " << config_.roi.accel.x_max);
+  }
+  if (!private_nh_.param<double>("roi/accel/y_min", config_.roi.accel.y_min, -3.0))
+  {
+    ROS_WARN_STREAM("Did not load roi/accel/y_min. Standard value is: " << config_.roi.accel.y_min);
+  }
+  if (!private_nh_.param<double>("roi/accel/y_max", config_.roi.accel.y_max, 3.0))
+  {
+    ROS_WARN_STREAM("Did not load roi/accel/y_max. Standard value is: " << config_.roi.accel.y_max);
+  }
+  if (!private_nh_.param<double>("roi/track/x_min", config_.roi.track.x_min, 0.0))
+  {
+    ROS_WARN_STREAM("Did not load roi/track/x_min. Standard value is: " << config_.roi.track.x_min);
+  }
+  if (!private_nh_.param<double>("roi/track/x_max", config_.roi.track.x_max, 20.0))
+  {
+    ROS_WARN_STREAM("Did not load roi/track/x_max. Standard value is: " << config_.roi.track.x_max);
+  }
+  if (!private_nh_.param<double>("roi/track/y_min", config_.roi.track.y_min, -3.0))
+  {
+    ROS_WARN_STREAM("Did not load roi/track/y_min. Standard value is: " << config_.roi.track.y_min);
+  }
+  if (!private_nh_.param<double>("roi/track/y_max", config_.roi.track.y_max, 3.0))
+  {
+    ROS_WARN_STREAM("Did not load roi/track/y_max. Standard value is: " << config_.roi.track.y_max);
+  }
+  if (!private_nh_.param<double>("roi/custom/x_min", config_.roi.custom.x_min, 0.0))
+  {
+    ROS_WARN_STREAM("Did not load roi/custom/x_min. Standard value is: " << config_.roi.custom.x_min);
+  }
+  if (!private_nh_.param<double>("roi/custom/x_max", config_.roi.custom.x_max, 20.0))
+  {
+    ROS_WARN_STREAM("Did not load roi/custom/x_max. Standard value is: " << config_.roi.custom.x_max);
+  }
+  if (!private_nh_.param<double>("roi/custom/y_min", config_.roi.custom.y_min, -3.0))
+  {
+    ROS_WARN_STREAM("Did not load roi/custom/y_min. Standard value is: " << config_.roi.custom.y_min);
+  }
+  if (!private_nh_.param<double>("roi/custom/y_max", config_.roi.custom.y_max, 3.0))
+  {
+    ROS_WARN_STREAM("Did not load roi/custom/y_max. Standard value is: " << config_.roi.custom.y_max);
+  }
+  if (!private_nh_.param<bool>("filters/sor/enable", config_.filters.sor.enable, false))
+  {
+    ROS_WARN_STREAM("Did not load filters/sor/enable. Standard value is: " << config_.filters.sor.enable);
+  }
+  if (!private_nh_.param<int>("filters/sor/mean_k", config_.filters.sor.mean_k, 50))
+  {
+    ROS_WARN_STREAM("Did not load filters/sor/mean_k. Standard value is: " << config_.filters.sor.mean_k);
+  }
+  if (!private_nh_.param<double>("filters/sor/stddev_mul", config_.filters.sor.stddev_mul, 1.0))
+  {
+    ROS_WARN_STREAM("Did not load filters/sor/stddev_mul. Standard value is: " << config_.filters.sor.stddev_mul);
+  }
+  if (!private_nh_.param<bool>("filters/voxel/enable", config_.filters.voxel.enable, true))
+  {
+    ROS_WARN_STREAM("Did not load filters/voxel/enable. Standard value is: " << config_.filters.voxel.enable);
+  }
+  if (!private_nh_.param<double>("filters/voxel/leaf_size", config_.filters.voxel.leaf_size, 0.05))
+  {
+    ROS_WARN_STREAM("Did not load filters/voxel/leaf_size. Standard value is: " << config_.filters.voxel.leaf_size);
+  }
+  if (!private_nh_.param<bool>("filters/adaptive_voxel/enable", config_.filters.adaptive_voxel.enable, false))
+  {
+    ROS_WARN_STREAM("Did not load filters/adaptive_voxel/enable. Standard value is: " << config_.filters.adaptive_voxel.enable);
+  }
+  if (!private_nh_.param<double>("filters/adaptive_voxel/leaf_size", config_.filters.adaptive_voxel.leaf_size, 0.1))
+  {
+    ROS_WARN_STREAM("Did not load filters/adaptive_voxel/leaf_size. Standard value is: " << config_.filters.adaptive_voxel.leaf_size);
+  }
+  if (!private_nh_.param<int>("filters/adaptive_voxel/density_thr", config_.filters.adaptive_voxel.density_thr, 50))
+  {
+    ROS_WARN_STREAM("Did not load filters/adaptive_voxel/density_thr. Standard value is: " << config_.filters.adaptive_voxel.density_thr);
+  }
+  if (!private_nh_.param<bool>("patchworkpp/enable_rnr", config_.patchworkpp.enable_rnr, true))
+  {
+    ROS_WARN_STREAM("Did not load patchworkpp/enable_rnr. Standard value is: " << config_.patchworkpp.enable_rnr);
+  }
+  if (!private_nh_.param<bool>("patchworkpp/enable_rvpf", config_.patchworkpp.enable_rvpf, true))
+  {
+    ROS_WARN_STREAM("Did not load patchworkpp/enable_rvpf. Standard value is: " << config_.patchworkpp.enable_rvpf);
+  }
+  if (!private_nh_.param<bool>("patchworkpp/enable_tgr", config_.patchworkpp.enable_tgr, true))
+  {
+    ROS_WARN_STREAM("Did not load patchworkpp/enable_tgr. Standard value is: " << config_.patchworkpp.enable_tgr);
+  }
+  if (!private_nh_.param<int>("patchworkpp/num_iter", config_.patchworkpp.num_iter, 3))
+  {
+    ROS_WARN_STREAM("Did not load patchworkpp/num_iter. Standard value is: " << config_.patchworkpp.num_iter);
+  }
+  if (!private_nh_.param<int>("patchworkpp/num_lpr", config_.patchworkpp.num_lpr, 20))
+  {
+    ROS_WARN_STREAM("Did not load patchworkpp/num_lpr. Standard value is: " << config_.patchworkpp.num_lpr);
+  }
+  if (!private_nh_.param<int>("patchworkpp/num_min_pts", config_.patchworkpp.num_min_pts, 10))
+  {
+    ROS_WARN_STREAM("Did not load patchworkpp/num_min_pts. Standard value is: " << config_.patchworkpp.num_min_pts);
+  }
+  if (!private_nh_.param<int>("patchworkpp/num_zones", config_.patchworkpp.num_zones, 4))
+  {
+    ROS_WARN_STREAM("Did not load patchworkpp/num_zones. Standard value is: " << config_.patchworkpp.num_zones);
+  }
+  if (!private_nh_.param<int>("patchworkpp/num_rings_of_interest", config_.patchworkpp.num_rings_of_interest, 4))
+  {
+    ROS_WARN_STREAM("Did not load patchworkpp/num_rings_of_interest. Standard value is: " << config_.patchworkpp.num_rings_of_interest);
+  }
+  if (!private_nh_.param<double>("patchworkpp/rnr_ver_angle_thr", config_.patchworkpp.rnr_ver_angle_thr, -15.0))
+  {
+    ROS_WARN_STREAM("Did not load patchworkpp/rnr_ver_angle_thr. Standard value is: " << config_.patchworkpp.rnr_ver_angle_thr);
+  }
+  if (!private_nh_.param<double>("patchworkpp/rnr_intensity_thr", config_.patchworkpp.rnr_intensity_thr, 0.2))
+  {
+    ROS_WARN_STREAM("Did not load patchworkpp/rnr_intensity_thr. Standard value is: " << config_.patchworkpp.rnr_intensity_thr);
+  }
+  if (!private_nh_.param<double>("patchworkpp/th_seeds", config_.patchworkpp.th_seeds, 0.125))
+  {
+    ROS_WARN_STREAM("Did not load patchworkpp/th_seeds. Standard value is: " << config_.patchworkpp.th_seeds);
+  }
+  if (!private_nh_.param<double>("patchworkpp/th_dist", config_.patchworkpp.th_dist, 0.125))
+  {
+    ROS_WARN_STREAM("Did not load patchworkpp/th_dist. Standard value is: " << config_.patchworkpp.th_dist);
+  }
+  if (!private_nh_.param<double>("patchworkpp/th_seeds_v", config_.patchworkpp.th_seeds_v, 0.25))
+  {
+    ROS_WARN_STREAM("Did not load patchworkpp/th_seeds_v. Standard value is: " << config_.patchworkpp.th_seeds_v);
+  }
+  if (!private_nh_.param<double>("patchworkpp/th_dist_v", config_.patchworkpp.th_dist_v, 0.1))
+  {
+    ROS_WARN_STREAM("Did not load patchworkpp/th_dist_v. Standard value is: " << config_.patchworkpp.th_dist_v);
+  }
+  if (!private_nh_.param<double>("patchworkpp/max_range", config_.patchworkpp.max_range, 80.0))
+  {
+    ROS_WARN_STREAM("Did not load patchworkpp/max_range. Standard value is: " << config_.patchworkpp.max_range);
+  }
+  if (!private_nh_.param<double>("patchworkpp/min_range", config_.patchworkpp.min_range, 2.7))
+  {
+    ROS_WARN_STREAM("Did not load patchworkpp/min_range. Standard value is: " << config_.patchworkpp.min_range);
+  }
+  if (!private_nh_.param<double>("patchworkpp/uprightness_thr", config_.patchworkpp.uprightness_thr, 0.707))
+  {
+    ROS_WARN_STREAM("Did not load patchworkpp/uprightness_thr. Standard value is: " << config_.patchworkpp.uprightness_thr);
+  }
+  if (!private_nh_.param<double>("patchworkpp/adaptive_seed_selection_margin", config_.patchworkpp.adaptive_seed_selection_margin, -1.2))
+  {
+    ROS_WARN_STREAM("Did not load patchworkpp/adaptive_seed_selection_margin. Standard value is: " << config_.patchworkpp.adaptive_seed_selection_margin);
+  }
+  if (!private_nh_.param<int>("patchworkpp/max_flatness_storage", config_.patchworkpp.max_flatness_storage, 1000))
+  {
+    ROS_WARN_STREAM("Did not load patchworkpp/max_flatness_storage. Standard value is: " << config_.patchworkpp.max_flatness_storage);
+  }
+  if (!private_nh_.param<int>("patchworkpp/max_elevation_storage", config_.patchworkpp.max_elevation_storage, 1000))
+  {
+    ROS_WARN_STREAM("Did not load patchworkpp/max_elevation_storage. Standard value is: " << config_.patchworkpp.max_elevation_storage);
+  }
+  if (!LoadIntVector(private_nh_, "patchworkpp/num_sectors_each_zone", config_.patchworkpp.num_sectors_each_zone))
+  {
+    ROS_WARN_STREAM("Did not load patchworkpp/num_sectors_each_zone. Standard value is used.");
+  }
+  if (!LoadIntVector(private_nh_, "patchworkpp/num_rings_each_zone", config_.patchworkpp.num_rings_each_zone))
+  {
+    ROS_WARN_STREAM("Did not load patchworkpp/num_rings_each_zone. Standard value is used.");
+  }
+  if (!LoadDoubleVector(private_nh_, "patchworkpp/elevation_thr", config_.patchworkpp.elevation_thr))
+  {
+    ROS_WARN_STREAM("Did not load patchworkpp/elevation_thr. Standard value is used.");
+  }
+  if (!LoadDoubleVector(private_nh_, "patchworkpp/flatness_thr", config_.patchworkpp.flatness_thr))
+  {
+    ROS_WARN_STREAM("Did not load patchworkpp/flatness_thr. Standard value is used.");
   }
   if (!private_nh_.param<int>("vis", config_.vis, 0))
   {
@@ -124,57 +401,6 @@ void LidarClusterRos::loadParams()
     ROS_WARN("Did not load max_area.");
   }
 
-  if (!private_nh_.param<double>("accel_x_max", config_.accel_x_max, 0))
-  {
-    ROS_WARN("Did not load accel_x_max.");
-  }
-  if (!private_nh_.param<double>("accel_x_min", config_.accel_x_min, 0))
-  {
-    ROS_WARN("Did not load accel_x_min.");
-  }
-  if (!private_nh_.param<double>("accel_y_max", config_.accel_y_max, 0))
-  {
-    ROS_WARN("Did not load accel_y_max.");
-  }
-  if (!private_nh_.param<double>("accel_y_min", config_.accel_y_min, 0))
-  {
-    ROS_WARN("Did not load accel_y_min.");
-  }
-
-  if (!private_nh_.param<double>("track_x_max", config_.track_x_max, 0))
-  {
-    ROS_WARN("Did not load track_x_max.");
-  }
-  if (!private_nh_.param<double>("track_x_min", config_.track_x_min, 0))
-  {
-    ROS_WARN("Did not load track_x_min.");
-  }
-  if (!private_nh_.param<double>("track_y_max", config_.track_y_max, 0))
-  {
-    ROS_WARN("Did not load track_y_max.");
-  }
-  if (!private_nh_.param<double>("track_y_min", config_.track_y_min, 0))
-  {
-    ROS_WARN("Did not load track_y_min.");
-  }
-
-  if (!private_nh_.param<double>("skid_x_max", config_.skid_x_max, 0))
-  {
-    ROS_WARN("Did not load skid_x_max.");
-  }
-  if (!private_nh_.param<double>("skid_x_min", config_.skid_x_min, 0))
-  {
-    ROS_WARN("Did not load skid_x_min.");
-  }
-  if (!private_nh_.param<double>("skid_y_max", config_.skid_y_max, 0))
-  {
-    ROS_WARN("Did not load skid_y_max.");
-  }
-  if (!private_nh_.param<double>("skid_y_min", config_.skid_y_min, 0))
-  {
-    ROS_WARN("Did not load skid_y_min.");
-  }
-
   if (!private_nh_.param<double>("max_box_altitude", config_.max_box_altitude, 0))
   {
     ROS_WARN("Did not load max_box_altitude.");
@@ -182,12 +408,24 @@ void LidarClusterRos::loadParams()
 
   ROS_INFO("sensor_height: %f", config_.sensor_height);
   ROS_INFO("sensor_model: %d", config_.sensor_model);
-  ROS_INFO("num_iter: %d", config_.num_iter);
-  ROS_INFO("num_lpr: %d", config_.num_lpr);
-  ROS_INFO("th_seeds: %f", config_.th_seeds);
-  ROS_INFO("th_dist: %f", config_.th_dist);
-  ROS_INFO("road_type: %d", config_.road_type);
-  ROS_INFO("Z-axis clip limit\nUp: %f, Down: %f", config_.z_up, config_.z_down);
+  ROS_INFO("ransac/num_iter: %d", config_.ransac.num_iter);
+  ROS_INFO("ransac/num_lpr: %d", config_.ransac.num_lpr);
+  ROS_INFO("ransac/th_seeds: %f", config_.ransac.th_seeds);
+  ROS_INFO("ransac/th_dist: %f", config_.ransac.th_dist);
+  ROS_INFO("ground_method: %s", config_.ground_method.c_str());
+  ROS_INFO("roi/mode: %s", config_.roi.mode.c_str());
+  ROS_INFO("roi/z_min: %f, roi/z_max: %f", config_.roi.z_min, config_.roi.z_max);
+  ROS_INFO("filters/sor: %s (mean_k=%d, stddev_mul=%f)",
+           config_.filters.sor.enable ? "on" : "off",
+           config_.filters.sor.mean_k,
+           config_.filters.sor.stddev_mul);
+  ROS_INFO("filters/voxel: %s (leaf=%f)",
+           config_.filters.voxel.enable ? "on" : "off",
+           config_.filters.voxel.leaf_size);
+  ROS_INFO("filters/adaptive_voxel: %s (leaf=%f, density_thr=%d)",
+           config_.filters.adaptive_voxel.enable ? "on" : "off",
+           config_.filters.adaptive_voxel.leaf_size,
+           config_.filters.adaptive_voxel.density_thr);
   ROS_INFO("vis: %d", config_.vis);
 
   if (!private_nh_.param<bool>("perf_stats_enable", perf_enabled_, true))
@@ -217,7 +455,13 @@ void LidarClusterRos::pointCallback(const sensor_msgs::PointCloud2ConstPtr &msg)
   pcl::PointCloud<PointType>::Ptr cloud(new pcl::PointCloud<PointType>);
   pcl::fromROSMsg(*msg, *cloud);
 
+  // Apply distortion compensation (decoupled module)
+  if (compensator_) {
+    compensator_->Compensate(cloud, msg->header.stamp.toSec());
+  }
+
   last_header_ = msg->header;
+  last_seq_ = msg->header.seq;  // P0: 记录序列号
   got_cloud_ = true;
   core_.SetInputCloud(cloud, msg->header.seq);
 }
@@ -230,11 +474,38 @@ void LidarClusterRos::RunOnce()
     return;
   }
 
+  // P0: 新帧闸门 - 仅处理新帧
+  if (last_seq_ == last_processed_seq_)
+  {
+    return;  // 已处理过该帧，跳过
+  }
+
+  // P0: 超时检查 - 丢弃过旧的点云
+  // 使用帧间隔判断：如果当前帧时间戳比上一帧还旧，说明数据有问题
+  // 这样可以同时支持实时运行和 rosbag 回放
+  static ros::Time last_stamp;
+  if (!last_stamp.isZero() && last_header_.stamp < last_stamp)
+  {
+    // 时间戳回退，可能是 rosbag 重新开始，重置状态
+    ROS_INFO("Timestamp reset detected, reinitializing...");
+    last_stamp = last_header_.stamp;
+  }
+  
+  // 计算帧间隔（与上一处理帧的时间差）
+  double frame_interval = last_stamp.isZero() ? 0.0 : (last_header_.stamp - last_stamp).toSec();
+  if (frame_interval > max_cloud_age_ && frame_interval < 10.0)  // 10秒内的异常间隔
+  {
+    ROS_WARN_THROTTLE(1.0, "Large frame interval (%.2fs), possible frame drop", frame_interval);
+  }
+  
+  last_stamp = last_header_.stamp;
+
   if (!core_.Process(&output_))
   {
     return;
   }
 
+  last_processed_seq_ = last_seq_;  // P0: 更新处理序列号
   publishOutput(output_);
 }
 
@@ -295,9 +566,14 @@ void LidarClusterRos::publishOutput(const LidarClusterOutput &output)
     min.z = det.min.z;
     detections.minPoints.push_back(min);
 
+    // P1: 始终填充 confidence，保持数组长度一致
     if (sensor_model_ != 16)
     {
       detections.confidence.push_back(static_cast<float>(det.confidence));
+    }
+    else
+    {
+      detections.confidence.push_back(0.0f);  // VLP-16 填充默认值
     }
     detections.obj_dist.push_back(static_cast<float>(det.distance));
 

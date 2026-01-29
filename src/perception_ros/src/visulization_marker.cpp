@@ -7,8 +7,11 @@ bool LidarClusterRos::visInit()
     marker_array_.markers.clear();
     marker_array_all_.markers.clear();
     marker_id_ = 0;
-    euc_marker_.header.frame_id = "velodyne";
-    euc_marker_.header.stamp = ros::Time::now();
+    
+    // P2: 使用点云原始 header 的 frame_id 和 stamp，替代硬编码值
+    // 这确保 TF 时间同步，避免 TF 查找错误
+    euc_marker_.header.frame_id = last_header_.frame_id.empty() ? "velodyne" : last_header_.frame_id;
+    euc_marker_.header.stamp = last_header_.stamp.isZero() ? ros::Time::now() : last_header_.stamp;
     euc_marker_.ns = "euc";
     euc_marker_.color.r = 1.0f;
     euc_marker_.color.g = 0.0f;
@@ -18,8 +21,8 @@ bool LidarClusterRos::visInit()
     euc_marker_.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
     euc_marker_.action = visualization_msgs::Marker::ADD;
 
-    bbox_marker_.header.frame_id = "velodyne";
-    bbox_marker_.header.stamp = ros::Time::now();
+    bbox_marker_.header.frame_id = last_header_.frame_id.empty() ? "velodyne" : last_header_.frame_id;
+    bbox_marker_.header.stamp = last_header_.stamp.isZero() ? ros::Time::now() : last_header_.stamp;
     bbox_marker_.ns = "lines";
     bbox_marker_.color.r = 1.0f;
     bbox_marker_.color.g = 1.0f;

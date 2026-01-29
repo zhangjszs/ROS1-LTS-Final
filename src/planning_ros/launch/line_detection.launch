@@ -1,5 +1,6 @@
 <?xml version="1.0"?>
 <launch>
+  <arg name="bag" default="" />
   <!-- Line Detection Node -->
   <node name="line_detection" pkg="planning_ros" type="line_detection_node" output="screen">
     <!-- Hough Transform Parameters -->
@@ -28,4 +29,5 @@
     <param name="topics/path" value="planning/line_detection/path" />
     <param name="topics/finish" value="planning/line_detection/finish_signal" />
   </node>
+  <node pkg="rosbag" type="play" name="rosbag_play" output="screen" args="$(arg bag)" if="$(eval arg('bag') != '')" />
 </launch>

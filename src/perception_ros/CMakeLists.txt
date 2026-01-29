@@ -39,13 +39,14 @@ add_library(${PROJECT_NAME}
   src/lidar_cluster_ros.cpp
   src/visulization_marker.cpp
   src/imu_subscriber.cpp
+  src/distortion_compensator.cpp
   src/nodelets/lidar_cluster_nodelet.cc
 )
 add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
-  perception_core
+  ${perception_core_LIBRARIES}
 )
 
 add_executable(${PROJECT_NAME}_viewer nodes/pcd_viewer_node.cpp)
@@ -59,7 +60,7 @@ target_link_libraries(${PROJECT_NAME}_node
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
   ${PROJECT_NAME}
-  perception_core
+  ${perception_core_LIBRARIES}
 )
 
 add_executable(test_conf test/confidence.cpp)
