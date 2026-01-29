@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <fstream>
 #include <mutex>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -24,6 +25,9 @@
 #include <pcl/point_types.h>
 #include <pcl/segmentation/extract_clusters.h>
 
+#include <perception_core/patchworkpp.hpp>
+#include <perception_core/cluster_feature_extractor.hpp>
+#include <perception_core/confidence_scorer.hpp>
 
 using Eigen::JacobiSVD;
 using Eigen::MatrixXf;
@@ -58,18 +62,132 @@ struct LidarClusterOutput
 
 struct LidarClusterConfig
 {
+  struct ConfidenceConfig
+  {
+    double min_height = 0.15;
+    double max_height = 0.5;
+    double min_area = 0.01;
+    double max_area = 0.15;
+    double max_box_altitude = 0.5;
+    double min_aspect_ratio = 1.5;
+    double min_verticality = 0.8;
+    double min_density_near = 50.0;
+    double min_density_far = 10.0;
+    double distance_threshold = 5.0;
+    double min_intensity_mean = 30.0;
+    double weight_size = 0.3;
+    double weight_shape = 0.25;
+    double weight_density = 0.2;
+    double weight_intensity = 0.15;
+    double weight_position = 0.1;
+    bool enable_model_fitting = true;
+    double model_fit_bonus = 0.2;
+    double model_fit_penalty = 0.15;
+  };
+
+  struct RansacConfig
+  {
+    int num_iter = 3;
+    int num_lpr = 5;
+    double th_seeds = 0.03;
+    double th_dist = 0.03;
+  };
+
+  struct PatchworkppConfig
+  {
+    bool enable_rnr = true;
+    bool enable_rvpf = true;
+    bool enable_tgr = true;
+
+    int num_iter = 3;
+    int num_lpr = 20;
+    int num_min_pts = 10;
+    int num_zones = 4;
+    int num_rings_of_interest = 4;
+
+    double rnr_ver_angle_thr = -15.0;
+    double rnr_intensity_thr = 0.2;
+
+    double th_seeds = 0.125;
+    double th_dist = 0.125;
+    double th_seeds_v = 0.25;
+    double th_dist_v = 0.1;
+    double max_range = 80.0;
+    double min_range = 2.7;
+    double uprightness_thr = 0.707;
+    double adaptive_seed_selection_margin = -1.2;
+
+    std::vector<int> num_sectors_each_zone = {16, 32, 54, 32};
+    std::vector<int> num_rings_each_zone = {2, 4, 4, 4};
+
+    int max_flatness_storage = 1000;
+    int max_elevation_storage = 1000;
+
+    std::vector<double> elevation_thr = {0, 0, 0, 0};
+    std::vector<double> flatness_thr = {0, 0, 0, 0};
+  };
+
+  struct RoiRange
+  {
+    double x_min = 0.0;
+    double x_max = 0.0;
+    double y_min = 0.0;
+    double y_max = 0.0;
+  };
+
+  struct RoiConfig
+  {
+    std::string mode = "track";  // skidpad | accel | track | custom
+    bool use_point_clip = false; // only for skidpad
+    double z_min = -0.2;
+    double z_max = 1.0;
+    RoiRange skidpad{0.0, 10.0, -3.0, 3.0};
+    RoiRange accel{0.0, 100.0, -3.0, 3.0};
+    RoiRange track{0.0, 20.0, -3.0, 3.0};
+    RoiRange custom{0.0, 20.0, -3.0, 3.0};
+  };
+
+  struct FilterConfig
+  {
+    struct SorConfig
+    {
+      bool enable = false;
+      int mean_k = 50;
+      double stddev_mul = 1.0;
+    };
+
+    struct VoxelConfig
+    {
+      bool enable = true;
+      double leaf_size = 0.05;
+    };
+
+    struct AdaptiveVoxelConfig
+    {
+      bool enable = false;
+      double leaf_size = 0.1;
+      int density_thr = 50;
+    };
+
+    SorConfig sor;
+    VoxelConfig voxel;
+    AdaptiveVoxelConfig adaptive_voxel;
+  };
+
   double sensor_height = 0.135;
   int sensor_model = 16;
-  int num_iter = 3;
-  int num_lpr = 5;
-  double th_seeds = 0.03;
-  double th_dist = 0.03;
   int road_type = 2;
+  std::string ground_method = "ransac";
   double z_up = 0.7;
   double z_down = -1.0;
   int vis = 0;
   std::string str_range = "15,30,45,60";
   std::string str_seg_distance = "0.5,1.1,1.6,2.1,2.6";
+  ConfidenceConfig confidence;
+  RansacConfig ransac;
+  PatchworkppConfig patchworkpp;
+  RoiConfig roi;
+  FilterConfig filters;
 
   double min_height = -1;
   double max_height = -1;
@@ -109,8 +227,12 @@ private:
   // ground seg
   void estimate_plane_();
   void extract_initial_seeds_(const pcl::PointCloud<PointType> &p_sorted);
-  void ground_segmentation(const pcl::PointCloud<PointType>::Ptr &in_pc,
-                           pcl::PointCloud<PointType>::Ptr &g_not_ground_pc);
+  void ground_segmentation_dispatch_(const pcl::PointCloud<PointType>::Ptr &in_pc,
+                                     pcl::PointCloud<PointType>::Ptr &g_not_ground_pc);
+  void ground_segmentation_ransac_(const pcl::PointCloud<PointType>::Ptr &in_pc,
+                                   pcl::PointCloud<PointType>::Ptr &g_not_ground_pc);
+  void ground_segmentation_patchworkpp_(const pcl::PointCloud<PointType>::Ptr &in_pc,
+                                        pcl::PointCloud<PointType>::Ptr &g_not_ground_pc);
 
   // filter
   void PassThrough(pcl::PointCloud<PointType>::Ptr &cloud_filtered);
@@ -124,6 +246,8 @@ private:
   void clusterMethod32(LidarClusterOutput *output);
 
   double getConfidence(PointType max, PointType min, Eigen::Vector4f centroid);
+  double getConfidenceNew(const pcl::PointCloud<PointType>::Ptr& cluster);
+  double getConfidenceWithFitting(const pcl::PointCloud<PointType>::Ptr& cluster);
 
 private:
   LidarClusterConfig config_;
@@ -157,6 +281,7 @@ private:
   int num_lpr_ = 0;
   double th_seeds_ = 0.0;
   double th_dist_ = 0.0;
+  std::string ground_method_ = "ransac";
   std::string str_range_;
   std::string str_seg_distance_;
   float d_ = 0.0f;
@@ -179,4 +304,15 @@ private:
   std::ofstream ofs;
   int frame_count = 0;
   std::size_t last_cluster_count_ = 0;
+
+  LidarClusterConfig::RoiConfig roi_;
+  LidarClusterConfig::FilterConfig filters_;
+  std::string roi_mode_;
+  bool roi_use_point_clip_ = false;
+
+  patchwork::Params patchwork_params_;
+  std::unique_ptr<patchwork::PatchWorkpp> patchwork_;
+
+  perception::ClusterFeatureExtractor feature_extractor_;
+  perception::ConfidenceScorer confidence_scorer_;
 };

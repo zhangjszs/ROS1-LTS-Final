@@ -250,6 +250,12 @@ void ImuStateEstimator::Predict(double dt, double ax, double ay, double gyro_z)
   Q(4, 4) = params_.gyro_noise * params_.gyro_noise * dt * dt;
 
   P_ = F * P_ * F.transpose() + Q;
+
+  if (P_.hasNaN() || !P_.allFinite())
+  {
+    P_.setIdentity();
+    P_ *= 10.0;
+  }
 }
 
 void ImuStateEstimator::Update(const Eigen::VectorXd &z,
@@ -277,7 +283,14 @@ void ImuStateEstimator::Update(const Eigen::VectorXd &z,
   }
 
   Eigen::Matrix<double, 5, 5> I = Eigen::Matrix<double, 5, 5>::Identity();
-  P_ = (I - K * H) * P_;
+  Eigen::Matrix<double, 5, 5> I_KH = I - K * H;
+  P_ = I_KH * P_ * I_KH.transpose() + K * R * K.transpose();
+
+  if (P_.hasNaN() || !P_.allFinite())
+  {
+    P_.setIdentity();
+    P_ *= 10.0;
+  }
 }
 
 void ImuStateEstimator::GeoDeticToENU(double lat, double lon, double h,

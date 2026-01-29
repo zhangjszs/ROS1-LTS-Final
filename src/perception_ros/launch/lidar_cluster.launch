@@ -1,21 +1,27 @@
 <launch>
+    <arg name="bag" default="" />
     <arg name="launch_rviz" default="true" />
     <arg name="rviz_config" default="$(find fsd_visualization)/rviz/lidar_cluster.rviz" />
-    <arg name="ns" default="perception/lidar_cluster" />
+    <arg name="ns" default="/perception/lidar_cluster" />
     <arg name="input_topic" default="/velodyne_points" />
 
+    <!-- Enable sim time when playing rosbag -->
+    <param name="/use_sim_time" value="true" if="$(eval arg('bag') != '')" />
+
     <group ns="$(arg ns)">
-        <node pkg="nodelet" type="nodelet" name="lidar_cluster_nodelet_manager" args="manager"
-            output="screen" />
-        <node pkg="nodelet" type="nodelet" name="lidar_cluster_node"
-            args="load nodelet_lidar/Lidar_Cluster_Nodelet lidar_cluster_nodelet_manager"
-            output="screen">
+        <node pkg="nodelet" type="nodelet" name="lidar_cluster_nodelet_manager" args="manager" output="screen" />
+        <node pkg="nodelet" type="nodelet" name="lidar_cluster_node" args="load nodelet_lidar/Lidar_Cluster_Nodelet $(arg ns)/lidar_cluster_nodelet_manager" output="screen">
             <rosparam command="load" file="$(find perception_ros)/config/lidar_cluster_example.yaml" />
             <param name="topics/input" value="$(arg input_topic)" />
         </node>
     </group>
 
-    <node if="$(arg launch_rviz)" pkg="rviz" type="rviz" name="rviz"
-        args="-d $(arg rviz_config)" />
+    <node if="$(arg launch_rviz)" pkg="rviz" type="rviz" name="rviz" args="-d $(arg rviz_config)" />
 
+    <!-- INS Bridge: Convert ins/ASENSING to HUAT_InsP2 for IMU distortion compensation -->
+    <node pkg="ins" type="ins_bridge.py" name="ins_bridge" output="screen" />
+
+    <!-- Play rosbag with clock to publish /clock topic for sim time -->
+    <node pkg="rosbag" type="play" name="rosbag_play" output="screen" 
+          args="--clock $(arg bag)" if="$(eval arg('bag') != '')" />
 </launch>

@@ -1,5 +1,6 @@
 <!-- visualization.launch - FSD 可视化节点 -->
 <launch>
+    <arg name="bag" default="" />
     <arg name="enable_cones" default="true"/>
     <arg name="enable_path" default="true"/>
     <arg name="enable_vehicle" default="true"/>
@@ -15,4 +16,5 @@
         <param name="show_trail" value="$(arg show_trail)"/>
         <param name="trail_length" value="$(arg trail_length)"/>
     </node>
+    <node pkg="rosbag" type="play" name="rosbag_play" output="screen" args="$(arg bag)" if="$(eval arg('bag') != '')" />
 </launch>

@@ -45,6 +45,10 @@ struct Asensing {
   double x_acc = 0.0;
   double y_acc = 0.0;
   double z_acc = 0.0;
+  std::uint8_t status = 0;
+  std::uint8_t nsv1 = 0;
+  std::uint8_t nsv2 = 0;
+  std::uint8_t age = 0;
 };
 
 struct Cone {
@@ -71,6 +75,9 @@ struct LocationParams {
   double rear_to_imu_x = 0.0;
   double rear_to_imu_y = 0.0;
   double rear_to_imu_z = 0.0;
+  std::uint8_t min_ins_status = 2;
+  std::uint8_t min_satellite_count = 8;
+  std::uint8_t max_diff_age = 30;
 };
 
 using PointCloud = pcl::PointCloud<pcl::PointXYZ>;

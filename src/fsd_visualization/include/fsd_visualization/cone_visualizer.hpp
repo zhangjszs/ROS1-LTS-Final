@@ -18,7 +18,7 @@ private:
     
     visualization_msgs::Marker createConeMarker(
         double x, double y, double z,
-        int id, int type, const std::string& ns);
+        int id, int type, const std::string& ns, const std::string& frame_id);
     
     ros::Subscriber sub_cone_detections_;
     ros::Subscriber sub_cone_map_;

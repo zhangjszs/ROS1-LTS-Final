@@ -1,4 +1,5 @@
 <launch>
+  <arg name="bag" default="" />
   <!-- <include file="$(find velodyne_pointcloud)/launch/VLP-32C_points.launch"/>
   <include file="$(find perception_ros)/launch/lidar_cluster.launch"/> -->
 
@@ -19,4 +20,5 @@
   <!-- <node pkg="rviz" type="rviz" name="cone_rviz_high" args="-d $(find localization_ros)/config/display_high.rviz"/> -->
   <!-- <node pkg="rviz" type="rviz" name="cone_rviz_skidpad" args="-d $(find localization_ros)/config/display_skidpad.rviz"/> -->
 
+  <node pkg="rosbag" type="play" name="rosbag_play" output="screen" args="$(arg bag)" if="$(eval arg('bag') != '')" />
 </launch>

@@ -20,7 +20,7 @@ class DistortionAdjust {
     void SetMotionInfo(float scan_period, IMUData velocity_data);
     void AdjustCloud(pcl::PointCloud<PointType>::Ptr& input_cloud_ptr, pcl::PointCloud<PointType>::Ptr& output_cloud_ptr);
   private:
-    inline Eigen::Matrix3f UpdateMatrix(float real_time);
+    inline Eigen::Matrix3f UpdateMatrix(float real_time, const Eigen::Vector3f& angular_rate);
   private:
     float scan_period_;
     Eigen::Vector3f velocity_;

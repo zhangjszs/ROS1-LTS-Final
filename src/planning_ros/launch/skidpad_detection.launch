@@ -1,5 +1,7 @@
 <launch>
+    <arg name="bag" default="" />
     <node pkg="planning_ros" type="skidpad_detection_node" name="skidpad_detection_node" output="screen">
         <rosparam command="load" file="$(find planning_ros)/config/skidpad_detection.yaml" />
     </node>
+    <node pkg="rosbag" type="play" name="rosbag_play" output="screen" args="$(arg bag)" if="$(eval arg('bag') != '')" />
 </launch>

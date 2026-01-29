@@ -29,6 +29,21 @@ void LocationMapper::SetDataDirectory(const std::string &path)
 
 bool LocationMapper::UpdateFromIns(const Asensing &imu, CarState *state_out)
 {
+  std::lock_guard<std::mutex> lock(state_mutex_);
+
+  if (imu.status < params_.min_ins_status)
+  {
+    return false;
+  }
+  if (imu.nsv1 < params_.min_satellite_count)
+  {
+    return false;
+  }
+  if (imu.age > params_.max_diff_age)
+  {
+    return false;
+  }
+
   mimu_ = imu;
   const Asensing &imu_data = mimu_;
 
@@ -110,6 +125,7 @@ bool LocationMapper::UpdateFromIns(const Asensing &imu, CarState *state_out)
 
 void LocationMapper::UpdateFromCarState(const CarState &state)
 {
+  std::lock_guard<std::mutex> lock(state_mutex_);
   car_state_ = state;
   has_carstate_ = true;
 }
@@ -182,7 +198,6 @@ void LocationMapper::GeoDeticToENU(double lat, double lon, double h,
   car_state_.car_state_rear.y = rear_y;
   car_state_.car_state_rear.z = rear_wheel_[2];
 
-  saveCarstate(car_state_.car_state.x, car_state_.car_state.y);
   has_carstate_ = true;
 }
 
@@ -190,6 +205,7 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
                                     ConeMap *map_out,
                                     PointCloudPtr *cloud_out)
 {
+  std::lock_guard<std::mutex> lock(state_mutex_);
   if (!has_carstate_)
   {
     return false;
@@ -232,8 +248,8 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
       cone.position_base_link.y = ly;
       cone.position_base_link.z = detections.points[i].z;
 
-      cone.position_global.x = rot_x + car_state_.car_state.x + lidar_offset_x;
-      cone.position_global.y = rot_y + car_state_.car_state.y + lidar_offset_y;
+      cone.position_global.x = rot_x + car_state_.car_state.x;
+      cone.position_global.y = rot_y + car_state_.car_state.y;
       cone.position_global.z = detections.points[i].z;
 
       cone.id = static_cast<std::uint32_t>(getNewId());
@@ -248,9 +264,11 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
       cloud_->height = 1;
       point_ids_.push_back(static_cast<int>(cone.id));
     }
+    kdtree_.setInputCloud(cloud_);
   }
   else
   {
+    bool cloud_modified = false;
     for (size_t i = 0; i < detections.points.size(); i++)
     {
       const double lx = detections.points[i].x;
@@ -264,8 +282,8 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
       cone.position_base_link.y = ly;
       cone.position_base_link.z = detections.points[i].z;
 
-      cone.position_global.x = rot_x + car_state_.car_state.x + lidar_offset_x;
-      cone.position_global.y = rot_y + car_state_.car_state.y + lidar_offset_y;
+      cone.position_global.x = rot_x + car_state_.car_state.x;
+      cone.position_global.y = rot_y + car_state_.car_state.y;
       cone.position_global.z = detections.points[i].z;
 
       pcl::PointXYZ point;
@@ -279,7 +297,7 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
       if (kdtree_.nearestKSearch(point, 1, pointIdxNKNSearch, pointNKNSquaredDistance) > 0)
       {
         if (pointNKNSquaredDistance[0] <= merge_distance_sq &&
-            !(pointIdxNKNSearch[0] >= static_cast<int>(cloud_->size())))
+            pointIdxNKNSearch[0] >= 0 && pointIdxNKNSearch[0] < static_cast<int>(cloud_->size()))
         {
           cloud_->points[pointIdxNKNSearch[0]].x = (cloud_->points[pointIdxNKNSearch[0]].x + point.x) / 2.0;
           cloud_->points[pointIdxNKNSearch[0]].y = (cloud_->points[pointIdxNKNSearch[0]].y + point.y) / 2.0;
@@ -296,6 +314,7 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
           cloud_->width = cloud_->points.size();
           cloud_->height = 1;
           point_ids_.push_back(id);
+          cloud_modified = true;
         }
       }
       else
@@ -306,11 +325,15 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
         cloud_->width = cloud_->points.size();
         cloud_->height = 1;
         point_ids_.push_back(id);
+        cloud_modified = true;
       }
     }
-  }
 
-  kdtree_.setInputCloud(cloud_);
+    if (cloud_modified)
+    {
+      kdtree_.setInputCloud(cloud_);
+    }
+  }
 
   const double cos_theta = std::cos(car_state_.car_state.theta);
   const double sin_theta = std::sin(car_state_.car_state.theta);

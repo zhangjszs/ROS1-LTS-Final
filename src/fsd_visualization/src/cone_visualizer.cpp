@@ -28,13 +28,6 @@ void ConeVisualizer::coneDetectionsCallback(
     
     visualization_msgs::MarkerArray markers;
     
-    // 先清除旧的 markers
-    visualization_msgs::Marker delete_marker;
-    delete_marker.action = visualization_msgs::Marker::DELETEALL;
-    delete_marker.header.frame_id = frame_id_;
-    delete_marker.header.stamp = msg->header.stamp;
-    markers.markers.push_back(delete_marker);
-    
     // HUAT_ConeDetections 使用 points 数组和 color 字符串
     // 解析 color 字符串确定颜色类型
     int color_type = static_cast<int>(ConeType::UNKNOWN);
@@ -49,9 +42,10 @@ void ConeVisualizer::coneDetectionsCallback(
     // 创建新的锥桶 markers
     for (size_t i = 0; i < msg->points.size(); ++i) {
         const auto& point = msg->points[i];
+        // Use the frame_id from the message header for local detections
         auto marker = createConeMarker(
             point.x, point.y, point.z,
-            static_cast<int>(i), color_type, "cone_detections");
+            static_cast<int>(i), color_type, "cone_detections", msg->header.frame_id);
         marker.header.stamp = msg->header.stamp;
         markers.markers.push_back(marker);
     }
@@ -64,20 +58,13 @@ void ConeVisualizer::coneMapCallback(
     
     visualization_msgs::MarkerArray markers;
     
-    // 先清除旧的 markers
-    visualization_msgs::Marker delete_marker;
-    delete_marker.action = visualization_msgs::Marker::DELETEALL;
-    delete_marker.header.frame_id = frame_id_;
-    delete_marker.header.stamp = msg->header.stamp;
-    delete_marker.ns = "cone_map";
-    markers.markers.push_back(delete_marker);
-    
     // 创建锥桶 markers - 使用 cone 数组和 position_global
     for (size_t i = 0; i < msg->cone.size(); ++i) {
         const auto& cone = msg->cone[i];
+        // Use global frame_id_ for global map
         auto marker = createConeMarker(
             cone.position_global.x, cone.position_global.y, cone.position_global.z,
-            static_cast<int>(i), static_cast<int>(cone.type), "cone_map");
+            static_cast<int>(i), static_cast<int>(cone.type), "cone_map", frame_id_);
         marker.header.stamp = msg->header.stamp;
         markers.markers.push_back(marker);
     }
@@ -87,10 +74,10 @@ void ConeVisualizer::coneMapCallback(
 
 visualization_msgs::Marker ConeVisualizer::createConeMarker(
     double x, double y, double z,
-    int id, int type, const std::string& ns) {
+    int id, int type, const std::string& ns, const std::string& frame_id) {
     
     visualization_msgs::Marker marker;
-    marker.header.frame_id = frame_id_;
+    marker.header.frame_id = frame_id;
     marker.ns = ns;
     marker.id = id;
     marker.type = visualization_msgs::Marker::CYLINDER;
@@ -114,7 +101,7 @@ visualization_msgs::Marker ConeVisualizer::createConeMarker(
     marker.color.b = color[2];
     marker.color.a = color[3];
     
-    marker.lifetime = ros::Duration(0.2);  // 200ms 超时
+    marker.lifetime = ros::Duration(1.0);  // 1s lifetime to prevent flickering in RViz
     
     return marker;
 }

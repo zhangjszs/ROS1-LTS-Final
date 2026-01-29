@@ -1,4 +1,4 @@
-<library path="lib/libperception_ros">
+<library path="libperception_ros">
 	<class name="nodelet_lidar/Lidar_Cluster_Nodelet" type="nodelet_lidar::Lidar_Cluster_Nodelet" base_class_type="nodelet::Nodelet">
 		<description>
 			lidar_cluster_nodelet

@@ -50,7 +50,7 @@ LocationNode::LocationNode(ros::NodeHandle &nh)
   }
   else
   {
-    ins_sub_ = nh_.subscribe<autodrive_msgs::HUAT_Asensing>(ins_topic_, 10, &LocationNode::imuCallback, this);
+    ins_sub_ = nh_.subscribe<autodrive_msgs::HUAT_InsP2>(ins_topic_, 10, &LocationNode::imuCallback, this);
   }
 
   cone_sub_ = nh_.subscribe<autodrive_msgs::HUAT_ConeDetections>(cone_topic_, 10, &LocationNode::coneCallback, this);
@@ -143,6 +143,28 @@ void LocationNode::loadParameters()
 void LocationNode::publishState(const localization_core::CarState &state, const ros::Time &stamp, bool publish_carstate)
 {
   const geometry_msgs::Quaternion orientation = YawToQuaternion(state.car_state.theta);
+  double v_forward = 0.0;
+  double yaw_rate = 0.0;
+  if (has_last_state_ && stamp == last_stamp_)
+  {
+    // Avoid duplicate TF publishing
+    return;
+  }
+
+  if (has_last_state_)
+  {
+    const double dt = (stamp - last_stamp_).toSec();
+    if (dt > 1e-3)
+    {
+      const double dx = state.car_state.x - last_state_.car_state.x;
+      const double dy = state.car_state.y - last_state_.car_state.y;
+      const double yaw = state.car_state.theta;
+      v_forward = (std::cos(yaw) * dx + std::sin(yaw) * dy) / dt;
+      const double dtheta = std::atan2(std::sin(state.car_state.theta - last_state_.car_state.theta),
+                                       std::cos(state.car_state.theta - last_state_.car_state.theta));
+      yaw_rate = dtheta / dt;
+    }
+  }
 
   if (publish_carstate)
   {
@@ -167,8 +189,8 @@ void LocationNode::publishState(const localization_core::CarState &state, const 
   odom_msg.header.frame_id = world_frame_;
   odom_msg.child_frame_id = base_link_frame_;
   odom_msg.pose.pose = pose_msg.pose;
-  odom_msg.twist.twist.linear.x = state.V;
-  odom_msg.twist.twist.angular.z = state.W;
+  odom_msg.twist.twist.linear.x = v_forward;
+  odom_msg.twist.twist.angular.z = yaw_rate;
   odom_pub_.publish(odom_msg);
 
   geometry_msgs::TransformStamped tf_msg;
@@ -180,16 +202,21 @@ void LocationNode::publishState(const localization_core::CarState &state, const 
   tf_msg.transform.translation.z = 0.0;
   tf_msg.transform.rotation = orientation;
   tf_broadcaster_.sendTransform(tf_msg);
+
+  last_state_ = state;
+  last_stamp_ = stamp;
+  has_last_state_ = true;
 }
 
-void LocationNode::imuCallback(const autodrive_msgs::HUAT_Asensing::ConstPtr &msg)
+void LocationNode::imuCallback(const autodrive_msgs::HUAT_InsP2::ConstPtr &msg)
 {
   localization_core::Asensing core_msg = ToCore(*msg);
   localization_core::CarState state;
 
   if (mapper_.UpdateFromIns(core_msg, &state))
   {
-    publishState(state, ros::Time::now(), true);
+    const ros::Time stamp = msg->header.stamp.isZero() ? ros::Time::now() : msg->header.stamp;
+    publishState(state, stamp, true);
   }
 }
 
@@ -214,6 +241,8 @@ void LocationNode::coneCallback(const autodrive_msgs::HUAT_ConeDetections::Const
     return;
   }
 
+  const ros::Time stamp = msg->header.stamp.isZero() ? ros::Time::now() : msg->header.stamp;
+
   localization_core::ConeDetections detections = ToCore(*msg);
   localization_core::ConeMap map;
   localization_core::PointCloudPtr cloud;
@@ -225,38 +254,58 @@ void LocationNode::coneCallback(const autodrive_msgs::HUAT_ConeDetections::Const
 
   autodrive_msgs::HUAT_ConeMap out_map;
   ToRos(map, &out_map);
-  out_map.header.stamp = ros::Time::now();
-  out_map.header.frame_id = "world";  // 全局 ENU 坐标系
+  out_map.header.stamp = stamp;
+  out_map.header.frame_id = world_frame_;
   map_pub_.publish(out_map);
 
   if (cloud)
   {
     sensor_msgs::PointCloud2 global_cloud_msg;
     pcl::toROSMsg(*cloud, global_cloud_msg);
-    global_cloud_msg.header.frame_id = "world";  // 全局 ENU 坐标系
-    global_cloud_msg.header.stamp = ros::Time::now();
+    global_cloud_msg.header.frame_id = world_frame_;
+    global_cloud_msg.header.stamp = stamp;
     global_map_pub_.publish(global_cloud_msg);
   }
 }
 
-localization_core::Asensing LocationNode::ToCore(const autodrive_msgs::HUAT_Asensing &msg)
+localization_core::Asensing LocationNode::ToCore(const autodrive_msgs::HUAT_InsP2 &msg)
 {
   localization_core::Asensing out;
-  out.latitude = msg.latitude;
-  out.longitude = msg.longitude;
-  out.altitude = msg.altitude;
-  out.north_velocity = msg.north_velocity;
-  out.east_velocity = msg.east_velocity;
-  out.ground_velocity = msg.ground_velocity;
-  out.roll = msg.roll;
-  out.pitch = msg.pitch;
-  out.azimuth = msg.azimuth;
-  out.x_angular_velocity = msg.x_angular_velocity;
-  out.y_angular_velocity = msg.y_angular_velocity;
-  out.z_angular_velocity = msg.z_angular_velocity;
-  out.x_acc = msg.x_acc;
-  out.y_acc = msg.y_acc;
-  out.z_acc = msg.z_acc;
+
+  // 位置 (WGS84)
+  out.latitude = msg.Lat;
+  out.longitude = msg.Lon;
+  out.altitude = msg.Altitude;
+
+  // 速度 (m/s, NED坐标系)
+  // HUAT_InsP2.Vd 向下为正
+  out.north_velocity = msg.Vn;
+  out.east_velocity = msg.Ve;
+  out.ground_velocity = msg.Vd;  // Vd(向下)
+
+  // 姿态角 (度)
+  out.roll = msg.Roll;
+  out.pitch = msg.Pitch;
+  out.azimuth = msg.Heading;
+
+  // 角速度 (rad/s, FRD车体系)
+  // HUAT_InsP2中已经是 rad/s，直接使用
+  out.x_angular_velocity = msg.gyro_x;
+  out.y_angular_velocity = msg.gyro_y;
+  out.z_angular_velocity = msg.gyro_z;
+
+  // 加速度 (m/s², FRD车体系)
+  // HUAT_InsP2中已经是 m/s²，直接使用
+  out.x_acc = msg.acc_x;
+  out.y_acc = msg.acc_y;
+  out.z_acc = msg.acc_z;
+
+  // 质量指标
+  out.status = msg.Status;
+  out.nsv1 = msg.NSV1;
+  out.nsv2 = msg.NSV2;
+  out.age = msg.Age;
+
   return out;
 }
 

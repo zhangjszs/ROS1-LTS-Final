@@ -43,8 +43,8 @@
     <include unless="$(arg simulation)" file="$(find fsd_launch)/launch/subsystems/vehicle.launch"/>
 
     <!-- ========== Tools ========== -->
-    <!-- Static TF: world → velodyne (全局坐标系到车辆坐标系) -->
-    <node pkg="tf2_ros" type="static_transform_publisher" name="world_to_velodyne_tf" args="0 0 0 0 0 0 world velodyne"/>
+    <!-- Static TF: world → velodyne (全局坐标系到车辆坐标系) REMOVED: Corrected in visualization node to use proper TF frames -->
+    <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="world_to_velodyne_tf" args="0 0 0 0 0 0 world velodyne"/> -->
 
     <!-- Rosbag Player (仿真模式) -->
     <include if="$(arg simulation)" file="$(find fsd_launch)/launch/tools/rosbag_play.launch">

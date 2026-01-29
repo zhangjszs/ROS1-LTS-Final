@@ -1,0 +1,60 @@
+<launch>
+    <!-- 
+    Debug Launch for Perception + Localization + Visualization
+    用于联合调试感知和定位模块，包含必要的TF变换和可视化环境
+    -->
+
+    <arg name="simulation" default="false" doc="Whether to play rosbag"/>
+    <arg name="bag" default="" doc="Path to rosbag file"/>
+    
+    <!-- Lidar Topic Configuration -->
+    <arg name="lidar_topic" default="/velodyne_points" doc="Input point cloud topic name"/>
+
+    <!-- Set use_sim_time true if simulation is enabled -->
+    <param name="/use_sim_time" value="$(arg simulation)"/>
+
+    <!-- 1. Data Source (Rosbag) -->
+    <!-- 
+         注意：rosbag_play.launch 内部会启动 ins_bridge 节点，
+         它将 /INS/ASENSING_INS 转换为 /pbox_pub/Ins
+    -->
+    <include if="$(arg simulation)" file="$(find fsd_launch)/launch/tools/rosbag_play.launch">
+        <arg name="bag" value="$(arg bag)"/>
+    </include>
+
+    <!-- 2. Perception (LiDAR Cluster) -->
+    <include file="$(find perception_ros)/launch/lidar_cluster.launch">
+        <arg name="launch_rviz" value="false"/>
+        <arg name="input_topic" value="$(arg lidar_topic)"/>
+    </include>
+
+    <!-- 3. Localization -->
+    <!-- 
+         关键修复：将 location_node 期望的 sensors/ins 重映射到 ins_bridge 发布的 /pbox_pub/Ins
+    -->
+    <group>
+        <remap from="sensors/ins" to="/pbox_pub/Ins"/>
+        <include file="$(find localization_ros)/launch/location.launch"/>
+    </group>
+
+    <!-- 4. Visualization -->
+    <include file="$(find fsd_visualization)/launch/visualization.launch">
+        <arg name="frame_id" value="world"/>
+        <arg name="enable_cones" value="true"/>
+        <arg name="enable_vehicle" value="true"/>
+        <arg name="show_trail" value="true"/>
+    </include>
+
+    <!-- 5. Static TF: base_link -> velodyne -->
+    <!-- 
+         CRITICAL: 连接定位坐标系(base_link)与雷达坐标系(velodyne)。
+         如果缺少此变换，RViz无法将雷达点云/锥桶显示在全局地图上。
+         当前假设雷达安装在车辆中心(0,0,0)，如有偏差请修改此处 args (x y z yaw pitch roll)。
+    -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="base_link_to_velodyne" args="0 0 0 0 0 0 base_link velodyne"/>
+
+    <!-- 6. RViz -->
+    <!-- 使用 FSD 主配置，确保 Fixed Frame 设置为 'world' -->
+    <node pkg="rviz" type="rviz" name="debug_rviz" args="-d $(find fsd_visualization)/rviz/fsd_main.rviz"/>
+
+</launch>

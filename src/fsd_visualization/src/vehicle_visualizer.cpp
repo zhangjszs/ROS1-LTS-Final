@@ -67,7 +67,7 @@ void VehicleVisualizer::carStateCallback(
     }
     
     // 轨迹
-    if (show_trail_ && !trail_points_.empty()) {
+    if (show_trail_ && trail_points_.size() >= 2) {
         auto trail = createTrailMarker(msg->header.stamp);
         markers.markers.push_back(trail);
     }

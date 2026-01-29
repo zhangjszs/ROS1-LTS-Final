@@ -12,6 +12,7 @@
 
 #include <perception_core/lidar_cluster_core.hpp>
 #include <perception_ros/perf_stats.hpp>
+#include <perception_ros/distortion_compensator.hpp>
 
 namespace perception_ros {
 
@@ -53,6 +54,9 @@ class LidarClusterRos {
 
   std_msgs::Header last_header_;
   bool got_cloud_ = false;
+  uint32_t last_seq_ = 0;              // P0: 最新接收的点云序列号
+  uint32_t last_processed_seq_ = 0;    // P0: 最后处理的点云序列号
+  double max_cloud_age_ = 0.5;         // P0: 帧间隔警告阈值 (秒)，10Hz点云正常间隔0.1s
 
   int vis_ = 0;
   int sensor_model_ = 16;
@@ -68,6 +72,9 @@ class LidarClusterRos {
   bool perf_enabled_ = true;
   size_t perf_window_ = 300;
   size_t perf_log_every_ = 30;
+
+  // IMU Distortion Compensation (解耦后的独立模块)
+  std::unique_ptr<DistortionCompensator> compensator_;
 
   visualization_msgs::MarkerArray marker_array_;
   visualization_msgs::MarkerArray marker_array_all_;

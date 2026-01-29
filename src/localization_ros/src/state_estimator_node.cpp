@@ -1,7 +1,7 @@
 #include <localization_core/imu_state_estimator.hpp>
 
 #include <ros/ros.h>
-#include <autodrive_msgs/HUAT_Asensing.h>
+#include <autodrive_msgs/HUAT_InsP2.h>
 #include <autodrive_msgs/HUAT_CarState.h>
 
 class StateEstimatorNode
@@ -15,6 +15,7 @@ public:
   {
     pnh_.param<std::string>("topics/ins", imu_topic_, "sensors/ins");
     pnh_.param<std::string>("topics/car_state", carstate_topic_, "localization/car_state");
+    pnh_.param<std::string>("frames/world", world_frame_, "world");
 
     imu_sub_ = nh_.subscribe(imu_topic_, 50, &StateEstimatorNode::ImuCallback, this);
     carstate_pub_ = nh_.advertise<autodrive_msgs::HUAT_CarState>(carstate_topic_, 10);
@@ -73,24 +74,36 @@ private:
     return params;
   }
 
-  static localization_core::Asensing ToCore(const autodrive_msgs::HUAT_Asensing &msg)
+  static localization_core::Asensing ToCore(const autodrive_msgs::HUAT_InsP2 &msg)
   {
     localization_core::Asensing out;
-    out.latitude = msg.latitude;
-    out.longitude = msg.longitude;
-    out.altitude = msg.altitude;
-    out.north_velocity = msg.north_velocity;
-    out.east_velocity = msg.east_velocity;
-    out.ground_velocity = msg.ground_velocity;
-    out.roll = msg.roll;
-    out.pitch = msg.pitch;
-    out.azimuth = msg.azimuth;
-    out.x_angular_velocity = msg.x_angular_velocity;
-    out.y_angular_velocity = msg.y_angular_velocity;
-    out.z_angular_velocity = msg.z_angular_velocity;
-    out.x_acc = msg.x_acc;
-    out.y_acc = msg.y_acc;
-    out.z_acc = msg.z_acc;
+    
+    // 位置 (WGS84)
+    out.latitude = msg.Lat;
+    out.longitude = msg.Lon;
+    out.altitude = msg.Altitude;
+    
+    // 速度 (m/s, NED坐标系)
+    // HUAT_InsP2.Vd 向下为正
+    out.north_velocity = msg.Vn;
+    out.east_velocity = msg.Ve;
+    out.ground_velocity = msg.Vd;  // Vd(向下)
+    
+    // 姿态角 (度)
+    out.roll = msg.Roll;
+    out.pitch = msg.Pitch;
+    out.azimuth = msg.Heading;
+    
+    // 角速度 (rad/s, FRD车体系)
+    out.x_angular_velocity = msg.gyro_x;
+    out.y_angular_velocity = msg.gyro_y;
+    out.z_angular_velocity = msg.gyro_z;
+    
+    // 加速度 (m/s², FRD车体系)
+    out.x_acc = msg.acc_x;
+    out.y_acc = msg.acc_y;
+    out.z_acc = msg.acc_z;
+    
     return out;
   }
 
@@ -114,7 +127,7 @@ private:
     out->A = static_cast<float>(state.A);
   }
 
-  void ImuCallback(const autodrive_msgs::HUAT_Asensing::ConstPtr &msg)
+  void ImuCallback(const autodrive_msgs::HUAT_InsP2::ConstPtr &msg)
   {
     autodrive_msgs::HUAT_CarState state_msg;
     localization_core::CarState state;
@@ -123,7 +136,7 @@ private:
     {
       ToRos(state, &state_msg);
       state_msg.header.stamp = ros::Time::now();
-      state_msg.header.frame_id = "velodyne";
+      state_msg.header.frame_id = world_frame_;
       carstate_pub_.publish(state_msg);
     }
   }
@@ -132,6 +145,7 @@ private:
   ros::NodeHandle pnh_;
   std::string imu_topic_;
   std::string carstate_topic_;
+  std::string world_frame_;
   localization_core::ImuStateEstimatorParams params_;
   localization_core::ImuStateEstimator estimator_;
   ros::Subscriber imu_sub_;
