@@ -3,25 +3,22 @@
 
 import os
 import json
-import glob
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from datetime import datetime
 from pathlib import Path
+from common import Config, load_all_data, METRIC_DEFINITIONS, VISUALIZATION
 
 class PerfChartGenerator:
     def __init__(self, data_dir=None, output_dir=None):
-        self.data_dir = data_dir or "/home/kerwin/2025huat/perf_reports/data"
-        self.output_dir = output_dir or "/home/kerwin/2025huat/perf_reports/reports"
+        self.data_dir = data_dir or Config.DATA_DIR
+        self.output_dir = output_dir or Config.REPORTS_DIR
         self.all_data = []
 
     def load_all_data(self):
-        data_files = glob.glob(os.path.join(self.data_dir, "perf_data_*.json"))
-        for data_file in sorted(data_files):
-            with open(data_file, 'r') as f:
-                self.all_data.append(json.load(f))
+        self.all_data = load_all_data(self.data_dir)
         print(f"Loaded {len(self.all_data)} data files for chart generation")
 
     def generate_charts(self, data=None):
@@ -74,10 +71,11 @@ class PerfChartGenerator:
         chart_filename = f"{node_name}_performance_{timestamp}.png"
         chart_path = os.path.join(self.output_dir, chart_filename)
 
-        fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+        fig_size = VISUALIZATION['figure_size']
+        fig, axes = plt.subplots(2, 2, figsize=fig_size)
         fig.suptitle(f'{node_name} - Performance Metrics', fontsize=16, fontweight='bold')
 
-        time_metrics = ['t_pass_ms', 't_ground_ms', 't_cluster_ms', 't_delaunay_ms', 't_way_ms', 't_total_ms']
+        time_metrics = METRIC_DEFINITIONS['time_metrics']
         time_labels = ['Pass', 'Ground', 'Cluster', 'Delaunay', 'Way', 'Total']
         time_values = [metrics.get(m, {}).get('mean', 0) for m in time_metrics]
 
@@ -143,7 +141,8 @@ class PerfChartGenerator:
                 ax.set_title('Time Distribution', fontsize=12)
 
         plt.tight_layout()
-        plt.savefig(chart_path, dpi=300, bbox_inches='tight')
+        dpi = VISUALIZATION['chart_dpi']
+        plt.savefig(chart_path, dpi=dpi, bbox_inches='tight')
         plt.close()
 
         print(f"Chart generated: {chart_path}")
@@ -153,11 +152,12 @@ class PerfChartGenerator:
         chart_filename = f"{node_name}_comparison_{timestamp}.png"
         chart_path = os.path.join(self.output_dir, chart_filename)
 
-        fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+        fig_size = VISUALIZATION['figure_size']
+        fig, axes = plt.subplots(2, 2, figsize=fig_size)
         fig.suptitle(f'{node_name} - Version Comparison', fontsize=16, fontweight='bold')
 
         versions = [f"v{i+1}" for i in range(len(data_list))]
-        colors = ['blue', 'red', 'green', 'orange', 'purple'][:len(data_list)]
+        colors = VISUALIZATION['colors']['primary'][:len(data_list)]
 
         ax = axes[0, 0]
         time_metrics = ['t_total_ms', 't_pass_ms', 't_ground_ms', 't_cluster_ms']

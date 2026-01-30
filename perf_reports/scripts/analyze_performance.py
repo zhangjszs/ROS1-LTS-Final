@@ -13,6 +13,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Tuple, Optional
 import subprocess
+from common import Config, THRESHOLDS
 
 
 class PerformanceAnalyzer:
@@ -23,23 +24,7 @@ class PerformanceAnalyzer:
         self.perf_data_file = perf_data_file
         self.issues = []
         self.components = {}
-
-        # 性能阈值配置
-        self.thresholds = {
-            'processing_time_ms': {
-                'total': {'warning': 40.0, 'critical': 50.0},
-                'ground_segmentation': {'warning': 25.0, 'critical': 35.0},
-                'clustering': {'warning': 8.0, 'critical': 12.0},
-                'delaunay': {'warning': 1.0, 'critical': 2.0},
-                'path_planning': {'warning': 10.0, 'critical': 15.0},
-            },
-            'memory_bytes': {
-                'message_size': {'warning': 200000, 'critical': 300000},  # 200KB, 300KB
-            },
-            'latency_percentiles': {
-                'p99_p95_ratio': {'warning': 1.3, 'critical': 1.5},  # P99不应超过P95太多
-            }
-        }
+        self.thresholds = THRESHOLDS
 
     def load_performance_data(self, perf_file: str) -> Dict:
         """加载性能数据JSON文件"""

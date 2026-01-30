@@ -4,74 +4,21 @@
 import os
 import re
 import json
-import subprocess
 from datetime import datetime
 from pathlib import Path
+from common import Config, get_git_info, get_system_info
 
 class PerfDataCollector:
     def __init__(self, log_file=None, note=None, scenario=None, tags=None):
         self.log_file = log_file or os.path.expanduser("~/.ros/log/latest/rosout.log")
         self.perf_data = {}
-        self.git_info = self._get_git_info()
-        self.system_info = self._get_system_info()
+        self.git_info = get_git_info()
+        self.system_info = get_system_info()
         self.note = note if note is not None else None
         if self.note is None:
             self.note = self.git_info.get("commit_message", "")
         self.scenario = scenario or ""
         self.tags = tags or []
-
-    def _get_git_info(self):
-        try:
-            commit_hash = subprocess.check_output(
-                ["git", "rev-parse", "HEAD"],
-                cwd="/home/kerwin/2025huat",
-                stderr=subprocess.DEVNULL
-            ).decode().strip()
-            commit_msg = subprocess.check_output(
-                ["git", "log", "-1", "--pretty=%B"],
-                cwd="/home/kerwin/2025huat",
-                stderr=subprocess.DEVNULL
-            ).decode().strip()
-            branch = subprocess.check_output(
-                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-                cwd="/home/kerwin/2025huat",
-                stderr=subprocess.DEVNULL
-            ).decode().strip()
-            return {
-                "commit_hash": commit_hash,
-                "commit_message": commit_msg,
-                "branch": branch
-            }
-        except Exception as e:
-            return {
-                "commit_hash": "unknown",
-                "commit_message": "unknown",
-                "branch": "unknown"
-            }
-
-    def _get_system_info(self):
-        try:
-            import platform
-            try:
-                import cpuinfo
-                cpu = cpuinfo.get_cpu_info()["brand_raw"] if hasattr(cpuinfo, 'get_cpu_info') else "unknown"
-            except ImportError:
-                cpu = "unknown"
-            return {
-                "hostname": platform.node(),
-                "os": platform.system(),
-                "os_version": platform.release(),
-                "python_version": platform.python_version(),
-                "cpu": cpu
-            }
-        except Exception as e:
-            return {
-                "hostname": "unknown",
-                "os": "unknown",
-                "os_version": "unknown",
-                "python_version": "unknown",
-                "cpu": "unknown"
-            }
 
     def parse_perf_line(self, line):
         pattern = r'\[perf\] node=(\w+) window=(\d+) (.+)'
@@ -124,7 +71,7 @@ class PerfDataCollector:
 
     def save_data(self, output_dir=None):
         if output_dir is None:
-            output_dir = "/home/kerwin/2025huat/perf_reports/data"
+            output_dir = Config.DATA_DIR
 
         os.makedirs(output_dir, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
