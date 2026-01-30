@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>perception_core</name>
-  <version>0.0.0</version>
+  <version>1.0.0</version>
   <description>Core (non-ROS) perception algorithms.</description>
 
   <maintainer email="zhangjszs@foxmail.com">kerwin</maintainer>
