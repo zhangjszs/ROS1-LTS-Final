@@ -415,7 +415,6 @@ src_backup_*/
 
 如有问题或需进一步优化，请联系:
 - 项目维护者: kerwin (zhangjszs@foxmail.com)
-- 原作者: Jaixi Dai (1005751599@qq.com)
 
 ---
 
