@@ -40,3 +40,15 @@ add_library(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
   ${PCL_LIBRARIES}
 )
+
+target_include_directories(${PROJECT_NAME} PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+if(CATKIN_ENABLE_TESTING)
+  find_package(rostest REQUIRED)
+  catkin_add_gtest(${PROJECT_NAME}_test test/test_localization.cpp)
+  if(TARGET ${PROJECT_NAME}_test)
+    target_link_libraries(${PROJECT_NAME}_test ${PROJECT_NAME} ${catkin_LIBRARIES})
+  endif()
+endif()
