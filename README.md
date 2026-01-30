@@ -202,12 +202,19 @@ rosrun tf tf_echo velodyne base_link
 
 ## 项目状态
 
+![ROS CI](https://github.com/zhangjszs/ROS1-LTS-Final/workflows/ROS%20CI/badge.svg)
+![Code Coverage](https://github.com/zhangjszs/ROS1-LTS-Final/workflows/Code%20Coverage/badge.svg)
+![Static Analysis](https://github.com/zhangjszs/ROS1-LTS-Final/workflows/Static%20Analysis/badge.svg)
+
 - ✅ 所有包构建通过
 - ✅ 所有 core 包有单元测试
 - ✅ 所有 core 包有文档
 - ✅ 版本号统一为 1.0.0
 - ✅ 许可证统一为 BSD-3-Clause
 - ✅ 文件权限已规范化
+- ✅ CI/CD 自动化测试
+- ✅ 代码覆盖率报告
+- ✅ 静态代码分析
 
 ## 联系方式
 
