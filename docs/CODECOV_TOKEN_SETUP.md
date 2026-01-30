@@ -2,7 +2,7 @@
 
 ## Token 信息
 ```
-CODECOV_TOKEN: 6b1c8072-932e-47f0-9f33-11760849785f
+CODECOV_TOKEN: <your-codecov-token>
 ```
 
 ## 添加到 GitHub Secrets
@@ -12,7 +12,7 @@ CODECOV_TOKEN: 6b1c8072-932e-47f0-9f33-11760849785f
 2. 点击 "New repository secret"
 3. 填写:
    - Name: `CODECOV_TOKEN`
-   - Value: `6b1c8072-932e-47f0-9f33-11760849785f`
+   - Value: `<从 Codecov 获取的新 token>`
 4. 点击 "Add secret"
 
 ## 验证
