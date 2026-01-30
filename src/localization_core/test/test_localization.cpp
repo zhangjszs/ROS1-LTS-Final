@@ -2,8 +2,9 @@
 #include "localization_core/imu_state_estimator.hpp"
 
 TEST(LocalizationCoreTest, Initialization) {
-  localization_core::IMUStateEstimator estimator;
-  EXPECT_TRUE(true);
+  localization_core::ImuStateEstimatorParams params;
+  localization_core::ImuStateEstimator estimator(params);
+  EXPECT_FALSE(estimator.initialized());
 }
 
 int main(int argc, char **argv) {
