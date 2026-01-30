@@ -1,0 +1,66 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["git_info", "system_info", "collection_time", "nodes"],
+  "properties": {
+    "git_info": {
+      "type": "object",
+      "required": ["commit_hash", "branch", "commit_message"],
+      "properties": {
+        "commit_hash": {"type": "string"},
+        "branch": {"type": "string"},
+        "commit_message": {"type": "string"}
+      }
+    },
+    "system_info": {
+      "type": "object",
+      "required": ["hostname"],
+      "properties": {
+        "hostname": {"type": "string"},
+        "cpu": {"type": "string"},
+        "memory": {"type": "string"},
+        "os": {"type": "string"}
+      }
+    },
+    "collection_time": {"type": "string"},
+    "note": {"type": "string"},
+    "scenario": {"type": "string"},
+    "tags": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "nodes": {
+      "type": "object",
+      "patternProperties": {
+        ".*": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["node", "window_size", "metrics"],
+            "properties": {
+              "node": {"type": "string"},
+              "window_size": {"type": "integer"},
+              "timestamp": {"type": "string"},
+              "metrics": {
+                "type": "object",
+                "patternProperties": {
+                  ".*": {
+                    "type": "object",
+                    "required": ["mean", "p50", "p95", "p99", "max"],
+                    "properties": {
+                      "mean": {"type": "number"},
+                      "p50": {"type": "number"},
+                      "p95": {"type": "number"},
+                      "p99": {"type": "number"},
+                      "max": {"type": "number"}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

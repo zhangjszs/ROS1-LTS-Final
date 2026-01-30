@@ -3,37 +3,24 @@
 
 import os
 import json
-import glob
 from datetime import datetime
 from pathlib import Path
+from common import Config, load_all_data, format_value, format_delta, get_latest_metrics, METRIC_DEFINITIONS
 
 class PerfReportGenerator:
     def __init__(self, data_dir=None, output_dir=None):
-        self.data_dir = data_dir or "/home/kerwin/2025huat/perf_reports/data"
-        self.output_dir = output_dir or "/home/kerwin/2025huat/perf_reports/reports"
+        self.data_dir = data_dir or Config.DATA_DIR
+        self.output_dir = output_dir or Config.REPORTS_DIR
         self.all_data = []
 
     def load_all_data(self):
-        data_files = glob.glob(os.path.join(self.data_dir, "perf_data_*.json"))
-        for data_file in sorted(data_files):
-            with open(data_file, 'r') as f:
-                self.all_data.append(json.load(f))
+        self.all_data = load_all_data(self.data_dir)
         print(f"Loaded {len(self.all_data)} data files")
 
     def get_metric_value(self, metrics, metric_name, stat='mean'):
         if metric_name not in metrics:
             return None
         return metrics[metric_name].get(stat, 0.0)
-
-    def format_value(self, value, precision=3):
-        if value is None:
-            return "N/A"
-        return f"{value:.{precision}f}"
-
-    def format_delta(self, value, precision=3):
-        if value is None:
-            return "N/A"
-        return f"{value:+.{precision}f}"
 
     def _parse_commit_prefixes(self, commit_hashes):
         if not commit_hashes:
@@ -176,7 +163,7 @@ class PerfReportGenerator:
             md.append("| 指标 | 平均值 | 中位数 | P95 | P99 | 最大值 |\n")
             md.append("|------|--------|--------|-----|-----|--------|\n")
 
-            time_metrics = ['t_pass_ms', 't_ground_ms', 't_cluster_ms', 't_delaunay_ms', 't_way_ms', 't_total_ms']
+            time_metrics = METRIC_DEFINITIONS['time_metrics']
             for metric in time_metrics:
                 if metric in metrics:
                     m = metrics[metric]
@@ -187,7 +174,7 @@ class PerfReportGenerator:
             md.append("| 指标 | 平均值 | 中位数 | P95 | P99 | 最大值 |\n")
             md.append("|------|--------|--------|-----|-----|--------|\n")
 
-            data_metrics = ['N', 'K', 'T', 'E', 'D', 'bytes']
+            data_metrics = METRIC_DEFINITIONS['data_metrics']
             for metric in data_metrics:
                 if metric in metrics:
                     m = metrics[metric]

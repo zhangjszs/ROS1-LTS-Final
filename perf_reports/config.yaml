@@ -1,0 +1,40 @@
+paths:
+  data_dir: "data"
+  reports_dir: "reports"
+  project_root: "../.."
+
+metrics:
+  time_metrics: [t_pass_ms, t_ground_ms, t_cluster_ms, t_delaunay_ms, t_way_ms, t_total_ms]
+  data_metrics: [N, K, T, E, D, bytes]
+  display_names:
+    t_pass_ms: "Point Cloud Filtering"
+    t_ground_ms: "Ground Segmentation"
+    t_cluster_ms: "Clustering"
+    t_delaunay_ms: "Delaunay Triangulation"
+    t_way_ms: "Path Planning"
+    t_total_ms: "Total Processing"
+    N: "Point Count"
+    K: "Cluster Count"
+    T: "Triangle Count"
+    E: "Edge Count"
+    D: "Waypoint Count"
+    bytes: "Message Size"
+
+thresholds:
+  processing_time_ms:
+    total: {warning: 40.0, critical: 50.0}
+    ground_segmentation: {warning: 25.0, critical: 35.0}
+    clustering: {warning: 8.0, critical: 12.0}
+    delaunay: {warning: 1.0, critical: 2.0}
+    path_planning: {warning: 10.0, critical: 15.0}
+  memory_bytes:
+    message_size: {warning: 200000, critical: 300000}
+  latency_percentiles:
+    p99_p95_ratio: {warning: 1.3, critical: 1.5}
+
+visualization:
+  chart_dpi: 300
+  figure_size: [15, 10]
+  colors:
+    primary: ['blue', 'red', 'green', 'orange', 'purple']
+    time_breakdown: ['#ff9999', '#66b3ff', '#99ff99', '#ffcc99']
