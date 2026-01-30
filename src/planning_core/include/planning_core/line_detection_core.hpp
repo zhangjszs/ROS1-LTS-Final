@@ -81,6 +81,7 @@ private:
   std::vector<Pose> GeneratePath(const HoughLine &center_line) const;
   std::vector<Pose> ConvertToWorldCoordinates(const std::vector<Pose> &path) const;
   bool CheckFinishLine(double current_x, double finish_x) const;
+  void InitializeAccumulator(int num_rho, int num_theta);
 
   LineDetectionParams params_;
   std::vector<ConePoint> cone_positions_;
@@ -90,6 +91,10 @@ private:
   bool finished_{false};
   VehicleState vehicle_state_{};
   std::vector<Pose> planned_path_{};
+
+  std::vector<std::vector<int>> hough_accumulator_;
+  int cached_num_rho_{0};
+  int cached_num_theta_{0};
 };
 
 } // namespace planning_core
