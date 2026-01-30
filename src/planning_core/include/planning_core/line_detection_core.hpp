@@ -75,7 +75,7 @@ public:
 
 private:
   std::vector<ConePoint> FilterCones(const std::vector<ConePoint> &cones) const;
-  std::vector<HoughLine> HoughTransform(const std::vector<ConePoint> &cones) const;
+  std::vector<HoughLine> HoughTransform(const std::vector<ConePoint> &cones);
   std::pair<HoughLine, HoughLine> SelectBoundaryLines(const std::vector<HoughLine> &lines) const;
   HoughLine CalculateCenterLine(const HoughLine &left_line, const HoughLine &right_line) const;
   std::vector<Pose> GeneratePath(const HoughLine &center_line) const;

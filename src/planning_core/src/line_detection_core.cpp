@@ -68,13 +68,13 @@ void LineDetectionCore::InitializeAccumulator(int num_rho, int num_theta)
   }
 }
 
-std::vector<HoughLine> LineDetectionCore::HoughTransform(const std::vector<ConePoint> &cones) const
+std::vector<HoughLine> LineDetectionCore::HoughTransform(const std::vector<ConePoint> &cones)
 {
   double max_rho = std::sqrt(params_.max_cone_distance * params_.max_cone_distance + 10.0 * 10.0);
   int num_rho = static_cast<int>(2 * max_rho / params_.hough_rho_resolution);
   int num_theta = static_cast<int>(M_PI / params_.hough_theta_resolution);
 
-  const_cast<LineDetectionCore*>(this)->InitializeAccumulator(num_rho, num_theta);
+  InitializeAccumulator(num_rho, num_theta);
 
   for (const ConePoint &cone : cones)
   {
