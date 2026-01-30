@@ -186,14 +186,29 @@ std::vector<Pose> LineDetectionCore::GeneratePath(const HoughLine &center_line) 
   }
   else
   {
-    for (double x = 1.0; x <= params_.max_path_distance; x += params_.path_interval)
+    double sin_theta = std::sin(center_line.theta);
+    if (std::abs(sin_theta) < 1e-6)
     {
-      Pose pose;
-      pose.x = x;
-      pose.y = (center_line.rho - x * std::cos(center_line.theta)) /
-               std::sin(center_line.theta);
-      pose.z = 0.0;
-      path.push_back(pose);
+      double y_offset = center_line.rho;
+      for (double x = 1.0; x <= params_.max_path_distance; x += params_.path_interval)
+      {
+        Pose pose;
+        pose.x = x;
+        pose.y = y_offset;
+        pose.z = 0.0;
+        path.push_back(pose);
+      }
+    }
+    else
+    {
+      for (double x = 1.0; x <= params_.max_path_distance; x += params_.path_interval)
+      {
+        Pose pose;
+        pose.x = x;
+        pose.y = (center_line.rho - x * std::cos(center_line.theta)) / sin_theta;
+        pose.z = 0.0;
+        path.push_back(pose);
+      }
     }
   }
 
