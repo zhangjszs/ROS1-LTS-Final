@@ -309,4 +309,4 @@ rviz -d /home/kerwin/2025huat/src/fsd_visualization/rviz/your_config.rviz
 
 ---
 
-**注意：** `_deprecated` 目录下的RViz配置文件为废弃代码，不建议继续使用。建议迁移到统一的 `fsd_visualization/rviz/` 目录下。
+**注意：** 废弃代码已清理，所有RViz配置统一在 `fsd_visualization/rviz/` 目录下。
