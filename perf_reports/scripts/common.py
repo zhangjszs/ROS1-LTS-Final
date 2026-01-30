@@ -127,14 +127,29 @@ def get_system_info() -> Dict:
 
     try:
         os_info = subprocess.check_output(
-            ["uname", "-a"], stderr=subprocess.DEVNULL
+            ["uname", "-s"], stderr=subprocess.DEVNULL
         ).decode().strip()
     except Exception:
         os_info = "unknown"
+
+    try:
+        os_version = subprocess.check_output(
+            ["uname", "-r"], stderr=subprocess.DEVNULL
+        ).decode().strip()
+    except Exception:
+        os_version = "unknown"
+
+    try:
+        import sys
+        python_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    except Exception:
+        python_version = "unknown"
 
     return {
         "hostname": hostname,
         "cpu": cpu,
         "memory": memory,
-        "os": os_info
+        "os": os_info,
+        "os_version": os_version,
+        "python_version": python_version
     }
