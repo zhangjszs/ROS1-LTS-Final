@@ -45,6 +45,8 @@ private:
   std::string car_state_topic_;
   std::string path_topic_;
   std::string finish_topic_;
+  std::string expected_cone_frame_;
+  std::string output_frame_;
 
   bool finish_published_{false};
   std::mutex data_mutex_;
