@@ -2,6 +2,7 @@
 #define PLANNING_CORE_LINE_DETECTION_CORE_HPP_
 
 #include <cmath>
+#include <string>
 #include <utility>
 #include <vector>
 
