@@ -6,7 +6,6 @@
 
   <maintainer email="zhangjszs@foxmail.com">kerwin</maintainer>
   <license>BSD-3-Clause</license>
-  <author email="1005751599@qq.com">Jaixi Dai</author>
 
 
   <buildtool_depend>catkin</buildtool_depend>
