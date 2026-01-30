@@ -6,24 +6,26 @@
 
 ```
 src/
-├── autodrive_msgs/       # 统一消息定义
-├── fsd_launch/           # 统一启动配置
+├── autodrive_msgs/          # 统一消息定义
+├── fsd_launch/              # 统一启动配置
 │   └── launch/
-│       ├── missions/     # 任务模式: trackdrive, skidpad, acceleration, autocross
-│       ├── subsystems/   # 子系统: perception, planning, control, localization
-│       └── tools/        # 工具: rviz, rosbag_play, debug
-├── fsd_visualization/    # 统一可视化节点
-├── perception_core/      # 感知算法核心 (无 ROS 依赖)
-├── perception_ros/       # 感知 ROS 包装层
-├── planning_core/        # 规划算法核心 (无 ROS 依赖)
-├── planning_ros/         # 规划 ROS 包装层
-├── control_core/         # 控制算法核心 (无 ROS 依赖)
-├── control_ros/          # 控制 ROS 包装层
-├── localization_core/    # 定位算法核心 (无 ROS 依赖)
-├── localization_ros/     # 定位 ROS 包装层
-├── ros_vehicle_interface/# 车辆通信接口
-├── ros_vehicle_racing_num/# 比赛编号管理
-└── ins/                  # INS 消息兼容桥接
+│       ├── missions/        # 任务模式: trackdrive, skidpad, acceleration, autocross
+│       ├── subsystems/      # 子系统: perception, planning, control, localization
+│       └── tools/           # 工具: rviz, rosbag_play, debug
+├── fsd_visualization/       # 统一可视化节点
+├── perception_core/         # 感知算法核心 (无 ROS 依赖)
+├── perception_ros/          # 感知 ROS 包装层
+├── planning_core/           # 规划算法核心 (无 ROS 依赖)
+├── planning_ros/            # 规划 ROS 包装层
+├── control_core/            # 控制算法核心 (无 ROS 依赖)
+├── control_ros/             # 控制 ROS 包装层
+├── localization_core/       # 定位算法核心 (无 ROS 依赖)
+├── localization_ros/        # 定位 ROS 包装层
+├── vehicle_interface_core/  # 车辆通信协议核心
+├── vehicle_interface_ros/   # 车辆通信接口 ROS 包装层
+├── vehicle_racing_num_core/ # 比赛编号管理核心
+├── vehicle_racing_num_ros/  # 比赛编号管理 ROS 包装层
+└── ins/                     # INS 消息兼容桥接
 ```
 
 ## 快速开始
@@ -31,15 +33,38 @@ src/
 ### 构建
 ```bash
 cd ~/2025huat
-catkin build
+catkin build              # 构建所有包
 source devel/setup.bash
+
+# 构建特定包
+catkin build <package_name>
+
+# 清理并重新构建
+catkin clean -y
+catkin build
+```
+
+### 测试
+```bash
+# 运行所有测试
+catkin run_tests
+
+# 运行特定包的测试
+catkin run_tests <package_name>
 ```
 
 ### 运行
 
 **仿真模式（rosbag 回放）:**
 ```bash
-roslaunch fsd_launch trackdrive.launch simulation:=true bag:=/path/to/bag.bag
+# 基础仿真
+roslaunch fsd_launch missions/trackdrive.launch simulation:=true bag:=/path/to/bag.bag
+
+# 循环播放
+roslaunch fsd_launch missions/trackdrive.launch simulation:=true bag:=/path/to/bag.bag loop:=true
+
+# 自定义播放速率
+roslaunch fsd_launch missions/trackdrive.launch simulation:=true bag:=/path/to/bag.bag rate:=0.5
 ```
 
 **实车模式:**
@@ -50,23 +75,23 @@ bash autoStartGkj/start.sh
 ### RViz 可视化模式
 ```bash
 # 双窗口模式 (默认)
-roslaunch fsd_launch trackdrive.launch simulation:=true bag:=/path/to/bag.bag rviz_mode:=dual
+roslaunch fsd_launch missions/trackdrive.launch simulation:=true bag:=/path/to/bag.bag rviz_mode:=dual
 
 # 仅点云
-roslaunch fsd_launch trackdrive.launch simulation:=true bag:=/path/to/bag.bag rviz_mode:=pointcloud
+roslaunch fsd_launch missions/trackdrive.launch simulation:=true bag:=/path/to/bag.bag rviz_mode:=pointcloud
 
 # 仅全局俯视图
-roslaunch fsd_launch trackdrive.launch simulation:=true bag:=/path/to/bag.bag rviz_mode:=global
+roslaunch fsd_launch missions/trackdrive.launch simulation:=true bag:=/path/to/bag.bag rviz_mode:=global
 ```
 
 ## 任务模式
 
 | 任务 | 启动命令 | 说明 |
 |------|----------|------|
-| TrackDrive | `roslaunch fsd_launch trackdrive.launch` | 高速循迹 |
-| Skidpad | `roslaunch fsd_launch skidpad.launch` | 8字绕环 |
-| Acceleration | `roslaunch fsd_launch acceleration.launch` | 直线加速 |
-| Autocross | `roslaunch fsd_launch autocross.launch` | 综合赛道 |
+| TrackDrive | `roslaunch fsd_launch missions/trackdrive.launch` | 高速循迹 |
+| Skidpad | `roslaunch fsd_launch missions/skidpad.launch` | 8字绕环 |
+| Acceleration | `roslaunch fsd_launch missions/acceleration.launch` | 直线加速 |
+| Autocross | `roslaunch fsd_launch missions/autocross.launch` | 综合赛道 |
 
 ## Launch 配置总览（fsd_launch）
 
@@ -131,3 +156,60 @@ roslaunch fsd_launch missions/trackdrive.launch \
 - **ROS 版本:** Noetic
 - **C++ 标准:** C++17
 - **构建工具:** catkin_tools
+- **许可证:** BSD-3-Clause
+- **包版本:** 1.0.0 (统一)
+
+## Core + ROS Wrapper 架构优势
+
+本项目采用分层架构，将算法核心与 ROS 中间件解耦：
+
+- **可测试性:** Core 包可独立进行单元测试，无需 ROS 环境
+- **可移植性:** 算法核心可移植到非 ROS 系统
+- **清晰分离:** 算法逻辑与通信层职责明确
+- **易维护:** 修改算法无需关注 ROS 细节，修改接口无需改动算法
+
+## 开发指南
+
+### 添加新功能
+
+1. 在对应的 `*_core/` 包中实现算法（无 ROS 依赖）
+2. 在 `*_core/test/` 中添加单元测试
+3. 在对应的 `*_ros/` 包中创建 ROS 包装层
+4. 根据需要在 `fsd_launch/` 中添加启动文件
+5. 根据需要在 `fsd_visualization/` 中添加可视化
+
+### 调试
+
+```bash
+# 使用调试工具启动
+roslaunch fsd_launch tools/debug.launch mission:=trackdrive bag:=/path/to/bag.bag
+
+# 检查话题
+rostopic list
+rostopic echo /coneMap
+rostopic hz /velodyne_points
+
+# 检查坐标变换
+rosrun tf tf_echo velodyne base_link
+```
+
+## 文档
+
+- **CLAUDE.md** - Claude Code 开发指南（英文）
+- **REFACTOR_REPORT.md** - 重构详细报告
+- **EXECUTIVE_SUMMARY.md** - 重构执行摘要
+- 各包 README - 查看 `src/*/README.md`
+
+## 项目状态
+
+- ✅ 所有包构建通过
+- ✅ 所有 core 包有单元测试
+- ✅ 所有 core 包有文档
+- ✅ 版本号统一为 1.0.0
+- ✅ 许可证统一为 BSD-3-Clause
+- ✅ 文件权限已规范化
+
+## 联系方式
+
+- 项目维护者: kerwin (zhangjszs@foxmail.com)
+- 原作者: Jaixi Dai (1005751599@qq.com)
