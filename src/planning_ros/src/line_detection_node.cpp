@@ -124,6 +124,8 @@ void LineDetectionNode::PublishPath(const std::vector<planning_core::Pose> &path
 
 void LineDetectionNode::PublishFinishOnce()
 {
+  std::lock_guard<std::mutex> lock(data_mutex_);
+
   if (finish_published_)
   {
     return;

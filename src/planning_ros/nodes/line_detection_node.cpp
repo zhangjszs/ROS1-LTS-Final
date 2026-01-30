@@ -22,7 +22,8 @@ int main(int argc, char **argv)
 
     if (node.IsFinished())
     {
-      ROS_INFO("[LineDetection] Path planning completed, shutting down");
+      ROS_INFO("[LineDetection] Path planning completed, waiting 2s before shutdown");
+      ros::Duration(2.0).sleep();
       ros::shutdown();
       break;
     }
