@@ -198,6 +198,8 @@ rosrun tf tf_echo velodyne base_link
 - **CLAUDE.md** - Claude Code 开发指南（英文）
 - **REFACTOR_REPORT.md** - 重构详细报告
 - **EXECUTIVE_SUMMARY.md** - 重构执行摘要
+- **docs/CODECOV_SETUP.md** - Codecov 配置指南
+- **docs/GIT_HISTORY_CLEANUP.md** - Git 历史清理指南
 - 各包 README - 查看 `src/*/README.md`
 
 ## 项目状态
