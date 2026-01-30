@@ -60,6 +60,12 @@ void LineDetectionNode::ConeCallback(const autodrive_msgs::HUAT_ConeDetections::
 
   for (const geometry_msgs::Point32 &point : cone_msg->points)
   {
+    if (!std::isfinite(point.x) || !std::isfinite(point.y) || !std::isfinite(point.z))
+    {
+      ROS_WARN_THROTTLE(1.0, "[LineDetection] Invalid cone position detected (NaN/Inf), skipping");
+      continue;
+    }
+
     planning_core::ConePoint cone;
     cone.x = point.x;
     cone.y = point.y;
@@ -73,6 +79,15 @@ void LineDetectionNode::ConeCallback(const autodrive_msgs::HUAT_ConeDetections::
 void LineDetectionNode::CarStateCallback(const autodrive_msgs::HUAT_CarState::ConstPtr &car_state)
 {
   std::lock_guard<std::mutex> lock(data_mutex_);
+
+  if (!std::isfinite(car_state->car_state.x) ||
+      !std::isfinite(car_state->car_state.y) ||
+      !std::isfinite(car_state->car_state.theta) ||
+      !std::isfinite(car_state->V))
+  {
+    ROS_ERROR("[LineDetection] Invalid vehicle state (NaN/Inf), ignoring update");
+    return;
+  }
 
   planning_core::VehicleState state;
   state.x = car_state->car_state.x;
