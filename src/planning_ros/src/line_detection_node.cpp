@@ -42,15 +42,29 @@ void LineDetectionNode::LoadParameters()
   pnh_.param<std::string>("topics/car_state", car_state_topic_, "localization/car_state");
   pnh_.param<std::string>("topics/path", path_topic_, "planning/line_detection/path");
   pnh_.param<std::string>("topics/finish", finish_topic_, "planning/line_detection/finish_signal");
+
+  pnh_.param<std::string>("frames/expected_cone", expected_cone_frame_, "base_link");
+  pnh_.param<std::string>("frames/output", output_frame_, "world");
 }
 
 void LineDetectionNode::ConeCallback(const autodrive_msgs::HUAT_ConeDetections::ConstPtr &cone_msg)
 {
   std::lock_guard<std::mutex> lock(data_mutex_);
 
+  if (!cone_msg->header.frame_id.empty() &&
+      cone_msg->header.frame_id != expected_cone_frame_ &&
+      cone_msg->header.frame_id != "velodyne")
+  {
+    ROS_ERROR_THROTTLE(1.0, "[LineDetection] Unexpected cone frame: %s (expected: %s)",
+                       cone_msg->header.frame_id.c_str(), expected_cone_frame_.c_str());
+    return;
+  }
+
+  latest_cone_time_ = cone_msg->header.stamp;
+
   if (cone_msg->points.empty())
   {
-    ROS_WARN("[LineDetection] Received empty cone message");
+    ROS_WARN_THROTTLE(1.0, "[LineDetection] Received empty cone message");
     core_.UpdateCones({});
     return;
   }
@@ -80,6 +94,8 @@ void LineDetectionNode::CarStateCallback(const autodrive_msgs::HUAT_CarState::Co
 {
   std::lock_guard<std::mutex> lock(data_mutex_);
 
+  latest_state_time_ = car_state->header.stamp;
+
   if (!std::isfinite(car_state->car_state.x) ||
       !std::isfinite(car_state->car_state.y) ||
       !std::isfinite(car_state->car_state.theta) ||
@@ -101,8 +117,8 @@ void LineDetectionNode::CarStateCallback(const autodrive_msgs::HUAT_CarState::Co
 void LineDetectionNode::PublishPath(const std::vector<planning_core::Pose> &path_points)
 {
   nav_msgs::Path path_msg;
-  path_msg.header.frame_id = "world";
-  path_msg.header.stamp = ros::Time::now();
+  path_msg.header.frame_id = output_frame_;
+  path_msg.header.stamp = std::max(latest_cone_time_, latest_state_time_);
   path_msg.poses.reserve(path_points.size());
 
   for (const auto &pose : path_points)
@@ -143,15 +159,22 @@ void LineDetectionNode::RunOnce()
 {
   std::vector<planning_core::Pose> planned_path;
   bool finished = false;
+  std::string error;
 
   {
     std::lock_guard<std::mutex> lock(data_mutex_);
     core_.RunAlgorithm();
     finished = core_.IsFinished();
+    error = core_.GetLastError();
     if (core_.HasPlannedPath())
     {
       planned_path = core_.GetPlannedPath();
     }
+  }
+
+  if (!error.empty())
+  {
+    ROS_WARN_THROTTLE(1.0, "[LineDetection] Planning failed: %s", error.c_str());
   }
 
   if (!finished && !planned_path.empty())
