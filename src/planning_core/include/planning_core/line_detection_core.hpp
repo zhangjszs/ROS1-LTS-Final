@@ -56,6 +56,8 @@ struct LineDetectionParams
   double max_cone_lateral_distance{10.0};
   double min_rho_diff{2.0};
   double max_rho_diff{20.0};
+  double path_start_x{1.0};
+  int max_lines_to_check{10};
 };
 
 class LineDetectionCore
@@ -72,6 +74,8 @@ public:
   bool IsFinished() const { return finished_; }
   bool HasPlannedPath() const { return !planned_path_.empty(); }
   const std::vector<Pose> &GetPlannedPath() const { return planned_path_; }
+
+  std::string GetLastError() const { return last_error_; }
 
 private:
   std::vector<ConePoint> FilterCones(const std::vector<ConePoint> &cones) const;
@@ -95,6 +99,8 @@ private:
   std::vector<std::vector<int>> hough_accumulator_;
   int cached_num_rho_{0};
   int cached_num_theta_{0};
+
+  mutable std::string last_error_;
 };
 
 } // namespace planning_core

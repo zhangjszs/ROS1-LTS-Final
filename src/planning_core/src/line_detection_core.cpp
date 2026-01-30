@@ -130,9 +130,9 @@ std::pair<HoughLine, HoughLine> LineDetectionCore::SelectBoundaryLines(
   HoughLine best_right;
   int best_votes = 0;
 
-  for (size_t i = 0; i < std::min(lines.size(), static_cast<size_t>(10)); ++i)
+  for (size_t i = 0; i < std::min(lines.size(), static_cast<size_t>(params_.max_lines_to_check)); ++i)
   {
-    for (size_t j = i + 1; j < std::min(lines.size(), static_cast<size_t>(10)); ++j)
+    for (size_t j = i + 1; j < std::min(lines.size(), static_cast<size_t>(params_.max_lines_to_check)); ++j)
     {
       const HoughLine &line1 = lines[i];
       const HoughLine &line2 = lines[j];
@@ -194,7 +194,7 @@ std::vector<Pose> LineDetectionCore::GeneratePath(const HoughLine &center_line) 
   {
     double y_offset = center_line.rho;
 
-    for (double x = 1.0; x <= params_.max_path_distance; x += params_.path_interval)
+    for (double x = params_.path_start_x; x <= params_.max_path_distance; x += params_.path_interval)
     {
       Pose pose;
       pose.x = x;
@@ -209,7 +209,7 @@ std::vector<Pose> LineDetectionCore::GeneratePath(const HoughLine &center_line) 
     if (std::abs(sin_theta) < 1e-6)
     {
       double y_offset = center_line.rho;
-      for (double x = 1.0; x <= params_.max_path_distance; x += params_.path_interval)
+      for (double x = params_.path_start_x; x <= params_.max_path_distance; x += params_.path_interval)
       {
         Pose pose;
         pose.x = x;
@@ -220,7 +220,7 @@ std::vector<Pose> LineDetectionCore::GeneratePath(const HoughLine &center_line) 
     }
     else
     {
-      for (double x = 1.0; x <= params_.max_path_distance; x += params_.path_interval)
+      for (double x = params_.path_start_x; x <= params_.max_path_distance; x += params_.path_interval)
       {
         Pose pose;
         pose.x = x;
@@ -270,6 +270,8 @@ bool LineDetectionCore::CheckFinishLine(double current_x, double finish_x) const
 
 void LineDetectionCore::RunAlgorithm()
 {
+  last_error_.clear();
+
   if (finished_)
   {
     return;
@@ -287,6 +289,7 @@ void LineDetectionCore::RunAlgorithm()
 
   if (cone_positions_.size() < 4)
   {
+    last_error_ = "Insufficient cones: " + std::to_string(cone_positions_.size()) + " (need 4)";
     return;
   }
 
@@ -294,6 +297,7 @@ void LineDetectionCore::RunAlgorithm()
 
   if (filtered_cones.size() < 4)
   {
+    last_error_ = "Insufficient cones after filtering: " + std::to_string(filtered_cones.size()) + " (need 4)";
     return;
   }
 
@@ -301,6 +305,7 @@ void LineDetectionCore::RunAlgorithm()
 
   if (lines.empty())
   {
+    last_error_ = "No lines detected by Hough transform";
     return;
   }
 
@@ -308,6 +313,7 @@ void LineDetectionCore::RunAlgorithm()
 
   if (left_line.votes == 0 || right_line.votes == 0)
   {
+    last_error_ = "Failed to select valid boundary lines";
     return;
   }
 
