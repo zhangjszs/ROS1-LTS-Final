@@ -80,6 +80,23 @@ def get_git_info() -> Dict:
             "branch": "unknown"
         }
 
+def validate_perf_data(data: Dict) -> bool:
+    """Validate performance data against JSON schema"""
+    try:
+        import jsonschema
+        schema_path = Path(__file__).parent.parent / "schemas" / "perf_data_schema.json"
+        if not schema_path.exists():
+            return True  # Skip validation if schema doesn't exist
+        with open(schema_path) as f:
+            schema = json.load(f)
+        jsonschema.validate(data, schema)
+        return True
+    except ImportError:
+        return True  # Skip validation if jsonschema not installed
+    except Exception as e:
+        print(f"Warning: Data validation failed: {e}")
+        return False
+
 def get_system_info() -> Dict:
     try:
         hostname = subprocess.check_output(["hostname"], stderr=subprocess.DEVNULL).decode().strip()

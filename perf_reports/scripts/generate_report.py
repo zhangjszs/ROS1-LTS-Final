@@ -167,8 +167,8 @@ class PerfReportGenerator:
             for metric in time_metrics:
                 if metric in metrics:
                     m = metrics[metric]
-                    md.append(f"| {metric} | {self.format_value(m['mean'])} | {self.format_value(m['p50'])} | "
-                            f"{self.format_value(m['p95'])} | {self.format_value(m['p99'])} | {self.format_value(m['max'])} |\n")
+                    md.append(f"| {metric} | {format_value(m['mean'])} | {format_value(m['p50'])} | "
+                            f"{format_value(m['p95'])} | {format_value(m['p99'])} | {format_value(m['max'])} |\n")
 
             md.append("\n#### 数据量统计\n")
             md.append("| 指标 | 平均值 | 中位数 | P95 | P99 | 最大值 |\n")
@@ -178,8 +178,8 @@ class PerfReportGenerator:
             for metric in data_metrics:
                 if metric in metrics:
                     m = metrics[metric]
-                    md.append(f"| {metric} | {self.format_value(m['mean'])} | {self.format_value(m['p50'])} | "
-                            f"{self.format_value(m['p95'])} | {self.format_value(m['p99'])} | {self.format_value(m['max'])} |\n")
+                    md.append(f"| {metric} | {format_value(m['mean'])} | {format_value(m['p50'])} | "
+                            f"{format_value(m['p95'])} | {format_value(m['p99'])} | {format_value(m['max'])} |\n")
 
             md.append("\n")
 
@@ -196,9 +196,9 @@ class PerfReportGenerator:
 
             if 't_total_ms' in metrics:
                 total_time = metrics['t_total_ms']
-                md.append(f"- **平均总处理时间**: {self.format_value(total_time['mean'])} ms\n")
-                md.append(f"- **最大处理时间**: {self.format_value(total_time['max'])} ms\n")
-                md.append(f"- **P95处理时间**: {self.format_value(total_time['p95'])} ms\n\n")
+                md.append(f"- **平均总处理时间**: {format_value(total_time['mean'])} ms\n")
+                md.append(f"- **最大处理时间**: {format_value(total_time['max'])} ms\n")
+                md.append(f"- **P95处理时间**: {format_value(total_time['p95'])} ms\n\n")
 
             if 't_total_ms' in metrics and 't_pass_ms' in metrics and 't_ground_ms' in metrics and 't_cluster_ms' in metrics:
                 total = metrics['t_total_ms']['mean']

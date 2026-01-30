@@ -6,7 +6,7 @@ import re
 import json
 from datetime import datetime
 from pathlib import Path
-from common import Config, get_git_info, get_system_info
+from common import Config, get_git_info, get_system_info, validate_perf_data
 
 class PerfDataCollector:
     def __init__(self, log_file=None, note=None, scenario=None, tags=None):
@@ -88,6 +88,11 @@ class PerfDataCollector:
         }
 
         filepath = os.path.join(output_dir, filename)
+
+        # Validate data before saving
+        if not validate_perf_data(data):
+            print("Warning: Data validation failed, but saving anyway")
+
         with open(filepath, 'w') as f:
             json.dump(data, f, indent=2)
 
