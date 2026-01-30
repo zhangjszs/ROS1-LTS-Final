@@ -48,6 +48,9 @@ private:
   std::string expected_cone_frame_;
   std::string output_frame_;
 
+  ros::Time latest_cone_time_;
+  ros::Time latest_state_time_;
+
   bool finish_published_{false};
   std::mutex data_mutex_;
 };
