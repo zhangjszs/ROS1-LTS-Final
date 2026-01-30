@@ -313,6 +313,48 @@ The `_deprecated/` directory contains old code kept for reference. Do not use or
 - **Package Version:** 1.0.0 (all packages unified)
 - **Code Formatting:** `.clang-format` in root directory
 
+## CI/CD and Quality Assurance
+
+### Continuous Integration
+
+The project uses GitHub Actions for automated testing:
+
+- **ROS CI**: Builds all packages and runs tests on every push/PR
+- **Code Coverage**: Generates coverage reports using gcov/lcov
+- **Static Analysis**: Runs cppcheck and clang-tidy for code quality
+
+### Running Static Analysis Locally
+
+```bash
+# Install tools
+sudo apt-get install cppcheck clang-tidy
+
+# Run cppcheck
+cppcheck --enable=warning,style,performance,portability \
+  --suppressions-list=.cppcheck-suppressions.txt \
+  src/
+
+# Run clang-tidy (after building with compile commands)
+catkin build --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+find src/perception_core -name "*.cpp" | xargs clang-tidy -p build
+```
+
+### Code Coverage
+
+```bash
+# Build with coverage flags
+catkin build --cmake-args -DCMAKE_BUILD_TYPE=Debug \
+  -DCMAKE_CXX_FLAGS="--coverage" -DCMAKE_C_FLAGS="--coverage"
+
+# Run tests
+catkin run_tests
+
+# Generate coverage report
+lcov --directory build --capture --output-file coverage.info
+lcov --remove coverage.info '/usr/*' '/opt/*' '*/test/*' --output-file coverage.info
+genhtml coverage.info --output-directory coverage_html
+```
+
 ## Common Issues
 
 ### Build Failures
