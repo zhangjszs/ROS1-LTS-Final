@@ -221,4 +221,3 @@ rosrun tf tf_echo velodyne base_link
 ## 联系方式
 
 - 项目维护者: kerwin (zhangjszs@foxmail.com)
-- 原作者: Jaixi Dai (1005751599@qq.com)
