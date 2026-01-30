@@ -49,13 +49,32 @@ std::vector<ConePoint> LineDetectionCore::FilterCones(const std::vector<ConePoin
   return filtered;
 }
 
+void LineDetectionCore::InitializeAccumulator(int num_rho, int num_theta)
+{
+  if (num_rho != cached_num_rho_ || num_theta != cached_num_theta_)
+  {
+    hough_accumulator_.resize(num_rho);
+    for (auto &row : hough_accumulator_)
+    {
+      row.resize(num_theta);
+    }
+    cached_num_rho_ = num_rho;
+    cached_num_theta_ = num_theta;
+  }
+
+  for (auto &row : hough_accumulator_)
+  {
+    std::fill(row.begin(), row.end(), 0);
+  }
+}
+
 std::vector<HoughLine> LineDetectionCore::HoughTransform(const std::vector<ConePoint> &cones) const
 {
   double max_rho = std::sqrt(params_.max_cone_distance * params_.max_cone_distance + 10.0 * 10.0);
   int num_rho = static_cast<int>(2 * max_rho / params_.hough_rho_resolution);
   int num_theta = static_cast<int>(M_PI / params_.hough_theta_resolution);
 
-  std::vector<std::vector<int>> accumulator(num_rho, std::vector<int>(num_theta, 0));
+  const_cast<LineDetectionCore*>(this)->InitializeAccumulator(num_rho, num_theta);
 
   for (const ConePoint &cone : cones)
   {
@@ -68,7 +87,7 @@ std::vector<HoughLine> LineDetectionCore::HoughTransform(const std::vector<ConeP
 
       if (rho_idx >= 0 && rho_idx < num_rho)
       {
-        accumulator[rho_idx][theta_idx]++;
+        hough_accumulator_[rho_idx][theta_idx]++;
       }
     }
   }
@@ -78,7 +97,7 @@ std::vector<HoughLine> LineDetectionCore::HoughTransform(const std::vector<ConeP
   {
     for (int theta_idx = 0; theta_idx < num_theta; ++theta_idx)
     {
-      int votes = accumulator[rho_idx][theta_idx];
+      int votes = hough_accumulator_[rho_idx][theta_idx];
       if (votes >= params_.hough_min_votes)
       {
         HoughLine line;
