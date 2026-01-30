@@ -1,0 +1,62 @@
+name: Code Coverage
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  coverage:
+    runs-on: ubuntu-20.04
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup ROS Noetic
+      uses: ros-tooling/setup-ros@v0.7
+      with:
+        required-ros-distributions: noetic
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          python3-catkin-tools \
+          python3-rosdep \
+          ros-noetic-pcl-ros \
+          ros-noetic-tf2-geometry-msgs \
+          libpcl-dev \
+          libeigen3-dev \
+          lcov
+        sudo rosdep init || true
+        rosdep update
+
+    - name: Install package dependencies
+      run: |
+        cd $GITHUB_WORKSPACE
+        rosdep install --from-paths src --ignore-src -r -y
+
+    - name: Build with coverage flags
+      run: |
+        source /opt/ros/noetic/setup.bash
+        catkin build --no-status --cmake-args -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="--coverage" -DCMAKE_C_FLAGS="--coverage"
+
+    - name: Run tests
+      run: |
+        source /opt/ros/noetic/setup.bash
+        source devel/setup.bash
+        catkin run_tests --no-status
+
+    - name: Generate coverage report
+      run: |
+        lcov --directory build --capture --output-file coverage.info
+        lcov --remove coverage.info '/usr/*' '/opt/*' '*/test/*' '*/devel/*' --output-file coverage.info
+        lcov --list coverage.info
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        files: ./coverage.info
+        fail_ci_if_error: false

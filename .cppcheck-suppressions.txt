@@ -1,0 +1,10 @@
+// Suppress warnings for external dependencies
+missingIncludeSystem
+unmatchedSuppression
+
+// Suppress warnings for ROS-generated code
+*:*/devel/*
+*:*/build/*
+
+// Suppress warnings for test code
+unusedFunction:*/test/*

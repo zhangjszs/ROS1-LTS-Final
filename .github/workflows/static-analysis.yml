@@ -1,0 +1,80 @@
+name: Static Analysis
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  cppcheck:
+    runs-on: ubuntu-20.04
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install cppcheck
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cppcheck
+
+    - name: Run cppcheck
+      run: |
+        cppcheck --enable=warning,style,performance,portability \
+          --suppress=missingIncludeSystem \
+          --suppress=unmatchedSuppression \
+          --inline-suppr \
+          --error-exitcode=0 \
+          --xml \
+          --xml-version=2 \
+          src/ 2> cppcheck-report.xml
+
+    - name: Display cppcheck results
+      run: |
+        if [ -f cppcheck-report.xml ]; then
+          echo "Cppcheck analysis completed. Review the report for potential issues."
+          cat cppcheck-report.xml
+        fi
+
+  clang-tidy:
+    runs-on: ubuntu-20.04
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup ROS Noetic
+      uses: ros-tooling/setup-ros@v0.7
+      with:
+        required-ros-distributions: noetic
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          python3-catkin-tools \
+          python3-rosdep \
+          clang-tidy \
+          ros-noetic-pcl-ros \
+          ros-noetic-tf2-geometry-msgs \
+          libpcl-dev \
+          libeigen3-dev
+        sudo rosdep init || true
+        rosdep update
+
+    - name: Install package dependencies
+      run: |
+        cd $GITHUB_WORKSPACE
+        rosdep install --from-paths src --ignore-src -r -y
+
+    - name: Build with compile commands
+      run: |
+        source /opt/ros/noetic/setup.bash
+        catkin build --no-status --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+    - name: Run clang-tidy on core packages
+      run: |
+        find src/perception_core src/planning_core src/control_core src/localization_core \
+          -name "*.cpp" -not -path "*/test/*" | \
+          xargs -I {} clang-tidy {} -p build -- || true
