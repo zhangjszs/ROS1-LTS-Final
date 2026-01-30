@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
     <name>ins</name>
-    <version>0.0.1</version>
+    <version>1.0.0</version>
     <description>INS message definitions for legacy bag compatibility</description>
     <maintainer email="zhangjszs@foxmail.com">kerwin</maintainer>
     <license>MIT</license>

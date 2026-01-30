@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
     <name>fsd_launch</name>
-    <version>2.0.0</version>
+    <version>1.0.0</version>
     <description>FSD 统一启动包 - 提供按任务/模式组织的 launch 文件</description>
     <maintainer email="zhangjszs@foxmail.com">kerwin</maintainer>
     <license>MIT</license>

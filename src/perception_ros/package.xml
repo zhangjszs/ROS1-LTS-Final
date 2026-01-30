@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
 	<name>perception_ros</name>
-  <version>0.0.1</version>
+  <version>1.0.0</version>
   <description>ROS runtime package for lidar clustering (nodelet/node wrapper).</description>
 
   <maintainer email="zhangjszs@foxmail.com">kerwin</maintainer>
