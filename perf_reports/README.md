@@ -40,21 +40,39 @@ perf_reports/
 
 ## 快速开始
 
-### 一键运行（推荐）
+### 安装依赖
 
 ```bash
-cd /home/kerwin/2025huat
-python3 perf_reports/scripts/run_perf_analysis.sh
+pip3 install -r requirements.txt
 ```
 
-这将自动完成以下步骤：
-1. 收集性能数据
-2. 生成Markdown报告
-3. 生成性能图表
+### 统一CLI工具（推荐）
 
-### 手动运行各个步骤
+```bash
+# 完整工作流
+python3 scripts/perf_tool.py full --note "变更说明" --scenario "测试场景"
 
-#### 步骤1：收集性能数据
+# 或使用快捷脚本
+./quick_report.sh --note "变更说明"
+```
+
+### 单独操作
+
+```bash
+# 收集数据
+python3 scripts/perf_tool.py collect --note "变更说明"
+
+# 生成报告
+python3 scripts/perf_tool.py report
+
+# 生成图表
+python3 scripts/perf_tool.py chart
+
+# 性能分析
+python3 scripts/perf_tool.py analyze
+```
+
+### 传统方式
 
 ```bash
 # 从默认日志文件收集
