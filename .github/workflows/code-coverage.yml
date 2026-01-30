@@ -49,6 +49,18 @@ jobs:
         source devel/setup.bash
         catkin run_tests --no-status
 
+    - name: Collect test results
+      if: ${{ !cancelled() }}
+      run: |
+        mkdir -p test_results
+        find build -path "*/test_results/*/*.xml" -exec cp {} test_results/ \;
+
+    - name: Upload test results to Codecov
+      if: ${{ !cancelled() }}
+      uses: codecov/test-results-action@v1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+
     - name: Generate coverage report
       run: |
         lcov --directory build --capture --output-file coverage.info
