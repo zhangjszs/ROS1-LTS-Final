@@ -7,12 +7,18 @@ on:
       - 'docs/**'
       - '**.md'
       - 'LICENSE'
+      - 'perf_reports/**'
   pull_request:
     branches: [ main ]
     paths-ignore:
       - 'docs/**'
       - '**.md'
       - 'LICENSE'
+      - 'perf_reports/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   cppcheck:
