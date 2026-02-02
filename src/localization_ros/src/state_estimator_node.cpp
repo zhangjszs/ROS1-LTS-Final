@@ -131,11 +131,11 @@ private:
   {
     autodrive_msgs::HUAT_CarState state_msg;
     localization_core::CarState state;
-    const double stamp = ros::Time::now().toSec();
+    const double stamp = msg->header.stamp.toSec();
     if (estimator_.Process(ToCore(*msg), stamp, &state))
     {
       ToRos(state, &state_msg);
-      state_msg.header.stamp = ros::Time::now();
+      state_msg.header.stamp = msg->header.stamp;
       state_msg.header.frame_id = world_frame_;
       carstate_pub_.publish(state_msg);
     }

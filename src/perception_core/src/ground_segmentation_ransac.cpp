@@ -52,11 +52,11 @@ void lidar_cluster::ground_segmentation_ransac_(const pcl::PointCloud<PointType>
     
     // P0: 过滤后可能为空
     if (laserCloudIn.points.empty()) {
-        // 如果过滤后为空，则所有点都是非地面点
-        *g_not_ground_pc = laserCloudIn_org;
-        g_not_ground_pc->width = g_not_ground_pc->points.size();
+        // 如果过滤后为空，则所有点都是地面点
+        g_not_ground_pc->clear();
+        g_not_ground_pc->width = 0;
         g_not_ground_pc->height = 1;
-        g_not_ground_pc->is_dense = in_pc->is_dense;
+        g_not_ground_pc->is_dense = true;
         return;
     }
     
@@ -65,11 +65,11 @@ void lidar_cluster::ground_segmentation_ransac_(const pcl::PointCloud<PointType>
     
     // P0: 空种子检查
     if (g_seeds_pc->points.empty()) {
-        // 无法估计地面平面，将所有点视为非地面点
-        *g_not_ground_pc = laserCloudIn_org;
-        g_not_ground_pc->width = g_not_ground_pc->points.size();
+        // 无法估计地面平面，将所有点视为地面点
+        g_not_ground_pc->clear();
+        g_not_ground_pc->width = 0;
         g_not_ground_pc->height = 1;
-        g_not_ground_pc->is_dense = in_pc->is_dense;
+        g_not_ground_pc->is_dense = true;
         return;
     }
     

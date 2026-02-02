@@ -2,7 +2,7 @@
  * @Description: 点云畸变补偿
  * @Author: Jiaxi Dai
  * @Date: 2021年11月29日14:52:37
- * @Modified: 2026-01-29 - 修复P0问题：空云保护、强度复制、旋转生效、坐标系修正
+ * @Modified: 2025 - 同步2024huat加速度补偿功能
  */
 #include <perception_core/distortion_adjust.hpp>
 
@@ -12,7 +12,7 @@ DistortionAdjust::DistortionAdjust()
 {
 }
 
-void DistortionAdjust::SetMotionInfo(float scan_period, IMUData velocity_data)
+void DistortionAdjust::SetMotionInfo(float scan_period, const IMUData& velocity_data)
 {
     scan_period_ = scan_period;
 
@@ -31,6 +31,38 @@ void DistortionAdjust::SetMotionInfo(float scan_period, IMUData velocity_data)
     angular_rate_ << velocity_data.angular_velocity.wx,
                      velocity_data.angular_velocity.wy,
                      velocity_data.angular_velocity.wz;
+    
+    // 加速度已经是FRD车体系，直接使用
+    // [2024huat同步] 从同一个 IMU 数据中提取加速度
+    acceleration_ << velocity_data.acceleration.ax,
+                     velocity_data.acceleration.ay,
+                     velocity_data.acceleration.az;
+}
+
+// [2024huat同步] 双IMU数据接口，用于速度和加速度来自不同时刻的情况
+void DistortionAdjust::SetMotionInfo(float scan_period, const IMUData& velocity_data, const IMUData& acceleration_data)
+{
+    scan_period_ = scan_period;
+
+    // 速度转换：NED导航系 -> 车体FRD系
+    float heading = velocity_data.orientation.heading * M_PI / 180.0;
+    float vn = velocity_data.velocity.vn;
+    float ve = velocity_data.velocity.ve;
+    float vd = velocity_data.velocity.vd;
+
+    velocity_ << cos(heading) * vn + sin(heading) * ve,
+                -sin(heading) * vn + cos(heading) * ve,
+                 vd;
+
+    // 角速度
+    angular_rate_ << velocity_data.angular_velocity.wx,
+                     velocity_data.angular_velocity.wy,
+                     velocity_data.angular_velocity.wz;
+    
+    // [2024huat同步] 从加速度数据中提取，支持两个IMU数据源
+    acceleration_ << acceleration_data.acceleration.ax,
+                     acceleration_data.acceleration.ay,
+                     acceleration_data.acceleration.az;
 }
 
 void DistortionAdjust::AdjustCloud(pcl::PointCloud<PointType>::Ptr &input_cloud_ptr, 
@@ -46,8 +78,11 @@ void DistortionAdjust::AdjustCloud(pcl::PointCloud<PointType>::Ptr &input_cloud_
     output_cloud_ptr.reset(new pcl::PointCloud<PointType>);
     output_cloud_ptr->points.reserve(origin_cloud_ptr->points.size());  // 预分配内存
     
-    float orientation_space = 2.0 * M_PI;
-    float delete_space = 5.0 * M_PI / 180.0;
+    constexpr float FULL_ROTATION_RAD = 2.0f * M_PI;
+    constexpr float EDGE_EXCLUSION_RAD = 5.0f * M_PI / 180.0f;  // 5 degrees
+
+    float orientation_space = FULL_ROTATION_RAD;
+    float delete_space = EDGE_EXCLUSION_RAD;
     
     // P0: 空云检查已在上面完成，这里可以安全访问 points[0]
     float start_orientation = atan2(origin_cloud_ptr->points[0].y, origin_cloud_ptr->points[0].x);
@@ -60,6 +95,8 @@ void DistortionAdjust::AdjustCloud(pcl::PointCloud<PointType>::Ptr &input_cloud_
     // P1修复：速度和角速度应使用inverse变换，与点云变换一致
     Eigen::Vector3f velocity_rotated = rotate_matrix.inverse() * velocity_;
     Eigen::Vector3f angular_rate_rotated = rotate_matrix.inverse() * angular_rate_;
+    // [2024huat同步] 加速度也需要变换到旋转后的坐标系
+    Eigen::Vector3f acceleration_rotated = rotate_matrix.inverse() * acceleration_;
 
     for (size_t point_index = 0; point_index < origin_cloud_ptr->points.size(); ++point_index)
     {
@@ -83,8 +120,23 @@ void DistortionAdjust::AdjustCloud(pcl::PointCloud<PointType>::Ptr &input_cloud_
         Eigen::Matrix3f current_matrix = UpdateMatrix(real_time, angular_rate_rotated);
         Eigen::Vector3f rotated_point = current_matrix.inverse() * origin_point;
 
+        // 根据补偿模式计算位移补偿
+        Eigen::Vector3f displacement;
+        switch (mode_) {
+            case CompensationMode::VELOCITY_ACCEL:
+                // 速度+加速度补偿：s = v*t + 0.5*a*t^2
+                displacement = velocity_rotated * real_time +
+                               0.5f * acceleration_rotated * real_time * real_time;
+                break;
+            case CompensationMode::VELOCITY_ONLY:
+            default:
+                // 仅速度补偿：s = v*t
+                displacement = velocity_rotated * real_time;
+                break;
+        }
+        
         // 应用平移补偿（减法：回退到参考时刻）
-        Eigen::Vector3f adjusted_point = rotated_point - velocity_rotated * real_time;
+        Eigen::Vector3f adjusted_point = rotated_point - displacement;
         
         PointType point;
         point.x = adjusted_point(0);

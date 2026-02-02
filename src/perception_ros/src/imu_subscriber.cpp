@@ -77,8 +77,8 @@ bool IMUSubscriber::SyncData(std::deque<IMUData> &UnsyncedData, IMUData &synced_
     // Case 1: 点云时间早于或等于最早的 IMU 数据 -> 使用最早的 IMU 数据
     if (UnsyncedData.front().time >= sync_time)
     {
-        // 如果时间差太大（>0.5秒），拒绝同步
-        if (UnsyncedData.front().time - sync_time > 0.5)
+        // 如果时间差太大（>1.0秒），拒绝同步
+        if (UnsyncedData.front().time - sync_time > 1.0)
             return false;
         
         synced_data = UnsyncedData.front();
@@ -89,8 +89,8 @@ bool IMUSubscriber::SyncData(std::deque<IMUData> &UnsyncedData, IMUData &synced_
     // Case 2: 只有一条数据且点云时间晚于它
     if (UnsyncedData.size() == 1)
     {
-        // 如果时间差太大（>0.5秒），拒绝同步
-        if (sync_time - UnsyncedData.front().time > 0.5)
+        // 如果时间差太大（>1.0秒），拒绝同步
+        if (sync_time - UnsyncedData.front().time > 1.0)
             return false;
         
         synced_data = UnsyncedData.front();
@@ -110,7 +110,7 @@ bool IMUSubscriber::SyncData(std::deque<IMUData> &UnsyncedData, IMUData &synced_
     // 如果没找到（点云时间晚于所有 IMU 数据），使用最新的 IMU 数据
     if (idx >= UnsyncedData.size())
     {
-        if (sync_time - UnsyncedData.back().time > 0.5)
+        if (sync_time - UnsyncedData.back().time > 1.0)
             return false;
         
         synced_data = UnsyncedData.back();

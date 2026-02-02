@@ -356,7 +356,14 @@ void PatchWorkpp::estimateGround(Eigen::MatrixXf cloud_in)
         if (!is_upright) {
           addCloud(cloud_nonground_, regionwise_ground_);
         } else if (!is_near_zone) {
-          addCloud(cloud_ground_, regionwise_ground_);
+          // 远区：基于平面拟合质量的简化检查
+          // line_variable 表示平面拟合的线性程度，值越大说明点云越接近线状（非平面）
+          // 当 line_variable > 0.2 时，说明平面拟合质量差，可能是噪声或非地面
+          if (line_variable > 0.2) {
+            addCloud(cloud_nonground_, regionwise_ground_);
+          } else {
+            addCloud(cloud_ground_, regionwise_ground_);
+          }
         } else if (!is_heading_outside) {
           addCloud(cloud_nonground_, regionwise_ground_);
         } else if (is_not_elevated || is_flat) {

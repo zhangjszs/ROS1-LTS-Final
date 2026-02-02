@@ -205,6 +205,15 @@ void UserNode::Imu_Trans(){
     imu_data.Vd=imuPacket.down_speed;
 }
 
+ros::Time gpsToRosTime(uint16_t week, uint32_t ms_of_week) {
+    // GPS epoch: 1980-01-06 00:00:00 UTC
+    // Unix epoch: 1970-01-01 00:00:00 UTC
+    // Offset: 315964800 seconds (not including leap seconds)
+    const double GPS_EPOCH_OFFSET = 315964800.0;
+    double unix_time = week * 604800.0 + ms_of_week / 1000.0 + GPS_EPOCH_OFFSET;
+    return ros::Time(unix_time);
+}
+
 void UserNode::publishIns(void *data){
     uint8_t* ins_data = (uint8_t*)data;
 
@@ -217,8 +226,12 @@ void UserNode::publishIns(void *data){
         Imu_Trans();
 
         global_insMsg.header.frame_id="imu";
-        global_insMsg.header.stamp=ros::Time::now();
+        global_insMsg.header.stamp=gpsToRosTime(imuPacket.week, imuPacket.time);
         global_insMsg.header.seq++;
+
+        global_insMsg.Week = imuPacket.week;
+        global_insMsg.Time = imuPacket.time / 1000.0;
+
         global_insMsg.Heading =imu_data.Heading;
         global_insMsg.Pitch =imu_data.Pitch;
         global_insMsg.gyro_x = imu_data.gyro_x;

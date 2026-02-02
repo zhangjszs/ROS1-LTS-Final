@@ -25,7 +25,18 @@ DistortionCompensator::DistortionCompensator(ros::NodeHandle& nh,
   
   // 初始化畸变补偿器
   adjuster_ = std::make_unique<lidar_distortion::DistortionAdjust>();
-  ROS_INFO("[DistortionCompensator] Initialized (scan_period: %.3f s)", config_.scan_period);
+  
+  // 设置补偿模式
+  lidar_distortion::CompensationMode mode = lidar_distortion::CompensationMode::VELOCITY_ONLY;
+  if (config_.mode == "velocity_accel") {
+    mode = lidar_distortion::CompensationMode::VELOCITY_ACCEL;
+  } else if (config_.mode != "velocity_only") {
+    ROS_WARN("Unknown compensation mode: %s, using VELOCITY_ONLY", config_.mode.c_str());
+  }
+  adjuster_->SetMode(mode);
+  
+  ROS_INFO("[DistortionCompensator] Initialized (scan_period: %.3f s, mode: %s)", 
+           config_.scan_period, config_.mode.c_str());
 }
 
 bool DistortionCompensator::Compensate(pcl::PointCloud<PointType>::Ptr& cloud, 
@@ -87,12 +98,14 @@ DistortionCompensatorConfig DistortionCompensator::LoadConfig(ros::NodeHandle& n
   nh.param<std::string>("imu/topic", config.imu_topic, "/pbox_pub/Ins");
   nh.param<int>("imu/buffer_size", config.buffer_size, 200);
   nh.param<float>("imu/distortion/scan_period", config.scan_period, 0.1f);
+  nh.param<std::string>("imu/distortion/mode", config.mode, "velocity_only");
   nh.param<bool>("imu/distortion/enable", config.enable, config.enable);  // 兼容旧配置
   nh.param<bool>("imu/debug/log_imu_data", config.log_imu_data, false);
   nh.param<bool>("imu/debug/log_compensation", config.log_compensation, false);
   
-  ROS_INFO("[DistortionCompensator] Config: enable=%s, topic=%s, period=%.3f",
-           config.enable ? "true" : "false", config.imu_topic.c_str(), config.scan_period);
+  ROS_INFO("[DistortionCompensator] Config: enable=%s, topic=%s, period=%.3f, mode=%s",
+           config.enable ? "true" : "false", config.imu_topic.c_str(), 
+           config.scan_period, config.mode.c_str());
   
   return config;
 }

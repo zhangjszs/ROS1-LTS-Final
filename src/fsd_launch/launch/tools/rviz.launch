@@ -21,22 +21,22 @@
 
     <!-- 模式0: 综合主视图 (推荐，可自行修改保存) -->
     <group if="$(eval mode == 'main')">
-        <node pkg="rviz" type="rviz" name="rviz_main" output="screen" args="-d $(find fsd_visualization)/rviz/fsd_main.rviz"/>
+        <node pkg="rviz" type="rviz" name="rviz_main" output="screen" args="-d $(find fsd_visualization)/rviz/world_planning.rviz"/>
     </group>
 
     <!-- 模式1: 仅全局可视化 -->
     <group if="$(eval mode == 'global')">
-        <node pkg="rviz" type="rviz" name="rviz_global" output="screen" args="-d $(find fsd_visualization)/rviz/global_viz.rviz"/>
+        <node pkg="rviz" type="rviz" name="rviz_global" output="screen" args="-d $(find fsd_visualization)/rviz/world_planning.rviz"/>
     </group>
 
     <!-- 模式2: 仅点云 -->
     <group if="$(eval mode == 'pointcloud')">
-        <node pkg="rviz" type="rviz" name="rviz_pointcloud" output="screen" args="-d $(find fsd_visualization)/rviz/pointcloud_only.rviz"/>
+        <node pkg="rviz" type="rviz" name="rviz_pointcloud" output="screen" args="-d $(find fsd_visualization)/rviz/ego_perception.rviz"/>
     </group>
 
     <!-- 模式3: 双窗口 -->
     <group if="$(eval mode == 'dual')">
-        <node pkg="rviz" type="rviz" name="rviz_pointcloud" output="screen" args="-d $(find fsd_visualization)/rviz/pointcloud_only.rviz"/>
-        <node pkg="rviz" type="rviz" name="rviz_global" output="screen" args="-d $(find fsd_visualization)/rviz/global_viz.rviz"/>
+        <node pkg="rviz" type="rviz" name="rviz_ego" output="screen" args="-d $(find fsd_visualization)/rviz/ego_perception.rviz"/>
+        <node pkg="rviz" type="rviz" name="rviz_world" output="screen" args="-d $(find fsd_visualization)/rviz/world_planning.rviz"/>
     </group>
 </launch>

@@ -9,26 +9,27 @@ topics:
     no_ground: points/no_ground      # 去地面点云
     cones: points/cones              # 锥桶点云
   detections: detections             # 锥桶检测结果
-  markers:
-    cones: markers/cones             # 锥桶 marker
-    all: markers/all                 # 所有聚类 marker
 
 # ==========================
 # Ground Segmentation (perception_core)
 # ==========================
 # 传感器安装高度（单位 m），会影响地面分割的初始高度过滤
-sensor_height: 0.12       # 0.18   0.135        这里存在的意义是把低于这个-sensor_height的点都先剔除掉  0.12
+# [2024huat同步] 原值0.12，同步为0.125
+sensor_height: 0.125      # 激光雷达安装高度，低于 -sensor_height 的点会被剔除（镜面反射点）
+
 # 地面分割方法：ransac 简单稳定；patchworkpp 更精细但耗时更高
-ground_method: ransac     # ransac | patchworkpp  地面分割方法
+ground_method: patchworkpp     # ransac | patchworkpp  地面分割方法
 
 # --- RANSAC (ground_segmentation_ransac.cpp) ---
+# [2024huat同步] 严格同步旧项目参数，保证地面分割一致性
 ransac:
-  num_iter: 15              # 增加迭代次数提高精度
-  num_lpr: 10               # 增加种子点数量
-  th_seeds: 0.04            # 种子阈值，适中
-  th_dist: 0.05             # 地面判定阈值：0.05 是平衡值
-                            # 太大(>0.08): 锥桶被当地面过滤
-                            # 太小(<0.03): 远处地面被误判为障碍物
+  num_iter: 20              # [同步] 旧项目值=10，迭代次数
+  num_lpr: 5                # [同步] 旧项目值=5，用于种子点提取的最低高程点数量
+  th_seeds: 0.03            # [同步] 旧项目值=0.03，种子点高度阈值（m）
+  th_dist: 0.03             # [同步] 旧项目值=0.03，点到平面的距离阈值（m）
+                            # 注意：此值影响地面分割精度
+                            # 太大(>0.08): 锥桶可能被当地面过滤
+                            # 太小(<0.02): 远处地面可能被误判为障碍物
 
 # --- Patchwork++ (patchworkpp.cpp) ---
 patchworkpp:
@@ -37,18 +38,18 @@ patchworkpp:
   enable_tgr: true                   # 启用 TGR（地面修正），提升地面估计稳定性
   num_iter: 3                        # 迭代次数，越大越稳但耗时增加
   num_lpr: 20                        # LPR 种子点数量，影响地面初始拟合
-  num_min_pts: 10                    # 最小点数阈值，过小会引入噪声
+  num_min_pts: 15                    # 最小点数阈值，过小会引入噪声（10→15 过滤稀疏扇区）
   num_zones: 4                       # 分区数量，影响分区自适应
-  num_rings_of_interest: 4           # 感兴趣环数，通常与雷达层数相关
+  num_rings_of_interest: 4           # 感兴趣环数（注意：不能超过4，因为内部数组大小硬编码为4）
   rnr_ver_angle_thr: -15.0           # RNR 垂直角阈值
   rnr_intensity_thr: 0.2             # RNR 强度阈值
-  th_seeds: 0.125                    # 种子阈值，增大更保守
-  th_dist: 0.125                     # 距离阈值，增大更宽松
+  th_seeds: 0.08                     # 种子阈值，更严格减少远处闪烁（0.1→0.08）
+  th_dist: 0.08                      # 距离阈值，更严格减少远处闪烁（0.1→0.08）
   th_seeds_v: 0.25                   # 垂直方向种子阈值
   th_dist_v: 0.1                     # 垂直方向距离阈值
   max_range: 80.0                    # 最大处理距离（m）
-  min_range: 2.7                     # 最小处理距离（m）
-  uprightness_thr: 0.707             # 直立性阈值，接近 1 越严格
+  min_range: 0.1                     # 最小处理距离（m）
+  uprightness_thr: 0.8             # 直立性阈值，接近 1 越严格
   adaptive_seed_selection_margin: -1.2  # 自适应种子边界
   num_sectors_each_zone: [16, 32, 54, 32]  # 各分区扇区数（由近及远）
   num_rings_each_zone: [2, 4, 4, 4]        # 各分区环数（由近及远）
@@ -60,133 +61,195 @@ patchworkpp:
 # ==========================
 # ROI 裁剪 & 预处理滤波
 # ==========================
+# [2024huat同步] ROI 参数同步自旧项目 lidar_cluster.yaml
 roi:
   mode: custom              # skidpad | accel | track | custom  ROI 模式
   use_point_clip: false    # 仅 skidpad 时有效（true=使用历史 point_clip）
-  z_min: -0.2              # ROI 最低高度，低于该高度的点会被裁剪
-  z_max: 1.0               # ROI 最高高度，高于该高度的点会被裁剪
+  z_min: -0.5              # 收窄Z轴下限，去除地面以下无用点（原-2.0太宽）
+  z_max: 0.7               # 保持上限，覆盖锥桶高度
   skidpad:
-    x_min: 0               # skidpad x 最小值
-    x_max: 50              # skidpad x 最大值
-    y_min: -4             # skidpad y 最小值
-    y_max: 4               # skidpad y 最大值
+    x_min: 0.1             # [同步] 旧项目 skid_min=0.1
+    x_max: 30              # [同步] 旧项目 skid_max=30
+    y_min: -70             # [同步] 旧项目 skid_y_min=-70（八字绕环需要大范围）
+    y_max: 70              # [同步] 旧项目 skid_y_max=70
   accel:
-    x_min: 0               # accel x 最小值
-    x_max: 100             # accel x 最大值
-    y_min: -4              # accel y 最小值
-    y_max: 4               # accel y 最大值
+    x_min: 0.5             # [同步] 旧项目 accel_x_min=0.5
+    x_max: 50              # [同步] 旧项目 accel_x_max=50
+    y_min: -2              # [同步] 旧项目 accel_y_min=-2
+    y_max: 2               # [同步] 旧项目 accel_y_max=2
   track:
-    x_min: 0               # track x 最小值
-    x_max: 50              # track x 最大值
-    y_min: -4              # track y 最小值
-    y_max: 4               # track y 最大值
+    x_min: 0.1             # [同步] 旧项目 track_x_min=0.1
+    x_max: 50              # [同步] 旧项目 track_x_max=50
+    y_min: -10             # [同步] 旧项目 track_y_min=-10
+    y_max: 10              # [同步] 旧项目 track_y_max=10
   custom:
-    x_min: 0               # custom x 最小值
-    x_max: 20              # custom x 最大值
-    y_min: -5              # custom y 最小值
-    y_max: 5               # custom y 最大值
+    x_min: 0.5             # 自定义模式，可根据场景调整
+    x_max: 50              # 前向探测距离
+    y_min: -5              # 放宽Y轴到10米宽（原-2米太窄，无法覆盖赛道两侧）
+    y_max: 5               # 覆盖赛道左右锥桶
 
 filters:
   sor:
-    enable: false           # SOR 开关（统计离群点剔除）
+    enable: false           # SOR 开关（统计离群点剔除）- 保持关闭，地面分割已足够好
     mean_k: 50             # 邻域点数，越大越平滑
     stddev_mul: 1.0        # 标准差倍数阈值，越小越严格
   voxel:
-    enable: false          # 体素滤波开关（均匀降采样）
-    leaf_size: 0.05        # 体素大小（m），越大点越稀疏
+    enable: false          # 普通体素滤波（启用distance_adaptive_voxel时建议关闭）
+    leaf_size: 0.05        # 5cm体素，平衡精度与性能（太大丢失细节，太小降采样不足）
   adaptive_voxel:
-    enable:  true           # 自适应体素开关（密度相关）
+    enable: false          # 禁用自适应体素（有性能问题：需3次遍历点云）
     leaf_size: 0.1         # 基础体素大小
     density_thr: 8         # 密度阈值：体素内点数>此值时降采样为质心，≤此值时保留原始点
+
+  # 新增: 距离自适应体素滤波（推荐启用）
+  # 核心思想：近处点云密集用大体素降采样（保证性能），远处点云稀疏用小体素（保证精度）
+  distance_adaptive_voxel:
+    enable: true           # 推荐启用，替代普通voxel滤波
+    near_leaf: 0.08        # 近距离(< dist_threshold)体素大小 8cm
+    far_leaf: 0.03         # 远距离体素大小 3cm，0表示不降采样
+    dist_threshold: 10.0   # 距离分界点(m)，10m内用大体素，10m外用小体素
+
+  # 新增: 强度滤波（去除弱反射噪声）
+  intensity:
+    enable: false          # 可选启用，去除低强度噪声点
+    min_intensity: 5.0     # 低于此值的点被过滤
+
+  # 新增: 使用CropBox优化ROI裁剪
+  use_cropbox: true        # 用CropBox单次遍历替代多次PassThrough（性能提升15-20%）
 
 # ==========================
 # Cone Cluster & Confidence (perception_core)
 # ==========================
 # 以下都为开区间
 # skidpad mode ignores this
+# [2024huat同步] 锥桶检测参数同步自旧项目
 
 # cone height limits (legacy, kept for backward compatibility)
-min_height: 0.01           # 锥桶高度下限
-max_height: 0.5           # 锥桶高度上限
+# [同步] 旧项目值
+min_height: 0.05           # [同步] 旧项目=0.05，锥桶高度下限（m）
+max_height: 0.35           # [同步] 旧项目=0.35，锥桶高度上限（m）
 # area size limits (legacy)
-min_area: 0.01            # 面积下限
-max_area: 0.5           # 面积上限
+min_area: 0.02             # [同步] 旧项目=0.02，底面积下限（m²）
+max_area: 0.2025           # [同步] 旧项目=0.2025，底面积上限（m²）45cm*45cm=0.2025m²
 # bbox limits (legacy)
-max_box_altitude: 0.5      # bbox 最低点高度上限
+max_box_altitude: 0.05     # [同步] 旧项目=0.05，bbox最低点高度上限（m）
 
 # New multi-feature confidence scoring
+# 置信度评分系统参数，基于旧项目调优
 confidence:
-  # Size constraints (放宽尺寸限制)
-  min_height: 0.1          # 锥桶最小高度 (m) - 降低
-  max_height: 0.8          # 锥桶最大高度 (m) - 提高
-  min_area: 0.005          # 最小底面积 (m²) - 降低
-  max_area: 0.25           # 最大底面积 (m²) - 提高
-  max_box_altitude: 0.8    # bbox最低点最大高度 (m) - 提高
+  # Size constraints - 基于旧项目锥桶尺寸调优
+  min_height: 0.05         # [同步] 锥桶最小高度 (m)
+  max_height: 0.35         # [同步] 锥桶最大高度 (m)
+  min_area: 0.02           # [同步] 最小底面积 (m²)
+  max_area: 0.2025         # [同步] 最大底面积 (m²)
+  max_box_altitude: 0.05   # [同步] bbox最低点最大高度 (m)
 
-  # Shape constraints (放宽形状要求)
-  min_aspect_ratio: 0.8    # 最小纵横比 - 大幅降低
-  min_verticality: 0.5     # 最小垂直度 - 降低
+  # Shape constraints
+  min_aspect_ratio: 1.5    # 最小纵横比（锥桶通常较高较窄）
+  min_verticality: 0.8     # 最小垂直度
 
-  # Density constraints (大幅放宽密度要求)
-  min_density_near: 15.0   # 近距离最小点密度 - 降低
-  min_density_far: 5.0     # 远距离最小点密度 - 降低
+  # Density constraints
+  min_density_near: 50.0   # 近距离最小点密度
+  min_density_far: 10.0    # 远距离最小点密度
   distance_threshold: 5.0  # 近远距离分界 (m)
 
-  # Intensity constraints (放宽强度要求)
-  min_intensity_mean: 10.0 # 最小平均强度 - 大幅降低
+  # Intensity constraints
+  min_intensity_mean: 30.0 # 最小平均强度
 
-  # Feature weights (降低严格特征权重)
-  weight_size: 0.4         # 尺寸特征权重 - 提高
-  weight_shape: 0.15       # 形状特征权重 - 降低
-  weight_density: 0.15     # 密度特征权重 - 降低
-  weight_intensity: 0.1    # 强度特征权重 - 降低
-  weight_position: 0.2     # 位置特征权重 - 提高
+  # Feature weights
+  weight_size: 0.8         # 尺寸特征权重
+  weight_shape: 0.05       # 形状特征权重
+  weight_density: 0.05      # 密度特征权重
+  weight_intensity: 0.05   # 强度特征权重
+  weight_position: 0.05     # 位置特征权重
 
-  # Model fitting (Phase 2) - 暂时禁用以提高召回率
-  enable_model_fitting: false  # 禁用几何模型拟合
-  model_fit_bonus: 0.15        # 拟合成功奖励 - 降低
-  model_fit_penalty: 0.05      # 拟合失败惩罚 - 大幅降低
-
-# ==========================
-# PassThrough settings / Other params
-# ==========================
-vis: 0                     # 可视化选项（包括：euc 和 bbox），0 关闭
+  # Model fitting (Phase 2)
+  enable_model_fitting: false  # 启用几何模型拟合
+  model_fit_bonus: 0.5        # 拟合成功奖励
+  model_fit_penalty: 0.05     # 拟合失败惩罚
 
 # ==========================
 # Sensor Model (perception_core)
 # ==========================
 sensor_model: 32           # velodyne product type（16/32），影响聚类模型选择
 
-# vlp16
-# str_range: "5,10,15,20"
-# str_seg_distance: "0.18,0.35,0.53,0.6,0.6"
+# ==========================
+# Clustering (perception_core)
+# ==========================
+# 自适应欧式聚类配置
+cluster:
+  # 聚类方法选择：euclidean（欧式聚类）| dbscan（密度聚类）
+  method: euclidean
 
-# vlp32
-str_range: "5,10,15,20"                  # 分段距离阈值（m），由近到远
-str_seg_distance: "0.15,0.3,0.5,0.6,0.6" # 各分段聚类距离阈值（m），与 str_range 对应
+  # 距离分段阈值（m），由近到远，支持可变数量
+  distance_segments: [5.0, 10.0, 15.0, 20.0]
+  # 各分段聚类距离阈值（m），数量 = distance_segments + 1
+  cluster_tolerance: [0.15, 0.3, 0.5, 0.6, 0.6]
+
+  # 自适应聚类大小（根据距离调整 min/max cluster size）
+  adaptive_size:
+    enable: true              # 启用自适应聚类大小
+    # 近距离参数（< distance_segments[0]）
+    near_min_size: 3          # 近距离最小聚类点数（过滤噪声）
+    near_max_size: 100        # 近距离最大聚类点数（锥桶点多）
+    # 远距离参数（> distance_segments.back()）
+    far_min_size: 1           # 远距离最小聚类点数（接受稀疏锥桶）
+    far_max_size: 30          # 远距离最大聚类点数
+
+  # 固定聚类大小（adaptive_size.enable=false 时使用）
+  min_cluster_size: 1
+  max_cluster_size: 50
+
+  # DBSCAN 参数（method=dbscan 时使用）
+  dbscan:
+    eps: 0.3                  # 邻域半径（固定模式）
+    min_pts: 3                # 核心点最小邻居数
+    adaptive_eps: true        # 是否根据距离自适应调整 eps
+    eps_near: 0.15            # 近距离 eps（adaptive_eps=true 时）
+    eps_far: 0.5              # 远距离 eps（adaptive_eps=true 时）
+
+  # VLP-16 专用参数（sensor_model=16 时使用）
+  vlp16:
+    cluster_tolerance: 0.3    # 聚类距离阈值
+    max_bbox_x: 0.4           # 锥桶 bbox 最大 X 尺寸 (m)
+    max_bbox_y: 0.4           # 锥桶 bbox 最大 Y 尺寸 (m)
+    max_bbox_z: 0.5           # 锥桶 bbox 最大 Z 尺寸 (m)
+
+  # point_clip 参数（skidpad 模式 + use_point_clip=true 时使用）
+  point_clip:
+    min_distance: 1.0         # 最小距离 (m)
+    max_distance: 15.0        # 最大距离 (m)
+
+# 旧配置（兼容性保留，优先使用上面的 cluster 配置）
+str_range: "5,10,15,20"                  # [deprecated] 分段距离阈值
+str_seg_distance: "0.15,0.3,0.5,0.6,0.6" # [deprecated] 各分段聚类距离阈值
+
 length:
   circle2lidar: 15.0        # 圆心到雷达距离（用于赛道参数）
 
 # ==========================
-# IMU \u0026 Distortion Compensation (NEW)
+# IMU & Distortion Compensation
 # ==========================
+# [2024huat同步] 添加加速度补偿支持
 # IMU 数据订阅和点云畸变补偿配置
 
 imu:
   # --- IMU Topic Subscription ---
-  enable: true              # IMU 功能总开关（true=启用 IMU 订阅和畸变补偿）
+  enable: false             # IMU 功能总开关（true=启用 IMU 订阅和畸变补偿）
   topic: /pbox_pub/Ins       # IMU 数据话题（默认为 ins_bridge 发布的话题）
   buffer_size: 200           # IMU 数据缓冲区大小（保存最近 N 条消息）
   
   # --- Distortion Compensation ---
   distortion:
-    enable: true            # 畸变补偿开关（独立于 IMU 订阅，可先订阅但不补偿）
+    enable: false            # 畸变补偿开关（独立于 IMU 订阅，可先订阅但不补偿）
     scan_period: 0.1         # 激光扫描周期（秒），Velodyne 10Hz=0.1s, 20Hz=0.05s
     
     # 补偿模式选择
-    mode: velocity_only      # velocity_only | full_6dof (当前仅实现 velocity_only)
+    # [2024huat同步] 新增 velocity_accel 模式，支持加速度补偿
+    mode: velocity_accel     # velocity_only | velocity_accel | full_6dof
                              # velocity_only: 仅使用速度补偿平移畸变
-                             # full_6dof: 速度+角速度补偿平移和旋转畸变（未来实现）
+                             # velocity_accel: 速度+加速度补偿（从旧项目同步）
+                             # full_6dof: 速度+角速度补偿平移和旋转畸变
     
     # 坐标系配置
     coordinate:

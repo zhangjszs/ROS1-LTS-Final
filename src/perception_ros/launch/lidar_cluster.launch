@@ -1,7 +1,7 @@
 <launch>
     <arg name="bag" default="" />
     <arg name="launch_rviz" default="true" />
-    <arg name="rviz_config" default="$(find fsd_visualization)/rviz/lidar_cluster.rviz" />
+    <arg name="rviz_config" default="$(find fsd_visualization)/rviz/ego_perception.rviz" />
     <arg name="ns" default="/perception/lidar_cluster" />
     <arg name="input_topic" default="/velodyne_points" />
 
@@ -17,9 +17,6 @@
     </group>
 
     <node if="$(arg launch_rviz)" pkg="rviz" type="rviz" name="rviz" args="-d $(arg rviz_config)" />
-
-    <!-- INS Bridge: Convert ins/ASENSING to HUAT_InsP2 for IMU distortion compensation -->
-    <node pkg="ins" type="ins_bridge.py" name="ins_bridge" output="screen" />
 
     <!-- Play rosbag with clock to publish /clock topic for sim time -->
     <node pkg="rosbag" type="play" name="rosbag_play" output="screen" 

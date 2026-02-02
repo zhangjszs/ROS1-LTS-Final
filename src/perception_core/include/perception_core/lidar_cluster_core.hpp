@@ -19,6 +19,7 @@
 #include <pcl/filters/passthrough.h>
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/filters/voxel_grid.h>
+#include <pcl/filters/crop_box.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/point_cloud.h>
@@ -169,9 +170,87 @@ struct LidarClusterConfig
       int density_thr = 50;
     };
 
+    // 距离自适应体素滤波：近处大体素，远处小体素
+    struct DistanceAdaptiveVoxelConfig
+    {
+      bool enable = false;
+      double near_leaf = 0.08;       // 近距离体素大小 (m)
+      double far_leaf = 0.03;        // 远距离体素大小 (m)，0表示不降采样
+      double dist_threshold = 10.0;  // 距离分界点 (m)
+    };
+
+    // 强度滤波：去除低强度噪声点
+    struct IntensityConfig
+    {
+      bool enable = false;
+      float min_intensity = 5.0;     // 最小强度阈值
+    };
+
     SorConfig sor;
     VoxelConfig voxel;
     AdaptiveVoxelConfig adaptive_voxel;
+    DistanceAdaptiveVoxelConfig distance_adaptive_voxel;
+    IntensityConfig intensity;
+    bool use_cropbox = true;  // 用CropBox替代多次PassThrough
+  };
+
+  // 聚类配置
+  struct ClusterConfig
+  {
+    // 聚类方法选择
+    std::string method = "euclidean";  // euclidean | dbscan
+
+    // 距离分段（支持可变数量）
+    std::vector<double> distance_segments = {5.0, 10.0, 15.0, 20.0};  // 分段距离阈值
+    std::vector<double> cluster_tolerance = {0.15, 0.3, 0.5, 0.6, 0.6};  // 各段聚类距离
+
+    // 自适应聚类大小（根据距离调整）
+    struct AdaptiveClusterSize
+    {
+      bool enable = true;
+      // 近距离参数（< distance_segments[0]）
+      int near_min_size = 3;      // 近距离最小聚类点数（过滤噪声）
+      int near_max_size = 100;    // 近距离最大聚类点数（锥桶点多）
+      // 远距离参数（> distance_segments.back()）
+      int far_min_size = 1;       // 远距离最小聚类点数（接受稀疏锥桶）
+      int far_max_size = 30;      // 远距离最大聚类点数
+      // 中间距离线性插值
+    };
+
+    AdaptiveClusterSize adaptive_size;
+
+    // 固定聚类大小（adaptive_size.enable=false时使用）
+    int min_cluster_size = 1;
+    int max_cluster_size = 50;
+
+    // DBSCAN 参数
+    struct DbscanConfig
+    {
+      double eps = 0.3;           // 邻域半径
+      int min_pts = 3;            // 核心点最小邻居数
+      bool adaptive_eps = true;   // 是否根据距离自适应调整eps
+      double eps_near = 0.15;     // 近距离eps
+      double eps_far = 0.5;       // 远距离eps
+    };
+    DbscanConfig dbscan;
+
+    // VLP-16 专用参数（sensor_model=16时使用）
+    struct Vlp16Config
+    {
+      double cluster_tolerance = 0.3;  // 聚类距离阈值
+      double max_bbox_x = 0.4;         // 锥桶bbox最大X尺寸
+      double max_bbox_y = 0.4;         // 锥桶bbox最大Y尺寸
+      double max_bbox_z = 0.5;         // 锥桶bbox最大Z尺寸
+    };
+    Vlp16Config vlp16;
+
+    // point_clip 参数（skidpad模式使用）
+    struct PointClipConfig
+    {
+      double min_distance = 1.0;   // 最小距离
+      double max_distance = 15.0;  // 最大距离
+    };
+    PointClipConfig point_clip;
   };
 
   double sensor_height = 0.135;
@@ -188,6 +267,7 @@ struct LidarClusterConfig
   PatchworkppConfig patchworkpp;
   RoiConfig roi;
   FilterConfig filters;
+  ClusterConfig cluster;
 
   double min_height = -1;
   double max_height = -1;
@@ -217,6 +297,9 @@ public:
   lidar_cluster();
   ~lidar_cluster();
 
+  lidar_cluster(const lidar_cluster&) = delete;
+  lidar_cluster& operator=(const lidar_cluster&) = delete;
+
   void Configure(const LidarClusterConfig &config);
   void SetInputCloud(const pcl::PointCloud<PointType>::ConstPtr &cloud, uint32_t seq);
   bool Process(LidarClusterOutput *output);
@@ -239,8 +322,18 @@ private:
 
   // cluster
   void EucClusterMethod(pcl::PointCloud<PointType>::Ptr inputcloud, std::vector<pcl::PointIndices> &cluster_indices, const double &max_cluster_dis);
+  void EucClusterMethodAdaptive(pcl::PointCloud<PointType>::Ptr inputcloud, std::vector<pcl::PointIndices> &cluster_indices,
+                                const double &max_cluster_dis, int min_cluster_size, int max_cluster_size);
+  void getAdaptiveClusterSize(double distance, int &min_size, int &max_size) const;
   void EuclideanAdaptiveClusterMethod(pcl::PointCloud<PointType>::Ptr inputcloud, std::vector<std::vector<pcl::PointIndices>> &cluster_indices,
                                       std::vector<pcl::PointCloud<PointType>::Ptr> cloud_segments_array);
+
+  // DBSCAN clustering
+  void DbscanClusterMethod(pcl::PointCloud<PointType>::Ptr inputcloud, std::vector<pcl::PointIndices> &cluster_indices,
+                           double eps, int min_pts, int max_cluster_size);
+  void DbscanAdaptiveClusterMethod(pcl::PointCloud<PointType>::Ptr inputcloud, std::vector<std::vector<pcl::PointIndices>> &cluster_indices,
+                                   std::vector<pcl::PointCloud<PointType>::Ptr> cloud_segments_array);
+  double getAdaptiveEps(double distance) const;
   void splitString(const std::string &in_string, std::vector<double> &out_array);
   void clusterMethod16(LidarClusterOutput *output);
   void clusterMethod32(LidarClusterOutput *output);
@@ -299,14 +392,12 @@ private:
   std::vector<double> dis_range;
   std::vector<double> seg_distances;
 
-  const bool eval = false;
-  std::string eval_file = "/home/adams/postsynced_msf/evaluation/lidar_cluster/lidar_cluster_single_linear.txt";
-  std::ofstream ofs;
   int frame_count = 0;
   std::size_t last_cluster_count_ = 0;
 
   LidarClusterConfig::RoiConfig roi_;
   LidarClusterConfig::FilterConfig filters_;
+  LidarClusterConfig::ClusterConfig cluster_;
   std::string roi_mode_;
   bool roi_use_point_clip_ = false;
 

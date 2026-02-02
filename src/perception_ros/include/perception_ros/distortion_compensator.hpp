@@ -24,6 +24,7 @@ struct DistortionCompensatorConfig {
   std::string imu_topic = "/pbox_pub/Ins"; // IMU 话题
   int buffer_size = 200;                   // IMU 缓冲区大小
   float scan_period = 0.1f;                // 激光扫描周期 (秒)
+  std::string mode = "velocity_only";      // 补偿模式: velocity_only, velocity_accel, full_6dof
   bool log_imu_data = false;               // 是否打印 IMU 数据
   bool log_compensation = false;           // 是否打印补偿信息
 };

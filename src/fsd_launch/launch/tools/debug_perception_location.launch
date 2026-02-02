@@ -6,7 +6,8 @@
 
     <arg name="simulation" default="false" doc="Whether to play rosbag"/>
     <arg name="bag" default="" doc="Path to rosbag file"/>
-    
+    <arg name="rviz_mode" default="world" doc="RViz mode: world|ego|dual|none"/>
+
     <!-- Lidar Topic Configuration -->
     <arg name="lidar_topic" default="/velodyne_points" doc="Input point cloud topic name"/>
 
@@ -54,7 +55,17 @@
     <node pkg="tf2_ros" type="static_transform_publisher" name="base_link_to_velodyne" args="0 0 0 0 0 0 base_link velodyne"/>
 
     <!-- 6. RViz -->
-    <!-- 使用 FSD 主配置，确保 Fixed Frame 设置为 'world' -->
-    <node pkg="rviz" type="rviz" name="debug_rviz" args="-d $(find fsd_visualization)/rviz/fsd_main.rviz"/>
+    <group if="$(eval arg('rviz_mode') == 'world')">
+        <node pkg="rviz" type="rviz" name="debug_rviz" args="-d $(find fsd_visualization)/rviz/world_planning.rviz"/>
+    </group>
+
+    <group if="$(eval arg('rviz_mode') == 'ego')">
+        <node pkg="rviz" type="rviz" name="debug_rviz" args="-d $(find fsd_visualization)/rviz/ego_perception.rviz"/>
+    </group>
+
+    <group if="$(eval arg('rviz_mode') == 'dual')">
+        <node pkg="rviz" type="rviz" name="ego_rviz" args="-d $(find fsd_visualization)/rviz/ego_perception.rviz"/>
+        <node pkg="rviz" type="rviz" name="world_rviz" args="-d $(find fsd_visualization)/rviz/world_planning.rviz"/>
+    </group>
 
 </launch>

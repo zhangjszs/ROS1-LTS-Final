@@ -226,9 +226,9 @@ size_t WayComputer::treeSearch(std::vector<HeurInd> &nextEdges, const KDTree &mi
   // been exceeded.
   //1. 当队列`cua`为空时，表示所有可能的路径已经探索完毕，树搜索完成。
   // 2. 当从树搜索开始时间到当前时间的耗时超过了`params.max_treeSearch_time`时限，表示超过了设定的时间限制。
-  ros::WallTime searchBeginTime = ros::WallTime::now();
+  ros::Time searchBeginTime = ros::Time::now();
   while (not cua.empty()) {
-    if (ros::WallTime::now() - searchBeginTime > ros::WallDuration(params.max_treeSearch_time)) {
+    if (ros::Time::now() - searchBeginTime > ros::Duration(params.max_treeSearch_time)) {
       ROS_WARN("[high_speed_tracking] Time limit exceeded in tree search.");
       break;
     }
@@ -340,7 +340,7 @@ void WayComputer::computeWay(const std::vector<Edge> &edges, const Params::WayCo
 
 /* ----------------------------- Public Methods ----------------------------- */
 
-WayComputer::WayComputer(const Params::WayComputer &params) : params_(params) {
+WayComputer::WayComputer(const Params::WayComputer &params) : params_(params), currentStamp_(0) {
   Way::init(params.way);
   this->generalFailsafe_.initGeneral(this->params_.search, this->params_.general_failsafe_safetyFactor, this->params_.failsafe_max_way_horizon_size);
 }
@@ -372,6 +372,7 @@ void WayComputer::update(TriangleSet &triangulation, const ros::Time &stamp) {
   //根据代码，`this->way_` 可以认为是一个不断累加的全局路径，而 `this->lastWay_` 用于存储上一次的全局路径
   this->lastWay_ = this->way_;                    //Way构造函数直接赋值  表示路径
   this->lastStamp_ = stamp;
+  this->currentStamp_ = stamp;
 
   // #1: Remove all triangles which we know will not be part of the track.用于从三角测量中移除那些不会成为轨迹的三角形
   // 实际上里面的运算还是一个局部坐标系上的点进行操作。
@@ -502,7 +503,7 @@ autodrive_msgs::HUAT_PathLimits WayComputer::getPathLimits() const  {
 */
 autodrive_msgs::HUAT_PathLimits WayComputer::getPathLimitsGlobal(int x)  {
   autodrive_msgs::HUAT_PathLimits res;
-  res.stamp = ros::Time::now();
+  res.stamp = this->currentStamp_;
   std::vector<geometry_msgs::Point> path_;
   std::vector<Point> path;
   Point nextPoint ;

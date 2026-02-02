@@ -19,7 +19,16 @@ private:
     visualization_msgs::Marker createConeMarker(
         double x, double y, double z,
         int id, int type, const std::string& ns, const std::string& frame_id);
-    
+
+    visualization_msgs::Marker createBoundingBoxMarker(
+        const geometry_msgs::Point32& min_pt,
+        const geometry_msgs::Point32& max_pt,
+        int id, const std::string& ns, const std::string& frame_id);
+
+    visualization_msgs::Marker createDistanceLabel(
+        double x, double y, double z,
+        float distance, int id, const std::string& ns, const std::string& frame_id);
+
     ros::Subscriber sub_cone_detections_;
     ros::Subscriber sub_cone_map_;
     ros::Publisher pub_markers_;
@@ -31,6 +40,8 @@ private:
     std::string frame_id_;
     double cone_radius_;
     double cone_height_;
+    bool show_bounding_box_;
+    bool show_distance_label_;
 };
 
 }  // namespace fsd_viz

@@ -9,7 +9,7 @@ int main(int argc, char **argv)
   ros::NodeHandle private_nh("~");
   perception_ros::LidarClusterRos lc(nh, private_nh);
 
-  ros::Rate loop_rate(10);
+  ros::Rate loop_rate(100);  // 100Hz to avoid frame drops
   while (ros::ok())
   {
     ros::spinOnce();

@@ -37,7 +37,6 @@ add_definitions(${PCL_DEFINITIONS})
 
 add_library(${PROJECT_NAME}
   src/lidar_cluster_ros.cpp
-  src/visulization_marker.cpp
   src/imu_subscriber.cpp
   src/distortion_compensator.cpp
   src/nodelets/lidar_cluster_nodelet.cc

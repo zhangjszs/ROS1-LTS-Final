@@ -20,9 +20,6 @@ std::string num2Str(const Type value, unsigned int precision)
 
 lidar_cluster::lidar_cluster()
 {
-  ofs.open(eval_file, std::ios::app);
-  ofs.setf(std::ios::fixed, std::ios::floatfield);
-  ofs.precision(5);
   init();
 }
 
@@ -30,10 +27,12 @@ lidar_cluster::~lidar_cluster() = default;
 
 void lidar_cluster::SetInputCloud(const pcl::PointCloud<PointType>::ConstPtr &cloud, uint32_t seq)
 {
-  if (!cloud) {
+  if (!cloud || !current_pc_ptr) {
     return;
   }
   std::lock_guard<std::mutex> lock(lidar_mutex);
+  current_pc_ptr->clear();
+  current_pc_ptr->reserve(cloud->size());
   *current_pc_ptr = *cloud;
   getPointClouds = true;
   frame_count = static_cast<int>(seq);
@@ -78,6 +77,7 @@ bool lidar_cluster::Process(LidarClusterOutput *output)
   auto elapsedTimeCluster =
       std::chrono::duration_cast<std::chrono::microseconds>(endTimeCluster - startTimeCluster);
 
+  const std::size_t cluster_count = last_cluster_count_;
   lock.unlock();
 
   auto endTimeTotal = std::chrono::steady_clock::now();
@@ -89,15 +89,7 @@ bool lidar_cluster::Process(LidarClusterOutput *output)
   output->t_cluster_ms = static_cast<double>(elapsedTimeCluster.count()) / 1000.0;
   output->t_total_ms = static_cast<double>(elapsedTimeTotal.count()) / 1000.0;
   output->input_points = input_points;
-  output->total_clusters = last_cluster_count_;
-
-  if (eval) {
-    ofs << num2Str<int>(frame_count, 0) << "\t" << num2Str<float>(elapsedTimePassThrough.count(), 5)
-        << "\t" << num2Str<float>(elapsedTimeSeg.count(), 5)
-        << "\t" << num2Str<float>(elapsedTimeCluster.count(), 5)
-        << "\t" << num2Str<float>(elapsedTimeTotal.count(), 5)
-        << std::endl;
-  }
+  output->total_clusters = cluster_count;
 
   return true;
 }

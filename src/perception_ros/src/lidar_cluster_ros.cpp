@@ -81,11 +81,6 @@ LidarClusterRos::LidarClusterRos(ros::NodeHandle nh, ros::NodeHandle private_nh)
 
   sub_point_cloud_ = nh_.subscribe(input_topic_, 2, &LidarClusterRos::pointCallback, this);  // P2: 队列从100改为2
 
-  if (vis_ != 0) {
-    marker_pub_ = nh_.advertise<visualization_msgs::MarkerArray>(markers_topic_, 1);
-    marker_pub_all_ = nh_.advertise<visualization_msgs::MarkerArray>(markers_all_topic_, 1);
-  }
-
   passthrough_pub_ = nh_.advertise<sensor_msgs::PointCloud2>(passthrough_topic_, 1);
   no_ground_pub_ = nh_.advertise<sensor_msgs::PointCloud2>(no_ground_topic_, 1);
   cones_pub_ = nh_.advertise<sensor_msgs::PointCloud2>(cones_topic_, 1);
@@ -121,14 +116,6 @@ void LidarClusterRos::loadParams()
   if (!private_nh_.param<std::string>("topics/detections", detections_topic_, "detections"))
   {
     ROS_WARN_STREAM("Did not load topics/detections. Standard value is: " << detections_topic_);
-  }
-  if (!private_nh_.param<std::string>("topics/markers/cones", markers_topic_, "markers/cones"))
-  {
-    ROS_WARN_STREAM("Did not load topics/markers/cones. Standard value is: " << markers_topic_);
-  }
-  if (!private_nh_.param<std::string>("topics/markers/all", markers_all_topic_, "markers/all"))
-  {
-    ROS_WARN_STREAM("Did not load topics/markers/all. Standard value is: " << markers_all_topic_);
   }
 
   if (!private_nh_.param<double>("sensor_height", config_.sensor_height, 0.135))
@@ -275,6 +262,41 @@ void LidarClusterRos::loadParams()
   {
     ROS_WARN_STREAM("Did not load filters/adaptive_voxel/density_thr. Standard value is: " << config_.filters.adaptive_voxel.density_thr);
   }
+  // 距离自适应体素滤波参数
+  if (!private_nh_.param<bool>("filters/distance_adaptive_voxel/enable", config_.filters.distance_adaptive_voxel.enable, false))
+  {
+    ROS_WARN_STREAM("Did not load filters/distance_adaptive_voxel/enable. Standard value is: " << config_.filters.distance_adaptive_voxel.enable);
+  }
+  if (!private_nh_.param<double>("filters/distance_adaptive_voxel/near_leaf", config_.filters.distance_adaptive_voxel.near_leaf, 0.08))
+  {
+    ROS_WARN_STREAM("Did not load filters/distance_adaptive_voxel/near_leaf. Standard value is: " << config_.filters.distance_adaptive_voxel.near_leaf);
+  }
+  if (!private_nh_.param<double>("filters/distance_adaptive_voxel/far_leaf", config_.filters.distance_adaptive_voxel.far_leaf, 0.03))
+  {
+    ROS_WARN_STREAM("Did not load filters/distance_adaptive_voxel/far_leaf. Standard value is: " << config_.filters.distance_adaptive_voxel.far_leaf);
+  }
+  if (!private_nh_.param<double>("filters/distance_adaptive_voxel/dist_threshold", config_.filters.distance_adaptive_voxel.dist_threshold, 10.0))
+  {
+    ROS_WARN_STREAM("Did not load filters/distance_adaptive_voxel/dist_threshold. Standard value is: " << config_.filters.distance_adaptive_voxel.dist_threshold);
+  }
+  // 强度滤波参数
+  if (!private_nh_.param<bool>("filters/intensity/enable", config_.filters.intensity.enable, false))
+  {
+    ROS_WARN_STREAM("Did not load filters/intensity/enable. Standard value is: " << config_.filters.intensity.enable);
+  }
+  {
+    double min_intensity_d = static_cast<double>(config_.filters.intensity.min_intensity);
+    if (!private_nh_.param<double>("filters/intensity/min_intensity", min_intensity_d, 5.0))
+    {
+      ROS_WARN_STREAM("Did not load filters/intensity/min_intensity. Standard value is: " << min_intensity_d);
+    }
+    config_.filters.intensity.min_intensity = static_cast<float>(min_intensity_d);
+  }
+  // CropBox优化开关
+  if (!private_nh_.param<bool>("filters/use_cropbox", config_.filters.use_cropbox, true))
+  {
+    ROS_WARN_STREAM("Did not load filters/use_cropbox. Standard value is: " << config_.filters.use_cropbox);
+  }
   if (!private_nh_.param<bool>("patchworkpp/enable_rnr", config_.patchworkpp.enable_rnr, true))
   {
     ROS_WARN_STREAM("Did not load patchworkpp/enable_rnr. Standard value is: " << config_.patchworkpp.enable_rnr);
@@ -371,10 +393,6 @@ void LidarClusterRos::loadParams()
   {
     ROS_WARN_STREAM("Did not load patchworkpp/flatness_thr. Standard value is used.");
   }
-  if (!private_nh_.param<int>("vis", config_.vis, 0))
-  {
-    ROS_WARN_STREAM("Did not load vis. Standard value is: " << config_.vis);
-  }
   if (!private_nh_.param<std::string>("str_range", config_.str_range, "15,30,45,60"))
   {
     ROS_WARN_STREAM("Did not load str_range. Standard value is: " << config_.str_range);
@@ -382,6 +400,96 @@ void LidarClusterRos::loadParams()
   if (!private_nh_.param<std::string>("str_seg_distance", config_.str_seg_distance, "0.5,1.1,1.6,2.1,2.6"))
   {
     ROS_WARN_STREAM("Did not load str_seg_distance. Standard value is: " << config_.str_seg_distance);
+  }
+
+  // 聚类配置
+  if (!LoadDoubleVector(private_nh_, "cluster/distance_segments", config_.cluster.distance_segments))
+  {
+    ROS_WARN_STREAM("Did not load cluster/distance_segments. Using defaults.");
+  }
+  if (!LoadDoubleVector(private_nh_, "cluster/cluster_tolerance", config_.cluster.cluster_tolerance))
+  {
+    ROS_WARN_STREAM("Did not load cluster/cluster_tolerance. Using defaults.");
+  }
+  if (!private_nh_.param<bool>("cluster/adaptive_size/enable", config_.cluster.adaptive_size.enable, true))
+  {
+    ROS_WARN_STREAM("Did not load cluster/adaptive_size/enable. Standard value is: " << config_.cluster.adaptive_size.enable);
+  }
+  if (!private_nh_.param<int>("cluster/adaptive_size/near_min_size", config_.cluster.adaptive_size.near_min_size, 3))
+  {
+    ROS_WARN_STREAM("Did not load cluster/adaptive_size/near_min_size. Standard value is: " << config_.cluster.adaptive_size.near_min_size);
+  }
+  if (!private_nh_.param<int>("cluster/adaptive_size/near_max_size", config_.cluster.adaptive_size.near_max_size, 100))
+  {
+    ROS_WARN_STREAM("Did not load cluster/adaptive_size/near_max_size. Standard value is: " << config_.cluster.adaptive_size.near_max_size);
+  }
+  if (!private_nh_.param<int>("cluster/adaptive_size/far_min_size", config_.cluster.adaptive_size.far_min_size, 1))
+  {
+    ROS_WARN_STREAM("Did not load cluster/adaptive_size/far_min_size. Standard value is: " << config_.cluster.adaptive_size.far_min_size);
+  }
+  if (!private_nh_.param<int>("cluster/adaptive_size/far_max_size", config_.cluster.adaptive_size.far_max_size, 30))
+  {
+    ROS_WARN_STREAM("Did not load cluster/adaptive_size/far_max_size. Standard value is: " << config_.cluster.adaptive_size.far_max_size);
+  }
+  if (!private_nh_.param<int>("cluster/min_cluster_size", config_.cluster.min_cluster_size, 1))
+  {
+    ROS_WARN_STREAM("Did not load cluster/min_cluster_size. Standard value is: " << config_.cluster.min_cluster_size);
+  }
+  if (!private_nh_.param<int>("cluster/max_cluster_size", config_.cluster.max_cluster_size, 50))
+  {
+    ROS_WARN_STREAM("Did not load cluster/max_cluster_size. Standard value is: " << config_.cluster.max_cluster_size);
+  }
+  // 聚类方法选择
+  if (!private_nh_.param<std::string>("cluster/method", config_.cluster.method, "euclidean"))
+  {
+    ROS_WARN_STREAM("Did not load cluster/method. Standard value is: " << config_.cluster.method);
+  }
+  // DBSCAN 参数
+  if (!private_nh_.param<double>("cluster/dbscan/eps", config_.cluster.dbscan.eps, 0.3))
+  {
+    ROS_WARN_STREAM("Did not load cluster/dbscan/eps. Standard value is: " << config_.cluster.dbscan.eps);
+  }
+  if (!private_nh_.param<int>("cluster/dbscan/min_pts", config_.cluster.dbscan.min_pts, 3))
+  {
+    ROS_WARN_STREAM("Did not load cluster/dbscan/min_pts. Standard value is: " << config_.cluster.dbscan.min_pts);
+  }
+  if (!private_nh_.param<bool>("cluster/dbscan/adaptive_eps", config_.cluster.dbscan.adaptive_eps, true))
+  {
+    ROS_WARN_STREAM("Did not load cluster/dbscan/adaptive_eps. Standard value is: " << config_.cluster.dbscan.adaptive_eps);
+  }
+  if (!private_nh_.param<double>("cluster/dbscan/eps_near", config_.cluster.dbscan.eps_near, 0.15))
+  {
+    ROS_WARN_STREAM("Did not load cluster/dbscan/eps_near. Standard value is: " << config_.cluster.dbscan.eps_near);
+  }
+  if (!private_nh_.param<double>("cluster/dbscan/eps_far", config_.cluster.dbscan.eps_far, 0.5))
+  {
+    ROS_WARN_STREAM("Did not load cluster/dbscan/eps_far. Standard value is: " << config_.cluster.dbscan.eps_far);
+  }
+  // VLP-16 参数
+  if (!private_nh_.param<double>("cluster/vlp16/cluster_tolerance", config_.cluster.vlp16.cluster_tolerance, 0.3))
+  {
+    ROS_WARN_STREAM("Did not load cluster/vlp16/cluster_tolerance. Standard value is: " << config_.cluster.vlp16.cluster_tolerance);
+  }
+  if (!private_nh_.param<double>("cluster/vlp16/max_bbox_x", config_.cluster.vlp16.max_bbox_x, 0.4))
+  {
+    ROS_WARN_STREAM("Did not load cluster/vlp16/max_bbox_x. Standard value is: " << config_.cluster.vlp16.max_bbox_x);
+  }
+  if (!private_nh_.param<double>("cluster/vlp16/max_bbox_y", config_.cluster.vlp16.max_bbox_y, 0.4))
+  {
+    ROS_WARN_STREAM("Did not load cluster/vlp16/max_bbox_y. Standard value is: " << config_.cluster.vlp16.max_bbox_y);
+  }
+  if (!private_nh_.param<double>("cluster/vlp16/max_bbox_z", config_.cluster.vlp16.max_bbox_z, 0.5))
+  {
+    ROS_WARN_STREAM("Did not load cluster/vlp16/max_bbox_z. Standard value is: " << config_.cluster.vlp16.max_bbox_z);
+  }
+  // point_clip 参数
+  if (!private_nh_.param<double>("cluster/point_clip/min_distance", config_.cluster.point_clip.min_distance, 1.0))
+  {
+    ROS_WARN_STREAM("Did not load cluster/point_clip/min_distance. Standard value is: " << config_.cluster.point_clip.min_distance);
+  }
+  if (!private_nh_.param<double>("cluster/point_clip/max_distance", config_.cluster.point_clip.max_distance, 15.0))
+  {
+    ROS_WARN_STREAM("Did not load cluster/point_clip/max_distance. Standard value is: " << config_.cluster.point_clip.max_distance);
   }
 
   if (!private_nh_.param<double>("min_height", config_.min_height, -1))
@@ -426,7 +534,35 @@ void LidarClusterRos::loadParams()
            config_.filters.adaptive_voxel.enable ? "on" : "off",
            config_.filters.adaptive_voxel.leaf_size,
            config_.filters.adaptive_voxel.density_thr);
-  ROS_INFO("vis: %d", config_.vis);
+  ROS_INFO("filters/distance_adaptive_voxel: %s (near_leaf=%f, far_leaf=%f, dist_thr=%f)",
+           config_.filters.distance_adaptive_voxel.enable ? "on" : "off",
+           config_.filters.distance_adaptive_voxel.near_leaf,
+           config_.filters.distance_adaptive_voxel.far_leaf,
+           config_.filters.distance_adaptive_voxel.dist_threshold);
+  ROS_INFO("filters/intensity: %s (min=%f)",
+           config_.filters.intensity.enable ? "on" : "off",
+           config_.filters.intensity.min_intensity);
+  ROS_INFO("filters/use_cropbox: %s",
+           config_.filters.use_cropbox ? "on" : "off");
+  ROS_INFO("cluster/method: %s", config_.cluster.method.c_str());
+  ROS_INFO("cluster/adaptive_size: %s (near: %d-%d, far: %d-%d)",
+           config_.cluster.adaptive_size.enable ? "on" : "off",
+           config_.cluster.adaptive_size.near_min_size,
+           config_.cluster.adaptive_size.near_max_size,
+           config_.cluster.adaptive_size.far_min_size,
+           config_.cluster.adaptive_size.far_max_size);
+  ROS_INFO("cluster/fixed_size: min=%d, max=%d",
+           config_.cluster.min_cluster_size,
+           config_.cluster.max_cluster_size);
+  if (config_.cluster.method == "dbscan")
+  {
+    ROS_INFO("cluster/dbscan: eps=%f, min_pts=%d, adaptive_eps=%s (near=%f, far=%f)",
+             config_.cluster.dbscan.eps,
+             config_.cluster.dbscan.min_pts,
+             config_.cluster.dbscan.adaptive_eps ? "on" : "off",
+             config_.cluster.dbscan.eps_near,
+             config_.cluster.dbscan.eps_far);
+  }
 
   if (!private_nh_.param<bool>("perf_stats_enable", perf_enabled_, true))
   {
@@ -446,7 +582,6 @@ void LidarClusterRos::loadParams()
   perf_log_every_ = static_cast<size_t>(perf_log_every);
   perf_stats_.Configure("lidar_cluster", perf_enabled_, perf_window_, perf_log_every_);
 
-  vis_ = config_.vis;
   sensor_model_ = config_.sensor_model;
 }
 
@@ -588,55 +723,6 @@ void LidarClusterRos::publishOutput(const LidarClusterOutput &output)
 
   detections_pub_.publish(detections);
   bytes_pub += ros::serialization::serializationLength(detections);
-
-  if (vis_ != 0)
-  {
-    vis_init_status_ = visInit();
-    if (vis_init_status_)
-    {
-      for (const auto &det : output.cones)
-      {
-        PointType max_pt;
-        max_pt.x = det.max.x;
-        max_pt.y = det.max.y;
-        max_pt.z = det.max.z;
-        PointType min_pt;
-        min_pt.x = det.min.x;
-        min_pt.y = det.min.y;
-        min_pt.z = det.min.z;
-        visForMarker(max_pt,
-                     min_pt,
-                     static_cast<float>(det.distance),
-                     0,
-                     0,
-                     0,
-                     true);
-      }
-      if (sensor_model_ != 16)
-      {
-        for (const auto &det : output.non_cones)
-        {
-          PointType max_pt;
-          max_pt.x = det.max.x;
-          max_pt.y = det.max.y;
-          max_pt.z = det.max.z;
-          PointType min_pt;
-          min_pt.x = det.min.x;
-          min_pt.y = det.min.y;
-          min_pt.z = det.min.z;
-          visForMarker(max_pt,
-                       min_pt,
-                       static_cast<float>(det.distance),
-                       0,
-                       0,
-                       0,
-                       false);
-        }
-        marker_pub_all_.publish(marker_array_all_);
-      }
-      marker_pub_.publish(marker_array_);
-    }
-  }
 
   PerfSample sample;
   sample.t_pass_ms = output.t_pass_ms;

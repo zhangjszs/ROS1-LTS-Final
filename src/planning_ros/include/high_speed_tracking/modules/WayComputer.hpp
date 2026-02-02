@@ -65,6 +65,11 @@ class WayComputer {
   ros::Time lastStamp_;
 
   /**
+   * @brief Current processing timestamp (from input cone message).
+   */
+  ros::Time currentStamp_;
+
+  /**
    * @brief Whether or not \a way_ has its loop closed.
    */
   bool isLoopClosed_ = false;
