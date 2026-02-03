@@ -1,18 +1,36 @@
-car_arg: 
+car_arg:
   length: 1.55
   front_axle: 0.5
   rear_axle: 1.05
   delta_max: 0.4
   delta_min: 0.0174
-pp: 
+  # FSSIM风格车辆参数
+  cg_to_front: 0.77    # 重心到前轴距离 [m]
+  cg_to_rear: 0.78     # 重心到后轴距离 [m]
+  mass: 190.0          # 车辆质量 [kg]
+
+pp:  # Pure Pursuit 参数
   angle_kv: 0.0
   angle_kl: 2.5
   angle_kp: 0.9
   angle_ki: 0.0
   angle_kd: 0.0
-st: 
+  steering_delta_max: 0.5
+  # FSSIM风格滑移角补偿
+  enable_slip_compensation: true
+  slip_gain: 0.5       # 滑移角补偿增益
+  min_lookahead: 2.0   # 最小前视距离 [m]
+  max_lookahead: 10.0  # 最大前视距离 [m]
+
+st:  # Skidpad 参数
   angle_kv: 0.5
   angle_kl: 2.5
   angle_kp: 0.9
   angle_ki: 0.0
   angle_kd: 0.0
+  steering_delta_max: 0.5
+  # 八字绕环时滑移角补偿更重要
+  enable_slip_compensation: true
+  slip_gain: 0.7       # 八字绕环需要更强的补偿
+  min_lookahead: 1.5   # 八字绕环需要更短的前视距离
+  max_lookahead: 5.0

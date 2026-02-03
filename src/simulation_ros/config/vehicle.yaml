@@ -1,0 +1,30 @@
+# Vehicle parameters for simulation
+vehicle:
+  mass: 250.0              # Total mass [kg]
+  wheelbase: 1.55          # Wheelbase [m]
+  track_width: 1.2         # Track width [m]
+  cg_height: 0.3           # CG height [m]
+  cg_to_front: 0.775       # CG to front axle [m]
+  cg_to_rear: 0.775        # CG to rear axle [m]
+  inertia_z: 150.0         # Yaw moment of inertia [kg*m^2]
+  wheel_radius: 0.23       # Wheel radius [m]
+  wheel_inertia: 0.5       # Wheel rotational inertia [kg*m^2]
+  max_steering: 0.5        # Max steering angle [rad]
+  steering_ratio: 1.0      # Steering ratio
+  max_torque: 200.0        # Max motor torque [Nm]
+  max_brake_torque: 500.0  # Max brake torque [Nm]
+
+# Aerodynamics
+aero:
+  drag_coeff: 0.8          # Drag coefficient
+  downforce_coeff: 2.5     # Downforce coefficient
+  frontal_area: 1.0        # Frontal area [m^2]
+  air_density: 1.225       # Air density [kg/m^3]
+
+# Tire parameters (Pacejka Magic Formula)
+tire:
+  B: 10.0                  # Stiffness factor
+  C: 1.65                  # Shape factor
+  D: 1.0                   # Peak factor
+  E: -0.5                  # Curvature factor
+  friction: 1.0            # Friction coefficient

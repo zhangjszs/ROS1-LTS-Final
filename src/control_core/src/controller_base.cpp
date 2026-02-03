@@ -12,6 +12,15 @@ void ControllerBase::SetParams(const ControlParams &params)
   angle_kl_ = params.angle_kl;
   steering_delta_max_ = params.steering_delta_max;
   car_length_ = params.car_length;
+
+  // FSSIM风格参数
+  cg_to_front_ = params.cg_to_front;
+  cg_to_rear_ = params.cg_to_rear;
+  mass_ = params.mass;
+  enable_slip_compensation_ = params.enable_slip_compensation;
+  slip_gain_ = params.slip_gain;
+  min_lookahead_ = params.min_lookahead;
+  max_lookahead_ = params.max_lookahead;
 }
 
 void ControllerBase::UpdateCarState(const CarState &state)
@@ -20,6 +29,10 @@ void ControllerBase::UpdateCarState(const CarState &state)
   car_y_ = state.y;
   car_theta_ = state.theta;
   car_veloc_ = state.v;
+
+  // FSSIM风格扩展状态
+  car_vy_ = state.vy;
+  car_yaw_rate_ = state.yaw_rate;
 }
 
 void ControllerBase::UpdatePath(const std::vector<Position> &path)
@@ -90,6 +103,50 @@ double ControllerBase::angle_pid(double delta)
 void ControllerBase::RequestStop()
 {
   stop_requested_ = true;
+}
+
+double ControllerBase::computeSlipAngle() const
+{
+  // FSSIM风格滑移角计算
+  // beta = atan(vy / vx)
+  // 在低速时避免除零
+  const double min_vx = 0.5;
+  double vx = std::max(car_veloc_, min_vx);
+  return std::atan2(car_vy_, vx);
+}
+
+double ControllerBase::compensateSlipAngle(double delta) const
+{
+  if (!enable_slip_compensation_ || car_veloc_ < 1.0)
+  {
+    return delta;
+  }
+
+  // FSSIM风格滑移角补偿
+  // 补偿公式: delta_comp = delta - slip_gain * beta
+  double beta = computeSlipAngle();
+  double delta_comp = delta - slip_gain_ * beta;
+
+  // 限幅
+  if (delta_comp > steering_delta_max_)
+    delta_comp = steering_delta_max_;
+  else if (delta_comp < -steering_delta_max_)
+    delta_comp = -steering_delta_max_;
+
+  return delta_comp;
+}
+
+double ControllerBase::computeAdaptiveLookahead() const
+{
+  // FSSIM风格速度自适应前视距离
+  // lookahead = kv * v + kl
+  // 但限制在 [min_lookahead, max_lookahead] 范围内
+  double lookahead = angle_kv_ * car_veloc_ + angle_kl_;
+  if (lookahead < min_lookahead_)
+    lookahead = min_lookahead_;
+  else if (lookahead > max_lookahead_)
+    lookahead = max_lookahead_;
+  return lookahead;
 }
 
 } // namespace control_core

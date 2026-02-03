@@ -108,6 +108,15 @@ private:
     nh_.param(ns + "/angle_kl", params.angle_kl, 2.0);
     nh_.param("car_arg/length", params.car_length, 1.55);
 
+    // FSSIM风格参数
+    nh_.param("car_arg/cg_to_front", params.cg_to_front, 0.77);
+    nh_.param("car_arg/cg_to_rear", params.cg_to_rear, 0.78);
+    nh_.param("car_arg/mass", params.mass, 190.0);
+    nh_.param(ns + "/enable_slip_compensation", params.enable_slip_compensation, true);
+    nh_.param(ns + "/slip_gain", params.slip_gain, 0.5);
+    nh_.param(ns + "/min_lookahead", params.min_lookahead, 2.0);
+    nh_.param(ns + "/max_lookahead", params.max_lookahead, 10.0);
+
     if (controller_)
     {
       controller_->SetParams(params);
@@ -140,6 +149,12 @@ private:
     state.y = msgs->car_state.y;
     state.theta = msgs->car_state.theta;
     state.v = msgs->V;
+
+    // FSSIM风格扩展状态 - 从IMU获取
+    state.vy = msgs->Vy;           // 横向速度
+    state.yaw_rate = msgs->Wz;     // 偏航角速度
+    state.ax = msgs->Ax;           // 纵向加速度
+    state.ay = msgs->Ay;           // 横向加速度
 
     if (controller_)
     {

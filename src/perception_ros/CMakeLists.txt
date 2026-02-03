@@ -39,6 +39,7 @@ add_library(${PROJECT_NAME}
   src/lidar_cluster_ros.cpp
   src/imu_subscriber.cpp
   src/distortion_compensator.cpp
+  src/distortion_compensator_v2.cpp
   src/nodelets/lidar_cluster_nodelet.cc
 )
 add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})

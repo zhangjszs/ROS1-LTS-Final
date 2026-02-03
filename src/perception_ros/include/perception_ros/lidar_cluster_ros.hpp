@@ -9,7 +9,7 @@
 
 #include <perception_core/lidar_cluster_core.hpp>
 #include <perception_ros/perf_stats.hpp>
-#include <perception_ros/distortion_compensator.hpp>
+#include <perception_ros/distortion_compensator_v2.hpp>
 
 namespace perception_ros {
 
@@ -58,8 +58,8 @@ class LidarClusterRos {
   size_t perf_window_ = 300;
   size_t perf_log_every_ = 30;
 
-  // IMU Distortion Compensation (解耦后的独立模块)
-  std::unique_ptr<DistortionCompensator> compensator_;
+  // IMU Distortion Compensation V2 (支持time字段、预积分、外参)
+  std::unique_ptr<DistortionCompensatorV2> compensator_;
 };
 
 }  // namespace perception_ros

@@ -24,9 +24,15 @@ struct CarState {
   Pose2 car_state;
   Point3 car_state_front;
   Point3 car_state_rear;
-  double V = 0.0;
-  double W = 0.0;
-  double A = 0.0;
+  double V = 0.0;   // 纵向速度 [m/s]
+  double W = 0.0;   // 偏航角速度 [rad/s] (deprecated, use Wz)
+  double A = 0.0;   // 加速度 [m/s^2] (deprecated, use Ax)
+
+  // FSSIM风格扩展状态
+  double Vy = 0.0;  // 横向速度 [m/s]
+  double Wz = 0.0;  // 偏航角速度 [rad/s]
+  double Ax = 0.0;  // 纵向加速度 [m/s^2]
+  double Ay = 0.0;  // 横向加速度 [m/s^2]
 };
 
 struct Asensing {

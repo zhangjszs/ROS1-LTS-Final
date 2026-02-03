@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>simulation_ros</name>
+  <version>1.0.0</version>
+  <description>ROS interface for FSD vehicle simulation</description>
+
+  <maintainer email="huat@example.com">HUAT Racing Team</maintainer>
+  <license>BSD-3-Clause</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>roscpp</depend>
+  <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>visualization_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>tf2</depend>
+  <depend>tf2_ros</depend>
+  <depend>autodrive_msgs</depend>
+  <depend>simulation_core</depend>
+
+  <export>
+  </export>
+</package>

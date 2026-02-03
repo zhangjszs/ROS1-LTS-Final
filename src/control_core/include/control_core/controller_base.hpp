@@ -34,6 +34,28 @@ protected:
   double angle_range(double alpha) const;
   double angle_pid(double delta);
 
+  /**
+   * @brief FSSIM风格滑移角计算
+   * 计算车辆质心的滑移角 beta = atan(vy / vx)
+   * @return 滑移角 [rad]
+   */
+  double computeSlipAngle() const;
+
+  /**
+   * @brief FSSIM风格滑移角补偿
+   * 在纯追踪转向角基础上补偿滑移角影响
+   * @param delta 原始转向角 [rad]
+   * @return 补偿后的转向角 [rad]
+   */
+  double compensateSlipAngle(double delta) const;
+
+  /**
+   * @brief 计算速度自适应前视距离
+   * 低速时使用较短前视距离，高速时使用较长前视距离
+   * @return 前视距离 [m]
+   */
+  double computeAdaptiveLookahead() const;
+
   void RequestStop();
 
   std::vector<Position> path_coordinate_{};
@@ -44,6 +66,10 @@ protected:
   double car_veloc_{0.0};
   double car_fangle_{0.0};
 
+  // FSSIM风格扩展状态
+  double car_vy_{0.0};        // 横向速度 [m/s]
+  double car_yaw_rate_{0.0};  // 偏航角速度 [rad/s]
+
   double lookhead_{0.0};
   double angle_kv_{0.0};
   double angle_kl_{2.0};
@@ -52,6 +78,15 @@ protected:
   double angle_kd_{0.0};
   double steering_delta_max_{0.5};
   double car_length_{1.55};
+
+  // FSSIM风格车辆参数
+  double cg_to_front_{0.77};
+  double cg_to_rear_{0.78};
+  double mass_{190.0};
+  bool enable_slip_compensation_{true};
+  double slip_gain_{0.5};
+  double min_lookahead_{2.0};
+  double max_lookahead_{10.0};
 
   double angle_integra_{0.0};
   double veloc_integra_{0.0};

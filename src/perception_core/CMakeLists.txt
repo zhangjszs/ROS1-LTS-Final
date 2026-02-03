@@ -38,10 +38,12 @@ add_library(${PROJECT_NAME}
   src/ground_segmentation_patchworkpp.cpp
   src/patchworkpp.cpp
   src/distortion_adjust.cpp
+  src/distortion_adjust_v2.cpp
   src/utility.cpp
   src/cluster_feature_extractor.cpp
   src/confidence_scorer.cpp
   src/cone_model_fitter.cpp
+  src/cone_tracker.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}

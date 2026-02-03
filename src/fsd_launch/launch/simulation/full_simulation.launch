@@ -1,0 +1,33 @@
+<launch>
+  <!-- Full simulation launch file -->
+  <arg name="track" default="fsg"/>
+  <arg name="rviz_mode" default="dual"/>
+  <arg name="sim_rate" default="100"/>
+
+  <!-- Simulation core -->
+  <include file="$(find simulation_ros)/launch/simulation.launch">
+    <arg name="track" value="$(arg track)"/>
+    <arg name="sim_rate" value="$(arg sim_rate)"/>
+    <arg name="publish_tf" value="true"/>
+  </include>
+
+  <!-- Perception subsystem -->
+  <include file="$(find fsd_launch)/launch/subsystems/perception.launch">
+    <arg name="simulation" value="true"/>
+  </include>
+
+  <!-- Planning subsystem -->
+  <include file="$(find fsd_launch)/launch/subsystems/planning.launch">
+    <arg name="simulation" value="true"/>
+  </include>
+
+  <!-- Control subsystem -->
+  <include file="$(find fsd_launch)/launch/subsystems/control.launch">
+    <arg name="simulation" value="true"/>
+  </include>
+
+  <!-- Visualization -->
+  <include file="$(find fsd_launch)/launch/tools/rviz.launch">
+    <arg name="rviz_mode" value="$(arg rviz_mode)"/>
+  </include>
+</launch>

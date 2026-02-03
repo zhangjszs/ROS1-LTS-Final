@@ -33,6 +33,12 @@ bool ImuStateEstimator::Process(const Asensing &msg, double stamp_sec, CarState 
       const double az = msg.z_acc * params_.accel_gravity;
       out->A = std::sqrt(ax * ax + ay * ay + az * az);
 
+      // FSSIM风格扩展状态
+      out->Vy = 0.0;                         // 初始横向速度为0
+      out->Wz = msg.z_angular_velocity;      // 偏航角速度
+      out->Ax = ax;                          // 纵向加速度
+      out->Ay = ay;                          // 横向加速度
+
       double front_dx = 0.0;
       double front_dy = 0.0;
       double rear_dx = 0.0;
@@ -70,6 +76,20 @@ bool ImuStateEstimator::Process(const Asensing &msg, double stamp_sec, CarState 
   const double gyro_z = msg.z_angular_velocity;
 
   Predict(dt, ax, ay, gyro_z);
+
+  // FSSIM-style low-speed kinematic correction
+  // 从角速度和速度估计转向角: delta ≈ atan(L * r / vx)
+  if (params_.enable_kinematic_correction)
+  {
+    const double speed = std::hypot(x_(2), x_(3));
+    if (speed > 0.1)  // 避免除零
+    {
+      // 估计转向角
+      const double estimated_steering = std::atan(params_.wheelbase * gyro_z / speed);
+      last_steering_ = estimated_steering;
+    }
+    ApplyKinematicCorrection(last_steering_);
+  }
 
   int meas_dim = 0;
   if (params_.use_gnss)
@@ -171,6 +191,19 @@ bool ImuStateEstimator::Process(const Asensing &msg, double stamp_sec, CarState 
     const double ay_m = msg.y_acc * params_.accel_gravity;
     const double az_m = msg.z_acc * params_.accel_gravity;
     out->A = std::sqrt(ax_m * ax_m + ay_m * ay_m + az_m * az_m);
+
+    // FSSIM风格扩展状态
+    // 计算车体坐标系下的速度
+    const double yaw = x_(4);
+    const double cos_yaw = std::cos(yaw);
+    const double sin_yaw = std::sin(yaw);
+    // 从世界坐标系速度转换到车体坐标系
+    // vx_body = vx_world * cos(yaw) + vy_world * sin(yaw)
+    // vy_body = -vx_world * sin(yaw) + vy_world * cos(yaw)
+    out->Vy = -x_(2) * sin_yaw + x_(3) * cos_yaw;  // 横向速度
+    out->Wz = msg.z_angular_velocity;              // 偏航角速度
+    out->Ax = ax_m;                                // 纵向加速度
+    out->Ay = ay_m;                                // 横向加速度
 
     double front_dx = 0.0;
     double front_dy = 0.0;
@@ -348,6 +381,67 @@ void ImuStateEstimator::ToMapFrame(double east, double north, double &x, double 
 {
   x = east * cos_origin_ - north * sin_origin_;
   y = east * sin_origin_ + north * cos_origin_;
+}
+
+void ImuStateEstimator::ApplyKinematicCorrection(double steering)
+{
+  if (!params_.enable_kinematic_correction)
+  {
+    return;
+  }
+
+  // 计算当前速度（世界坐标系）
+  const double vx_world = x_(2);
+  const double vy_world = x_(3);
+  const double yaw = x_(4);
+
+  // 转换到车体坐标系
+  const double cos_yaw = std::cos(yaw);
+  const double sin_yaw = std::sin(yaw);
+  const double vx_body = vx_world * cos_yaw + vy_world * sin_yaw;   // 纵向速度
+  const double vy_body = -vx_world * sin_yaw + vy_world * cos_yaw;  // 横向速度
+
+  const double speed = std::hypot(vx_body, vy_body);
+
+  // 计算混合因子 (FSSIM风格)
+  // blend = 0: 纯运动学模型 (低速)
+  // blend = 1: 纯动力学模型 (高速)
+  const double v_blend = (speed - params_.kinematic_blend_speed) / params_.kinematic_blend_range;
+  const double blend = std::fmax(std::fmin(v_blend, 1.0), 0.0);
+
+  if (blend >= 1.0)
+  {
+    // 高速：不需要修正，使用动力学模型结果
+    return;
+  }
+
+  // 运动学模型计算横向速度和偏航角速度
+  // 基于自行车模型：
+  // vy_kin = tan(delta) * vx * l_r / L
+  // r_kin = tan(delta) * vx / L
+  const double L = params_.wheelbase;
+  const double l_r = params_.cg_to_rear;
+
+  // 限制转向角避免tan发散
+  const double max_steering = 0.6;  // ~34度
+  const double delta = std::fmax(std::fmin(steering, max_steering), -max_steering);
+
+  const double tan_delta = std::tan(delta);
+  const double vy_kin = tan_delta * std::fabs(vx_body) * l_r / L;
+  const double r_kin = tan_delta * vx_body / L;
+
+  // 混合运动学和动力学结果
+  const double vy_corrected = blend * vy_body + (1.0 - blend) * vy_kin;
+
+  // 将修正后的车体速度转回世界坐标系
+  // vx_world = vx_body * cos(yaw) - vy_body * sin(yaw)
+  // vy_world = vx_body * sin(yaw) + vy_body * cos(yaw)
+  x_(2) = vx_body * cos_yaw - vy_corrected * sin_yaw;
+  x_(3) = vx_body * sin_yaw + vy_corrected * cos_yaw;
+
+  // 注意：我们不直接修正偏航角速度，因为它来自陀螺仪测量
+  // 但可以用于调试输出
+  (void)r_kin;
 }
 
 }  // namespace localization_core

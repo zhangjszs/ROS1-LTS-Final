@@ -1,0 +1,24 @@
+<launch>
+  <arg name="track" default="fsg"/>
+  <arg name="sim_rate" default="100"/>
+  <arg name="publish_tf" default="true"/>
+
+  <!-- Load vehicle parameters -->
+  <rosparam file="$(find simulation_ros)/config/vehicle.yaml" command="load" ns="simulation"/>
+
+  <!-- Load sensor parameters -->
+  <rosparam file="$(find simulation_ros)/config/sensors.yaml" command="load" ns="simulation"/>
+
+  <!-- Simulation node -->
+  <node name="simulation_node" pkg="simulation_ros" type="simulation_node" output="screen">
+    <param name="track_file" value="$(find simulation_ros)/config/tracks/$(arg track).yaml"/>
+    <param name="sim_rate" value="$(arg sim_rate)"/>
+    <param name="publish_tf" value="$(arg publish_tf)"/>
+
+    <!-- Topic remapping -->
+    <remap from="~cmd" to="/vehcileCMDMsg"/>
+    <remap from="~car_state" to="/Carstate"/>
+    <remap from="~cone_map" to="/coneMap"/>
+    <remap from="~sim_state" to="/simulation/state"/>
+  </node>
+</launch>

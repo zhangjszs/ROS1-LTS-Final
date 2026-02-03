@@ -13,7 +13,9 @@ int LineController::GetTargetIndex()
   int index = 0;
   int min = 0;
 
-  lookhead_ = angle_kv_ * car_veloc_ + angle_kl_;
+  // FSSIM风格：使用自适应前视距离
+  lookhead_ = computeAdaptiveLookahead();
+
   for (min = index = 0; index < static_cast<int>(path_coordinate_.size()); index++)
   {
     double tmp_distance = distance_square(car_x_, car_y_, path_coordinate_[index].x, path_coordinate_[index].y);
@@ -56,7 +58,11 @@ int LineController::ComputeSteering()
 
   alpha = angle_range(alpha);
 
+  // 纯追踪转向角计算
   double delta = std::atan2(2 * car_length_ * std::sin(alpha) / lookhead_, 1.0);
+
+  // FSSIM风格：滑移角补偿
+  delta = compensateSlipAngle(delta);
 
   delta = angle_pid(delta);
 

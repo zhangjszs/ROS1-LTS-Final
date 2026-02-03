@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>simulation_core</name>
+  <version>1.0.0</version>
+  <description>Core simulation algorithms for FSD vehicle dynamics and sensors (no ROS dependencies)</description>
+
+  <maintainer email="huat@example.com">HUAT Racing Team</maintainer>
+  <license>BSD-3-Clause</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>eigen</depend>
+
+  <build_depend>yaml-cpp</build_depend>
+  <exec_depend>yaml-cpp</exec_depend>
+
+  <export>
+  </export>
+</package>

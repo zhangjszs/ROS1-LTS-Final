@@ -33,6 +33,7 @@ add_message_files(  # Tell catkin which custom message files to include
   HUAT_MsfCone.msg
   HUAT_PathData.msg
   HUAT_PathLimits.msg
+  HUAT_SimState.msg
   HUAT_Stop.msg
   HUAT_TimeAndAzimuth.msg
   HUAT_TrackLimits.msg

@@ -34,6 +34,13 @@ struct ImuStateEstimatorParams {
   double rear_to_imu_x = 0.0;
   double rear_to_imu_y = 0.0;
   double rear_to_imu_z = 0.0;
+
+  // FSSIM-style low-speed kinematic correction
+  bool enable_kinematic_correction = true;   // 启用低速运动学修正
+  double wheelbase = 1.55;                   // 轴距 [m]
+  double cg_to_rear = 0.775;                 // 重心到后轴距离 [m]
+  double kinematic_blend_speed = 1.5;        // 混合速度阈值 [m/s]，低于此速度使用运动学模型
+  double kinematic_blend_range = 1.0;        // 混合过渡范围 [m/s]
 };
 
 class ImuStateEstimator {
@@ -51,6 +58,22 @@ class ImuStateEstimator {
               const Eigen::MatrixXd &H,
               const Eigen::MatrixXd &R,
               int yaw_index);
+
+  /**
+   * @brief FSSIM-style kinematic correction for low-speed stability
+   *
+   * At low speeds, the dynamic model becomes unstable due to:
+   * - Division by small velocities in slip angle calculation
+   * - Tire model linearization errors
+   *
+   * This function blends kinematic and dynamic models:
+   * - Below kinematic_blend_speed: pure kinematic model
+   * - Above kinematic_blend_speed + kinematic_blend_range: pure dynamic model
+   * - In between: smooth blend
+   *
+   * @param steering Current steering angle [rad]
+   */
+  void ApplyKinematicCorrection(double steering);
 
   void GeoDeticToENU(double lat, double lon, double h,
                      double lat0, double lon0, double h0,
@@ -73,6 +96,9 @@ class ImuStateEstimator {
   double cos_origin_ = 1.0;
   double sin_origin_ = 0.0;
   double last_up_ = 0.0;
+
+  // 保存上一次的转向角用于运动学修正
+  double last_steering_ = 0.0;
 
   Eigen::Matrix<double, 5, 1> x_;
   Eigen::Matrix<double, 5, 5> P_;

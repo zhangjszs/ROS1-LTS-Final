@@ -18,6 +18,18 @@ max_dt: 0.1
 
 accel_gravity: 9.79
 
+# FSSIM-style low-speed kinematic correction
+# 低速时动力学模型不稳定，使用运动学模型进行修正
+kinematic_correction:
+  enable: true              # 启用低速运动学修正
+  wheelbase: 1.55           # 轴距 [m]
+  cg_to_rear: 0.775         # 重心到后轴距离 [m]
+  blend_speed: 1.5          # 混合速度阈值 [m/s]，低于此速度使用运动学模型
+  blend_range: 1.0          # 混合过渡范围 [m/s]
+                            # 0~1.5 m/s: 纯运动学
+                            # 1.5~2.5 m/s: 混合
+                            # >2.5 m/s: 纯动力学
+
 topics:
   ins: "sensors/ins"
   car_state: "localization/car_state"

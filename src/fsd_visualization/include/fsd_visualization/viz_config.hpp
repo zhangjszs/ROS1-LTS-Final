@@ -27,6 +27,8 @@ constexpr std::array<float, 4> VEHICLE_BODY   = {1.0f, 1.0f, 1.0f, 0.9f}; // 车
 constexpr std::array<float, 4> VEHICLE_ARROW  = {0.0f, 1.0f, 0.0f, 1.0f}; // 方向箭头（绿）
 constexpr std::array<float, 4> VEHICLE_WHEEL  = {0.2f, 0.2f, 0.2f, 1.0f}; // 车轮（深灰）
 constexpr std::array<float, 4> VEHICLE_TRAIL  = {0.0f, 0.8f, 1.0f, 0.7f}; // 轨迹（青）
+constexpr std::array<float, 4> VEHICLE_VELOCITY = {1.0f, 0.0f, 0.5f, 1.0f}; // 速度矢量（品红）
+constexpr std::array<float, 4> VEHICLE_STEERING = {1.0f, 0.5f, 0.0f, 1.0f}; // 转向指示（橙）
 
 // 边界线颜色
 constexpr std::array<float, 4> BOUNDARY_LEFT  = {1.0f, 1.0f, 0.0f, 0.8f}; // 左边界（黄）

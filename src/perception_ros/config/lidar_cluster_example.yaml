@@ -17,7 +17,7 @@ topics:
 sensor_height: 0.125      # 激光雷达安装高度，低于 -sensor_height 的点会被剔除（镜面反射点）
 
 # 地面分割方法：ransac 简单稳定；patchworkpp 更精细但耗时更高
-ground_method: ransac     # ransac | patchworkpp  地面分割方法
+ground_method: patchworkpp     # ransac | patchworkpp  地面分割方法
 
 # --- RANSAC (ground_segmentation_ransac.cpp) ---
 ransac:
@@ -237,58 +237,58 @@ length:
   circle2lidar: 15.0        # 圆心到雷达距离（用于赛道参数）
 
 # ==========================
-# IMU & Distortion Compensation
+# IMU & Distortion Compensation V2
 # ==========================
-# IMU 数据订阅和点云畸变补偿配置
+# 改进版IMU畸变补偿配置
+# 支持：1. Velodyne点云time字段  2. IMU预积分  3. IMU-LiDAR外参
 
 imu:
   # --- IMU Topic Subscription ---
   enable: false             # IMU 功能总开关（true=启用 IMU 订阅和畸变补偿）
   topic: /pbox_pub/Ins       # IMU 数据话题（默认为 ins_bridge 发布的话题）
   buffer_size: 200           # IMU 数据缓冲区大小（保存最近 N 条消息）
-  
-  # --- Distortion Compensation ---
-  distortion:
-    enable: false            # 畸变补偿开关（独立于 IMU 订阅，可先订阅但不补偿）
-    scan_period: 0.1         # 激光扫描周期（秒），Velodyne 10Hz=0.1s, 20Hz=0.05s
-    
-    # 补偿模式选择
-    mode: velocity_accel     # velocity_only | velocity_accel | full_6dof
-                             # velocity_only: 仅使用速度补偿平移畸变
-                             # velocity_accel: 速度+加速度补偿
-                             # full_6dof: 速度+角速度补偿平移和旋转畸变
-    
-    # 坐标系配置
-    coordinate:
-      use_ned_to_frd: true   # 是否启用 NED→FRD 坐标系转换（true=启用）
-                             # NED (北东地) → FRD (前右下)，符合车体坐标系
-    
-    # 滤波和插值
-    interpolation:
-      enable: true           # 启用 IMU 时间同步插值（与点云时间戳对齐）
-      max_time_diff: 0.2     # 最大允许时间差（秒），超过则丢弃该点云
-    
-    # 调试和验证
-    debug:
-      enable: false          # 调试模式（输出补偿前后的点云对比）
-      publish_raw: false     # 发布原始未补偿点云到 /points/raw_undistorted
-      publish_compensated: false  # 发布补偿后点云到 /points/compensated
-      log_imu_data: false    # 打印 IMU 数据到 console（用于验证数据正确性）
-      log_compensation: false # 打印每帧补偿信息（速度、角速度等）
 
-  # --- IMU Sensor Parameters (未来扩展) ---
-  # 以下参数用于未来的高级畸变补偿和 IMU 预积分
+  # --- Distortion Compensation V2 ---
+  distortion:
+    enable: false            # 畸变补偿开关
+    scan_period: 0.1         # 激光扫描周期（秒），Velodyne 10Hz=0.1s, 20Hz=0.05s
+
+    # 补偿模式选择
+    mode: velocity_accel     # velocity_only | velocity_accel | full_6dof | preintegration
+                             # velocity_only: 仅使用速度补偿平移畸变
+                             # velocity_accel: 速度+加速度补偿（推荐）
+                             # full_6dof: 速度+角速度补偿平移和旋转畸变
+                             # preintegration: IMU预积分补偿（最精确，计算量大）
+
+    # 点云时间源
+    point_time_source: auto  # auto | point_time | angle
+                             # auto: 自动检测点云是否有time字段
+                             # point_time: 强制使用点云time字段
+                             # angle: 强制从角度计算时间
+
+    # 参考时刻选择
+    ref_time: scan_end       # scan_start | scan_middle | scan_end
+                             # scan_end: 使用扫描结束时刻（与ROS时间戳一致，推荐）
+                             # scan_middle: 使用扫描中间时刻
+                             # scan_start: 使用扫描起始时刻
+
+    # 调试选项
+    debug:
+      enable: false          # 调试模式
+      publish_debug_info: false  # 发布调试信息到 /distortion_debug
+
+  # --- IMU-LiDAR Extrinsics ---
+  # IMU到LiDAR的外参标定
   sensor:
-    # IMU 到 LiDAR 的外参（暂未使用，预留）
     extrinsics:
       enable: false          # 是否使用外参
-      tx: 0.0                # X 方向平移（m）
+      tx: 0.0                # X 方向平移（m）- IMU在LiDAR坐标系下的位置
       ty: 0.0                # Y 方向平移（m）
       tz: 0.0                # Z 方向平移（m）
-      roll: 0.0              # Roll 旋转（度）
+      roll: 0.0              # Roll 旋转（度）- IMU到LiDAR的旋转
       pitch: 0.0             # Pitch 旋转（度）
       yaw: 0.0               # Yaw 旋转（度）
-    
+
     # IMU 噪声模型（用于卡尔曼滤波等高级应用）
     noise:
       gyro_noise: 0.01       # 陀螺仪噪声标准差（rad/s）

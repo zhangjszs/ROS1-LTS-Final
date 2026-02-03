@@ -71,6 +71,13 @@ private:
       nh_.param("length/rearToIMUdistanceZ", params.rear_to_imu_z, 0.0);
     }
 
+    // FSSIM-style low-speed kinematic correction parameters
+    pnh_.param("kinematic_correction/enable", params.enable_kinematic_correction, true);
+    pnh_.param("kinematic_correction/wheelbase", params.wheelbase, 1.55);
+    pnh_.param("kinematic_correction/cg_to_rear", params.cg_to_rear, 0.775);
+    pnh_.param("kinematic_correction/blend_speed", params.kinematic_blend_speed, 1.5);
+    pnh_.param("kinematic_correction/blend_range", params.kinematic_blend_range, 1.0);
+
     return params;
   }
 
@@ -125,6 +132,12 @@ private:
     out->V = static_cast<float>(state.V);
     out->W = static_cast<float>(state.W);
     out->A = static_cast<float>(state.A);
+
+    // FSSIM风格扩展状态
+    out->Vy = static_cast<float>(state.Vy);
+    out->Wz = static_cast<float>(state.Wz);
+    out->Ax = static_cast<float>(state.Ax);
+    out->Ay = static_cast<float>(state.Ay);
   }
 
   void ImuCallback(const autodrive_msgs::HUAT_InsP2::ConstPtr &msg)

@@ -86,10 +86,10 @@ LidarClusterRos::LidarClusterRos(ros::NodeHandle nh, ros::NodeHandle private_nh)
   cones_pub_ = nh_.advertise<sensor_msgs::PointCloud2>(cones_topic_, 1);
   detections_pub_ = nh_.advertise<autodrive_msgs::HUAT_ConeDetections>(detections_topic_, 10);
 
-  // Initialize distortion compensator (decoupled module)
-  auto compensator_config = DistortionCompensator::LoadConfig(private_nh_);
+  // Initialize distortion compensator V2 (支持time字段、预积分、外参)
+  auto compensator_config = DistortionCompensatorV2Config::LoadFromRos(private_nh_);
   if (compensator_config.enable) {
-    compensator_ = std::make_unique<DistortionCompensator>(nh_, compensator_config);
+    compensator_ = std::make_unique<DistortionCompensatorV2>(nh_, compensator_config);
   }
 
   ROS_INFO("lidar cluster finished initialization");
@@ -611,11 +611,16 @@ void LidarClusterRos::loadParams()
 void LidarClusterRos::pointCallback(const sensor_msgs::PointCloud2ConstPtr &msg)
 {
   pcl::PointCloud<PointType>::Ptr cloud(new pcl::PointCloud<PointType>);
-  pcl::fromROSMsg(*msg, *cloud);
 
-  // Apply distortion compensation (decoupled module)
-  if (compensator_) {
-    compensator_->Compensate(cloud, msg->header.stamp.toSec());
+  // Apply distortion compensation V2 (自动检测time字段)
+  if (compensator_ && compensator_->IsEnabled()) {
+    // 使用CompensateFromMsg自动检测点云类型并补偿
+    if (!compensator_->CompensateFromMsg(*msg, cloud)) {
+      // 补偿失败，回退到普通转换
+      pcl::fromROSMsg(*msg, *cloud);
+    }
+  } else {
+    pcl::fromROSMsg(*msg, *cloud);
   }
 
   last_header_ = msg->header;

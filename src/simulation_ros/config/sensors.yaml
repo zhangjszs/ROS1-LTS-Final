@@ -1,0 +1,18 @@
+# Sensor parameters for simulation (FSSIM-style)
+lidar:
+  max_range: 20.0              # Max detection range [m]
+  fov: 3.14159                 # Field of view [rad] (180 degrees)
+  noise_radial: 0.05           # Radial noise std [m]
+  noise_angular: 0.007         # Angular noise std [rad]
+  detection_rate: 0.95         # Base detection probability
+
+camera:
+  max_range: 15.0              # Max color detection range [m]
+  color_accuracy: 0.9          # Color classification accuracy
+  delay: 0.1                   # Processing delay [s]
+
+# FSSIM-style distance-dependent parameters
+distance_dependent:
+  detection: 20.0              # Distance at which detection prob = 0
+  misclass: 15.0               # Distance at which color accuracy = 0
+  delay_noise_sigma: 0.02      # Delay noise std [s]

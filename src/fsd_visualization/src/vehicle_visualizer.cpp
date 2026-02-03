@@ -8,17 +8,23 @@ VehicleVisualizer::VehicleVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh) 
     pnh.param<std::string>("frame_id", frame_id_, FRAME_GLOBAL);
     pnh.param<int>("trail_length", trail_max_size_, 200);
     pnh.param<bool>("show_trail", show_trail_, true);
+    pnh.param<bool>("show_velocity", show_velocity_, true);
+    pnh.param<bool>("show_steering", show_steering_, true);
     pnh.param<std::string>("topics/car_state", car_state_topic_, "localization/car_state");
+    pnh.param<std::string>("topics/sim_state", sim_state_topic_, "/simulation/state");
     pnh.param<std::string>("topics/markers", markers_topic_, "fsd/viz/vehicle");
-    
+
     // 订阅
     sub_car_state_ = nh.subscribe(car_state_topic_, 1,
         &VehicleVisualizer::carStateCallback, this);
-    
+    sub_sim_state_ = nh.subscribe(sim_state_topic_, 1,
+        &VehicleVisualizer::simStateCallback, this);
+
     // 发布
     pub_markers_ = nh.advertise<visualization_msgs::MarkerArray>(markers_topic_, 1);
-    
-    ROS_INFO("[VehicleVisualizer] Initialized, trail_length=%d", trail_max_size_);
+
+    ROS_INFO("[VehicleVisualizer] Initialized, trail_length=%d, show_velocity=%d, show_steering=%d",
+             trail_max_size_, show_velocity_, show_steering_);
 }
 
 void VehicleVisualizer::carStateCallback(
@@ -71,7 +77,21 @@ void VehicleVisualizer::carStateCallback(
         auto trail = createTrailMarker(msg->header.stamp);
         markers.markers.push_back(trail);
     }
-    
+
+    // 速度矢量（如果有仿真状态）
+    if (show_velocity_ && has_sim_state_) {
+        auto velocity = createVelocityMarker(state, cached_vx_, cached_vy_);
+        velocity.header.stamp = msg->header.stamp;
+        markers.markers.push_back(velocity);
+    }
+
+    // 转向指示（如果有仿真状态）
+    if (show_steering_ && has_sim_state_) {
+        auto steering = createSteeringMarker(state, cached_steering_);
+        steering.header.stamp = msg->header.stamp;
+        markers.markers.push_back(steering);
+    }
+
     pub_markers_.publish(markers);
 }
 
@@ -255,6 +275,112 @@ visualization_msgs::Marker VehicleVisualizer::createTrailMarker(const ros::Time&
 void VehicleVisualizer::clearTrail() {
     trail_points_.clear();
     ROS_INFO("[VehicleVisualizer] Trail cleared");
+}
+
+void VehicleVisualizer::simStateCallback(
+    const autodrive_msgs::HUAT_SimState::ConstPtr& msg) {
+    // 缓存仿真状态用于可视化
+    cached_vx_ = msg->velocity.x;
+    cached_vy_ = msg->velocity.y;
+    cached_steering_ = msg->steering_angle;
+    has_sim_state_ = true;
+}
+
+visualization_msgs::Marker VehicleVisualizer::createVelocityMarker(
+    const geometry_msgs::Pose2D& state, double vx, double vy) {
+
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = frame_id_;
+    marker.ns = "vehicle_velocity";
+    marker.id = 0;
+    marker.type = visualization_msgs::Marker::ARROW;
+    marker.action = visualization_msgs::Marker::ADD;
+
+    // 起点在车辆位置
+    geometry_msgs::Point start, end;
+    start.x = state.x;
+    start.y = state.y;
+    start.z = VEHICLE_HEIGHT + 0.3;
+
+    // 将车体坐标系的速度转换到全局坐标系
+    double cos_theta = std::cos(state.theta);
+    double sin_theta = std::sin(state.theta);
+    double vx_global = vx * cos_theta - vy * sin_theta;
+    double vy_global = vx * sin_theta + vy * cos_theta;
+
+    // 速度矢量缩放（1m/s = 0.5m箭头长度）
+    double scale = 0.5;
+    end.x = start.x + vx_global * scale;
+    end.y = start.y + vy_global * scale;
+    end.z = start.z;
+
+    marker.points.push_back(start);
+    marker.points.push_back(end);
+
+    // 箭头尺寸
+    marker.scale.x = 0.1;   // 箭身直径
+    marker.scale.y = 0.2;   // 箭头直径
+    marker.scale.z = 0.2;   // 箭头长度
+
+    // 颜色
+    marker.color.r = VEHICLE_VELOCITY[0];
+    marker.color.g = VEHICLE_VELOCITY[1];
+    marker.color.b = VEHICLE_VELOCITY[2];
+    marker.color.a = VEHICLE_VELOCITY[3];
+
+    marker.lifetime = ros::Duration(0.1);
+
+    return marker;
+}
+
+visualization_msgs::Marker VehicleVisualizer::createSteeringMarker(
+    const geometry_msgs::Pose2D& state, double steering_angle) {
+
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = frame_id_;
+    marker.ns = "vehicle_steering";
+    marker.id = 0;
+    marker.type = visualization_msgs::Marker::ARROW;
+    marker.action = visualization_msgs::Marker::ADD;
+
+    // 前轴中心位置
+    double cos_theta = std::cos(state.theta);
+    double sin_theta = std::sin(state.theta);
+    double front_offset = VEHICLE_LENGTH / 2.0 - 0.3;
+
+    double front_x = state.x + front_offset * cos_theta;
+    double front_y = state.y + front_offset * sin_theta;
+
+    // 起点在前轴
+    geometry_msgs::Point start, end;
+    start.x = front_x;
+    start.y = front_y;
+    start.z = WHEEL_RADIUS + 0.1;
+
+    // 转向方向
+    double steer_global = state.theta + steering_angle;
+    double arrow_length = 0.8;
+    end.x = start.x + arrow_length * std::cos(steer_global);
+    end.y = start.y + arrow_length * std::sin(steer_global);
+    end.z = start.z;
+
+    marker.points.push_back(start);
+    marker.points.push_back(end);
+
+    // 箭头尺寸
+    marker.scale.x = 0.08;  // 箭身直径
+    marker.scale.y = 0.15;  // 箭头直径
+    marker.scale.z = 0.15;  // 箭头长度
+
+    // 颜色
+    marker.color.r = VEHICLE_STEERING[0];
+    marker.color.g = VEHICLE_STEERING[1];
+    marker.color.b = VEHICLE_STEERING[2];
+    marker.color.a = VEHICLE_STEERING[3];
+
+    marker.lifetime = ros::Duration(0.1);
+
+    return marker;
 }
 
 }  // namespace fsd_viz
