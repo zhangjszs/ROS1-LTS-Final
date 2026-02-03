@@ -82,6 +82,11 @@ struct Params {
   std::vector<double> elevation_thr;
   std::vector<double> flatness_thr;
 
+  // 优化参数（新增）
+  double th_dist_far_scale;       // 远区阈值放大系数
+  double min_normal_z;            // 法向量Z分量最小值
+  double far_zone_min_pts_scale;  // 远区最小点数缩放
+
   Params();
 };
 

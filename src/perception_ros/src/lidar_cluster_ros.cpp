@@ -79,7 +79,7 @@ LidarClusterRos::LidarClusterRos(ros::NodeHandle nh, ros::NodeHandle private_nh)
   loadParams();
   core_.Configure(config_);
 
-  sub_point_cloud_ = nh_.subscribe(input_topic_, 2, &LidarClusterRos::pointCallback, this);  // P2: 队列从100改为2
+  sub_point_cloud_ = nh_.subscribe(input_topic_, 2, &LidarClusterRos::pointCallback, this);
 
   passthrough_pub_ = nh_.advertise<sensor_msgs::PointCloud2>(passthrough_topic_, 1);
   no_ground_pub_ = nh_.advertise<sensor_msgs::PointCloud2>(no_ground_topic_, 1);
@@ -142,6 +142,16 @@ void LidarClusterRos::loadParams()
   {
     ROS_WARN_STREAM("Did not load ransac/th_dist. Standard value is: " << config_.ransac.th_dist);
   }
+  // RANSAC 优化参数
+  private_nh_.param<bool>("ransac/enable_zone", config_.ransac.enable_zone, true);
+  if (!LoadDoubleVector(private_nh_, "ransac/zone_boundaries", config_.ransac.zone_boundaries))
+  {
+    config_.ransac.zone_boundaries = {10.0, 20.0, 30.0};  // 默认值
+  }
+  private_nh_.param<bool>("ransac/adaptive_threshold", config_.ransac.adaptive_threshold, true);
+  private_nh_.param<double>("ransac/th_dist_far_scale", config_.ransac.th_dist_far_scale, 2.0);
+  private_nh_.param<double>("ransac/min_normal_z", config_.ransac.min_normal_z, 0.8);
+  private_nh_.param<bool>("ransac/progressive_iteration", config_.ransac.progressive_iteration, true);
   if (!private_nh_.param<int>("road_type", config_.road_type, 2))
   {
     ROS_WARN_STREAM("Did not load road_type. Standard value is: " << config_.road_type);
@@ -393,6 +403,19 @@ void LidarClusterRos::loadParams()
   {
     ROS_WARN_STREAM("Did not load patchworkpp/flatness_thr. Standard value is used.");
   }
+  // Patchwork++ 优化参数
+  if (!private_nh_.param<double>("patchworkpp/th_dist_far_scale", config_.patchworkpp.th_dist_far_scale, 1.5))
+  {
+    ROS_WARN_STREAM("Did not load patchworkpp/th_dist_far_scale. Standard value is: " << config_.patchworkpp.th_dist_far_scale);
+  }
+  if (!private_nh_.param<double>("patchworkpp/min_normal_z", config_.patchworkpp.min_normal_z, 0.7))
+  {
+    ROS_WARN_STREAM("Did not load patchworkpp/min_normal_z. Standard value is: " << config_.patchworkpp.min_normal_z);
+  }
+  if (!private_nh_.param<double>("patchworkpp/far_zone_min_pts_scale", config_.patchworkpp.far_zone_min_pts_scale, 2.0))
+  {
+    ROS_WARN_STREAM("Did not load patchworkpp/far_zone_min_pts_scale. Standard value is: " << config_.patchworkpp.far_zone_min_pts_scale);
+  }
   if (!private_nh_.param<std::string>("str_range", config_.str_range, "15,30,45,60"))
   {
     ROS_WARN_STREAM("Did not load str_range. Standard value is: " << config_.str_range);
@@ -596,7 +619,7 @@ void LidarClusterRos::pointCallback(const sensor_msgs::PointCloud2ConstPtr &msg)
   }
 
   last_header_ = msg->header;
-  last_seq_ = msg->header.seq;  // P0: 记录序列号
+  last_seq_ = msg->header.seq;
   got_cloud_ = true;
   core_.SetInputCloud(cloud, msg->header.seq);
 }
@@ -609,13 +632,13 @@ void LidarClusterRos::RunOnce()
     return;
   }
 
-  // P0: 新帧闸门 - 仅处理新帧
+  // 新帧闸门 - 仅处理新帧
   if (last_seq_ == last_processed_seq_)
   {
     return;  // 已处理过该帧，跳过
   }
 
-  // P0: 超时检查 - 丢弃过旧的点云
+  // 超时检查 - 丢弃过旧的点云
   // 使用帧间隔判断：如果当前帧时间戳比上一帧还旧，说明数据有问题
   // 这样可以同时支持实时运行和 rosbag 回放
   static ros::Time last_stamp;
@@ -640,7 +663,7 @@ void LidarClusterRos::RunOnce()
     return;
   }
 
-  last_processed_seq_ = last_seq_;  // P0: 更新处理序列号
+  last_processed_seq_ = last_seq_;
   publishOutput(output_);
 }
 
@@ -701,7 +724,7 @@ void LidarClusterRos::publishOutput(const LidarClusterOutput &output)
     min.z = det.min.z;
     detections.minPoints.push_back(min);
 
-    // P1: 始终填充 confidence，保持数组长度一致
+    // 始终填充 confidence，保持数组长度一致
     if (sensor_model_ != 16)
     {
       detections.confidence.push_back(static_cast<float>(det.confidence));

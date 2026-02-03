@@ -252,6 +252,14 @@ void lidar_cluster::Configure(const LidarClusterConfig &config)
     num_lpr_ = config.ransac.num_lpr;
     th_seeds_ = config.ransac.th_seeds;
     th_dist_ = config.ransac.th_dist;
+    // RANSAC 优化参数
+    enable_zone_ = config.ransac.enable_zone;
+    zone_boundaries_ = config.ransac.zone_boundaries;
+    adaptive_threshold_ = config.ransac.adaptive_threshold;
+    th_dist_far_scale_ = config.ransac.th_dist_far_scale;
+    min_normal_z_ = config.ransac.min_normal_z;
+    progressive_iteration_ = config.ransac.progressive_iteration;
+    max_range_ = roi_.custom.x_max > 0 ? roi_.custom.x_max : 50.0;
     road_type_ = config.road_type;
     ground_method_ = config.ground_method;
     roi_ = config.roi;
@@ -398,6 +406,10 @@ void lidar_cluster::Configure(const LidarClusterConfig &config)
     patchwork_params_.max_elevation_storage = config.patchworkpp.max_elevation_storage;
     patchwork_params_.elevation_thr = config.patchworkpp.elevation_thr;
     patchwork_params_.flatness_thr = config.patchworkpp.flatness_thr;
+    // Patchwork++ 优化参数
+    patchwork_params_.th_dist_far_scale = config.patchworkpp.th_dist_far_scale;
+    patchwork_params_.min_normal_z = config.patchworkpp.min_normal_z;
+    patchwork_params_.far_zone_min_pts_scale = config.patchworkpp.far_zone_min_pts_scale;
     patchwork_.reset();
     if (ground_method_ == "patchworkpp") {
         patchwork_ = std::make_unique<patchwork::PatchWorkpp>(patchwork_params_);

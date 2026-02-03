@@ -98,6 +98,9 @@ Thumbs.db
 
 # Documentation builds
 docs/_build/
+
+# Demo files
+demo/
 /site
 
 # Node.js (if applicable)

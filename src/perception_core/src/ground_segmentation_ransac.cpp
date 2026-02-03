@@ -1,20 +1,44 @@
 #include <perception_core/lidar_cluster_core.hpp>
 
 #include <algorithm>
-// 地面分割处理（改进 RANSAC）
+#include <cmath>
 
-bool point_cmp(const PointType &a, const PointType &b) // PointType表明XYZ点云库的一个点坐标
+// 地面分割处理（优化 RANSAC）
+
+bool point_cmp(const PointType &a, const PointType &b)
 {
     return a.z < b.z;
 }
 
-// ground_segmentation_ransac_     地面分段
+// 获取点所属的距离分区索引
+int lidar_cluster::getZoneIndex_(double distance) const
+{
+    if (zone_boundaries_.empty()) return 0;
+    for (size_t i = 0; i < zone_boundaries_.size(); ++i) {
+        if (distance < zone_boundaries_[i]) {
+            return static_cast<int>(i);
+        }
+    }
+    return static_cast<int>(zone_boundaries_.size());
+}
+
+// 获取自适应距离阈值
+double lidar_cluster::getAdaptiveThreshold_(double distance) const
+{
+    if (!adaptive_threshold_) return th_dist_;
+    
+    // 线性插值：近处使用 th_dist_，远处放大
+    double scale = 1.0 + (distance / max_range_) * (th_dist_far_scale_ - 1.0);
+    return th_dist_ * std::min(scale, th_dist_far_scale_);
+}
+
+// ground_segmentation_ransac_ 地面分割（优化版）
 void lidar_cluster::ground_segmentation_ransac_(const pcl::PointCloud<PointType>::Ptr &in_pc,
                                                 pcl::PointCloud<PointType>::Ptr &g_not_ground_pc)
 {
     g_not_ground_pc->points.clear();
     
-    // P0: 空云检查保护
+    // 空云检查
     if (!in_pc || in_pc->points.empty()) {
         g_not_ground_pc->width = 0;
         g_not_ground_pc->height = 1;
@@ -22,37 +46,23 @@ void lidar_cluster::ground_segmentation_ransac_(const pcl::PointCloud<PointType>
         return;
     }
     
-    // 1.Msg to pointcloud   消息转换可使用点云库
+    // 1. 按Z轴排序
     pcl::PointCloud<PointType> laserCloudIn, laserCloudIn_org;
-    laserCloudIn = laserCloudIn_org = *in_pc; // 消息赋值
-    //  For mark ground points and hold all points
-    //  2.Sort on Z-axis value.  按Z轴值排序。
-    std::sort(laserCloudIn.points.begin(), laserCloudIn.end(), point_cmp); // 从小往大排
-    // 3.Error point removal   删除错误点
-    // As there are some error mirror reflection under the ground,            存在错误的误差镜面反射点云
-    // here regardless point under 2* sensor_height
-    // Sort point according to height, here uses z-axis in default
-    // 由于地面下存在一些误差反射镜，
-    // 此处不考虑2*sensor_height下的点
-    // 根据高度对点进行排序，此处默认使用z轴
+    laserCloudIn = laserCloudIn_org = *in_pc;
+    std::sort(laserCloudIn.points.begin(), laserCloudIn.end(), point_cmp);
+    
+    // 2. 移除镜面反射点 (z < -sensor_height)
     pcl::PointCloud<PointType>::iterator it = laserCloudIn.points.begin();
-    for (int i = 0; i < laserCloudIn.points.size(); i++)
-    {
-        if (laserCloudIn.points[i].z < -1 * sensor_height_) // 0.25
-        {
+    for (size_t i = 0; i < laserCloudIn.points.size(); i++) {
+        if (laserCloudIn.points[i].z < -1 * sensor_height_) {
             it++;
-        }
-        else
-        {
+        } else {
             break;
         }
     }
-    // remove below sensor_height_* - 1.5 points   拆下传感器下方的重量_*-1.5分
     laserCloudIn.points.erase(laserCloudIn.points.begin(), it);
     
-    // P0: 过滤后可能为空
     if (laserCloudIn.points.empty()) {
-        // 如果过滤后为空，则所有点都是地面点
         g_not_ground_pc->clear();
         g_not_ground_pc->width = 0;
         g_not_ground_pc->height = 1;
@@ -60,56 +70,160 @@ void lidar_cluster::ground_segmentation_ransac_(const pcl::PointCloud<PointType>
         return;
     }
     
-    // 4. Extract init ground seeds. 提取初始地面种子
-    extract_initial_seeds_(laserCloudIn); // 这个可能压根都没用上  数据都被清空了  不对  estimate_plane_用上了
-    
-    // P0: 空种子检查
-    if (g_seeds_pc->points.empty()) {
-        // 无法估计地面平面，将所有点视为地面点
-        g_not_ground_pc->clear();
-        g_not_ground_pc->width = 0;
-        g_not_ground_pc->height = 1;
-        g_not_ground_pc->is_dense = true;
-        return;
-    }
-    
-    g_ground_pc = g_seeds_pc;             // 获取的地面种子存放到地面里面
-    // 5. Ground plane fitter mainloop
-    // 在这段代码中，是地面平面拟合的主循环。通过多次迭代来估计地面平面模型，
-    // 并将点云数据根据与地面平面的距离进行分类，存储在`g_ground_pc`和`g_not_ground_pc`中
-    for (int i = 0; i < num_iter_; i++)
-    {
-        // P0: 每次迭代前检查 g_ground_pc 是否为空
-        if (g_ground_pc->points.empty()) {
-            break;
+    // ========== 分区 RANSAC ==========
+    if (enable_zone_ && !zone_boundaries_.empty()) {
+        // 按距离分区
+        size_t num_zones = zone_boundaries_.size() + 1;
+        std::vector<pcl::PointCloud<PointType>> zone_clouds(num_zones);
+        std::vector<pcl::PointCloud<PointType>> zone_clouds_org(num_zones);
+        
+        for (const auto& pt : laserCloudIn.points) {
+            double dist = std::sqrt(pt.x * pt.x + pt.y * pt.y);
+            int zone_idx = getZoneIndex_(dist);
+            zone_clouds[zone_idx].points.push_back(pt);
+        }
+        for (const auto& pt : laserCloudIn_org.points) {
+            double dist = std::sqrt(pt.x * pt.x + pt.y * pt.y);
+            int zone_idx = getZoneIndex_(dist);
+            zone_clouds_org[zone_idx].points.push_back(pt);
         }
         
-        estimate_plane_();
-        g_ground_pc->clear();
-        g_not_ground_pc->clear();
-
-        // pointcloud to matrix       方便后续处理
-        MatrixXf points(laserCloudIn_org.points.size(), 3);
-        int j = 0;
-        for (auto p : laserCloudIn_org.points)
-        {
-            points.row(j++) << p.x, p.y, p.z;
-        }
-        // ground plane model: 点到平面距离 = |normal.T * point + d|
-        VectorXf result = points * normal_;
-        // threshold filter
-        for (int r = 0; r < result.rows(); r++)
-        {
-            if (std::abs(result[r] + d_) < th_dist_)
-            {
-                g_ground_pc->points.push_back(laserCloudIn_org[r]);
+        // 每个分区独立处理
+        for (size_t z = 0; z < num_zones; z++) {
+            if (zone_clouds[z].points.empty()) continue;
+            
+            // 计算分区中心距离用于自适应阈值
+            double zone_center_dist = (z == 0) ? zone_boundaries_[0] / 2.0 :
+                                      (z == num_zones - 1) ? zone_boundaries_.back() + 5.0 :
+                                      (zone_boundaries_[z-1] + zone_boundaries_[z]) / 2.0;
+            double th_dist_zone = getAdaptiveThreshold_(zone_center_dist);
+            
+            // 提取种子点
+            pcl::PointCloud<PointType> zone_seeds;
+            double sum = 0;
+            int cnt = 0;
+            for (size_t i = 0; i < zone_clouds[z].points.size() && cnt < num_lpr_; i++) {
+                sum += zone_clouds[z].points[i].z;
+                cnt++;
             }
-            else
-            {
-                g_not_ground_pc->points.push_back(laserCloudIn_org[r]);
+            double lpr_height = cnt != 0 ? sum / cnt : 0;
+            for (const auto& pt : zone_clouds[z].points) {
+                if (pt.z < lpr_height + th_seeds_) {
+                    zone_seeds.points.push_back(pt);
+                }
+            }
+            
+            if (zone_seeds.points.empty()) {
+                // 无种子点，视为全非地面（而非地面！）
+                for (const auto& pt : zone_clouds_org[z].points) {
+                    g_not_ground_pc->points.push_back(pt);
+                }
+                continue;
+            }
+            
+            // 迭代拟合
+            pcl::PointCloud<PointType> zone_ground = zone_seeds;
+            pcl::PointCloud<PointType> zone_not_ground;
+            
+            for (int iter = 0; iter < num_iter_; iter++) {
+                if (zone_ground.points.empty()) break;
+                
+                // SVD 计算平面
+                Eigen::Matrix3f cov;
+                Eigen::Vector4f pc_mean;
+                pcl::computeMeanAndCovarianceMatrix(zone_ground, cov, pc_mean);
+                Eigen::JacobiSVD<Eigen::MatrixXf> svd(cov, Eigen::DecompositionOptions::ComputeFullU);
+                Eigen::Vector3f normal = svd.matrixU().col(2);
+                
+                // ===== 法向量约束 =====
+                if (std::abs(normal(2)) < min_normal_z_) {
+                    // 法向量过于水平，使用默认垂直地面
+                    normal << 0, 0, 1;
+                }
+                
+                Eigen::Vector3f seeds_mean = pc_mean.head<3>();
+                float d = -(normal.transpose() * seeds_mean)(0, 0);
+                
+                zone_ground.points.clear();
+                zone_not_ground.points.clear();
+                
+                // 分类
+                for (const auto& pt : zone_clouds_org[z].points) {
+                    Eigen::Vector3f pt_vec(pt.x, pt.y, pt.z);
+                    float dist_to_plane = std::abs(normal.dot(pt_vec) + d);
+                    
+                    if (dist_to_plane < th_dist_zone) {
+                        zone_ground.points.push_back(pt);
+                    } else {
+                        zone_not_ground.points.push_back(pt);
+                    }
+                }
+                
+                // ===== 渐进式迭代 =====
+                if (progressive_iteration_ && iter > 0) {
+                    // 只保留边界点继续迭代
+                    pcl::PointCloud<PointType> boundary_points;
+                    for (const auto& pt : zone_ground.points) {
+                        Eigen::Vector3f pt_vec(pt.x, pt.y, pt.z);
+                        float dist_to_plane = std::abs(normal.dot(pt_vec) + d);
+                        // 边界点：距离在 [0.5*th_dist, th_dist] 之间
+                        if (dist_to_plane > 0.5 * th_dist_zone) {
+                            boundary_points.points.push_back(pt);
+                        }
+                    }
+                    // 如果边界点太少，提前终止
+                    if (boundary_points.points.size() < 10) break;
+                }
+            }
+            
+            // 合并非地面点
+            for (const auto& pt : zone_not_ground.points) {
+                g_not_ground_pc->points.push_back(pt);
+            }
+        }
+    } else {
+        // ========== 原始全局 RANSAC ==========
+        extract_initial_seeds_(laserCloudIn);
+        
+        if (g_seeds_pc->points.empty()) {
+            g_not_ground_pc->clear();
+            g_not_ground_pc->width = 0;
+            g_not_ground_pc->height = 1;
+            g_not_ground_pc->is_dense = true;
+            return;
+        }
+        
+        g_ground_pc = g_seeds_pc;
+        
+        for (int i = 0; i < num_iter_; i++) {
+            if (g_ground_pc->points.empty()) break;
+            
+            estimate_plane_();
+            g_ground_pc->clear();
+            g_not_ground_pc->clear();
+            
+            MatrixXf points(laserCloudIn_org.points.size(), 3);
+            int j = 0;
+            for (const auto& p : laserCloudIn_org.points) {
+                points.row(j++) << p.x, p.y, p.z;
+            }
+            
+            VectorXf result = points * normal_;
+            for (int r = 0; r < result.rows(); r++) {
+                // 自适应阈值
+                double dist = std::sqrt(laserCloudIn_org[r].x * laserCloudIn_org[r].x + 
+                                       laserCloudIn_org[r].y * laserCloudIn_org[r].y);
+                double th = getAdaptiveThreshold_(dist);
+                
+                if (std::abs(result[r] + d_) < th) {
+                    g_ground_pc->points.push_back(laserCloudIn_org[r]);
+                } else {
+                    g_not_ground_pc->points.push_back(laserCloudIn_org[r]);
+                }
             }
         }
     }
+    
     g_ground_pc->width = g_ground_pc->points.size();
     g_ground_pc->height = 1;
     g_ground_pc->is_dense = in_pc->is_dense;
@@ -118,115 +232,43 @@ void lidar_cluster::ground_segmentation_ransac_(const pcl::PointCloud<PointType>
     g_not_ground_pc->is_dense = in_pc->is_dense;
 }
 
-// extract_initial_seeds_  extract_initial_seds（提取初始设置）_
-//`extract_initial_seeds_`函数用于从排序后的点云数据`p_sorted`中提取初始的地面种子点。
+// extract_initial_seeds_ 提取初始种子点
 void lidar_cluster::extract_initial_seeds_(const pcl::PointCloud<PointType> &p_sorted)
 {
-    // LPR is the mean of low point representative             LPR是代表低点的平均值
     double sum = 0;
     int cnt = 0;
-    // Calculate the mean height value.                 计算平均高度值。
-    for (int i = 0; i < p_sorted.points.size() && cnt < num_lpr_; i++)
-    {
+    for (size_t i = 0; i < p_sorted.points.size() && cnt < num_lpr_; i++) {
         sum += p_sorted.points[i].z;
         cnt++;
     }
-    double lpr_height = cnt != 0 ? sum / cnt : 0; // in case divide by 0            平均高度
+    double lpr_height = cnt != 0 ? sum / cnt : 0;
     g_seeds_pc->clear();
-    // iterate pointcloud, filter those height is less than lpr.height+th_seeds_            迭代掉高度小于这个的点  越大去除的点越多  可能飞地面点也去除了
-    for (int i = 0; i < p_sorted.points.size(); i++)
-    {
-        if (p_sorted.points[i].z < lpr_height + th_seeds_)
-        {
-            g_seeds_pc->points.push_back(p_sorted.points[i]);
+    for (const auto& pt : p_sorted.points) {
+        if (pt.z < lpr_height + th_seeds_) {
+            g_seeds_pc->points.push_back(pt);
         }
     }
-    // return seeds points       最后放进去的都是地面种子点
 }
 
-// estimate_plane_  估计_平面_           用于估计平面的方程参数
-// 平面的法线向量可以用于描述平面的方向、倾斜程度等信息。在点云处理中，
-// 通过估计平面的法线向量，可以确定地面的朝向和倾斜程度，从而实现地面分割、障碍物检测等任务。
-// 而通过估计距离阈值，可以确定离地面的距离范围，从而将地面点和非地面点分离开来。
+// estimate_plane_ 估计平面参数
 void lidar_cluster::estimate_plane_(void)
 {
-    // P1: 空云保护
     if (!g_ground_pc || g_ground_pc->points.empty()) {
         return;
     }
 
-    // Create covarian matrix in single pass.
-    // 在单程中创建协变矩阵。
-    Eigen::Matrix3f cov;     // 协方差矩阵
-    Eigen::Vector4f pc_mean; // 4维的均值向量pc_mean
+    Eigen::Matrix3f cov;
+    Eigen::Vector4f pc_mean;
     pcl::computeMeanAndCovarianceMatrix(*g_ground_pc, cov, pc_mean);
-    // Singular Value Decomposition: SVD
-    ////奇异值分解：SVD
     JacobiSVD<MatrixXf> svd(cov, Eigen::DecompositionOptions::ComputeFullU);
-    // use the least singular vector as normal
-    // 使用最小奇异向量作为法线             通过取最小奇异向量作为平面的法线，可以确定平面的朝向。
     normal_ = (svd.matrixU().col(2));
-    // mean ground seeds value
-    // 平均地面种子值
+    
+    // ===== 法向量约束 =====
+    if (std::abs(normal_(2)) < min_normal_z_) {
+        normal_ << 0, 0, 1;
+    }
+    
     Eigen::Vector3f seeds_mean = pc_mean.head<3>();
-
-    // according to normal.T*[x,y,z] = -d
-    // 根据法线。T*[x，y，z]=-d
-    d_ = -(normal_.transpose() * seeds_mean)(0, 0); // 可以得到平面方程中的常数项D。这样就可以将平面方程完整地表示出来。
-    // set distance threhold to `th_dist - d`          Ax + By + Cz + D = 0
-    // 将距离阈值设置为`th_dist-d`
-    // th_dist_这个值越大 接受偏离地面程度越高  所以越大去除地面越多。。
+    d_ = -(normal_.transpose() * seeds_mean)(0, 0);
     th_dist_d_ = th_dist_ - d_;
-
-    // return the equation parameters
-    // 返回方程式参数
 }
-
-// 1. 创建一个3x3的协方差矩阵cov和一个4维的均值向量pc_mean。
-// 2. 使用pcl库中的computeMeanAndCovarianceMatrix函数计算输入点云g_ground_pc的均值和协方差矩阵。
-// 3. 使用奇异值分解（SVD）对协方差矩阵cov进行分解，计算其特征向量和特征值。
-// 4. 使用最小奇异向量作为平面的法线normal_。
-// 5. 提取pc_mean的前3个元素作为地面种子点的均值seeds_mean。
-// 6. 根据平面方程的定义，将法线normal_与种子点均值seeds_mean的内积取负值作为平面方程的距离d_。
-// 7. 将距离阈值th_dist_减去距离d_得到距离阈值th_dist_d_。
-// 8. 返回平面方程的法线和距离阈值。
-// 估计平面的法线和距离阈值的目的是将点云数据分割为地面和非地面两个部分。通过估计平面的法线，可以确定地面的朝向和倾斜程度。
-// 而通过估计距离阈值，可以确定离地面的距离范围，从而将地面点和非地面点分离开来。
-// 在激光雷达数据处理中，地面通常被认为是相对平坦的区域，而非地面则包括了障碍物、
-// 建筑物等。通过估计平面的法线和距离阈值，可以将地面点从点云数据中提取出来，从而更好地进行地面分割、障碍物检测等任务。
-
-// 平面的法线是指垂直于平面的向量。在三维空间中，一个平面可以由一个点和与该平面垂直的法线向量唯一确定。法线向量的方向与平面的朝向相同，长度为1。
-
-// 对于平面的方程Ax + By + Cz + D = 0，其中A、B、C是平面的法向量的分量，D是平面方程的常数项。法线向量的分量就是(A, B, C)。
-
-// 平面的法线向量可以用于描述平面的方向、倾斜程度等信息。在点云处理中，通过估计平面的法线向量，可以确定地面的朝向和倾斜程度，从而实现地面分割、障碍物检测等任务。
-// 奇异值分解（Singular Value Decomposition，SVD）是一种矩阵分解的方法，可以将一个矩阵分解为三个矩阵的乘积。对于协方差矩阵cov，SVD可以得到其特征向量和特征值。
-
-// SVD的原理是将一个矩阵分解为三个矩阵的乘积：A = U * S * V^T，其中A是待分解的矩阵，U和V是正交矩阵，S是对角矩阵。在S中，对角线上的元素称为奇异值，它们是按照从大到小的顺序排列的。
-
-// 对于协方差矩阵cov，它是一个对称矩阵，可以进行SVD分解。通过SVD分解，可以得到U和V两个正交矩阵，它们的列向量是cov的特征向量。而S的对角线上的元素是cov的特征值的平方根。
-
-// 在代码中，通过使用JacobiSVD类进行SVD分解，使用cov作为输入矩阵，获得其特征向量和特征值。通过取最小奇异向量作为平面的法线，可以确定平面的朝向。
-
-// 平面方程的定义是Ax + By + Cz + D = 0，其中A、B、C是平面的法向量的分量，D是平面方程的常数项。法线normal_是平面的法向量，种子点均值seeds_mean是平面上的一个点。
-
-// 将法线normal_与种子点均值seeds_mean的内积取负值作为平面方程的距离d_的意义是确定平面方程的常数项D。通过计算法线向量与一个平面上的点的内积，可以得到平面方程中的常数项D。这样就可以将平面方程完整地表示出来。
-
-// 通过确定平面方程的常数项D，可以将点云数据中的点带入平面方程中进行判断，判断点是否在该平面上。对于一个点(x, y, z)，如果满足Ax + By + Cz + D = 0，那么该点就在平面上。而如果不满足该方程，那么该点就不在平面上。
-
-// 在代码中，通过计算法线normal_与种子点均值seeds_mean的内积，并取负值，得到平面方程的常数项D，即距离d_。这样就可以用平面方程来判断点云数据中的点是否属于该平面。
-
-// 这段代码是将点云数据存储在一个Eigen库的MatrixXf对象中。
-
-// 首先，创建一个MatrixXf对象`points`，其大小为(laserCloudIn_org.points.size(), 3)，即点云数据的总点数乘以3（每个点有三个坐标）。
-
-// 然后，使用一个循环遍历点云数据`laserCloudIn_org.points`中的每个点。对于每个点p，使用`points.row(j++) << p.x, p.y, p.z`将其坐标值（x、y、z）存储在MatrixXf对象的第j行中。
-
-// 这段代码的目的是将点云数据从`laserCloudIn_org.points`中提取出来，并按照每个点的坐标值存储在MatrixXf对象中，以便后续对点云数据进行处理和计算。
-// 这段代码用于对点云数据进行阈值过滤，筛选出符合地面模型的点。
-
-// 首先，将点云数据`points`与平面的法线`normal_`进行点乘运算，得到一个VectorXf对象`result`。这个运算相当于将每个点的坐标与平面的法线进行内积运算，得到每个点到平面的距离。
-
-// 然后，根据设定的阈值，对`result`进行过滤，将距离小于阈值的点保留下来，即将符合地面模型的点筛选出来。
-
-// 通过这个阈值过滤，可以将点云数据中的地面点与非地面点分离开来，进一步进行地面分割和障碍物检测等任务。

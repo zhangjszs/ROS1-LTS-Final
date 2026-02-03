@@ -1,8 +1,7 @@
 /*
  * @Description: 点云畸变补偿
  * @Author: Jiaxi Dai
- * @Date: 2020-02-25 14:38:12
- * @Modified: 2025 - 同步2024huat加速度补偿功能
+ * @Date: 2020-02-25
  */
 
 #ifndef LIDAR_LOCALIZATION_MODELS_SCAN_ADJUST_DISTORTION_ADJUST_HPP_
@@ -47,7 +46,6 @@ class DistortionAdjust {
     
     /**
      * @brief 设置运动信息（速度+加速度）
-     * [2024huat同步] 从旧项目移植的接口
      * @param scan_period 激光扫描周期（秒）
      * @param velocity_data IMU数据，包含速度信息
      * @param acceleration_data IMU数据，包含加速度信息
@@ -69,7 +67,7 @@ class DistortionAdjust {
     float scan_period_ = 0.1f;
     Eigen::Vector3f velocity_ = Eigen::Vector3f::Zero();
     Eigen::Vector3f angular_rate_ = Eigen::Vector3f::Zero();
-    Eigen::Vector3f acceleration_ = Eigen::Vector3f::Zero();  ///< [2024huat同步] 加速度
+    Eigen::Vector3f acceleration_ = Eigen::Vector3f::Zero();  ///< 加速度
     CompensationMode mode_ = CompensationMode::VELOCITY_ONLY;
     float head_ = 0.0f;
     float pitch_ = 0.0f;

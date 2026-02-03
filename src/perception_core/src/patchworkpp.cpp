@@ -38,7 +38,10 @@ Params::Params()
       max_flatness_storage(1000),
       max_elevation_storage(1000),
       elevation_thr({0, 0, 0, 0}),
-      flatness_thr({0, 0, 0, 0})
+      flatness_thr({0, 0, 0, 0}),
+      th_dist_far_scale(1.5),
+      min_normal_z(0.7),
+      far_zone_min_pts_scale(2.0)
 {
 }
 
@@ -144,6 +147,12 @@ void PatchWorkpp::estimate_plane(const std::vector<PointXYZ> &ground)
     for (int i = 0; i < 3; i++) {
       normal_(i) *= -1;
     }
+  }
+
+  // 法向量约束：拒绝过于水平的平面
+  if (normal_(2) < params_.min_normal_z) {
+    // 法向量Z分量过小，使用默认垂直地面
+    normal_ << 0, 0, 1;
   }
 
   // mean ground seeds value
@@ -356,13 +365,17 @@ void PatchWorkpp::estimateGround(Eigen::MatrixXf cloud_in)
         if (!is_upright) {
           addCloud(cloud_nonground_, regionwise_ground_);
         } else if (!is_near_zone) {
-          // 远区：基于平面拟合质量的简化检查
+          // 远区优化：结合法向量垂直性、点密度和平面拟合质量
           // line_variable 表示平面拟合的线性程度，值越大说明点云越接近线状（非平面）
-          // 当 line_variable > 0.2 时，说明平面拟合质量差，可能是噪声或非地面
-          if (line_variable > 0.2) {
-            addCloud(cloud_nonground_, regionwise_ground_);
-          } else {
+          const int far_min_pts = static_cast<int>(params_.num_min_pts * params_.far_zone_min_pts_scale);
+          const bool enough_points = regionwise_ground_.size() >= static_cast<size_t>(far_min_pts);
+          const bool is_good_plane = line_variable < 0.2;  // 平面拟合质量好
+          const bool is_vertical_enough = ground_uprightness > 0.6;  // 法向量足够垂直
+          
+          if (is_good_plane && is_vertical_enough && enough_points) {
             addCloud(cloud_ground_, regionwise_ground_);
+          } else {
+            addCloud(cloud_nonground_, regionwise_ground_);
           }
         } else if (!is_heading_outside) {
           addCloud(cloud_nonground_, regionwise_ground_);
@@ -630,6 +643,11 @@ void PatchWorkpp::extract_piecewiseground(const int zone_idx,
   extract_initial_seeds(zone_idx, src_wo_verticals, ground_pc_);
   estimate_plane(ground_pc_);
 
+  // 远区自适应阈值：远处点云稀疏，适当放宽阈值
+  const double th_dist_effective = (zone_idx >= 2) 
+      ? params_.th_dist * params_.th_dist_far_scale 
+      : params_.th_dist;
+
   for (int i = 0; i < params_.num_iter; i++) {
     ground_pc_.clear();
 
@@ -637,11 +655,11 @@ void PatchWorkpp::extract_piecewiseground(const int zone_idx,
       const double distance = calc_point_to_plane_d(point, normal_, d_);
 
       if (i < params_.num_iter - 1) {
-        if (distance < params_.th_dist) {
+        if (distance < th_dist_effective) {
           ground_pc_.push_back(point);
         }
       } else {
-        if (distance < params_.th_dist) {
+        if (distance < th_dist_effective) {
           dst.push_back(point);
         } else {
           non_ground_dst.push_back(point);

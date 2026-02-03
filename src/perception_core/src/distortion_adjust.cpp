@@ -1,8 +1,7 @@
 /*
  * @Description: 点云畸变补偿
  * @Author: Jiaxi Dai
- * @Date: 2021年11月29日14:52:37
- * @Modified: 2025 - 同步2024huat加速度补偿功能
+ * @Date: 2021-11-29
  */
 #include <perception_core/distortion_adjust.hpp>
 
@@ -33,13 +32,12 @@ void DistortionAdjust::SetMotionInfo(float scan_period, const IMUData& velocity_
                      velocity_data.angular_velocity.wz;
     
     // 加速度已经是FRD车体系，直接使用
-    // [2024huat同步] 从同一个 IMU 数据中提取加速度
     acceleration_ << velocity_data.acceleration.ax,
                      velocity_data.acceleration.ay,
                      velocity_data.acceleration.az;
 }
 
-// [2024huat同步] 双IMU数据接口，用于速度和加速度来自不同时刻的情况
+// 双IMU数据接口，用于速度和加速度来自不同时刻的情况
 void DistortionAdjust::SetMotionInfo(float scan_period, const IMUData& velocity_data, const IMUData& acceleration_data)
 {
     scan_period_ = scan_period;
@@ -59,7 +57,7 @@ void DistortionAdjust::SetMotionInfo(float scan_period, const IMUData& velocity_
                      velocity_data.angular_velocity.wy,
                      velocity_data.angular_velocity.wz;
     
-    // [2024huat同步] 从加速度数据中提取，支持两个IMU数据源
+    // 从加速度数据中提取
     acceleration_ << acceleration_data.acceleration.ax,
                      acceleration_data.acceleration.ay,
                      acceleration_data.acceleration.az;
@@ -68,7 +66,7 @@ void DistortionAdjust::SetMotionInfo(float scan_period, const IMUData& velocity_
 void DistortionAdjust::AdjustCloud(pcl::PointCloud<PointType>::Ptr &input_cloud_ptr, 
                                    pcl::PointCloud<PointType>::Ptr &output_cloud_ptr)
 {
-    // P0: 空云检查保护
+    // 空云检查保护
     if (!input_cloud_ptr || input_cloud_ptr->points.empty()) {
         output_cloud_ptr = input_cloud_ptr;
         return;
@@ -84,7 +82,7 @@ void DistortionAdjust::AdjustCloud(pcl::PointCloud<PointType>::Ptr &input_cloud_
     float orientation_space = FULL_ROTATION_RAD;
     float delete_space = EDGE_EXCLUSION_RAD;
     
-    // P0: 空云检查已在上面完成，这里可以安全访问 points[0]
+    // 空云检查已在上面完成，这里可以安全访问 points[0]
     float start_orientation = atan2(origin_cloud_ptr->points[0].y, origin_cloud_ptr->points[0].x);
     Eigen::AngleAxisf t_V(start_orientation, Eigen::Vector3f::UnitZ());
     Eigen::Matrix3f rotate_matrix = t_V.matrix();
@@ -92,10 +90,10 @@ void DistortionAdjust::AdjustCloud(pcl::PointCloud<PointType>::Ptr &input_cloud_
     transform_matrix.block<3, 3>(0, 0) = rotate_matrix.inverse();
     pcl::transformPointCloud(*origin_cloud_ptr, *origin_cloud_ptr, transform_matrix);
     
-    // P1修复：速度和角速度应使用inverse变换，与点云变换一致
+    // 速度和角速度应使用inverse变换，与点云变换一致
     Eigen::Vector3f velocity_rotated = rotate_matrix.inverse() * velocity_;
     Eigen::Vector3f angular_rate_rotated = rotate_matrix.inverse() * angular_rate_;
-    // [2024huat同步] 加速度也需要变换到旋转后的坐标系
+    // 加速度也需要变换到旋转后的坐标系
     Eigen::Vector3f acceleration_rotated = rotate_matrix.inverse() * acceleration_;
 
     for (size_t point_index = 0; point_index < origin_cloud_ptr->points.size(); ++point_index)
@@ -116,7 +114,7 @@ void DistortionAdjust::AdjustCloud(pcl::PointCloud<PointType>::Ptr &input_cloud_
                                      origin_cloud_ptr->points[point_index].y,
                                      origin_cloud_ptr->points[point_index].z);
 
-        // P0修复：补偿方向应为反向（从点采集时刻回到参考时刻）
+        // 补偿方向应为反向（从点采集时刻回到参考时刻）
         Eigen::Matrix3f current_matrix = UpdateMatrix(real_time, angular_rate_rotated);
         Eigen::Vector3f rotated_point = current_matrix.inverse() * origin_point;
 
@@ -142,7 +140,7 @@ void DistortionAdjust::AdjustCloud(pcl::PointCloud<PointType>::Ptr &input_cloud_
         point.x = adjusted_point(0);
         point.y = adjusted_point(1);
         point.z = adjusted_point(2);
-        // P0: 复制 intensity 字段
+        // 复制 intensity 字段
         point.intensity = origin_cloud_ptr->points[point_index].intensity;
         output_cloud_ptr->points.push_back(point);
     }

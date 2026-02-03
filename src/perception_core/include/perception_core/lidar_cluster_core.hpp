@@ -92,6 +92,20 @@ struct LidarClusterConfig
     int num_lpr = 5;
     double th_seeds = 0.03;
     double th_dist = 0.03;
+    
+    // 分区RANSAC: 按距离分区独立拟合
+    bool enable_zone = true;
+    std::vector<double> zone_boundaries = {10.0, 20.0, 30.0};
+    
+    // 自适应阈值: 远处放宽阈值
+    bool adaptive_threshold = true;
+    double th_dist_far_scale = 2.0;  // 远处阈值放大系数
+    
+    // 法向量约束: 拒绝水平法向量
+    double min_normal_z = 0.8;  // 法向量Z分量最小值
+    
+    // 渐进式迭代: 只处理边界点
+    bool progressive_iteration = true;
   };
 
   struct PatchworkppConfig
@@ -126,6 +140,11 @@ struct LidarClusterConfig
 
     std::vector<double> elevation_thr = {0, 0, 0, 0};
     std::vector<double> flatness_thr = {0, 0, 0, 0};
+
+    // 优化参数（新增）
+    double th_dist_far_scale = 1.5;       // 远区阈值放大系数
+    double min_normal_z = 0.7;            // 法向量Z分量最小值
+    double far_zone_min_pts_scale = 2.0;  // 远区最小点数缩放
   };
 
   struct RoiRange
@@ -316,6 +335,9 @@ private:
                                    pcl::PointCloud<PointType>::Ptr &g_not_ground_pc);
   void ground_segmentation_patchworkpp_(const pcl::PointCloud<PointType>::Ptr &in_pc,
                                         pcl::PointCloud<PointType>::Ptr &g_not_ground_pc);
+  // RANSAC 优化辅助函数
+  int getZoneIndex_(double distance) const;
+  double getAdaptiveThreshold_(double distance) const;
 
   // filter
   void PassThrough(pcl::PointCloud<PointType>::Ptr &cloud_filtered);
@@ -374,6 +396,14 @@ private:
   int num_lpr_ = 0;
   double th_seeds_ = 0.0;
   double th_dist_ = 0.0;
+  // RANSAC 优化参数
+  bool enable_zone_ = true;
+  std::vector<double> zone_boundaries_;
+  bool adaptive_threshold_ = true;
+  double th_dist_far_scale_ = 2.0;
+  double min_normal_z_ = 0.8;
+  bool progressive_iteration_ = true;
+  double max_range_ = 50.0;  // 用于自适应阈值计算
   std::string ground_method_ = "ransac";
   std::string str_range_;
   std::string str_seg_distance_;
