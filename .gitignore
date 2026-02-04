@@ -55,6 +55,8 @@ venv.bak/
 .vscode/
 .idea/
 .claude/
+.github/
+.trae/
 *.swp
 *.swo
 *~
@@ -97,7 +99,7 @@ Thumbs.db
 *.sqlite3
 
 # Documentation builds
-docs/_build/
+docs/
 
 # Demo files
 demo/
