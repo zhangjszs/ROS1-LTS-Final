@@ -183,9 +183,9 @@ Visualization Manager:
           Marker Topic: /fsd/viz/cones
           Name: Cones
           Namespaces:
-            cone_bbox: true
-            cone_detections: true
-            cone_distance: true
+            cone_bbox: false
+            cone_detections: false
+            cone_distance: false
             cone_map: true
           Queue Size: 100
           Value: true
@@ -212,7 +212,17 @@ Visualization Manager:
           Namespaces:
             vehicle_arrow: true
             vehicle_body: true
+            vehicle_trail: true
+            vehicle_velocity: true
             vehicle_wheels: true
+          Queue Size: 100
+          Value: true
+        - Class: rviz/MarkerArray
+          Enabled: true
+          Marker Topic: /fsd/viz/triangulation
+          Name: Triangulation
+          Namespaces:
+            {}
           Queue Size: 100
           Value: true
       Enabled: true
@@ -244,8 +254,8 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Class: rviz/Orbit
-      Distance: 29.229951858520508
+      Class: rviz/ThirdPersonFollower
+      Distance: 20
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -253,7 +263,7 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 15
+        X: 0
         Y: 0
         Z: 0
       Focal Shape Fixed Size: false
@@ -261,10 +271,30 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.6000000238418579
+      Pitch: 0.4000000059604645
       Target Frame: base_link
       Yaw: 3.140000104904175
-    Saved: ~
+    Saved:
+      - Class: rviz/Orbit
+        Distance: 50
+        Enable Stereo Rendering:
+          Stereo Eye Separation: 0.05999999865889549
+          Stereo Focal Distance: 1
+          Swap Stereo Eyes: false
+          Value: false
+        Field of View: 0.7853981852531433
+        Focal Point:
+          X: 0
+          Y: 0
+          Z: 0
+        Focal Shape Fixed Size: false
+        Focal Shape Size: 0.05000000074505806
+        Invert Z Axis: false
+        Name: Top-Down Overview
+        Near Clip Distance: 0.009999999776482582
+        Pitch: 1.5700000524520874
+        Target Frame: base_link
+        Yaw: 3.140000104904175
 Window Geometry:
   Displays:
     collapsed: false

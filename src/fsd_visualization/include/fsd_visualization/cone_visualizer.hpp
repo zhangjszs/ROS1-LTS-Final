@@ -18,7 +18,8 @@ private:
     
     visualization_msgs::Marker createConeMarker(
         double x, double y, double z,
-        int id, int type, const std::string& ns, const std::string& frame_id);
+        int id, int type, const std::string& ns, const std::string& frame_id,
+        float confidence = 1.0f);
 
     visualization_msgs::Marker createBoundingBoxMarker(
         const geometry_msgs::Point32& min_pt,
@@ -42,6 +43,10 @@ private:
     double cone_height_;
     bool show_bounding_box_;
     bool show_distance_label_;
+    bool use_mesh_;
+    bool use_confidence_alpha_;
+    float min_alpha_;
+    std::string cone_mesh_type_;  // "fssim" or "gazebo"
 };
 
 }  // namespace fsd_viz

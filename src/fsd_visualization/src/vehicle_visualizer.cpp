@@ -10,6 +10,7 @@ VehicleVisualizer::VehicleVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh) 
     pnh.param<bool>("show_trail", show_trail_, true);
     pnh.param<bool>("show_velocity", show_velocity_, true);
     pnh.param<bool>("show_steering", show_steering_, true);
+    pnh.param<bool>("use_mesh", use_mesh_, true);
     pnh.param<std::string>("topics/car_state", car_state_topic_, "localization/car_state");
     pnh.param<std::string>("topics/sim_state", sim_state_topic_, "/simulation/state");
     pnh.param<std::string>("topics/markers", markers_topic_, "fsd/viz/vehicle");
@@ -97,19 +98,13 @@ void VehicleVisualizer::carStateCallback(
 
 visualization_msgs::Marker VehicleVisualizer::createBodyMarker(
     const geometry_msgs::Pose2D& state) {
-    
+
     visualization_msgs::Marker marker;
     marker.header.frame_id = frame_id_;
     marker.ns = "vehicle_body";
     marker.id = 0;
-    marker.type = visualization_msgs::Marker::CUBE;
     marker.action = visualization_msgs::Marker::ADD;
-    
-    // 位置
-    marker.pose.position.x = state.x;
-    marker.pose.position.y = state.y;
-    marker.pose.position.z = VEHICLE_HEIGHT / 2.0;
-    
+
     // 朝向 - 使用 theta 字段
     tf2::Quaternion q;
     q.setRPY(0, 0, state.theta);
@@ -117,20 +112,46 @@ visualization_msgs::Marker VehicleVisualizer::createBodyMarker(
     marker.pose.orientation.y = q.y();
     marker.pose.orientation.z = q.z();
     marker.pose.orientation.w = q.w();
-    
-    // 尺寸
-    marker.scale.x = VEHICLE_LENGTH;
-    marker.scale.y = VEHICLE_WIDTH;
-    marker.scale.z = VEHICLE_HEIGHT;
-    
-    // 颜色
-    marker.color.r = VEHICLE_BODY[0];
-    marker.color.g = VEHICLE_BODY[1];
-    marker.color.b = VEHICLE_BODY[2];
-    marker.color.a = VEHICLE_BODY[3];
-    
+
+    if (use_mesh_) {
+        // 3D STL 赛车模型
+        marker.type = visualization_msgs::Marker::MESH_RESOURCE;
+        marker.mesh_resource = MESH_VEHICLE_BODY;
+
+        marker.pose.position.x = state.x;
+        marker.pose.position.y = state.y;
+        marker.pose.position.z = 0.0;
+
+        // STL 单位为 mm，缩放到 m
+        marker.scale.x = VEHICLE_MESH_SCALE;
+        marker.scale.y = VEHICLE_MESH_SCALE;
+        marker.scale.z = VEHICLE_MESH_SCALE;
+
+        // 浅灰色
+        marker.color.r = 0.75f;
+        marker.color.g = 0.75f;
+        marker.color.b = 0.75f;
+        marker.color.a = 1.0f;
+    } else {
+        // 原始 CUBE 渲染
+        marker.type = visualization_msgs::Marker::CUBE;
+
+        marker.pose.position.x = state.x;
+        marker.pose.position.y = state.y;
+        marker.pose.position.z = VEHICLE_HEIGHT / 2.0;
+
+        marker.scale.x = VEHICLE_LENGTH;
+        marker.scale.y = VEHICLE_WIDTH;
+        marker.scale.z = VEHICLE_HEIGHT;
+
+        marker.color.r = VEHICLE_BODY[0];
+        marker.color.g = VEHICLE_BODY[1];
+        marker.color.b = VEHICLE_BODY[2];
+        marker.color.a = VEHICLE_BODY[3];
+    }
+
     marker.lifetime = ros::Duration(0.1);
-    
+
     return marker;
 }
 
@@ -175,8 +196,13 @@ visualization_msgs::Marker VehicleVisualizer::createArrowMarker(
 
 std::vector<visualization_msgs::Marker> VehicleVisualizer::createWheelMarkers(
     const geometry_msgs::Pose2D& state) {
-    
+
     std::vector<visualization_msgs::Marker> wheels;
+
+    // STL 模型已包含车轮，跳过
+    if (use_mesh_) {
+        return wheels;
+    }
     
     // 车轮位置（相对于车辆中心）
     const double half_length = VEHICLE_LENGTH / 2.0 - 0.3;

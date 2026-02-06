@@ -31,6 +31,7 @@ add_executable(fsd_viz_node
   src/cone_visualizer.cpp
   src/path_visualizer.cpp
   src/vehicle_visualizer.cpp
+  src/triangulation_visualizer.cpp
 )
 target_link_libraries(fsd_viz_node ${catkin_LIBRARIES})
 
@@ -43,6 +44,6 @@ install(DIRECTORY include/${PROJECT_NAME}/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
 )
 
-install(DIRECTORY launch rviz config
+install(DIRECTORY launch rviz config meshes
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )

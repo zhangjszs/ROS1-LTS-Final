@@ -45,6 +45,7 @@ private:
     bool show_trail_;
     bool show_velocity_;
     bool show_steering_;
+    bool use_mesh_;
 
     // 轨迹历史
     std::deque<geometry_msgs::Point> trail_points_;

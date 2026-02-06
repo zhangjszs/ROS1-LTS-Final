@@ -4,17 +4,23 @@
     <arg name="enable_cones" default="true"/>
     <arg name="enable_path" default="true"/>
     <arg name="enable_vehicle" default="true"/>
+    <arg name="enable_triangulation" default="true"/>
     <arg name="frame_id" default="velodyne"/>
     <arg name="show_trail" default="true"/>
     <arg name="trail_length" default="200"/>
+    <arg name="use_mesh" default="true"/>
+    <arg name="cone_mesh_type" default="gazebo"/>
 
     <node name="fsd_viz_node" pkg="fsd_visualization" type="fsd_viz_node" output="screen">
         <param name="enable_cones" value="$(arg enable_cones)"/>
         <param name="enable_path" value="$(arg enable_path)"/>
         <param name="enable_vehicle" value="$(arg enable_vehicle)"/>
+        <param name="enable_triangulation" value="$(arg enable_triangulation)"/>
         <param name="frame_id" value="$(arg frame_id)"/>
         <param name="show_trail" value="$(arg show_trail)"/>
         <param name="trail_length" value="$(arg trail_length)"/>
+        <param name="use_mesh" value="$(arg use_mesh)"/>
+        <param name="cone_mesh_type" value="$(arg cone_mesh_type)"/>
     </node>
     <node pkg="rosbag" type="play" name="rosbag_play" output="screen" args="$(arg bag)" if="$(eval arg('bag') != '')" />
 </launch>

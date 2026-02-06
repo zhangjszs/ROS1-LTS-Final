@@ -1,4 +1,5 @@
 #include "fsd_visualization/cone_visualizer.hpp"
+#include <algorithm>
 
 namespace fsd_viz {
 
@@ -9,6 +10,10 @@ ConeVisualizer::ConeVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh) {
     pnh.param<double>("cone_height", cone_height_, CONE_HEIGHT);
     pnh.param<bool>("show_bounding_box", show_bounding_box_, true);
     pnh.param<bool>("show_distance_label", show_distance_label_, true);
+    pnh.param<bool>("use_mesh", use_mesh_, true);
+    pnh.param<bool>("use_confidence_alpha", use_confidence_alpha_, true);
+    pnh.param<float>("min_alpha", min_alpha_, 0.3f);
+    pnh.param<std::string>("cone_mesh_type", cone_mesh_type_, "gazebo");
     pnh.param<std::string>("topics/cone_detections", cone_detections_topic_, "perception/lidar_cluster/detections");
     pnh.param<std::string>("topics/cone_map", cone_map_topic_, "localization/cone_map");
     pnh.param<std::string>("topics/markers", markers_topic_, "fsd/viz/cones");
@@ -44,9 +49,14 @@ void ConeVisualizer::coneDetectionsCallback(
     // 创建锥桶 markers（圆柱体）
     for (size_t i = 0; i < msg->points.size(); ++i) {
         const auto& point = msg->points[i];
+        float confidence = 1.0f;
+        if (use_confidence_alpha_ && i < msg->confidence.size()) {
+            confidence = msg->confidence[i];
+        }
         auto marker = createConeMarker(
             point.x, point.y, point.z,
-            static_cast<int>(i), color_type, "cone_detections", msg->header.frame_id);
+            static_cast<int>(i), color_type, "cone_detections", msg->header.frame_id,
+            confidence);
         marker.header.stamp = msg->header.stamp;
         markers.markers.push_back(marker);
     }
@@ -85,10 +95,16 @@ void ConeVisualizer::coneMapCallback(
     // 创建锥桶 markers - 使用 cone 数组和 position_global
     for (size_t i = 0; i < msg->cone.size(); ++i) {
         const auto& cone = msg->cone[i];
+        float confidence = 1.0f;
+        if (use_confidence_alpha_ && cone.confidence > 0) {
+            // uint32 归一化为 0~1（假设 confidence 范围 0~100）
+            confidence = std::min(1.0f, static_cast<float>(cone.confidence) / 100.0f);
+        }
         // Use global frame_id_ for global map
         auto marker = createConeMarker(
             cone.position_global.x, cone.position_global.y, cone.position_global.z,
-            static_cast<int>(cone.id), static_cast<int>(cone.type), "cone_map", frame_id_);
+            static_cast<int>(cone.id), static_cast<int>(cone.type), "cone_map", frame_id_,
+            confidence);
         marker.header.stamp = msg->header.stamp;
         markers.markers.push_back(marker);
     }
@@ -98,35 +114,77 @@ void ConeVisualizer::coneMapCallback(
 
 visualization_msgs::Marker ConeVisualizer::createConeMarker(
     double x, double y, double z,
-    int id, int type, const std::string& ns, const std::string& frame_id) {
-    
+    int id, int type, const std::string& ns, const std::string& frame_id,
+    float confidence) {
+
     visualization_msgs::Marker marker;
     marker.header.frame_id = frame_id;
     marker.ns = ns;
     marker.id = id;
-    marker.type = visualization_msgs::Marker::CYLINDER;
     marker.action = visualization_msgs::Marker::ADD;
-    
-    // 位置（锥桶底部在地面）
-    marker.pose.position.x = x;
-    marker.pose.position.y = y;
-    marker.pose.position.z = z + cone_height_ / 2.0;
-    marker.pose.orientation.w = 1.0;
-    
-    // 尺寸（锥形近似为圆柱）
-    marker.scale.x = cone_radius_ * 2.0;
-    marker.scale.y = cone_radius_ * 2.0;
-    marker.scale.z = cone_height_;
-    
+
+    if (use_mesh_) {
+        // 3D DAE 网格模型
+        marker.type = visualization_msgs::Marker::MESH_RESOURCE;
+
+        if (cone_mesh_type_ == "gazebo") {
+            // Gazebo construction_cone：带纹理贴图，所有锥桶用同一模型
+            marker.mesh_resource = MESH_CONE_GAZEBO;
+            marker.mesh_use_embedded_materials = true;
+            // DAE 单位 inch，需 scale=10 得到约 0.3m 高
+            marker.scale.x = CONE_GAZEBO_SCALE;
+            marker.scale.y = CONE_GAZEBO_SCALE;
+            marker.scale.z = CONE_GAZEBO_SCALE;
+        } else {
+            // FSSIM 分色 DAE：蓝/黄/橙各一个模型，颜色内嵌
+            marker.mesh_resource = getConeMeshURI(type);
+            marker.mesh_use_embedded_materials = true;
+            marker.scale.x = 1.0;
+            marker.scale.y = 1.0;
+            marker.scale.z = 1.0;
+        }
+
+        // DAE 原点在底部，不需要 z 偏移
+        marker.pose.position.x = x;
+        marker.pose.position.y = y;
+        marker.pose.position.z = z;
+        marker.pose.orientation.w = 1.0;
+    } else {
+        // 原始 CYLINDER 渲染
+        marker.type = visualization_msgs::Marker::CYLINDER;
+
+        marker.pose.position.x = x;
+        marker.pose.position.y = y;
+        marker.pose.position.z = z + cone_height_ / 2.0;
+        marker.pose.orientation.w = 1.0;
+
+        marker.scale.x = cone_radius_ * 2.0;
+        marker.scale.y = cone_radius_ * 2.0;
+        marker.scale.z = cone_height_;
+    }
+
     // 颜色
-    auto color = getConeColor(type);
-    marker.color.r = color[0];
-    marker.color.g = color[1];
-    marker.color.b = color[2];
-    marker.color.a = color[3];
-    
-    marker.lifetime = ros::Duration(1.0);  // 1s lifetime to prevent flickering in RViz
-    
+    if (use_mesh_ && cone_mesh_type_ == "gazebo") {
+        // Gazebo 锥桶使用纹理贴图，颜色设为白色不干扰纹理
+        marker.color.r = 1.0f;
+        marker.color.g = 1.0f;
+        marker.color.b = 1.0f;
+    } else {
+        auto color = getConeColor(type);
+        marker.color.r = color[0];
+        marker.color.g = color[1];
+        marker.color.b = color[2];
+    }
+
+    // 置信度透明度映射
+    if (use_confidence_alpha_) {
+        marker.color.a = std::max(min_alpha_, confidence);
+    } else {
+        marker.color.a = 1.0f;
+    }
+
+    marker.lifetime = ros::Duration(1.0);
+
     return marker;
 }
 

@@ -1,0 +1,68 @@
+<!--
+  FSD TrackDrive Mission - 高速循迹
+  
+  用法:
+    roslaunch fsd_launch trackdrive.launch
+    roslaunch fsd_launch trackdrive.launch simulation:=true bag:=/path/to/bag.bag
+-->
+<launch>
+    <!-- ========== Arguments ========== -->
+    <arg name="simulation" default="false" doc="仿真模式"/>
+    <arg name="bag" default="" doc="Rosbag 路径（仿真模式必填）"/>
+    <arg name="rate" default="1.0" doc="回放速率"/>
+    <arg name="loop" default="false" doc="rosbag 是否循环播放"/>
+    <arg name="launch_rviz" default="true" doc="启动 RViz"/>
+    <arg name="launch_viz" default="true" doc="启动可视化节点"/>
+    <arg name="rviz_mode" default="main" doc="RViz模式: main(综合), global(全局), pointcloud(点云), dual(双窗口)"/>
+
+    <!-- ========== Simulation Time ========== -->
+    <param name="/use_sim_time" value="$(arg simulation)"/>
+
+    <!-- ========== 参数校验 ========== -->
+    <!-- 仿真模式必须指定bag路径 -->
+    <group if="$(arg simulation)">
+        <group unless="$(eval bag != '')">
+            <node pkg="rospy" type="message" name="error_check" output="screen" args="错误：仿真模式必须指定bag文件路径！使用参数 bag:=/path/to/bag.bag"/>
+        </group>
+    </group>
+
+    <!-- ========== Subsystems ========== -->
+    <include file="$(find fsd_launch)/launch/subsystems/perception.launch">
+        <arg name="launch_rviz" value="false"/>
+    </include>
+
+    <include file="$(find fsd_launch)/launch/subsystems/localization.launch"/>
+
+    <include file="$(find fsd_launch)/launch/subsystems/planning.launch">
+        <arg name="planner" value="high_speed"/>
+    </include>
+
+    <include file="$(find fsd_launch)/launch/subsystems/control.launch"/>
+
+    <!-- Vehicle Interface (非仿真模式) -->
+    <include unless="$(arg simulation)" file="$(find fsd_launch)/launch/subsystems/vehicle.launch"/>
+
+    <!-- ========== Tools ========== -->
+    <!-- Static TF: world → velodyne (全局坐标系到车辆坐标系) REMOVED: Corrected in visualization node to use proper TF frames -->
+    <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="world_to_velodyne_tf" args="0 0 0 0 0 0 world velodyne"/> -->
+
+    <!-- Rosbag Player (仿真模式) -->
+    <include if="$(arg simulation)" file="$(find fsd_launch)/launch/tools/rosbag_play.launch">
+        <arg name="bag" value="$(arg bag)"/>
+        <arg name="rate" value="$(arg rate)"/>
+        <arg name="loop" value="$(arg loop)"/>
+    </include>
+
+    <!-- FSD Visualization Node -->
+    <include if="$(arg launch_viz)" file="$(find fsd_visualization)/launch/visualization.launch">
+        <arg name="frame_id" value="world"/>
+        <arg name="show_trail" value="true"/>
+    </include>
+
+    <!-- RViz -->
+    <include if="$(arg launch_rviz)" file="$(find fsd_launch)/launch/tools/rviz.launch">
+        <arg name="config" value="high_speed"/>
+        <arg name="enable_viz_node" value="false"/>
+        <arg name="mode" value="$(arg rviz_mode)"/>
+    </include>
+</launch>

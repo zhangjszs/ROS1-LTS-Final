@@ -3,10 +3,19 @@
 
 # 颜色配置 - 这些可以在运行时通过 dynamic_reconfigure 调整
 
+# 3D 网格模型
+use_mesh: true
+# 锥桶模型类型: "gazebo" (带纹理贴图) 或 "fssim" (分色 DAE)
+cone_mesh_type: gazebo
+
 # 锥桶
 cone:
   radius: 0.15
   height: 0.30
+
+# 置信度透明度
+use_confidence_alpha: true
+min_alpha: 0.3
 
 # 路径
 path:
@@ -26,3 +35,9 @@ vehicle:
 trail:
   max_size: 200
   width: 0.05
+
+# 三角剖分可视化
+show_triangulation: true
+show_circumcenters: false
+show_midpoints: true
+show_computed_path: true

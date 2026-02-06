@@ -84,4 +84,36 @@ inline std::array<float, 4> getConeColor(int type) {
     return getConeColor(static_cast<ConeType>(type));
 }
 
+// ============ 3D 网格资源 URI ============
+
+// --- FSSIM 锥桶 DAE 模型（内嵌颜色，无外部纹理） ---
+const std::string MESH_CONE_BLUE       = "package://fsd_visualization/meshes/cone/cone_blue.dae";
+const std::string MESH_CONE_YELLOW     = "package://fsd_visualization/meshes/cone/cone_yellow.dae";
+const std::string MESH_CONE_ORANGE     = "package://fsd_visualization/meshes/cone/cone_orange.dae";
+const std::string MESH_CONE_ORANGE_BIG = "package://fsd_visualization/meshes/cone/cone_orange_big.dae";
+
+// --- Gazebo construction_cone（带纹理贴图的高质量锥桶） ---
+const std::string MESH_CONE_GAZEBO     = "package://fsd_visualization/meshes/cone/construction_cone.dae";
+// Gazebo cone DAE 单位为 inch (0.0254m)，SDF 中用 scale=10 → 实际约 0.3m 高
+// RViz MESH_RESOURCE 的 scale 直接乘以几何体坐标，所以 scale=10 即可
+constexpr float CONE_GAZEBO_SCALE      = 10.0f;
+
+// --- 赛车模型 ---
+const std::string MESH_VEHICLE_BODY    = "package://fsd_visualization/meshes/vehicle/whole_car.stl";
+constexpr float VEHICLE_MESH_SCALE     = 0.001f;  // STL 单位为 mm，需缩放到 m
+
+inline std::string getConeMeshURI(ConeType type) {
+    switch (type) {
+        case ConeType::BLUE:       return MESH_CONE_BLUE;
+        case ConeType::YELLOW:     return MESH_CONE_YELLOW;
+        case ConeType::ORANGE:     return MESH_CONE_ORANGE;
+        case ConeType::ORANGE_BIG: return MESH_CONE_ORANGE_BIG;
+        default:                   return MESH_CONE_ORANGE;  // 未知类型用橙色
+    }
+}
+
+inline std::string getConeMeshURI(int type) {
+    return getConeMeshURI(static_cast<ConeType>(type));
+}
+
 }  // namespace fsd_viz
