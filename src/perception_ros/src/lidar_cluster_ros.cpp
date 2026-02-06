@@ -1,5 +1,6 @@
 #include <perception_ros/lidar_cluster_ros.hpp>
 
+#include <algorithm>
 #include <ros/serialization.h>
 #include <xmlrpcpp/XmlRpcValue.h>
 #include <pcl_conversions/pcl_conversions.h>
@@ -95,6 +96,16 @@ LidarClusterRos::LidarClusterRos(ros::NodeHandle nh, ros::NodeHandle private_nh)
   ROS_INFO("lidar cluster finished initialization");
 }
 
+bool LidarClusterRos::IsLegacyPollMode() const
+{
+  return pipeline_mode_ == "legacy_poll";
+}
+
+double LidarClusterRos::LegacyPollHz() const
+{
+  return legacy_poll_hz_;
+}
+
 void LidarClusterRos::loadParams()
 {
   if (!private_nh_.param<std::string>("topics/input", input_topic_, "points/raw"))
@@ -116,6 +127,35 @@ void LidarClusterRos::loadParams()
   if (!private_nh_.param<std::string>("topics/detections", detections_topic_, "detections"))
   {
     ROS_WARN_STREAM("Did not load topics/detections. Standard value is: " << detections_topic_);
+  }
+
+  // 性能优化选项
+  if (!private_nh_.param<bool>("use_point_cloud_pool", use_point_cloud_pool_, false))
+  {
+    ROS_INFO_STREAM("Did not load use_point_cloud_pool. Standard value is: " << use_point_cloud_pool_);
+  }
+  if (use_point_cloud_pool_)
+  {
+    ROS_INFO("Point cloud pool enabled for memory optimization");
+  }
+
+  if (!private_nh_.param<std::string>("pipeline_mode", pipeline_mode_, "event_driven"))
+  {
+    ROS_WARN_STREAM("Did not load pipeline_mode. Standard value is: " << pipeline_mode_);
+  }
+  if (pipeline_mode_ != "event_driven" && pipeline_mode_ != "legacy_poll")
+  {
+    ROS_WARN_STREAM("Invalid pipeline_mode: " << pipeline_mode_ << ", fallback to event_driven");
+    pipeline_mode_ = "event_driven";
+  }
+  if (!private_nh_.param<double>("legacy_poll_hz", legacy_poll_hz_, 10.0))
+  {
+    ROS_WARN_STREAM("Did not load legacy_poll_hz. Standard value is: " << legacy_poll_hz_);
+  }
+  if (legacy_poll_hz_ <= 0.0)
+  {
+    ROS_WARN_STREAM("Invalid legacy_poll_hz: " << legacy_poll_hz_ << ", fallback to 10.0");
+    legacy_poll_hz_ = 10.0;
   }
 
   if (!private_nh_.param<double>("sensor_height", config_.sensor_height, 0.135))
@@ -159,6 +199,35 @@ void LidarClusterRos::loadParams()
   if (!private_nh_.param<std::string>("ground_method", config_.ground_method, "ransac"))
   {
     ROS_WARN_STREAM("Did not load ground_method. Standard value is: " << config_.ground_method);
+  }
+  if (!private_nh_.param<bool>("force_fgs_fast_path", force_fgs_fast_path_, true))
+  {
+    ROS_WARN_STREAM("Did not load force_fgs_fast_path. Standard value is: " << force_fgs_fast_path_);
+  }
+  if (force_fgs_fast_path_ && config_.ground_method != "fgs")
+  {
+    ROS_WARN_STREAM("force_fgs_fast_path enabled: override ground_method from "
+                    << config_.ground_method << " to fgs");
+    config_.ground_method = "fgs";
+  }
+  if (!private_nh_.param<bool>("ground_watchdog/enable", ground_watchdog_enable_, true))
+  {
+    ROS_WARN_STREAM("Did not load ground_watchdog/enable. Standard value is: " << ground_watchdog_enable_);
+  }
+  if (!private_nh_.param<double>("ground_watchdog/warn_ms", ground_watchdog_warn_ms_, 8.0))
+  {
+    ROS_WARN_STREAM("Did not load ground_watchdog/warn_ms. Standard value is: " << ground_watchdog_warn_ms_);
+  }
+  if (!private_nh_.param<int>("ground_watchdog/warn_consecutive_frames", ground_watchdog_warn_frames_, 5))
+  {
+    ROS_WARN_STREAM("Did not load ground_watchdog/warn_consecutive_frames. Standard value is: "
+                    << ground_watchdog_warn_frames_);
+  }
+  if (ground_watchdog_warn_frames_ < 1)
+  {
+    ROS_WARN_STREAM("Invalid ground_watchdog/warn_consecutive_frames: "
+                    << ground_watchdog_warn_frames_ << ", fallback to 1");
+    ground_watchdog_warn_frames_ = 1;
   }
   if (!private_nh_.param<std::string>("roi/mode", config_.roi.mode, "track"))
   {
@@ -307,6 +376,49 @@ void LidarClusterRos::loadParams()
   {
     ROS_WARN_STREAM("Did not load filters/use_cropbox. Standard value is: " << config_.filters.use_cropbox);
   }
+  // 柱状障碍物滤波参数（基于局部z跨度去除树/墙壁）
+  private_nh_.param<bool>("filters/obstacle_height/enable", config_.filters.obstacle_height.enable, true);
+  private_nh_.param<double>("filters/obstacle_height/grid_size", config_.filters.obstacle_height.grid_size, 0.5);
+  private_nh_.param<double>("filters/obstacle_height/max_z_span", config_.filters.obstacle_height.max_z_span, 0.5);
+  private_nh_.param<int>("filters/obstacle_height/min_points_to_judge", config_.filters.obstacle_height.min_points_to_judge, 3);
+  private_nh_.param<double>("filters/obstacle_height/min_distance", config_.filters.obstacle_height.min_distance, 10.0);
+
+  // FGS (Fast Ground Segmentation) 参数
+  private_nh_.param<int>("fgs/num_sectors", config_.fgs.num_sectors, 32);
+  private_nh_.param<int>("fgs/num_bins", config_.fgs.num_bins, 80);
+  private_nh_.param<double>("fgs/max_range", config_.fgs.max_range, 80.0);
+  private_nh_.param<double>("fgs/min_range", config_.fgs.min_range, 0.1);
+  private_nh_.param<double>("fgs/sensor_height", config_.fgs.sensor_height, 0.135);
+  private_nh_.param<double>("fgs/th_ground", config_.fgs.th_ground, 0.08);
+  private_nh_.param<double>("fgs/th_ground_far", config_.fgs.th_ground_far, 0.15);
+  private_nh_.param<double>("fgs/far_distance", config_.fgs.far_distance, 20.0);
+  // 近距离参数（解决正前方地面分割问题）
+  private_nh_.param<double>("fgs/near_distance", config_.fgs.near_distance, 2.0);
+  private_nh_.param<double>("fgs/th_ground_near", config_.fgs.th_ground_near, 0.12);
+  private_nh_.param<double>("fgs/max_slope", config_.fgs.max_slope, 0.3);
+  private_nh_.param<double>("fgs/min_normal_z", config_.fgs.min_normal_z, 0.85);
+  private_nh_.param<double>("fgs/max_height_diff", config_.fgs.max_height_diff, 0.3);
+  private_nh_.param<bool>("fgs/use_neighbor_model", config_.fgs.use_neighbor_model, true);
+  // 增量线段生长参数 (Zermas 2017)
+  private_nh_.param<int>("fgs/max_segments_per_sector", config_.fgs.max_segments_per_sector, 4);
+  private_nh_.param<double>("fgs/segment_merge_dist", config_.fgs.segment_merge_dist, 0.05);
+  // 地面点精细化 (Zermas 2017)
+  private_nh_.param<bool>("fgs/enable_refinement", config_.fgs.enable_refinement, false);
+  // 代表点选择 (Himmelsbach 2010)
+  private_nh_.param<bool>("fgs/use_lowest_n_mean", config_.fgs.use_lowest_n_mean, true);
+  private_nh_.param<int>("fgs/lowest_n", config_.fgs.lowest_n, 3);
+  // 扇区间平滑 (Himmelsbach 2010)
+  private_nh_.param<bool>("fgs/enable_sector_smoothing", config_.fgs.enable_sector_smoothing, true);
+  // 帧间时序平滑 (抑制闪烁)
+  private_nh_.param<bool>("fgs/enable_temporal_smoothing", config_.fgs.enable_temporal_smoothing, true);
+  private_nh_.param<double>("fgs/temporal_alpha", config_.fgs.temporal_alpha, 0.3);
+  // 地面判定阈值对称性
+  private_nh_.param<double>("fgs/ground_below_factor", config_.fgs.ground_below_factor, 1.5);
+  // temporal alpha 自适应（S弯/快速变向）
+  private_nh_.param<bool>("fgs/enable_adaptive_alpha", config_.fgs.enable_adaptive_alpha, true);
+  private_nh_.param<double>("fgs/adaptive_alpha_max", config_.fgs.adaptive_alpha_max, 0.9);
+  private_nh_.param<double>("fgs/adaptive_alpha_threshold", config_.fgs.adaptive_alpha_threshold, 0.05);
+
   if (!private_nh_.param<bool>("patchworkpp/enable_rnr", config_.patchworkpp.enable_rnr, true))
   {
     ROS_WARN_STREAM("Did not load patchworkpp/enable_rnr. Standard value is: " << config_.patchworkpp.enable_rnr);
@@ -514,6 +626,28 @@ void LidarClusterRos::loadParams()
   {
     ROS_WARN_STREAM("Did not load cluster/point_clip/max_distance. Standard value is: " << config_.cluster.point_clip.max_distance);
   }
+  // FEC (Fast Euclidean Clustering) 参数
+  if (!private_nh_.param<bool>("cluster/fec/enable", config_.cluster.fec.enable, true))
+  {
+    ROS_WARN_STREAM("Did not load cluster/fec/enable. Standard value is: " << config_.cluster.fec.enable);
+  }
+  if (!private_nh_.param<double>("cluster/fec/quality", config_.cluster.fec.quality, 0.3))
+  {
+    ROS_WARN_STREAM("Did not load cluster/fec/quality. Standard value is: " << config_.cluster.fec.quality);
+  }
+  // 多帧累积参数
+  if (!private_nh_.param<bool>("cluster/multi_frame/enable", config_.cluster.multi_frame.enable, true))
+  {
+    ROS_WARN_STREAM("Did not load cluster/multi_frame/enable. Standard value is: " << config_.cluster.multi_frame.enable);
+  }
+  if (!private_nh_.param<int>("cluster/multi_frame/num_frames", config_.cluster.multi_frame.num_frames, 2))
+  {
+    ROS_WARN_STREAM("Did not load cluster/multi_frame/num_frames. Standard value is: " << config_.cluster.multi_frame.num_frames);
+  }
+  if (!private_nh_.param<double>("cluster/multi_frame/max_distance", config_.cluster.multi_frame.max_distance, 10.0))
+  {
+    ROS_WARN_STREAM("Did not load cluster/multi_frame/max_distance. Standard value is: " << config_.cluster.multi_frame.max_distance);
+  }
 
   if (!private_nh_.param<double>("min_height", config_.min_height, -1))
   {
@@ -536,6 +670,41 @@ void LidarClusterRos::loadParams()
   {
     ROS_WARN("Did not load max_box_altitude.");
   }
+
+  // ---- Confidence 参数加载（修复：之前YAML中的confidence/*参数从未被读取） ----
+  private_nh_.param<double>("confidence/min_height", config_.confidence.min_height, 0.15);
+  private_nh_.param<double>("confidence/max_height", config_.confidence.max_height, 0.5);
+  private_nh_.param<double>("confidence/min_area", config_.confidence.min_area, 0.01);
+  private_nh_.param<double>("confidence/max_area", config_.confidence.max_area, 0.15);
+  private_nh_.param<double>("confidence/max_box_altitude", config_.confidence.max_box_altitude, 0.5);
+  private_nh_.param<double>("confidence/min_aspect_ratio", config_.confidence.min_aspect_ratio, 1.5);
+  private_nh_.param<double>("confidence/min_verticality", config_.confidence.min_verticality, 0.8);
+  private_nh_.param<double>("confidence/min_density_near", config_.confidence.min_density_near, 50.0);
+  private_nh_.param<double>("confidence/min_density_far", config_.confidence.min_density_far, 10.0);
+  private_nh_.param<double>("confidence/distance_threshold", config_.confidence.distance_threshold, 5.0);
+  private_nh_.param<double>("confidence/min_intensity_mean", config_.confidence.min_intensity_mean, 30.0);
+  private_nh_.param<double>("confidence/weight_size", config_.confidence.weight_size, 0.3);
+  private_nh_.param<double>("confidence/weight_shape", config_.confidence.weight_shape, 0.25);
+  private_nh_.param<double>("confidence/weight_density", config_.confidence.weight_density, 0.2);
+  private_nh_.param<double>("confidence/weight_intensity", config_.confidence.weight_intensity, 0.15);
+  private_nh_.param<double>("confidence/weight_position", config_.confidence.weight_position, 0.1);
+  private_nh_.param<bool>("confidence/enable_model_fitting", config_.confidence.enable_model_fitting, true);
+  private_nh_.param<double>("confidence/model_fit_bonus", config_.confidence.model_fit_bonus, 0.2);
+  private_nh_.param<double>("confidence/model_fit_penalty", config_.confidence.model_fit_penalty, 0.15);
+  // 距离自适应置信度门槛
+  private_nh_.param<double>("confidence/min_confidence_near", config_.confidence.min_confidence_near, 0.0);
+  private_nh_.param<double>("confidence/min_confidence_far", config_.confidence.min_confidence_far, 0.3);
+  private_nh_.param<double>("confidence/confidence_ramp_start", config_.confidence.confidence_ramp_start, 10.0);
+  private_nh_.param<double>("confidence/confidence_ramp_end", config_.confidence.confidence_ramp_end, 30.0);
+
+  // ---- 距离自适应Y轴ROI参数 ----
+  private_nh_.param<bool>("roi/adaptive_y/enable", config_.roi.adaptive_y.enable, false);
+  private_nh_.param<double>("roi/adaptive_y/near_y_half", config_.roi.adaptive_y.near_y_half, 5.0);
+  private_nh_.param<double>("roi/adaptive_y/far_y_half", config_.roi.adaptive_y.far_y_half, 2.0);
+  private_nh_.param<double>("roi/adaptive_y/ramp_start_x", config_.roi.adaptive_y.ramp_start_x, 5.0);
+
+  // 根据 roi.mode 覆盖对应赛道预设参数
+  applyModePreset();
 
   ROS_INFO("sensor_height: %f", config_.sensor_height);
   ROS_INFO("sensor_model: %d", config_.sensor_model);
@@ -567,7 +736,18 @@ void LidarClusterRos::loadParams()
            config_.filters.intensity.min_intensity);
   ROS_INFO("filters/use_cropbox: %s",
            config_.filters.use_cropbox ? "on" : "off");
+  ROS_INFO("filters/obstacle_height: %s (grid=%.2f, max_z_span=%.2f, min_pts=%d, min_dist=%.1f)",
+           config_.filters.obstacle_height.enable ? "on" : "off",
+           config_.filters.obstacle_height.grid_size,
+           config_.filters.obstacle_height.max_z_span,
+           config_.filters.obstacle_height.min_points_to_judge,
+           config_.filters.obstacle_height.min_distance);
   ROS_INFO("cluster/method: %s", config_.cluster.method.c_str());
+  ROS_INFO("force_fgs_fast_path: %s", force_fgs_fast_path_ ? "on" : "off");
+  ROS_INFO("ground_watchdog: %s (warn_ms=%.3f, consecutive=%d)",
+           ground_watchdog_enable_ ? "on" : "off",
+           ground_watchdog_warn_ms_,
+           ground_watchdog_warn_frames_);
   ROS_INFO("cluster/adaptive_size: %s (near: %d-%d, far: %d-%d)",
            config_.cluster.adaptive_size.enable ? "on" : "off",
            config_.cluster.adaptive_size.near_min_size,
@@ -577,6 +757,25 @@ void LidarClusterRos::loadParams()
   ROS_INFO("cluster/fixed_size: min=%d, max=%d",
            config_.cluster.min_cluster_size,
            config_.cluster.max_cluster_size);
+  ROS_INFO("cluster/fec: %s (quality=%.2f)",
+           config_.cluster.fec.enable ? "on" : "off",
+           config_.cluster.fec.quality);
+  ROS_INFO("cluster/multi_frame: %s (num_frames=%d, max_distance=%.1f)",
+           config_.cluster.multi_frame.enable ? "on" : "off",
+           config_.cluster.multi_frame.num_frames,
+           config_.cluster.multi_frame.max_distance);
+  ROS_INFO("confidence: weights(size=%.2f, shape=%.2f, density=%.2f, intensity=%.2f, position=%.2f)",
+           config_.confidence.weight_size, config_.confidence.weight_shape,
+           config_.confidence.weight_density, config_.confidence.weight_intensity,
+           config_.confidence.weight_position);
+  ROS_INFO("confidence: ramp(near=%.2f, far=%.2f, start=%.1fm, end=%.1fm)",
+           config_.confidence.min_confidence_near, config_.confidence.min_confidence_far,
+           config_.confidence.confidence_ramp_start, config_.confidence.confidence_ramp_end);
+  ROS_INFO("roi/adaptive_y: %s (near_y_half=%.1f, far_y_half=%.1f, ramp_start_x=%.1f)",
+           config_.roi.adaptive_y.enable ? "on" : "off",
+           config_.roi.adaptive_y.near_y_half,
+           config_.roi.adaptive_y.far_y_half,
+           config_.roi.adaptive_y.ramp_start_x);
   if (config_.cluster.method == "dbscan")
   {
     ROS_INFO("cluster/dbscan: eps=%f, min_pts=%d, adaptive_eps=%s (near=%f, far=%f)",
@@ -606,6 +805,64 @@ void LidarClusterRos::loadParams()
   perf_stats_.Configure("lidar_cluster", perf_enabled_, perf_window_, perf_log_every_);
 
   sensor_model_ = config_.sensor_model;
+  ROS_INFO_STREAM("pipeline_mode: " << pipeline_mode_ << ", legacy_poll_hz: " << legacy_poll_hz_);
+}
+
+void LidarClusterRos::applyModePreset()
+{
+  std::string mode = config_.roi.mode;
+  std::transform(mode.begin(), mode.end(), mode.begin(),
+                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+  std::string prefix = "mode_presets/" + mode;
+
+  if (!private_nh_.hasParam(prefix)) {
+    if (mode != "custom") {
+      ROS_WARN("No mode_preset found for '%s', using defaults", mode.c_str());
+    }
+    return;
+  }
+
+  ROS_INFO("Applying mode preset: %s", mode.c_str());
+
+  // 覆盖 confidence ramp 参数
+  private_nh_.param<double>(prefix + "/confidence/min_confidence_near",
+                            config_.confidence.min_confidence_near,
+                            config_.confidence.min_confidence_near);
+  private_nh_.param<double>(prefix + "/confidence/min_confidence_far",
+                            config_.confidence.min_confidence_far,
+                            config_.confidence.min_confidence_far);
+  private_nh_.param<double>(prefix + "/confidence/confidence_ramp_start",
+                            config_.confidence.confidence_ramp_start,
+                            config_.confidence.confidence_ramp_start);
+  private_nh_.param<double>(prefix + "/confidence/confidence_ramp_end",
+                            config_.confidence.confidence_ramp_end,
+                            config_.confidence.confidence_ramp_end);
+
+  // 覆盖 adaptive_y 参数
+  private_nh_.param<bool>(prefix + "/adaptive_y/enable",
+                          config_.roi.adaptive_y.enable,
+                          config_.roi.adaptive_y.enable);
+  if (config_.roi.adaptive_y.enable) {
+    private_nh_.param<double>(prefix + "/adaptive_y/near_y_half",
+                              config_.roi.adaptive_y.near_y_half,
+                              config_.roi.adaptive_y.near_y_half);
+    private_nh_.param<double>(prefix + "/adaptive_y/far_y_half",
+                              config_.roi.adaptive_y.far_y_half,
+                              config_.roi.adaptive_y.far_y_half);
+    private_nh_.param<double>(prefix + "/adaptive_y/ramp_start_x",
+                              config_.roi.adaptive_y.ramp_start_x,
+                              config_.roi.adaptive_y.ramp_start_x);
+  }
+
+  // 覆盖 cluster 分段参数
+  std::vector<double> segments, tolerances;
+  if (LoadDoubleVector(private_nh_, prefix + "/cluster/distance_segments", segments)) {
+    config_.cluster.distance_segments = segments;
+  }
+  if (LoadDoubleVector(private_nh_, prefix + "/cluster/cluster_tolerance", tolerances)) {
+    config_.cluster.cluster_tolerance = tolerances;
+  }
 }
 
 void LidarClusterRos::pointCallback(const sensor_msgs::PointCloud2ConstPtr &msg)
@@ -623,13 +880,27 @@ void LidarClusterRos::pointCallback(const sensor_msgs::PointCloud2ConstPtr &msg)
     pcl::fromROSMsg(*msg, *cloud);
   }
 
+  std::lock_guard<std::mutex> lock(seq_mutex_);
   last_header_ = msg->header;
   last_seq_ = msg->header.seq;
   got_cloud_ = true;
-  core_.SetInputCloud(cloud, msg->header.seq);
+  // 零拷贝：转移点云所有权给core，避免深拷贝
+  core_.SetInputCloud(std::move(cloud), msg->header.seq);
+
+  // 事件驱动路径：收到新帧立即处理
+  if (!IsLegacyPollMode())
+  {
+    runOnceLocked();
+  }
 }
 
 void LidarClusterRos::RunOnce()
+{
+  std::lock_guard<std::mutex> lock(seq_mutex_);
+  runOnceLocked();
+}
+
+void LidarClusterRos::runOnceLocked()
 {
   if (!got_cloud_)
   {
@@ -646,67 +917,96 @@ void LidarClusterRos::RunOnce()
   // 超时检查 - 丢弃过旧的点云
   // 使用帧间隔判断：如果当前帧时间戳比上一帧还旧，说明数据有问题
   // 这样可以同时支持实时运行和 rosbag 回放
-  static ros::Time last_stamp;
-  if (!last_stamp.isZero() && last_header_.stamp < last_stamp)
+  if (!last_cloud_stamp_.isZero() && last_header_.stamp < last_cloud_stamp_)
   {
     // 时间戳回退，可能是 rosbag 重新开始，重置状态
     ROS_INFO("Timestamp reset detected, reinitializing...");
-    last_stamp = last_header_.stamp;
+    last_cloud_stamp_ = last_header_.stamp;
   }
   
   // 计算帧间隔（与上一处理帧的时间差）
-  double frame_interval = last_stamp.isZero() ? 0.0 : (last_header_.stamp - last_stamp).toSec();
+  double frame_interval = last_cloud_stamp_.isZero() ? 0.0 : (last_header_.stamp - last_cloud_stamp_).toSec();
   if (frame_interval > max_cloud_age_ && frame_interval < 10.0)  // 10秒内的异常间隔
   {
     ROS_WARN_THROTTLE(1.0, "Large frame interval (%.2fs), possible frame drop", frame_interval);
   }
   
-  last_stamp = last_header_.stamp;
+  last_cloud_stamp_ = last_header_.stamp;
 
   if (!core_.Process(&output_))
   {
     return;
   }
 
+  updateGroundWatchdogLocked(output_.t_ground_ms);
   last_processed_seq_ = last_seq_;
   publishOutput(output_);
+}
+
+void LidarClusterRos::updateGroundWatchdogLocked(double t_ground_ms)
+{
+  if (!ground_watchdog_enable_)
+  {
+    return;
+  }
+
+  if (t_ground_ms > ground_watchdog_warn_ms_)
+  {
+    ++ground_watchdog_overrun_count_;
+  }
+  else
+  {
+    ground_watchdog_overrun_count_ = 0;
+    return;
+  }
+
+  if (ground_watchdog_overrun_count_ < ground_watchdog_warn_frames_)
+  {
+    return;
+  }
+
+  ROS_WARN_THROTTLE(1.0,
+                    "Ground watchdog triggered: t_ground_ms=%.3f exceeds %.3f for %d consecutive frames",
+                    t_ground_ms,
+                    ground_watchdog_warn_ms_,
+                    ground_watchdog_warn_frames_);
+  ground_watchdog_overrun_count_ = 0;
 }
 
 void LidarClusterRos::publishOutput(const LidarClusterOutput &output)
 {
   size_t bytes_pub = 0;
 
-  sensor_msgs::PointCloud2 pc_msg;
+  // 复用消息缓冲区，避免每帧重新分配
   if (output.passthrough)
   {
-    pcl::toROSMsg(*output.passthrough, pc_msg);
-    pc_msg.header = last_header_;
-    passthrough_pub_.publish(pc_msg);
-    bytes_pub += pc_msg.data.size();
+    pcl::toROSMsg(*output.passthrough, pub_pc_msg_);
+    pub_pc_msg_.header = last_header_;
+    passthrough_pub_.publish(pub_pc_msg_);
+    bytes_pub += pub_pc_msg_.data.size();
   }
 
   if (output.not_ground)
   {
-    pcl::toROSMsg(*output.not_ground, pc_msg);
-    pc_msg.header = last_header_;
-    no_ground_pub_.publish(pc_msg);
-    bytes_pub += pc_msg.data.size();
+    pcl::toROSMsg(*output.not_ground, pub_pc_msg_);
+    pub_pc_msg_.header = last_header_;
+    no_ground_pub_.publish(pub_pc_msg_);
+    bytes_pub += pub_pc_msg_.data.size();
   }
 
-  sensor_msgs::PointCloud2 cones_msg;
   if (output.cones_cloud)
   {
-    pcl::toROSMsg(*output.cones_cloud, cones_msg);
-    cones_msg.header = last_header_;
-    cones_pub_.publish(cones_msg);
-    bytes_pub += cones_msg.data.size();
+    pcl::toROSMsg(*output.cones_cloud, pub_cones_msg_);
+    pub_cones_msg_.header = last_header_;
+    cones_pub_.publish(pub_cones_msg_);
+    bytes_pub += pub_cones_msg_.data.size();
   }
 
   autodrive_msgs::HUAT_ConeDetections detections;
   detections.header = last_header_;
   if (output.cones_cloud)
   {
-    detections.pc_whole = cones_msg;
+    detections.pc_whole = pub_cones_msg_;
   }
 
   for (const auto &det : output.cones)

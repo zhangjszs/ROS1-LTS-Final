@@ -12,10 +12,18 @@ SkidpadDetectionNode::SkidpadDetectionNode(ros::NodeHandle &nh)
   LoadParameters();
   core_.SetParams(params_);
 
-  cone_sub_ = nh_.subscribe(cone_topic_, 100000, &SkidpadDetectionNode::ConeCallback, this);
-  car_state_sub_ = nh_.subscribe(car_state_topic_, 1000, &SkidpadDetectionNode::CarStateCallback, this);
+  // ApproximateTime消息同步：确保锥桶检测和车辆状态时间对齐
+  cone_sub_.subscribe(nh_, cone_topic_, 10);
+  car_state_sub_.subscribe(nh_, car_state_topic_, 10);
+  sync_ = std::make_unique<message_filters::Synchronizer<SyncPolicy>>(
+      SyncPolicy(10), cone_sub_, car_state_sub_);
+  sync_->registerCallback(
+      boost::bind(&SkidpadDetectionNode::SyncCallback, this, _1, _2));
+
   log_path_pub_ = nh_.advertise<nav_msgs::Path>(log_path_topic_, 10, true);
   approaching_goal_pub_ = nh_.advertise<std_msgs::Bool>(approaching_goal_topic_, 10);
+
+  pnh_.param("max_data_age", max_data_age_, 0.5);
 }
 
 void SkidpadDetectionNode::LoadParameters()
@@ -85,12 +93,21 @@ void SkidpadDetectionNode::LoadParameters()
   }
 }
 
-void SkidpadDetectionNode::ConeCallback(const autodrive_msgs::HUAT_ConeDetections::ConstPtr &skidpad_msg)
+void SkidpadDetectionNode::SyncCallback(const ConeMsg::ConstPtr &cone_msg,
+                                         const StateMsg::ConstPtr &car_state)
 {
-  std::vector<planning_core::ConePoint> cones;
-  cones.reserve(skidpad_msg->points.size());
+  // 时间戳验证
+  double time_diff = std::abs((cone_msg->header.stamp - car_state->header.stamp).toSec());
+  if (time_diff > max_data_age_)
+  {
+    ROS_WARN_THROTTLE(1.0, "[Skidpad] Large time diff between cone and state: %.3fms", time_diff * 1000.0);
+  }
 
-  for (const geometry_msgs::Point32 &point : skidpad_msg->points)
+  // 处理锥桶数据
+  std::vector<planning_core::ConePoint> cones;
+  cones.reserve(cone_msg->points.size());
+
+  for (const geometry_msgs::Point32 &point : cone_msg->points)
   {
     planning_core::ConePoint cone;
     cone.x = point.x;
@@ -100,15 +117,13 @@ void SkidpadDetectionNode::ConeCallback(const autodrive_msgs::HUAT_ConeDetection
   }
 
   core_.ProcessConeDetections(cones);
-}
 
-void SkidpadDetectionNode::CarStateCallback(const autodrive_msgs::HUAT_CarState::ConstPtr &carposition)
-{
+  // 处理车辆状态
   planning_core::Trajectory state;
-  state.x = carposition->car_state.x;
-  state.y = carposition->car_state.y;
-  state.yaw = carposition->car_state.theta;
-  state.v = carposition->V;
+  state.x = car_state->car_state.x;
+  state.y = car_state->car_state.y;
+  state.yaw = car_state->car_state.theta;
+  state.v = car_state->V;
   core_.UpdateVehicleState(state);
 }
 

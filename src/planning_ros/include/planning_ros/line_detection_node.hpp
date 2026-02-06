@@ -7,6 +7,9 @@
 
 #include <autodrive_msgs/HUAT_CarState.h>
 #include <autodrive_msgs/HUAT_ConeDetections.h>
+#include <message_filters/subscriber.h>
+#include <message_filters/sync_policies/approximate_time.h>
+#include <message_filters/synchronizer.h>
 #include <nav_msgs/Path.h>
 #include <ros/ros.h>
 #include <std_msgs/Bool.h>
@@ -25,16 +28,24 @@ public:
   bool IsFinished() const { return core_.IsFinished(); }
 
 private:
+  using ConeMsg = autodrive_msgs::HUAT_ConeDetections;
+  using StateMsg = autodrive_msgs::HUAT_CarState;
+  using SyncPolicy = message_filters::sync_policies::ApproximateTime<ConeMsg, StateMsg>;
+
   void LoadParameters();
-  void ConeCallback(const autodrive_msgs::HUAT_ConeDetections::ConstPtr &cone_msg);
-  void CarStateCallback(const autodrive_msgs::HUAT_CarState::ConstPtr &car_state);
+  void SyncCallback(const ConeMsg::ConstPtr &cone_msg,
+                    const StateMsg::ConstPtr &car_state);
   void PublishPath(const std::vector<planning_core::Pose> &path_points);
   void PublishFinishOnce();
 
   ros::NodeHandle nh_;
   ros::NodeHandle pnh_;
-  ros::Subscriber cone_sub_;
-  ros::Subscriber car_state_sub_;
+
+  // 消息同步订阅
+  message_filters::Subscriber<ConeMsg> cone_sub_;
+  message_filters::Subscriber<StateMsg> car_state_sub_;
+  std::unique_ptr<message_filters::Synchronizer<SyncPolicy>> sync_;
+
   ros::Publisher path_pub_;
   ros::Publisher finish_pub_;
 
@@ -48,8 +59,8 @@ private:
   std::string expected_cone_frame_;
   std::string output_frame_;
 
-  ros::Time latest_cone_time_;
-  ros::Time latest_state_time_;
+  ros::Time latest_sync_time_;
+  double max_data_age_ = 0.5;  // 数据过期阈值 (秒)
 
   bool finish_published_{false};
   std::mutex data_mutex_;

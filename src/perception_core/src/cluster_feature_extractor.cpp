@@ -34,8 +34,17 @@ void ClusterFeatureExtractor::computeGeometricFeatures(
     features.area = features.length * features.width;
     features.volume = features.length * features.width * features.height;
 
+    Eigen::Vector4f centroid;
+    pcl::compute3DCentroid(*cluster, centroid);
+    features.centroid = Eigen::Vector3f(centroid[0], centroid[1], centroid[2]);
+    features.distance_to_sensor = std::sqrt(centroid[0] * centroid[0] + centroid[1] * centroid[1]);
+
     if (features.volume > 1e-6) {
         features.point_density = static_cast<double>(cluster->points.size()) / features.volume;
+        // 稀疏远处聚类密度封顶：<=3点在极小体积中会产生虚高密度
+        if (cluster->points.size() <= 3 && features.distance_to_sensor > 20.0) {
+            features.point_density = std::min(features.point_density, 200.0);
+        }
     }
 
     double sum_lw = features.length + features.width;
@@ -43,10 +52,6 @@ void ClusterFeatureExtractor::computeGeometricFeatures(
         features.aspect_ratio = features.height / sum_lw;
     }
 
-    Eigen::Vector4f centroid;
-    pcl::compute3DCentroid(*cluster, centroid);
-    features.centroid = Eigen::Vector3f(centroid[0], centroid[1], centroid[2]);
-    features.distance_to_sensor = std::sqrt(centroid[0] * centroid[0] + centroid[1] * centroid[1]);
     features.ground_height = min_pt.z;
     features.point_count = cluster->points.size();
 }

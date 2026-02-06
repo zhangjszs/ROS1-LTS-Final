@@ -27,8 +27,11 @@
 #include <pcl/segmentation/extract_clusters.h>
 
 #include <perception_core/patchworkpp.hpp>
+#include <perception_core/fast_ground_segmentation.hpp>
 #include <perception_core/cluster_feature_extractor.hpp>
 #include <perception_core/confidence_scorer.hpp>
+
+#include <deque>
 
 using Eigen::JacobiSVD;
 using Eigen::MatrixXf;
@@ -84,6 +87,12 @@ struct LidarClusterConfig
     bool enable_model_fitting = true;
     double model_fit_bonus = 0.2;
     double model_fit_penalty = 0.15;
+
+    // 距离自适应置信度门槛
+    double min_confidence_near = 0.0;    // 0-ramp_start 距离内的门槛
+    double min_confidence_far = 0.3;     // >ramp_end 距离的门槛
+    double confidence_ramp_start = 10.0; // 开始升高门槛的距离 (m)
+    double confidence_ramp_end = 30.0;   // 达到最大门槛的距离 (m)
   };
 
   struct RansacConfig
@@ -147,6 +156,52 @@ struct LidarClusterConfig
     double far_zone_min_pts_scale = 2.0;  // 远区最小点数缩放
   };
 
+  // Fast Ground Segmentation (FGS) 配置
+  struct FgsConfig
+  {
+    int num_sectors = 32;           // 扇区数量
+    int num_bins = 80;              // 每个扇区的bin数量
+    double max_range = 80.0;        // 最大处理距离 (m)
+    double min_range = 0.1;         // 最小处理距离 (m) - 降低以处理近距离点
+    double sensor_height = 0.135;   // 传感器高度 (m)
+    double th_ground = 0.08;        // 地面距离阈值 (m)
+    double th_ground_far = 0.15;    // 远距离地面阈值 (m)
+    double far_distance = 20.0;     // 远距离分界点 (m)
+    // 近距离特殊处理
+    double near_distance = 2.0;     // 近距离分界点 (m)
+    double th_ground_near = 0.12;   // 近距离地面阈值 (m)
+    double max_slope = 0.3;         // 最大地面坡度
+    double min_normal_z = 0.85;     // 法向量Z分量最小值
+    double max_height_diff = 0.3;   // 相邻bin最大高度差 (m)
+    bool use_neighbor_model = true; // 无效扇区使用邻近扇区模型
+
+    // 增量线段生长参数 (Zermas 2017)
+    int max_segments_per_sector = 4;     // 每扇区最大线段数
+    double segment_merge_dist = 0.15;    // 线段生长偏差阈值 (m)，过小会导致帧间线段数不稳定
+
+    // 地面点精细化 (Zermas 2017)
+    bool enable_refinement = false;      // 二次拟合开关
+
+    // 代表点选择 (Himmelsbach 2010)
+    bool use_lowest_n_mean = true;       // 使用 lowest-N 均值代替 min_z
+    int lowest_n = 3;                    // N 值
+
+    // 扇区间平滑 (Himmelsbach 2010)
+    bool enable_sector_smoothing = true; // 相邻扇区模型平滑
+
+    // 帧间时序平滑 (抑制闪烁)
+    bool enable_temporal_smoothing = true;  // 帧间EMA平滑开关
+    double temporal_alpha = 0.3;            // EMA系数，越小越平滑
+
+    // 地面判定阈值对称性
+    double ground_below_factor = 1.5;       // 下方阈值放宽系数（1.0=对称，2.0=旧行为）
+
+    // temporal alpha 自适应（S弯/快速变向场景）
+    bool enable_adaptive_alpha = true;      // 自适应 alpha 开关
+    double adaptive_alpha_max = 0.9;        // 模型剧变时的最大 alpha
+    double adaptive_alpha_threshold = 0.05; // 触发自适应的模型变化阈值
+  };
+
   struct RoiRange
   {
     double x_min = 0.0;
@@ -165,6 +220,16 @@ struct LidarClusterConfig
     RoiRange accel{0.0, 100.0, -3.0, 3.0};
     RoiRange track{0.0, 20.0, -3.0, 3.0};
     RoiRange custom{0.0, 20.0, -3.0, 3.0};
+
+    // 距离自适应Y轴梯形ROI（远处收窄Y范围，减少假锥桶）
+    struct AdaptiveYConfig
+    {
+      bool enable = false;
+      double near_y_half = 5.0;    // 近处Y半宽 (m)
+      double far_y_half = 2.0;     // 远处Y半宽 (m)
+      double ramp_start_x = 5.0;   // 开始收窄的X距离 (m)
+    };
+    AdaptiveYConfig adaptive_y;
   };
 
   struct FilterConfig
@@ -205,11 +270,24 @@ struct LidarClusterConfig
       float min_intensity = 5.0;     // 最小强度阈值
     };
 
+    // 柱状障碍物滤波：基于局部z跨度去除树/墙壁等高大障碍物（地面分割后使用）
+    // 原理：将xy平面划分为2D栅格，统计每个栅格内点的z跨度
+    //       锥桶z跨度~0.3m，树/墙壁z跨度>0.5m，据此区分
+    struct ObstacleHeightConfig
+    {
+      bool enable = true;
+      double grid_size = 0.5;        // 2D栅格大小 (m)，0.5m覆盖一个锥桶
+      double max_z_span = 0.5;       // 栅格内最大z跨度 (m)，超过则判定为高大障碍物
+      int min_points_to_judge = 3;   // 栅格内最少点数才做判定（避免稀疏噪声误判）
+      double min_distance = 10.0;    // 生效距离下限 (m)，近处不做判定（近处不可能有树/墙）
+    };
+
     SorConfig sor;
     VoxelConfig voxel;
     AdaptiveVoxelConfig adaptive_voxel;
     DistanceAdaptiveVoxelConfig distance_adaptive_voxel;
     IntensityConfig intensity;
+    ObstacleHeightConfig obstacle_height;
     bool use_cropbox = true;  // 用CropBox替代多次PassThrough
   };
 
@@ -270,12 +348,29 @@ struct LidarClusterConfig
       double max_distance = 15.0;  // 最大距离
     };
     PointClipConfig point_clip;
+
+    // FEC (Fast Euclidean Clustering) 配置
+    struct FecConfig
+    {
+      bool enable = true;       // 启用FEC（false则回退PCL原版）
+      double quality = 0.3;     // 质量参数，0.0=最快，0.9=最精确
+    };
+    FecConfig fec;
+
+    // 多帧累积配置（提升远处锥桶检测率）
+    struct MultiFrameConfig
+    {
+      bool enable = true;
+      int num_frames = 2;              // 累积帧数（含当前帧）
+      double max_distance = 10.0;      // 仅对 >max_distance 的远处点做累积
+    };
+    MultiFrameConfig multi_frame;
   };
 
   double sensor_height = 0.135;
   int sensor_model = 16;
   int road_type = 2;
-  std::string ground_method = "ransac";
+  std::string ground_method = "ransac";  // ransac | patchworkpp | fgs
   double z_up = 0.7;
   double z_down = -1.0;
   int vis = 0;
@@ -284,6 +379,7 @@ struct LidarClusterConfig
   ConfidenceConfig confidence;
   RansacConfig ransac;
   PatchworkppConfig patchworkpp;
+  FgsConfig fgs;
   RoiConfig roi;
   FilterConfig filters;
   ClusterConfig cluster;
@@ -321,6 +417,8 @@ public:
 
   void Configure(const LidarClusterConfig &config);
   void SetInputCloud(const pcl::PointCloud<PointType>::ConstPtr &cloud, uint32_t seq);
+  /// 零拷贝版本：转移点云所有权，避免深拷贝
+  void SetInputCloud(pcl::PointCloud<PointType>::Ptr &&cloud, uint32_t seq);
   bool Process(LidarClusterOutput *output);
 
 private:
@@ -335,12 +433,20 @@ private:
                                    pcl::PointCloud<PointType>::Ptr &g_not_ground_pc);
   void ground_segmentation_patchworkpp_(const pcl::PointCloud<PointType>::Ptr &in_pc,
                                         pcl::PointCloud<PointType>::Ptr &g_not_ground_pc);
+  void ground_segmentation_fgs_(const pcl::PointCloud<PointType>::Ptr &in_pc,
+                                pcl::PointCloud<PointType>::Ptr &g_not_ground_pc);
   // RANSAC 优化辅助函数
   int getZoneIndex_(double distance) const;
   double getAdaptiveThreshold_(double distance) const;
 
   // filter
   void PassThrough(pcl::PointCloud<PointType>::Ptr &cloud_filtered);
+  /// ROI裁剪 + 强度滤波（地面分割之前）
+  void PassThroughROI(pcl::PointCloud<PointType>::Ptr &cloud_filtered);
+  /// 降采样 + SOR（地面分割之后，仅对非地面点）
+  void PostGroundFilter(pcl::PointCloud<PointType>::Ptr &cloud);
+  /// 多帧累积（远处点累积多帧提升检测率）
+  void AccumulateFrames(pcl::PointCloud<PointType>::Ptr &cloud);
 
   // cluster
   void EucClusterMethod(pcl::PointCloud<PointType>::Ptr inputcloud, std::vector<pcl::PointIndices> &cluster_indices, const double &max_cluster_dis);
@@ -434,6 +540,12 @@ private:
   patchwork::Params patchwork_params_;
   std::unique_ptr<patchwork::PatchWorkpp> patchwork_;
 
+  // Fast Ground Segmentation
+  std::unique_ptr<perception::FastGroundSegmentation> fgs_;
+
   perception::ClusterFeatureExtractor feature_extractor_;
   perception::ConfidenceScorer confidence_scorer_;
+
+  // 多帧累积缓冲区（远处点）
+  std::deque<pcl::PointCloud<PointType>::Ptr> frame_buffer_;
 };

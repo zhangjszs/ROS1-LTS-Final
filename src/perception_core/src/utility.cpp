@@ -9,6 +9,7 @@
 #include <sstream>
 #include <boost/make_shared.hpp>
 #include <pcl/filters/crop_box.h>
+#include <perception_core/fast_euclidean_clustering.hpp>
 
 using std::string;
 using std::vector;
@@ -365,8 +366,8 @@ void lidar_cluster::Configure(const LidarClusterConfig &config)
     }
 
     // 参数校验 - 确保 dis_range 和 seg_distances 有效
-    if (dis_range.size() < 4) {
-        std::cerr << "[Warning] distance_segments has less than 4 values, using defaults: 5,10,15,20" << std::endl;
+    if (dis_range.empty()) {
+        std::cerr << "[Warning] distance_segments is empty, using defaults: 5,10,15,20" << std::endl;
         dis_range = {5.0, 10.0, 15.0, 20.0};
     }
     if (seg_distances.size() < dis_range.size() + 1) {
@@ -624,6 +625,197 @@ voxel_filter:
     }
 }
 
+// ROI裁剪 + 强度滤波（地面分割之前，保留原始点云密度）
+void lidar_cluster::PassThroughROI(
+    pcl::PointCloud<PointType>::Ptr &cloud_filtered)
+{
+    // 0. 强度滤波（可选，最先执行以去除弱反射噪声）
+    if (filters_.intensity.enable)
+    {
+        IntensityFilter(cloud_filtered, filters_.intensity.min_intensity);
+    }
+
+    // 1. Z轴裁剪 + ROI裁剪
+    double x_min = 0.0, x_max = 0.0, y_min = 0.0, y_max = 0.0;
+
+    if (road_type_ == 1)
+    {
+        if (roi_use_point_clip_)
+        {
+            pcl::PassThrough<PointType> pass;
+            pass.setInputCloud(cloud_filtered);
+            pass.setFilterFieldName("z");
+            pass.setFilterLimits(z_down_, z_up_);
+            pass.filter(*cloud_filtered);
+            point_clip(cloud_filtered,
+                       cluster_.point_clip.min_distance,
+                       cluster_.point_clip.max_distance);
+            return;
+        }
+        x_min = skid_x_min_; x_max = skid_x_max_;
+        y_min = skid_y_min_; y_max = skid_y_max_;
+    }
+    else if (road_type_ == 2)
+    {
+        x_min = accel_x_min_; x_max = accel_x_max_;
+        y_min = accel_y_min_; y_max = accel_y_max_;
+    }
+    else
+    {
+        if (road_type_ != 3)
+        {
+            std::cerr << "[Warning] Received undefined road_type: " << road_type_
+                      << ", falling back to track mode (road_type=3)" << std::endl;
+            road_type_ = 3;
+        }
+        x_min = track_x_min_; x_max = track_x_max_;
+        y_min = track_y_min_; y_max = track_y_max_;
+    }
+
+    if (filters_.use_cropbox)
+    {
+        pcl::CropBox<PointType> crop;
+        crop.setMin(Eigen::Vector4f(static_cast<float>(x_min),
+                                    static_cast<float>(y_min),
+                                    static_cast<float>(z_down_), 1.0f));
+        crop.setMax(Eigen::Vector4f(static_cast<float>(x_max),
+                                    static_cast<float>(y_max),
+                                    static_cast<float>(z_up_), 1.0f));
+        crop.setInputCloud(cloud_filtered);
+        crop.filter(*cloud_filtered);
+    }
+    else
+    {
+        pcl::PassThrough<PointType> pass;
+        pass.setInputCloud(cloud_filtered);
+        pass.setFilterFieldName("z");
+        pass.setFilterLimits(z_down_, z_up_);
+        pass.filter(*cloud_filtered);
+
+        pass.setInputCloud(cloud_filtered);
+        pass.setFilterFieldName("x");
+        pass.setFilterLimits(x_min, x_max);
+        pass.filter(*cloud_filtered);
+
+        pass.setInputCloud(cloud_filtered);
+        pass.setFilterFieldName("y");
+        pass.setFilterLimits(y_min, y_max);
+        pass.filter(*cloud_filtered);
+    }
+}
+
+// 降采样 + SOR（地面分割之后，仅对非地面点）
+// 目的：减少聚类计算量，同时不影响地面分割精度
+void lidar_cluster::PostGroundFilter(
+    pcl::PointCloud<PointType>::Ptr &cloud)
+{
+    if (!cloud || cloud->points.empty()) return;
+
+    // 0. 柱状障碍物滤波：基于局部z跨度去除树/墙壁
+    //    将xy平面划分为2D栅格，z跨度过大的栅格视为高大障碍物
+    if (filters_.obstacle_height.enable)
+    {
+        const double gs = filters_.obstacle_height.grid_size;
+        const double max_span = filters_.obstacle_height.max_z_span;
+        const int min_pts = filters_.obstacle_height.min_points_to_judge;
+        const float min_dist_sq = static_cast<float>(
+            filters_.obstacle_height.min_distance * filters_.obstacle_height.min_distance);
+        const double inv_gs = 1.0 / gs;
+
+        // 栅格统计：z_min, z_max, count（仅统计远处点）
+        struct CellStat {
+            float z_min = std::numeric_limits<float>::max();
+            float z_max = std::numeric_limits<float>::lowest();
+            int count = 0;
+        };
+        std::unordered_map<int64_t, CellStat> grid;
+        grid.reserve(cloud->points.size() / 2);
+
+        // 编码栅格key：将(gx, gy)打包到int64
+        auto encode = [&](float x, float y) -> int64_t {
+            int gx = static_cast<int>(std::floor(x * inv_gs));
+            int gy = static_cast<int>(std::floor(y * inv_gs));
+            return (static_cast<int64_t>(gx) << 32) | static_cast<int64_t>(static_cast<uint32_t>(gy));
+        };
+
+        // 第一遍：仅对远处点统计栅格z范围
+        for (const auto &p : cloud->points)
+        {
+            float dist_sq = p.x * p.x + p.y * p.y;
+            if (dist_sq < min_dist_sq) continue;  // 近处跳过
+            int64_t key = encode(p.x, p.y);
+            auto &cell = grid[key];
+            if (p.z < cell.z_min) cell.z_min = p.z;
+            if (p.z > cell.z_max) cell.z_max = p.z;
+            cell.count++;
+        }
+
+        // 第二遍：近处点全部保留，远处点过滤z跨度过大的栅格
+        pcl::PointCloud<PointType>::Ptr filtered(new pcl::PointCloud<PointType>);
+        filtered->reserve(cloud->points.size());
+        for (const auto &p : cloud->points)
+        {
+            float dist_sq = p.x * p.x + p.y * p.y;
+            if (dist_sq < min_dist_sq)
+            {
+                filtered->push_back(p);  // 近处无条件保留
+                continue;
+            }
+            int64_t key = encode(p.x, p.y);
+            const auto &cell = grid[key];
+            if (cell.count < min_pts ||
+                (cell.z_max - cell.z_min) <= max_span)
+            {
+                filtered->push_back(p);
+            }
+        }
+        filtered->width = filtered->points.size();
+        filtered->height = 1;
+        filtered->is_dense = cloud->is_dense;
+        cloud.swap(filtered);
+    }
+
+    // 1. 体素降采样
+    if (filters_.distance_adaptive_voxel.enable)
+    {
+        pcl::PointCloud<PointType>::Ptr filtered(new pcl::PointCloud<PointType>());
+        DistanceAdaptiveVoxelFilter(cloud,
+                                    filtered,
+                                    filters_.distance_adaptive_voxel.near_leaf,
+                                    filters_.distance_adaptive_voxel.far_leaf,
+                                    filters_.distance_adaptive_voxel.dist_threshold);
+        cloud.swap(filtered);
+    }
+    else if (filters_.adaptive_voxel.enable)
+    {
+        pcl::PointCloud<PointType>::Ptr adaptive_filtered(new pcl::PointCloud<PointType>());
+        AdaptiveVoxelGrid(cloud,
+                          adaptive_filtered,
+                          filters_.adaptive_voxel.leaf_size,
+                          filters_.adaptive_voxel.density_thr);
+        cloud.swap(adaptive_filtered);
+    }
+    else if (filters_.voxel.enable)
+    {
+        pcl::VoxelGrid<PointType> voxel;
+        voxel.setInputCloud(cloud);
+        voxel.setLeafSize(static_cast<float>(filters_.voxel.leaf_size),
+                          static_cast<float>(filters_.voxel.leaf_size),
+                          static_cast<float>(filters_.voxel.leaf_size));
+        voxel.filter(*cloud);
+    }
+
+    // 2. SOR离群点移除
+    if (filters_.sor.enable)
+    {
+        pcl::StatisticalOutlierRemoval<PointType> sor;
+        sor.setInputCloud(cloud);
+        sor.setMeanK(filters_.sor.mean_k);
+        sor.setStddevMulThresh(filters_.sor.stddev_mul);
+        sor.filter(*cloud);
+    }
+}
+
 void lidar_cluster::EucClusterMethod(
     pcl::PointCloud<PointType>::Ptr inputcloud,
     std::vector<pcl::PointIndices> &cluster_indices,
@@ -636,13 +828,28 @@ void lidar_cluster::EucClusterMethod(
     pcl::search::KdTree<PointType>::Ptr tree(
         new pcl::search::KdTree<PointType>);
     tree->setInputCloud(inputcloud);
-    pcl::EuclideanClusterExtraction<PointType> ec;
-    ec.setClusterTolerance(max_cluster_dis);
-    ec.setMinClusterSize(cluster_.min_cluster_size);
-    ec.setMaxClusterSize(cluster_.max_cluster_size);
-    ec.setSearchMethod(tree);
-    ec.setInputCloud(inputcloud);
-    ec.extract(cluster_indices);
+
+    if (cluster_.fec.enable)
+    {
+        perception::FastEuclideanClustering<PointType> fec;
+        fec.setClusterTolerance(max_cluster_dis);
+        fec.setMinClusterSize(cluster_.min_cluster_size);
+        fec.setMaxClusterSize(cluster_.max_cluster_size);
+        fec.setQuality(cluster_.fec.quality);
+        fec.setSearchMethod(tree);
+        fec.setInputCloud(inputcloud);
+        fec.segment(cluster_indices);
+    }
+    else
+    {
+        pcl::EuclideanClusterExtraction<PointType> ec;
+        ec.setClusterTolerance(max_cluster_dis);
+        ec.setMinClusterSize(cluster_.min_cluster_size);
+        ec.setMaxClusterSize(cluster_.max_cluster_size);
+        ec.setSearchMethod(tree);
+        ec.setInputCloud(inputcloud);
+        ec.extract(cluster_indices);
+    }
 }
 
 // 带自适应聚类大小的欧式聚类
@@ -660,13 +867,28 @@ void lidar_cluster::EucClusterMethodAdaptive(
     pcl::search::KdTree<PointType>::Ptr tree(
         new pcl::search::KdTree<PointType>);
     tree->setInputCloud(inputcloud);
-    pcl::EuclideanClusterExtraction<PointType> ec;
-    ec.setClusterTolerance(max_cluster_dis);
-    ec.setMinClusterSize(min_cluster_size);
-    ec.setMaxClusterSize(max_cluster_size);
-    ec.setSearchMethod(tree);
-    ec.setInputCloud(inputcloud);
-    ec.extract(cluster_indices);
+
+    if (cluster_.fec.enable)
+    {
+        perception::FastEuclideanClustering<PointType> fec;
+        fec.setClusterTolerance(max_cluster_dis);
+        fec.setMinClusterSize(min_cluster_size);
+        fec.setMaxClusterSize(max_cluster_size);
+        fec.setQuality(cluster_.fec.quality);
+        fec.setSearchMethod(tree);
+        fec.setInputCloud(inputcloud);
+        fec.segment(cluster_indices);
+    }
+    else
+    {
+        pcl::EuclideanClusterExtraction<PointType> ec;
+        ec.setClusterTolerance(max_cluster_dis);
+        ec.setMinClusterSize(min_cluster_size);
+        ec.setMaxClusterSize(max_cluster_size);
+        ec.setSearchMethod(tree);
+        ec.setInputCloud(inputcloud);
+        ec.extract(cluster_indices);
+    }
 }
 
 // 计算自适应聚类大小（根据距离线性插值）
@@ -1045,7 +1267,11 @@ void lidar_cluster::clusterMethod32(LidarClusterOutput *output)
 
     output->cones.clear();
     output->non_cones.clear();
-    output->cones_cloud.reset(new pcl::PointCloud<PointType>);
+    // 复用已有点云对象，避免每帧重新分配
+    if (!output->cones_cloud) {
+        output->cones_cloud.reset(new pcl::PointCloud<PointType>);
+    }
+    output->cones_cloud->points.clear();
 
     std::vector<std::vector<pcl::PointIndices>> cluster_indices;
 
@@ -1109,11 +1335,58 @@ void lidar_cluster::clusterMethod32(LidarClusterOutput *output)
             pcl::compute3DCentroid(*cloud_cluster, centroid);
             pcl::getMinMax3D(*cloud_cluster, _min, _max);
 
-            double confidence = getConfidenceWithFitting(cloud_cluster);
-            bool is_cone = (confidence > 0);
-
             float euc = std::sqrt(centroid[0] * centroid[0] +
                                   centroid[1] * centroid[1]);
+
+            // 距离自适应Y轴梯形ROI拒绝（在confidence计算之前，节省计算量）
+            bool y_rejected = false;
+            if (config_.roi.adaptive_y.enable)
+            {
+                const auto &ay = config_.roi.adaptive_y;
+                double x_pos = static_cast<double>(centroid[0]);
+                double x_max_roi = (road_type_ == 2) ? accel_x_max_ : track_x_max_;
+                double y_limit;
+                if (x_pos <= ay.ramp_start_x)
+                {
+                    y_limit = ay.near_y_half;
+                }
+                else if (x_pos >= x_max_roi)
+                {
+                    y_limit = ay.far_y_half;
+                }
+                else
+                {
+                    double ratio = (x_pos - ay.ramp_start_x) / (x_max_roi - ay.ramp_start_x);
+                    y_limit = ay.near_y_half + ratio * (ay.far_y_half - ay.near_y_half);
+                }
+                if (std::fabs(centroid[1]) > y_limit)
+                {
+                    y_rejected = true;
+                }
+            }
+
+            double confidence = y_rejected ? -1.0 : getConfidenceWithFitting(cloud_cluster);
+
+            // 距离自适应置信度门槛（替代原来的 confidence > 0）
+            double min_conf;
+            {
+                const auto &cc = config_.confidence;
+                if (euc <= cc.confidence_ramp_start)
+                {
+                    min_conf = cc.min_confidence_near;
+                }
+                else if (euc >= cc.confidence_ramp_end)
+                {
+                    min_conf = cc.min_confidence_far;
+                }
+                else
+                {
+                    double t = (euc - cc.confidence_ramp_start) /
+                               (cc.confidence_ramp_end - cc.confidence_ramp_start);
+                    min_conf = cc.min_confidence_near + t * (cc.min_confidence_far - cc.min_confidence_near);
+                }
+            }
+            bool is_cone = (confidence > min_conf);
 
             ConeDetection det;
             det.min = pcl::PointXYZ(_min.x, _min.y, _min.z);
@@ -1156,7 +1429,11 @@ void lidar_cluster::clusterMethod16(LidarClusterOutput *output)
 
     output->cones.clear();
     output->non_cones.clear();
-    output->cones_cloud.reset(new pcl::PointCloud<PointType>);
+    // 复用已有点云对象，避免每帧重新分配
+    if (!output->cones_cloud) {
+        output->cones_cloud.reset(new pcl::PointCloud<PointType>);
+    }
+    output->cones_cloud->points.clear();
 
     std::vector<pcl::PointIndices> cluster_indices;
 
@@ -1229,4 +1506,58 @@ void lidar_cluster::clusterMethod16(LidarClusterOutput *output)
     output->cones_cloud->height = 1;
     output->cones_cloud->is_dense = g_not_ground_pc->is_dense;
     last_cluster_count_ = total_clusters;
+}
+
+void lidar_cluster::AccumulateFrames(pcl::PointCloud<PointType>::Ptr &cloud)
+{
+    if (!cluster_.multi_frame.enable || !cloud || cloud->points.empty())
+    {
+        return;
+    }
+
+    const double max_dist = cluster_.multi_frame.max_distance;
+    const double max_dist_sq = max_dist * max_dist;
+    const int num_frames = cluster_.multi_frame.num_frames;
+
+    // 分离远处点
+    pcl::PointCloud<PointType>::Ptr far_points(new pcl::PointCloud<PointType>);
+    far_points->reserve(cloud->points.size() / 4);
+
+    for (const auto &p : cloud->points)
+    {
+        double dist_sq = static_cast<double>(p.x) * p.x + static_cast<double>(p.y) * p.y;
+        if (dist_sq > max_dist_sq)
+        {
+            far_points->push_back(p);
+        }
+    }
+
+    // 存入缓冲区
+    frame_buffer_.push_back(far_points);
+    while (static_cast<int>(frame_buffer_.size()) > num_frames)
+    {
+        frame_buffer_.pop_front();
+    }
+
+    // 将历史帧的远处点合并到当前点云
+    if (frame_buffer_.size() > 1)
+    {
+        // 预估总点数
+        size_t extra_points = 0;
+        for (size_t i = 0; i < frame_buffer_.size() - 1; ++i)
+        {
+            extra_points += frame_buffer_[i]->points.size();
+        }
+        cloud->points.reserve(cloud->points.size() + extra_points);
+
+        for (size_t i = 0; i < frame_buffer_.size() - 1; ++i)
+        {
+            cloud->points.insert(
+                cloud->points.end(),
+                frame_buffer_[i]->points.begin(),
+                frame_buffer_[i]->points.end());
+        }
+        cloud->width = cloud->points.size();
+        cloud->height = 1;
+    }
 }

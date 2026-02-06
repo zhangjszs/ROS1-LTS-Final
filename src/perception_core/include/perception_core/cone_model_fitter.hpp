@@ -16,9 +16,9 @@ public:
         int ransac_iterations = 50;
         double ransac_threshold = 0.03;  // 3cm
         double expected_base_radius_min = 0.05;  // 5cm
-        double expected_base_radius_max = 0.15;  // 15cm
+        double expected_base_radius_max = 0.25;  // 25cm (大锥桶底面对角线~0.247m)
         double height_convergence_ratio = 0.6;  // top 40% should have fewer points
-        int min_points_for_fitting = 8;
+        int min_points_for_fitting = 5;  // 降低门槛，中距离锥桶也能拟合
     };
 
     struct FitResult {

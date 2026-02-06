@@ -38,6 +38,18 @@ void lidar_cluster::SetInputCloud(const pcl::PointCloud<PointType>::ConstPtr &cl
   frame_count = static_cast<int>(seq);
 }
 
+void lidar_cluster::SetInputCloud(pcl::PointCloud<PointType>::Ptr &&cloud, uint32_t seq)
+{
+  if (!cloud) {
+    return;
+  }
+  std::lock_guard<std::mutex> lock(lidar_mutex);
+  // 零拷贝：直接接管点云所有权，避免深拷贝
+  current_pc_ptr = std::move(cloud);
+  getPointClouds = true;
+  frame_count = static_cast<int>(seq);
+}
+
 bool lidar_cluster::Process(LidarClusterOutput *output)
 {
   if (!output) {
@@ -50,8 +62,10 @@ bool lidar_cluster::Process(LidarClusterOutput *output)
   std::unique_lock<std::mutex> lock(lidar_mutex);
   const size_t input_points = current_pc_ptr->points.size();
 
+  // ===== 新流水线 =====
+  // ① ROI裁剪 + 强度滤波（保留原始点云密度）
   auto startTimePassThrough = std::chrono::steady_clock::now();
-  PassThrough(current_pc_ptr);
+  PassThroughROI(current_pc_ptr);
   cloud_filtered = current_pc_ptr;
   auto endTimePassThrough = std::chrono::steady_clock::now();
   auto elapsedTimePassThrough =
@@ -59,11 +73,18 @@ bool lidar_cluster::Process(LidarClusterOutput *output)
 
   output->passthrough = cloud_filtered;
 
+  // ② 地面分割（在原始密度点云上做，避免体素质心污染 min_z）
   auto startTimeSeg = std::chrono::steady_clock::now();
   ground_segmentation_dispatch_(cloud_filtered, g_not_ground_pc);
   auto endTimeSeg = std::chrono::steady_clock::now();
   auto elapsedTimeSeg =
       std::chrono::duration_cast<std::chrono::microseconds>(endTimeSeg - startTimeSeg);
+
+  // ③ 降采样 + SOR（仅对非地面点，减少聚类计算量）
+  PostGroundFilter(g_not_ground_pc);
+
+  // ④ 多帧累积（远处点累积多帧提升检测率）
+  AccumulateFrames(g_not_ground_pc);
 
   output->not_ground = g_not_ground_pc;
 

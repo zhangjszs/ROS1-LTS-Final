@@ -12,13 +12,20 @@ LineDetectionNode::LineDetectionNode(ros::NodeHandle &nh)
   LoadParameters();
   core_.SetParams(params_);
 
-  cone_sub_ = nh_.subscribe(cone_topic_, 1, &LineDetectionNode::ConeCallback, this);
-  car_state_sub_ = nh_.subscribe(car_state_topic_, 1, &LineDetectionNode::CarStateCallback, this);
+  // ApproximateTime消息同步：确保锥桶检测和车辆状态时间对齐
+  cone_sub_.subscribe(nh_, cone_topic_, 1);
+  car_state_sub_.subscribe(nh_, car_state_topic_, 1);
+  sync_ = std::make_unique<message_filters::Synchronizer<SyncPolicy>>(
+      SyncPolicy(10), cone_sub_, car_state_sub_);
+  sync_->registerCallback(
+      boost::bind(&LineDetectionNode::SyncCallback, this, _1, _2));
 
   path_pub_ = nh_.advertise<nav_msgs::Path>(path_topic_, 1);
   finish_pub_ = nh_.advertise<std_msgs::Bool>(finish_topic_, 1);
 
-  ROS_INFO("[LineDetection] Node initialized");
+  pnh_.param("max_data_age", max_data_age_, 0.5);
+
+  ROS_INFO("[LineDetection] Node initialized with ApproximateTime sync");
 }
 
 void LineDetectionNode::LoadParameters()
@@ -47,10 +54,22 @@ void LineDetectionNode::LoadParameters()
   pnh_.param<std::string>("frames/output", output_frame_, "world");
 }
 
-void LineDetectionNode::ConeCallback(const autodrive_msgs::HUAT_ConeDetections::ConstPtr &cone_msg)
+void LineDetectionNode::SyncCallback(const ConeMsg::ConstPtr &cone_msg,
+                                      const StateMsg::ConstPtr &car_state)
 {
   std::lock_guard<std::mutex> lock(data_mutex_);
 
+  // 时间戳验证
+  double time_diff = std::abs((cone_msg->header.stamp - car_state->header.stamp).toSec());
+  if (time_diff > max_data_age_)
+  {
+    ROS_WARN_THROTTLE(1.0, "[LineDetection] Large time diff between cone (%.3f) and state (%.3f): %.3fms",
+                      cone_msg->header.stamp.toSec(), car_state->header.stamp.toSec(), time_diff * 1000.0);
+  }
+
+  latest_sync_time_ = std::max(cone_msg->header.stamp, car_state->header.stamp);
+
+  // 处理锥桶数据
   if (!cone_msg->header.frame_id.empty() &&
       cone_msg->header.frame_id != expected_cone_frame_ &&
       cone_msg->header.frame_id != "velodyne")
@@ -60,42 +79,34 @@ void LineDetectionNode::ConeCallback(const autodrive_msgs::HUAT_ConeDetections::
     return;
   }
 
-  latest_cone_time_ = cone_msg->header.stamp;
-
   if (cone_msg->points.empty())
   {
     ROS_WARN_THROTTLE(1.0, "[LineDetection] Received empty cone message");
     core_.UpdateCones({});
-    return;
   }
-
-  std::vector<planning_core::ConePoint> cones;
-  cones.reserve(cone_msg->points.size());
-
-  for (const geometry_msgs::Point32 &point : cone_msg->points)
+  else
   {
-    if (!std::isfinite(point.x) || !std::isfinite(point.y) || !std::isfinite(point.z))
+    std::vector<planning_core::ConePoint> cones;
+    cones.reserve(cone_msg->points.size());
+
+    for (const geometry_msgs::Point32 &point : cone_msg->points)
     {
-      ROS_WARN_THROTTLE(1.0, "[LineDetection] Invalid cone position detected (NaN/Inf), skipping");
-      continue;
+      if (!std::isfinite(point.x) || !std::isfinite(point.y) || !std::isfinite(point.z))
+      {
+        continue;
+      }
+
+      planning_core::ConePoint cone;
+      cone.x = point.x;
+      cone.y = point.y;
+      cone.z = point.z;
+      cones.push_back(cone);
     }
 
-    planning_core::ConePoint cone;
-    cone.x = point.x;
-    cone.y = point.y;
-    cone.z = point.z;
-    cones.push_back(cone);
+    core_.UpdateCones(cones);
   }
 
-  core_.UpdateCones(cones);
-}
-
-void LineDetectionNode::CarStateCallback(const autodrive_msgs::HUAT_CarState::ConstPtr &car_state)
-{
-  std::lock_guard<std::mutex> lock(data_mutex_);
-
-  latest_state_time_ = car_state->header.stamp;
-
+  // 处理车辆状态
   if (!std::isfinite(car_state->car_state.x) ||
       !std::isfinite(car_state->car_state.y) ||
       !std::isfinite(car_state->car_state.theta) ||
@@ -118,7 +129,7 @@ void LineDetectionNode::PublishPath(const std::vector<planning_core::Pose> &path
 {
   nav_msgs::Path path_msg;
   path_msg.header.frame_id = output_frame_;
-  path_msg.header.stamp = std::max(latest_cone_time_, latest_state_time_);
+  path_msg.header.stamp = latest_sync_time_;
   path_msg.poses.reserve(path_points.size());
 
   for (const auto &pose : path_points)

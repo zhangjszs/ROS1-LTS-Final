@@ -9,12 +9,20 @@ int main(int argc, char **argv)
   ros::NodeHandle private_nh("~");
   perception_ros::LidarClusterRos lc(nh, private_nh);
 
-  ros::Rate loop_rate(100);  // 100Hz to avoid frame drops
-  while (ros::ok())
+  if (lc.IsLegacyPollMode())
   {
-    ros::spinOnce();
-    lc.RunOnce();
-    loop_rate.sleep();
+    ros::Rate loop_rate(lc.LegacyPollHz());
+    while (ros::ok())
+    {
+      ros::spinOnce();
+      lc.RunOnce();
+      loop_rate.sleep();
+    }
+  }
+  else
+  {
+    // 事件驱动：点云回调直接触发处理，避免固定频率轮询带来的等待
+    ros::spin();
   }
   return 0;
 }

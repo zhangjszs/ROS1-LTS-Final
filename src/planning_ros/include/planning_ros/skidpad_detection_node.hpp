@@ -6,6 +6,9 @@
 
 #include <autodrive_msgs/HUAT_CarState.h>
 #include <autodrive_msgs/HUAT_ConeDetections.h>
+#include <message_filters/subscriber.h>
+#include <message_filters/sync_policies/approximate_time.h>
+#include <message_filters/synchronizer.h>
 #include <nav_msgs/Path.h>
 #include <ros/ros.h>
 #include <std_msgs/Bool.h>
@@ -23,16 +26,24 @@ public:
   void RunOnce();
 
 private:
+  using ConeMsg = autodrive_msgs::HUAT_ConeDetections;
+  using StateMsg = autodrive_msgs::HUAT_CarState;
+  using SyncPolicy = message_filters::sync_policies::ApproximateTime<ConeMsg, StateMsg>;
+
   void LoadParameters();
-  void ConeCallback(const autodrive_msgs::HUAT_ConeDetections::ConstPtr &skidpad_msg);
-  void CarStateCallback(const autodrive_msgs::HUAT_CarState::ConstPtr &carposition);
+  void SyncCallback(const ConeMsg::ConstPtr &cone_msg,
+                    const StateMsg::ConstPtr &car_state);
   void PublishPath(const std::vector<planning_core::Pose> &path_points);
   void PublishApproachingGoal(bool approaching);
 
   ros::NodeHandle nh_;
   ros::NodeHandle pnh_;
-  ros::Subscriber cone_sub_;
-  ros::Subscriber car_state_sub_;
+
+  // 消息同步订阅
+  message_filters::Subscriber<ConeMsg> cone_sub_;
+  message_filters::Subscriber<StateMsg> car_state_sub_;
+  std::unique_ptr<message_filters::Synchronizer<SyncPolicy>> sync_;
+
   ros::Publisher log_path_pub_;
   ros::Publisher approaching_goal_pub_;
 
@@ -44,6 +55,7 @@ private:
   std::string log_path_topic_;
   std::string approaching_goal_topic_;
   int inverse_flag_{1};
+  double max_data_age_ = 0.5;  // 数据过期阈值 (秒)
 };
 
 } // namespace planning_ros

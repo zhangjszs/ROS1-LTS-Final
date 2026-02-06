@@ -36,6 +36,8 @@ add_library(${PROJECT_NAME}
   src/lidar_cluster_core.cpp
   src/ground_segmentation_ransac.cpp
   src/ground_segmentation_patchworkpp.cpp
+  src/ground_segmentation_fgs.cpp
+  src/fast_ground_segmentation.cpp
   src/patchworkpp.cpp
   src/distortion_adjust.cpp
   src/distortion_adjust_v2.cpp
@@ -44,8 +46,53 @@ add_library(${PROJECT_NAME}
   src/confidence_scorer.cpp
   src/cone_model_fitter.cpp
   src/cone_tracker.cpp
+  src/point_cloud_pool.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}
   ${PCL_LIBRARIES}
 )
+
+# ============== Benchmark ==============
+# 独立的性能基准测试程序
+option(BUILD_BENCHMARK "Build benchmark executables" ON)
+
+if(BUILD_BENCHMARK)
+  add_executable(ground_segmentation_benchmark
+    benchmark/ground_segmentation_benchmark.cpp
+  )
+  target_link_libraries(ground_segmentation_benchmark
+    ${PROJECT_NAME}
+    ${PCL_LIBRARIES}
+    stdc++fs  # for std::filesystem
+  )
+  target_compile_features(ground_segmentation_benchmark PRIVATE cxx_std_17)
+endif()
+
+# ============== Tests ==============
+if(CATKIN_ENABLE_TESTING)
+  find_package(rostest REQUIRED)
+
+  # 地面分割性能测试
+  catkin_add_gtest(test_ground_segmentation_perf
+    test/test_ground_segmentation_perf.cpp
+  )
+  if(TARGET test_ground_segmentation_perf)
+    target_link_libraries(test_ground_segmentation_perf
+      ${PROJECT_NAME}
+      ${PCL_LIBRARIES}
+    )
+  endif()
+
+  # 点云内存池测试
+  catkin_add_gtest(test_point_cloud_pool
+    test/test_point_cloud_pool.cpp
+  )
+  if(TARGET test_point_cloud_pool)
+    target_link_libraries(test_point_cloud_pool
+      ${PROJECT_NAME}
+      ${PCL_LIBRARIES}
+    )
+  endif()
+endif()
+

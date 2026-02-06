@@ -7,6 +7,7 @@ find_package(catkin REQUIRED COMPONENTS
   autodrive_msgs
   eigen_conversions
   geometry_msgs
+  message_filters
   nav_msgs
   roscpp
   roslib
@@ -22,7 +23,7 @@ endif()
 
 catkin_package(
   INCLUDE_DIRS include
-  CATKIN_DEPENDS autodrive_msgs eigen_conversions geometry_msgs nav_msgs roscpp roslib std_msgs tf planning_core
+  CATKIN_DEPENDS autodrive_msgs eigen_conversions geometry_msgs message_filters nav_msgs roscpp roslib std_msgs tf planning_core
 )
 
 include_directories(

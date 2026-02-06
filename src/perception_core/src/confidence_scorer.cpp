@@ -14,7 +14,7 @@ void ConfidenceScorer::setConfig(const Config& config) {
 }
 
 double ConfidenceScorer::computeConfidence(const ClusterFeatures& features) {
-    if (features.point_count < 2) {
+    if (features.point_count < 1) {
         return 0.0;
     }
 

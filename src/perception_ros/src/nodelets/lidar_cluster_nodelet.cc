@@ -19,7 +19,7 @@ namespace nodelet_lidar
 
     ~Lidar_Cluster_Nodelet()
     {
-      if (running_)
+      if (running_ && lidarThread_)
       {
         NODELET_INFO("shutting down lidar_cluster algoPoll thread");
         running_ = false;
@@ -42,21 +42,28 @@ namespace nodelet_lidar
   {
     // start the driver
     lc_.reset(new perception_ros::LidarClusterRos(getNodeHandle(), getPrivateNodeHandle()));
-    running_ = true;
-    lidarThread_ = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&Lidar_Cluster_Nodelet::algoPoll, this)));
+    if (lc_->IsLegacyPollMode())
+    {
+      running_ = true;
+      lidarThread_ = boost::shared_ptr<boost::thread>(new boost::thread(boost::bind(&Lidar_Cluster_Nodelet::algoPoll, this)));
+      NODELET_INFO("lidar_cluster running in legacy_poll mode");
+    }
+    else
+    {
+      running_ = false;
+      NODELET_INFO("lidar_cluster running in event_driven mode");
+    }
   }
 
   /** @brief Device poll thread main loop. */
   void Lidar_Cluster_Nodelet::algoPoll()
   {
-    ros::Rate loop_rate(10);
-    while (ros::ok())
+    ros::Rate loop_rate(lc_->LegacyPollHz());
+    while (running_ && ros::ok())
     {
-      // poll device until end of file
-      ros::spinOnce();
+      // legacy polling path: callback only updates latest frame, poll thread consumes it.
       lc_->RunOnce();
       loop_rate.sleep();
-      // controls its process freq
     }
     running_ = false;
   }

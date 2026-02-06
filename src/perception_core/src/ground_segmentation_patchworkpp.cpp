@@ -12,9 +12,14 @@ void lidar_cluster::ground_segmentation_dispatch_(const pcl::PointCloud<PointTyp
         return;
     }
 
+    if (ground_method_ == "fgs") {
+        ground_segmentation_fgs_(in_pc, g_not_ground_pc);
+        return;
+    }
+
     if (ground_method_ != "ransac") {
         std::cerr << "Unknown ground_method: " << ground_method_
-                  << ", valid: ransac|patchworkpp, fallback to ransac"
+                  << ", valid: ransac|patchworkpp|fgs, fallback to ransac"
                   << std::endl;
     }
     ground_segmentation_ransac_(in_pc, g_not_ground_pc);
