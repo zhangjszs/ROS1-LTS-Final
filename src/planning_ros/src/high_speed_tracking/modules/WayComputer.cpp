@@ -377,6 +377,7 @@ void WayComputer::update(TriangleSet &triangulation, const ros::Time &stamp) {
   // #1: Remove all triangles which we know will not be part of the track.用于从三角测量中移除那些不会成为轨迹的三角形
   // 实际上里面的运算还是一个局部坐标系上的点进行操作。
   this->filterTriangulation(triangulation);
+  last_filtered_triangulation_ = triangulation;
   last_triangle_count_ = triangulation.size();
 
   // #2: Extract all midpoints without repetitions, do that through an EdgeSet
@@ -395,6 +396,7 @@ void WayComputer::update(TriangleSet &triangulation, const ros::Time &stamp) {
   // left.
   //只保留那些与三角形外接圆心距离较近的中点。
   this->filterMidpoints(edgeSet, triangulation);
+  last_filtered_edges_ = edgeSet;
   last_edge_count_ = edgeSet.size();
 
   // Convert this set to a vector
@@ -504,14 +506,13 @@ autodrive_msgs::HUAT_PathLimits WayComputer::getPathLimits() const  {
 autodrive_msgs::HUAT_PathLimits WayComputer::getPathLimitsGlobal(int x)  {
   autodrive_msgs::HUAT_PathLimits res;
   res.stamp = this->currentStamp_;
-  std::vector<geometry_msgs::Point> path_;
   std::vector<Point> path;
-  Point nextPoint ;
+  Point nextPoint;
   // res.replan indicates if the Way is different from last iteration's// res.replan指示方法是否与上次迭代不同
   res.replan = (this->way_ != this->lastWay_);
  
   // Fill path  //填充路径
-  switch(x){
+  switch (x) {
     case 0://获取全部的全局坐标系下的路径
       path = this->wayToPublish_.getPath();
       res.path.reserve(path.size());
@@ -538,19 +539,27 @@ autodrive_msgs::HUAT_PathLimits WayComputer::getPathLimitsGlobal(int x)  {
     res.path = this->wayToPublish_.getPathInterpolation(pose.position.x,pose.position.y);
     break;
     case 3://全路径插值
-    res.path = this->wayToPublish_.getPathFullInterpolation();
-    break;
-    // case 4://局部路径插值(局部坐标)
-    // res.path = this->wayToPublish_.getPathInterpolationLocal(pose.position.x,pose.position.y);
-    // break;
-    // case 5://全路径插值(局部坐标)
-    // res.path = this->wayToPublish_.getPathFullInterpolationLocal();
+      res.path = this->wayToPublish_.getPathFullInterpolation();
+      break;
+    case 4: // 局部路径插值(局部坐标)接口尚未实现，兼容回退到2
+      ROS_WARN_THROTTLE(1.0, "[high_speed_tracking] mode=4 is not implemented. Fallback to mode=2.");
+      res.path = this->wayToPublish_.getPathInterpolation(pose.position.x, pose.position.y);
+      break;
+    case 5: // 全路径插值(局部坐标)接口尚未实现，兼容回退到3
+      ROS_WARN_THROTTLE(1.0, "[high_speed_tracking] mode=5 is not implemented. Fallback to mode=3.");
+      res.path = this->wayToPublish_.getPathFullInterpolation();
+      break;
     case 6:
       path = this->wayToPublish_.getPathLocal();
       res.path.reserve(path.size());
       for (const Point &p : path) {
         res.path.push_back(p.gmPoint());
       }
+      break;
+    default:
+      ROS_WARN_THROTTLE(1.0, "[high_speed_tracking] Unknown path mode=%d. Fallback to mode=2.", x);
+      res.path = this->wayToPublish_.getPathInterpolation(pose.position.x, pose.position.y);
+      break;
   }
 
   
@@ -584,4 +593,16 @@ size_t WayComputer::lastTriangleCount() const {
 
 size_t WayComputer::lastEdgeCount() const {
   return last_edge_count_;
+}
+
+const TriangleSet &WayComputer::lastFilteredTriangulation() const {
+  return last_filtered_triangulation_;
+}
+
+const EdgeSet &WayComputer::lastFilteredEdges() const {
+  return last_filtered_edges_;
+}
+
+const Way &WayComputer::wayForVisualization() const {
+  return wayToPublish_;
 }

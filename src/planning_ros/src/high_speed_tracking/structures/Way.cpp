@@ -485,22 +485,22 @@ bool Way::quinEhLobjetiuDeLaSevaDiresio(const Way &way) const
   // Replan every time the emptiness changes
   if (this->empty() != way.empty())
     return true;
+  if (this->empty())
+    return false;
+
   // Find the common starting point (replan if not found)
   auto wayIt = way.closestToCarElem_;
   auto thisIt = this->closestToCarElem_;
+  if (wayIt == way.path_.cend() || thisIt == this->path_.cend())
+    return true;
 
-  while (wayIt != way.path_.cend())
+  while (wayIt != way.path_.cend() && *wayIt != *thisIt)
   {
-    if (*wayIt == *thisIt)
-    {
-      // Common starting point found!
-      break;
-    }
     wayIt++;
   }
 
   // Case no starting point has been found
-  if (*wayIt != *thisIt)
+  if (wayIt == way.path_.cend())
     return true;
 
   // Compare one by one the vital_num_midpoints
@@ -552,17 +552,32 @@ void Way::deleteWayPassed()
   if (this->size() < 2)
     return;
   auto closestToCarElem = this->closestToCarElem_;
-
-  if ((closestToCarElem != std::prev(this->path_.cbegin())))
-  {
-    this->path_.erase(this->path_.cbegin(), closestToCarElem);
-  }
+  if (closestToCarElem == this->path_.cend() || closestToCarElem == this->path_.cbegin())
+    return;
+  this->path_.erase(this->path_.cbegin(), closestToCarElem);
+  this->closestToCarElem_ = this->path_.cbegin();
+  this->sizeToCar_ = this->size();
+  this->edge_set_dirty_ = true;
+  this->segment_index_dirty_ = true;
+  this->edge_set_.clear();
+  this->segments_.clear();
+  this->segment_grid_.clear();
+  this->segment_seen_.clear();
 }
 
 Point Way::getNextPathPoint()
 {
-  auto closestToCarElem = this->closestToCarElem_;
   Point point;
+  if (this->path_.empty())
+  {
+    return point;
+  }
+
+  auto closestToCarElem = this->closestToCarElem_;
+  if (closestToCarElem == this->path_.cend())
+  {
+    closestToCarElem = this->path_.cbegin();
+  }
   point.x = closestToCarElem->midPointGlobal().x;
   point.y = closestToCarElem->midPointGlobal().y;
   return point;
@@ -572,11 +587,15 @@ std::vector<geometry_msgs::Point> Way::getPathInterpolation(double x, double y)
 {
   deleteWayPassed();
   std::vector<geometry_msgs::Point> res;
+  if (this->path_.size() < 2)
+    return res;
   auto it = this->path_.cbegin();
   geometry_msgs::Point p;
   int size = path_.size();
   auto lastIt = it;
   it++;
+  if (it == this->path_.cend())
+    return res;
   //对车的位置到前面两个点的的拟合(进行判断,距离钱前面的第一个点的距离过近就会规划出一个虚拟点来规划曲线)
   if (pow(it->midPointGlobal().x - x, 2) + pow(it->midPointGlobal().y - y, 2) < pow(it->midPointGlobal().x - lastIt->midPointGlobal().x, 2) + pow(it->midPointGlobal().y - lastIt->midPointGlobal().y, 2) / 4)
   {
@@ -685,37 +704,46 @@ std::vector<geometry_msgs::Point> Way::getPathInterpolation(double x, double y)
     // 循环多次进行拟合,从车前的点开始,每三个点构造一个多项式用来给与车近的两个点之间用
     for (int i = 0; i < size - 2; i++)
     {
+      if (change == this->path_.cend())
+        break;
+      lastIt = change;
+      it = std::next(lastIt);
+      if (it == this->path_.cend())
+        break;
 
       bool increasing_x = true, decreasing_x = true, increasing_y = true, decreasing_y = true, turn_y = false, bend = true, turn_y2 = false;
       // 这个地方的都是对选择xoy或者选择yox的bool类型的初始化
       // 其中bend是对弯曲程度的判定，是对一些比较离谱的拟合曲线的删除
-      for (int j = 0; j < 3; ++j)
+      for (size_t j = 0; j < 3; ++j)
       {
-        for (size_t j = 0; j < 3; ++j)
-        {
-          // 这个地方的都是对选择xoy或者选择yox进行拟合的判断
-          if (it->midPointGlobal().x < lastIt->midPointGlobal().x)
-            increasing_x = false;
-          if (it->midPointGlobal().x > lastIt->midPointGlobal().x)
-            decreasing_x = false;
-          if (it->midPointGlobal().y < lastIt->midPointGlobal().y)
-            increasing_y = false;
-          if (it->midPointGlobal().y > lastIt->midPointGlobal().y)
-            decreasing_y = false;
-          if (abs(it->midPointGlobal().x - lastIt->midPointGlobal().x) * 2 < abs(it->midPointGlobal().y - lastIt->midPointGlobal().y))
-            turn_y = true;
-          if (abs(it->midPointGlobal().x - lastIt->midPointGlobal().x) > abs(it->midPointGlobal().y - lastIt->midPointGlobal().y))
-            turn_y = false;
-          if (abs(it->midPoint().y - lastIt->midPoint().y) < 1)
-            turn_y2 = true;
-          if (j == 1 && size == 3)
-            break;
-          lastIt++;
-          it++;
-        }
-        lastIt = change; // 其中bend是对弯曲程度的判定，是对一些比较离谱的拟合曲线的删除
-        it = lastIt;
-        it++;
+        // 这个地方的都是对选择xoy或者选择yox进行拟合的判断
+        if (it->midPointGlobal().x < lastIt->midPointGlobal().x)
+          increasing_x = false;
+        if (it->midPointGlobal().x > lastIt->midPointGlobal().x)
+          decreasing_x = false;
+        if (it->midPointGlobal().y < lastIt->midPointGlobal().y)
+          increasing_y = false;
+        if (it->midPointGlobal().y > lastIt->midPointGlobal().y)
+          decreasing_y = false;
+        if (abs(it->midPointGlobal().x - lastIt->midPointGlobal().x) * 2 < abs(it->midPointGlobal().y - lastIt->midPointGlobal().y))
+          turn_y = true;
+        if (abs(it->midPointGlobal().x - lastIt->midPointGlobal().x) > abs(it->midPointGlobal().y - lastIt->midPointGlobal().y))
+          turn_y = false;
+        if (abs(it->midPoint().y - lastIt->midPoint().y) < 1)
+          turn_y2 = true;
+        if (j == 1 && size == 3)
+          break;
+        auto nextLast = std::next(lastIt);
+        auto nextIt = std::next(it);
+        if (nextLast == this->path_.cend() || nextIt == this->path_.cend())
+          break;
+        lastIt = nextLast;
+        it = nextIt;
+      }
+      lastIt = change; // 其中bend是对弯曲程度的判定，是对一些比较离谱的拟合曲线的删除
+      it = std::next(lastIt);
+      if (it == this->path_.cend())
+        break;
 
         if ((increasing_x && !decreasing_x || !increasing_x && decreasing_x) && !((increasing_y && !decreasing_y || !increasing_y && decreasing_y) && turn_y) || turn_y2)
         {
@@ -765,12 +793,15 @@ std::vector<geometry_msgs::Point> Way::getPathInterpolation(double x, double y)
             {
               p.y += yn[m] * pow(p.x, m);
             }
-            if(i>0&&(pow(p.y - p.y + post_group_y[k], 2) + pow(dx, 2) < limit / 100)){
+            if(i>0&&(pow(p.y - post_group_y[k], 2) + pow(dx, 2) < limit / 100)){
             p.x = (p.x + post_group_x[k]) / 2;
             p.y = (p.y + post_group_y[k]) / 2;}
             res.push_back(p);
           }
-          it++;
+          auto nextIt = std::next(it);
+          if (nextIt == this->path_.cend())
+            break;
+          it = nextIt;
           double x2 = it->midPointGlobal().x;
           for (int k = 0; k < 20; ++k)
           {
@@ -837,7 +868,10 @@ std::vector<geometry_msgs::Point> Way::getPathInterpolation(double x, double y)
             p.y = (p.y + post_group_y[k]) / 2;}
             res.push_back(p);
           }
-           it++;
+          auto nextIt = std::next(it);
+          if (nextIt == this->path_.cend())
+            break;
+          it = nextIt;
           double y2 = it->midPointGlobal().y;
           for (int k = 0; k < 20; ++k)
           {
@@ -858,13 +892,14 @@ std::vector<geometry_msgs::Point> Way::getPathInterpolation(double x, double y)
         if (!bend)
           break;
         change++;
+        if (change == this->path_.cend())
+          break;
         lastIt = change;
-        it = lastIt;
-        it++;
+        it = std::next(lastIt);
+        if (it == this->path_.cend())
+          break;
       }
       return res;
-    }
-    return res;
   }
   return res;
 }
@@ -872,6 +907,8 @@ std::vector<geometry_msgs::Point> Way::getPathInterpolation(double x, double y)
 std::vector<geometry_msgs::Point> Way::getPathFullInterpolation()
 {
   std::vector<geometry_msgs::Point> res;
+  if (this->path_.size() <= 3)
+    return res;
   auto it = this->path_.cbegin();
   auto lastIt = it;
   auto change = it;
@@ -881,6 +918,12 @@ std::vector<geometry_msgs::Point> Way::getPathFullInterpolation()
   {
     for (int i = 0; i < path_.size() - 2; i++)
     {
+      if (change == this->path_.cend())
+        break;
+      lastIt = change;
+      it = std::next(lastIt);
+      if (it == this->path_.cend())
+        break;
 
       bool increasing_x = true, decreasing_x = true, increasing_y = true, decreasing_y = true, turn_y = false;
 
@@ -898,12 +941,17 @@ std::vector<geometry_msgs::Point> Way::getPathFullInterpolation()
           turn_y = true;
         if (abs(it->midPointGlobal().x - lastIt->midPointGlobal().x) > abs(it->midPointGlobal().y - lastIt->midPointGlobal().y))
           turn_y = false;
-        lastIt++;
-        it++;
+        auto nextLast = std::next(lastIt);
+        auto nextIt = std::next(it);
+        if (nextLast == this->path_.cend() || nextIt == this->path_.cend())
+          break;
+        lastIt = nextLast;
+        it = nextIt;
       }
       lastIt = change;
-      it = lastIt;
-      it++;
+      it = std::next(lastIt);
+      if (it == this->path_.cend())
+        break;
 
       if ((increasing_x && !decreasing_x || !increasing_x && decreasing_x) && !((increasing_y && !decreasing_y || !increasing_y && decreasing_y) && turn_y))
       {
@@ -936,7 +984,10 @@ std::vector<geometry_msgs::Point> Way::getPathFullInterpolation()
             p.y = (p.y + post_group_y[k]) / 2;}
             res.push_back(p);
           }
-          it++;
+          auto nextIt = std::next(it);
+          if (nextIt == this->path_.cend())
+            break;
+          it = nextIt;
           double x2 = it->midPointGlobal().x;
           for (int k = 0; k < 20; ++k)
           {
@@ -985,7 +1036,10 @@ std::vector<geometry_msgs::Point> Way::getPathFullInterpolation()
             p.y = (p.y + post_group_y[k]) / 2;}
           res.push_back(p);
         }
-          it++;
+          auto nextIt = std::next(it);
+          if (nextIt == this->path_.cend())
+            break;
+          it = nextIt;
           double y2 = it->midPointGlobal().y;
           for (int k = 0; k < 20; ++k)
           {
@@ -1004,9 +1058,12 @@ std::vector<geometry_msgs::Point> Way::getPathFullInterpolation()
           }
       }
       change++;
+      if (change == this->path_.cend())
+        break;
       lastIt = change;
-      it = lastIt;
-      it++;
+      it = std::next(lastIt);
+      if (it == this->path_.cend())
+        break;
     }
     return res;
   }

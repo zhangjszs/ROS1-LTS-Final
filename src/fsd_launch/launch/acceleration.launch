@@ -20,9 +20,12 @@
     <!-- ========== Subsystems ========== -->
     <include file="$(find fsd_launch)/launch/subsystems/perception.launch">
         <arg name="launch_rviz" value="false"/>
+        <arg name="mode" value="accel"/>
     </include>
 
-    <include file="$(find fsd_launch)/launch/subsystems/localization.launch"/>
+    <include file="$(find fsd_launch)/launch/subsystems/localization.launch">
+        <arg name="mode" value="accel"/>
+    </include>
 
     <include file="$(find fsd_launch)/launch/subsystems/planning.launch">
         <arg name="planner" value="line"/>
@@ -42,7 +45,7 @@
 
     <!-- FSD Visualization Node -->
     <include if="$(arg launch_viz)" file="$(find fsd_visualization)/launch/visualization.launch">
-        <arg name="frame_id" value="velodyne"/>
+        <arg name="frame_id" value="world"/>
         <arg name="show_trail" value="true"/>
     </include>
 

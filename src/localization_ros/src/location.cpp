@@ -1,5 +1,6 @@
 #include <localization_ros/location_node.hpp>
 
+#include <algorithm>
 #include <cmath>
 
 #include <geometry_msgs/TransformStamped.h>
@@ -60,6 +61,13 @@ LocationNode::LocationNode(ros::NodeHandle &nh)
   global_map_pub_ = nh_.advertise<sensor_msgs::PointCloud2>(global_map_topic_, 10);
   pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>(pose_topic_, 10);
   odom_pub_ = nh_.advertise<nav_msgs::Odometry>(odom_topic_, 10);
+
+  // Initialize factor graph backend if configured
+  if (backend_ == "factor_graph")
+  {
+    fg_optimizer_ = std::make_unique<localization_core::FactorGraphOptimizer>(fg_config_);
+    ROS_INFO("Factor graph backend enabled (shadow mode)");
+  }
 
 }
 
@@ -137,6 +145,85 @@ void LocationNode::loadParameters()
   if (!LoadParam(pnh_, nh_, "use_external_carstate", use_external_carstate_, false))
   {
     ROS_WARN_STREAM("Did not load use_external_carstate. Standard value is: " << (use_external_carstate_ ? "true" : "false"));
+  }
+
+  // 锥桶地图管理参数
+  LoadParam(pnh_, nh_, "map/merge_distance", params_.merge_distance, 2.5);
+  LoadParam(pnh_, nh_, "map/max_map_size", params_.max_map_size, 500);
+  LoadParam(pnh_, nh_, "map/min_obs_to_keep", params_.min_obs_to_keep, 2);
+  LoadParam(pnh_, nh_, "map/local_cone_range", params_.local_cone_range, 50.0);
+
+  // 入图过滤参数
+  LoadParam(pnh_, nh_, "map/min_confidence_to_add", params_.min_confidence_to_add, 0.3);
+  LoadParam(pnh_, nh_, "map/min_confidence_to_merge", params_.min_confidence_to_merge, 0.15);
+  LoadParam(pnh_, nh_, "map/max_cone_height", params_.max_cone_height, 0.75);
+  LoadParam(pnh_, nh_, "map/max_cone_width", params_.max_cone_width, 0.5);
+  LoadParam(pnh_, nh_, "map/min_cone_height", params_.min_cone_height, 0.03);
+
+  // 赛道模式与几何约束
+  LoadParam(pnh_, nh_, "map/mode", params_.map_mode, std::string("track"));
+  LoadParam(pnh_, nh_, "map/cone_y_max", params_.cone_y_max, 0.0);
+  LoadParam(pnh_, nh_, "map/expected_cone_spacing", params_.expected_cone_spacing, 0.0);
+  LoadParam(pnh_, nh_, "map/track_width", params_.track_width, 3.0);
+  LoadParam(pnh_, nh_, "map/enable_circle_validation", params_.enable_circle_validation, false);
+  LoadParam(pnh_, nh_, "map/circle_radius", params_.circle_radius, 15.25);
+  LoadParam(pnh_, nh_, "map/circle_center_dist", params_.circle_center_dist, 18.25);
+  LoadParam(pnh_, nh_, "map/circle_tolerance", params_.circle_tolerance, 2.0);
+
+  // 模式预设覆盖：从 map/mode_presets/<mode>/ 读取并覆盖对应参数
+  const std::string preset_prefix = "map/mode_presets/" + params_.map_mode + "/";
+  double tmp_d;
+  int tmp_i;
+  bool tmp_b;
+  if (LoadParam(pnh_, nh_, preset_prefix + "merge_distance", tmp_d, params_.merge_distance))
+    params_.merge_distance = tmp_d;
+  if (LoadParam(pnh_, nh_, preset_prefix + "max_map_size", tmp_i, params_.max_map_size))
+    params_.max_map_size = tmp_i;
+  if (LoadParam(pnh_, nh_, preset_prefix + "min_obs_to_keep", tmp_i, params_.min_obs_to_keep))
+    params_.min_obs_to_keep = tmp_i;
+  if (LoadParam(pnh_, nh_, preset_prefix + "local_cone_range", tmp_d, params_.local_cone_range))
+    params_.local_cone_range = tmp_d;
+  if (LoadParam(pnh_, nh_, preset_prefix + "min_confidence_to_add", tmp_d, params_.min_confidence_to_add))
+    params_.min_confidence_to_add = tmp_d;
+  if (LoadParam(pnh_, nh_, preset_prefix + "min_confidence_to_merge", tmp_d, params_.min_confidence_to_merge))
+    params_.min_confidence_to_merge = tmp_d;
+  if (LoadParam(pnh_, nh_, preset_prefix + "cone_y_max", tmp_d, params_.cone_y_max))
+    params_.cone_y_max = tmp_d;
+  if (LoadParam(pnh_, nh_, preset_prefix + "expected_cone_spacing", tmp_d, params_.expected_cone_spacing))
+    params_.expected_cone_spacing = tmp_d;
+  if (LoadParam(pnh_, nh_, preset_prefix + "track_width", tmp_d, params_.track_width))
+    params_.track_width = tmp_d;
+  if (LoadParam(pnh_, nh_, preset_prefix + "enable_circle_validation", tmp_b, params_.enable_circle_validation))
+    params_.enable_circle_validation = tmp_b;
+  if (LoadParam(pnh_, nh_, preset_prefix + "circle_radius", tmp_d, params_.circle_radius))
+    params_.circle_radius = tmp_d;
+  if (LoadParam(pnh_, nh_, preset_prefix + "circle_center_dist", tmp_d, params_.circle_center_dist))
+    params_.circle_center_dist = tmp_d;
+  if (LoadParam(pnh_, nh_, preset_prefix + "circle_tolerance", tmp_d, params_.circle_tolerance))
+    params_.circle_tolerance = tmp_d;
+
+  ROS_INFO_STREAM("Localization map_mode: " << params_.map_mode);
+
+  // Backend selection: "mapper" (default) or "factor_graph" (shadow mode)
+  LoadParam(pnh_, nh_, "backend", backend_, std::string("mapper"));
+  ROS_INFO_STREAM("Localization backend: " << backend_);
+
+  // Factor graph config
+  if (backend_ == "factor_graph")
+  {
+    LoadParam(pnh_, nh_, "fg/keyframe_dist", fg_config_.keyframe.dist_threshold, 1.0);
+    LoadParam(pnh_, nh_, "fg/keyframe_yaw", fg_config_.keyframe.yaw_threshold, 0.1);
+    LoadParam(pnh_, nh_, "fg/keyframe_dt", fg_config_.keyframe.dt_threshold, 0.5);
+    LoadParam(pnh_, nh_, "fg/run_extra_update", fg_config_.run_extra_update, false);
+    LoadParam(pnh_, nh_, "fg/sigma_imu_xy", fg_config_.sigma_imu_xy, 0.05);
+    LoadParam(pnh_, nh_, "fg/sigma_imu_theta", fg_config_.sigma_imu_theta, 0.01);
+    LoadParam(pnh_, nh_, "fg/sigma_gnss_good", fg_config_.sigma_gnss_good, 0.5);
+    LoadParam(pnh_, nh_, "fg/sigma_gnss_medium", fg_config_.sigma_gnss_medium, 2.0);
+    LoadParam(pnh_, nh_, "fg/sigma_gnss_poor", fg_config_.sigma_gnss_poor, 10.0);
+    LoadParam(pnh_, nh_, "fg/min_cone_confidence", fg_config_.min_cone_confidence, 0.0);
+    LoadParam(pnh_, nh_, "fg/max_cone_factors_per_keyframe", fg_config_.max_cone_factors_per_keyframe, 10);
+    LoadParam(pnh_, nh_, "fg/color_mismatch_penalty", fg_config_.color_mismatch_penalty, 2.0);
+    LoadParam(pnh_, nh_, "fg/merge_distance", fg_config_.merge_distance, 2.0);
   }
 }
 
@@ -218,6 +305,12 @@ void LocationNode::imuCallback(const autodrive_msgs::HUAT_InsP2::ConstPtr &msg)
     const ros::Time stamp = msg->header.stamp.isZero() ? ros::Time::now() : msg->header.stamp;
     publishState(state, stamp, true);
   }
+
+  // Shadow-mode factor graph feeding
+  if (fg_optimizer_)
+  {
+    feedFactorGraph(*msg);
+  }
 }
 
 void LocationNode::carstateCallback(const autodrive_msgs::HUAT_CarState::ConstPtr &msg)
@@ -265,6 +358,12 @@ void LocationNode::coneCallback(const autodrive_msgs::HUAT_ConeDetections::Const
     global_cloud_msg.header.frame_id = world_frame_;
     global_cloud_msg.header.stamp = stamp;
     global_map_pub_.publish(global_cloud_msg);
+  }
+
+  // Shadow-mode factor graph feeding
+  if (fg_optimizer_)
+  {
+    feedFactorGraphCones(*msg);
   }
 }
 
@@ -345,19 +444,42 @@ void LocationNode::ToRos(const localization_core::CarState &state, autodrive_msg
   out->V = static_cast<float>(state.V);
   out->W = static_cast<float>(state.W);
   out->A = static_cast<float>(state.A);
+
+  // FSSIM风格扩展状态
+  out->Vy = static_cast<float>(state.Vy);
+  out->Wz = static_cast<float>(state.Wz);
+  out->Ax = static_cast<float>(state.Ax);
+  out->Ay = static_cast<float>(state.Ay);
 }
 
 localization_core::ConeDetections LocationNode::ToCore(const autodrive_msgs::HUAT_ConeDetections &msg)
 {
   localization_core::ConeDetections out;
-  out.points.reserve(msg.points.size());
-  for (const auto &pt : msg.points)
+  out.detections.reserve(msg.points.size());
+  for (size_t i = 0; i < msg.points.size(); ++i)
   {
-    localization_core::Point3 p;
-    p.x = pt.x;
-    p.y = pt.y;
-    p.z = pt.z;
-    out.points.push_back(p);
+    localization_core::ConeDetection det;
+    det.point.x = msg.points[i].x;
+    det.point.y = msg.points[i].y;
+    det.point.z = msg.points[i].z;
+
+    if (i < msg.confidence.size())
+      det.confidence = msg.confidence[i];
+    if (i < msg.obj_dist.size())
+      det.distance = msg.obj_dist[i];
+    if (i < msg.maxPoints.size()) {
+      det.bbox_max.x = msg.maxPoints[i].x;
+      det.bbox_max.y = msg.maxPoints[i].y;
+      det.bbox_max.z = msg.maxPoints[i].z;
+    }
+    if (i < msg.minPoints.size()) {
+      det.bbox_min.x = msg.minPoints[i].x;
+      det.bbox_min.y = msg.minPoints[i].y;
+      det.bbox_min.z = msg.minPoints[i].z;
+    }
+    if (i < msg.color_types.size())
+      det.color_type = msg.color_types[i];
+    out.detections.push_back(det);
   }
   return out;
 }
@@ -384,6 +506,86 @@ void LocationNode::ToRos(const localization_core::ConeMap &map, autodrive_msgs::
     msg.type = cone.type;
     out->cone.push_back(msg);
   }
+}
+
+void LocationNode::feedFactorGraph(const autodrive_msgs::HUAT_InsP2 &msg)
+{
+  const double stamp = msg.header.stamp.toSec();
+  if (fg_start_time_ < 0.0) fg_start_time_ = stamp;
+  const double t = stamp - fg_start_time_;
+
+  // IMU measurement (velocity + yaw rate preintegration)
+  static double last_imu_time = -1.0;
+  const double v_fwd = std::sqrt(msg.Vn * msg.Vn + msg.Ve * msg.Ve);
+  if (last_imu_time >= 0.0)
+  {
+    const double dt = stamp - last_imu_time;
+    if (dt > 0.0 && dt < 1.0)
+    {
+      fg_optimizer_->AddImuMeasurement(v_fwd, msg.gyro_z, dt);
+    }
+  }
+  last_imu_time = stamp;
+
+  // GNSS observation
+  localization_core::GnssQuality quality = localization_core::GnssQuality::INVALID;
+  if (msg.Status >= 2)
+  {
+    const uint8_t nsv = std::max(msg.NSV1, msg.NSV2);
+    if (nsv >= 12 && msg.Age < 5)
+      quality = localization_core::GnssQuality::GOOD;
+    else if (nsv >= 8 && msg.Age < 15)
+      quality = localization_core::GnssQuality::MEDIUM;
+    else
+      quality = localization_core::GnssQuality::POOR;
+  }
+  if (quality != localization_core::GnssQuality::INVALID)
+  {
+    // Use mapper's current position as ENU proxy (mapper already does WGS84->local)
+    const auto &cs = mapper_.car_state();
+    fg_optimizer_->SetGnssObservation(cs.car_state.x, cs.car_state.y, quality);
+  }
+
+  // Speed observation
+  fg_optimizer_->SetSpeedObservation(v_fwd);
+
+  // Try update
+  const auto &cs = mapper_.car_state();
+  localization_core::Pose2 current_pose;
+  current_pose.x = cs.car_state.x;
+  current_pose.y = cs.car_state.y;
+  current_pose.theta = cs.car_state.theta;
+
+  if (fg_optimizer_->TryUpdate(current_pose, t))
+  {
+    auto fg_pose = fg_optimizer_->GetOptimizedPose();
+    ROS_INFO_THROTTLE(5.0, "[FG shadow] kf=%lu pose=(%.2f,%.2f,%.3f) opt_ms=%.1f lm=%zu",
+                      fg_optimizer_->NumKeyframes(),
+                      fg_pose.x, fg_pose.y, fg_pose.theta,
+                      fg_optimizer_->LastOptTimeMs(),
+                      fg_optimizer_->GetLandmarks().size());
+  }
+}
+
+void LocationNode::feedFactorGraphCones(const autodrive_msgs::HUAT_ConeDetections &msg)
+{
+  std::vector<localization_core::ConeObservation> obs;
+  obs.reserve(msg.points.size());
+  for (size_t i = 0; i < msg.points.size(); ++i)
+  {
+    const double px = msg.points[i].x;
+    const double py = msg.points[i].y;
+    const double range = std::sqrt(px * px + py * py);
+    const double bearing = std::atan2(py, px);
+
+    localization_core::ConeObservation co;
+    co.range = range;
+    co.bearing = bearing;
+    co.color_type = (i < msg.color_types.size()) ? msg.color_types[i] : 4;
+    co.confidence = (i < msg.confidence.size()) ? msg.confidence[i] : 0.0;
+    obs.push_back(co);
+  }
+  fg_optimizer_->SetConeObservations(obs);
 }
 
 }  // namespace localization_ros

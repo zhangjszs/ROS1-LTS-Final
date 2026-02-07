@@ -22,7 +22,8 @@ VehicleVisualizer::VehicleVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh) 
         &VehicleVisualizer::simStateCallback, this);
 
     // 发布
-    pub_markers_ = nh.advertise<visualization_msgs::MarkerArray>(markers_topic_, 1);
+    // Latch latest vehicle markers for RViz late subscribers.
+    pub_markers_ = nh.advertise<visualization_msgs::MarkerArray>(markers_topic_, 1, true);
 
     ROS_INFO("[VehicleVisualizer] Initialized, trail_length=%d, show_velocity=%d, show_steering=%d",
              trail_max_size_, show_velocity_, show_steering_);
@@ -150,7 +151,7 @@ visualization_msgs::Marker VehicleVisualizer::createBodyMarker(
         marker.color.a = VEHICLE_BODY[3];
     }
 
-    marker.lifetime = ros::Duration(0.1);
+    marker.lifetime = ros::Duration(0.0);
 
     return marker;
 }
@@ -189,7 +190,7 @@ visualization_msgs::Marker VehicleVisualizer::createArrowMarker(
     marker.color.b = VEHICLE_ARROW[2];
     marker.color.a = VEHICLE_ARROW[3];
     
-    marker.lifetime = ros::Duration(0.1);
+    marker.lifetime = ros::Duration(0.0);
     
     return marker;
 }
@@ -253,7 +254,7 @@ std::vector<visualization_msgs::Marker> VehicleVisualizer::createWheelMarkers(
         wheel.color.b = VEHICLE_WHEEL[2];
         wheel.color.a = VEHICLE_WHEEL[3];
         
-        wheel.lifetime = ros::Duration(0.1);
+        wheel.lifetime = ros::Duration(0.0);
         
         wheels.push_back(wheel);
     }
@@ -293,7 +294,7 @@ visualization_msgs::Marker VehicleVisualizer::createTrailMarker(const ros::Time&
         marker.colors.push_back(color);
     }
     
-    marker.lifetime = ros::Duration(0.1);
+    marker.lifetime = ros::Duration(0.0);
     
     return marker;
 }
@@ -354,7 +355,7 @@ visualization_msgs::Marker VehicleVisualizer::createVelocityMarker(
     marker.color.b = VEHICLE_VELOCITY[2];
     marker.color.a = VEHICLE_VELOCITY[3];
 
-    marker.lifetime = ros::Duration(0.1);
+    marker.lifetime = ros::Duration(0.0);
 
     return marker;
 }
@@ -404,7 +405,7 @@ visualization_msgs::Marker VehicleVisualizer::createSteeringMarker(
     marker.color.b = VEHICLE_STEERING[2];
     marker.color.a = VEHICLE_STEERING[3];
 
-    marker.lifetime = ros::Duration(0.1);
+    marker.lifetime = ros::Duration(0.0);
 
     return marker;
 }

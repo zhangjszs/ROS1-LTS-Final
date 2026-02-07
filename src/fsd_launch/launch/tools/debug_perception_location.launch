@@ -7,6 +7,7 @@
     <arg name="simulation" default="false" doc="Whether to play rosbag"/>
     <arg name="bag" default="" doc="Path to rosbag file"/>
     <arg name="rviz_mode" default="world" doc="RViz mode: world|ego|dual|none"/>
+    <arg name="mode" default="track" doc="赛道模式: accel | skidpad | track"/>
 
     <!-- Lidar Topic Configuration -->
     <arg name="lidar_topic" default="/velodyne_points" doc="Input point cloud topic name"/>
@@ -27,6 +28,7 @@
     <include file="$(find perception_ros)/launch/lidar_cluster.launch">
         <arg name="launch_rviz" value="false"/>
         <arg name="input_topic" value="$(arg lidar_topic)"/>
+        <arg name="mode" value="$(arg mode)"/>
     </include>
 
     <!-- 3. Localization -->
@@ -35,7 +37,9 @@
     -->
     <group>
         <remap from="sensors/ins" to="/pbox_pub/Ins"/>
-        <include file="$(find localization_ros)/launch/location.launch"/>
+        <include file="$(find localization_ros)/launch/location.launch">
+            <arg name="mode" value="$(arg mode)"/>
+        </include>
     </group>
 
     <!-- 4. Visualization -->

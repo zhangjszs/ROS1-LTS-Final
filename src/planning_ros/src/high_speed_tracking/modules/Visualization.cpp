@@ -28,7 +28,7 @@ Visualization &Visualization::getInstance() {
 void Visualization::init(ros::NodeHandle *const nh, const Params::Visualization &params) {
   params_ = params;
   if (params.publish_viz_data) {
-    viz_pub_ = nh->advertise<autodrive_msgs::HUAT_HighSpeedViz>(params_.viz_topic, 1);
+    viz_pub_ = nh->advertise<autodrive_msgs::HUAT_HighSpeedViz>(params_.viz_topic, 1, true);
   }
 }
 

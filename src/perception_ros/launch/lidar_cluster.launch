@@ -4,15 +4,17 @@
     <arg name="rviz_config" default="$(find fsd_visualization)/rviz/ego_perception.rviz" />
     <arg name="ns" default="/perception/lidar_cluster" />
     <arg name="input_topic" default="/velodyne_points" />
+    <arg name="mode" default="track" doc="赛道模式: accel | skidpad | track"/>
 
     <!-- Enable sim time when playing rosbag -->
     <param name="/use_sim_time" value="true" if="$(eval arg('bag') != '')" />
 
     <group ns="$(arg ns)">
         <node pkg="nodelet" type="nodelet" name="lidar_cluster_nodelet_manager" args="manager" output="screen" />
-        <node pkg="nodelet" type="nodelet" name="lidar_cluster_node" args="load nodelet_lidar/Lidar_Cluster_Nodelet $(arg ns)/lidar_cluster_nodelet_manager" output="screen">
+        <node pkg="nodelet" type="nodelet" name="lidar_cluster_node" args="load nodelet_lidar/Lidar_Cluster_Nodelet lidar_cluster_nodelet_manager" output="screen">
             <rosparam command="load" file="$(find perception_ros)/config/lidar_cluster_example.yaml" />
             <param name="topics/input" value="$(arg input_topic)" />
+            <param name="roi/mode" value="$(arg mode)"/>
         </node>
     </group>
 

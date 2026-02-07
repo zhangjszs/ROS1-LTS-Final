@@ -34,6 +34,8 @@ class LocationMapper {
 
   void saveCarstate(double x, double y);
 
+  bool passesGeometryFilter(double lx, double ly) const;
+
   LocationParams params_;
   std::string data_root_;
 
@@ -55,6 +57,8 @@ class LocationMapper {
 
   PointCloudPtr cloud_;
   std::vector<int> point_ids_;
+  std::vector<int> point_obs_counts_;  // 每个锥桶的观测次数（用于加权合并）
+  std::vector<std::uint8_t> point_types_;  // 每个锥桶类型: 0/1/2/3/4
   pcl::KdTreeFLANN<pcl::PointXYZ> kdtree_;
 
   mutable std::mutex state_mutex_;

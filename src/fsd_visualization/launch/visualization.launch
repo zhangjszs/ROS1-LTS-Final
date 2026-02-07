@@ -5,7 +5,7 @@
     <arg name="enable_path" default="true"/>
     <arg name="enable_vehicle" default="true"/>
     <arg name="enable_triangulation" default="true"/>
-    <arg name="frame_id" default="velodyne"/>
+    <arg name="frame_id" default="world"/>
     <arg name="show_trail" default="true"/>
     <arg name="trail_length" default="200"/>
     <arg name="use_mesh" default="true"/>

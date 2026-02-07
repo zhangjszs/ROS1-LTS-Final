@@ -9,14 +9,18 @@
   <include file="$(find planning_ros)/launch/line_detection.launch" />
 
   <!-- Other Modules -->
-  <include file="$(find perception_ros)/launch/lidar_cluster.launch" />
+  <include file="$(find perception_ros)/launch/lidar_cluster.launch">
+    <arg name="mode" value="accel" />
+  </include>
 
   <group>
     <param name="control/mode" value="3" />
     <include file="$(find control)/launch/controler.launch" />
   </group>
 
-  <include file="$(find localization_ros)/launch/location.launch" />
+  <include file="$(find localization_ros)/launch/location.launch">
+    <arg name="mode" value="accel" />
+  </include>
 
   <!-- Rosbag Play -->
   <node pkg="rosbag" type="play" name="rosbag_play" output="screen"

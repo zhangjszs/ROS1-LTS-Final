@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <string>
 
 namespace fsd_viz {
@@ -62,19 +63,21 @@ const std::string FRAME_GLOBAL  = "world";    // 全局坐标系（ENU）
 const std::string FRAME_VEHICLE = "velodyne"; // 车辆坐标系（雷达）
 
 // ============ 锥桶类型 ============
+// 与 HUAT_ConeDetections.color_types / HUAT_Cone.type 对齐:
+// 0=BLUE, 1=YELLOW, 2=ORANGE_SMALL, 3=ORANGE_BIG, 4=NONE
 enum class ConeType : uint8_t {
-    UNKNOWN = 0,
-    BLUE    = 1,
-    YELLOW  = 2,
-    ORANGE  = 3,
-    ORANGE_BIG = 4
+    BLUE = 0,
+    YELLOW = 1,
+    ORANGE_SMALL = 2,
+    ORANGE_BIG = 3,
+    NONE = 4
 };
 
 inline std::array<float, 4> getConeColor(ConeType type) {
     switch (type) {
         case ConeType::BLUE:       return CONE_BLUE;
         case ConeType::YELLOW:     return CONE_YELLOW;
-        case ConeType::ORANGE:
+        case ConeType::ORANGE_SMALL:
         case ConeType::ORANGE_BIG: return CONE_ORANGE;
         default:                   return CONE_UNKNOWN;
     }
@@ -106,9 +109,9 @@ inline std::string getConeMeshURI(ConeType type) {
     switch (type) {
         case ConeType::BLUE:       return MESH_CONE_BLUE;
         case ConeType::YELLOW:     return MESH_CONE_YELLOW;
-        case ConeType::ORANGE:     return MESH_CONE_ORANGE;
+        case ConeType::ORANGE_SMALL: return MESH_CONE_ORANGE;
         case ConeType::ORANGE_BIG: return MESH_CONE_ORANGE_BIG;
-        default:                   return MESH_CONE_ORANGE;  // 未知类型用橙色
+        default:                   return MESH_CONE_ORANGE;  // NONE/未知类型回退到橙色
     }
 }
 

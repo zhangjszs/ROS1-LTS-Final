@@ -1,5 +1,6 @@
 #include <localization_core/location_mapper.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <fstream>
@@ -9,6 +10,27 @@ namespace localization_core {
 
 namespace {
 constexpr double kPi = 3.14159265358979;
+
+constexpr std::uint8_t kConeBlue = 0;
+constexpr std::uint8_t kConeYellow = 1;
+constexpr std::uint8_t kConeOrangeSmall = 2;
+constexpr std::uint8_t kConeOrangeBig = 3;
+constexpr std::uint8_t kConeNone = 4;
+
+std::uint8_t normalizeConeType(std::uint8_t raw_type)
+{
+  switch (raw_type)
+  {
+    case kConeBlue:
+    case kConeYellow:
+    case kConeOrangeSmall:
+    case kConeOrangeBig:
+    case kConeNone:
+      return raw_type;
+    default:
+      return kConeNone;
+  }
+}
 }
 
 LocationMapper::LocationMapper(const LocationParams &params)
@@ -182,21 +204,26 @@ void LocationMapper::GeoDeticToENU(double lat, double lon, double h,
   const double state_x = cos_yaw * enu_xyz[0] - sin_yaw * enu_xyz[1];
   const double state_y = sin_yaw * enu_xyz[0] + cos_yaw * enu_xyz[1];
 
-  const double front_x = cos_yaw * front_wheel_[0] - sin_yaw * front_wheel_[1];
-  const double front_y = sin_yaw * front_wheel_[0] + cos_yaw * front_wheel_[1];
-  const double rear_x = cos_yaw * rear_wheel_[0] - sin_yaw * rear_wheel_[1];
-  const double rear_y = sin_yaw * rear_wheel_[0] + cos_yaw * rear_wheel_[1];
+  // 车体坐标系偏移需要用车辆航向旋转到地图坐标系
+  const double heading = car_state_.car_state.theta;
+  const double cos_h = std::cos(heading);
+  const double sin_h = std::sin(heading);
+
+  const double front_dx = cos_h * params_.front_to_imu_x - sin_h * params_.front_to_imu_y;
+  const double front_dy = sin_h * params_.front_to_imu_x + cos_h * params_.front_to_imu_y;
+  const double rear_dx = cos_h * params_.rear_to_imu_x - sin_h * params_.rear_to_imu_y;
+  const double rear_dy = sin_h * params_.rear_to_imu_x + cos_h * params_.rear_to_imu_y;
 
   car_state_.car_state.x = state_x;
   car_state_.car_state.y = state_y;
 
-  car_state_.car_state_front.x = front_x;
-  car_state_.car_state_front.y = front_y;
-  car_state_.car_state_front.z = front_wheel_[2];
+  car_state_.car_state_front.x = state_x + front_dx;
+  car_state_.car_state_front.y = state_y + front_dy;
+  car_state_.car_state_front.z = enu_xyz[2] + params_.front_to_imu_z;
 
-  car_state_.car_state_rear.x = rear_x;
-  car_state_.car_state_rear.y = rear_y;
-  car_state_.car_state_rear.z = rear_wheel_[2];
+  car_state_.car_state_rear.x = state_x + rear_dx;
+  car_state_.car_state_rear.y = state_y + rear_dy;
+  car_state_.car_state_rear.z = enu_xyz[2] + params_.rear_to_imu_z;
 
   has_carstate_ = true;
 }
@@ -210,7 +237,7 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
   {
     return false;
   }
-  if (detections.points.empty())
+  if (detections.detections.empty())
   {
     return false;
   }
@@ -222,7 +249,7 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
 
   map_out->cones.clear();
 
-  const double merge_distance = 2.5;
+  const double merge_distance = params_.merge_distance;
   const double merge_distance_sq = merge_distance * merge_distance;
 
   const double yaw = car_state_.car_state.theta;
@@ -235,10 +262,30 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
   if (!first_cone_msg_)
   {
     first_cone_msg_ = true;
-    for (size_t i = 0; i < detections.points.size(); i++)
+    for (size_t i = 0; i < detections.detections.size(); i++)
     {
-      const double lx = detections.points[i].x;
-      const double ly = detections.points[i].y;
+      const auto &det = detections.detections[i];
+
+      // 过滤层1：bbox 硬约束
+      const double height = det.bbox_max.z - det.bbox_min.z;
+      const double width_x = det.bbox_max.x - det.bbox_min.x;
+      const double width_y = det.bbox_max.y - det.bbox_min.y;
+      const double width = std::max(width_x, width_y);
+      if (height > params_.max_cone_height || width > params_.max_cone_width)
+        continue;
+      if (height < params_.min_cone_height)
+        continue;
+
+      const double lx = det.point.x;
+      const double ly = det.point.y;
+
+      // 过滤层1.5：几何约束验证
+      if (!passesGeometryFilter(lx, ly))
+        continue;
+
+      // 过滤层2：新锥桶 confidence 门控
+      if (det.confidence < params_.min_confidence_to_add)
+        continue;
 
       const double rot_x = cos_yaw * lx - sin_yaw * ly;
       const double rot_y = sin_yaw * lx + cos_yaw * ly;
@@ -246,11 +293,11 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
       Cone cone;
       cone.position_base_link.x = lx + params_.lidar_to_imu_dist;
       cone.position_base_link.y = ly;
-      cone.position_base_link.z = detections.points[i].z;
+      cone.position_base_link.z = det.point.z;
 
-      cone.position_global.x = rot_x + car_state_.car_state.x;
-      cone.position_global.y = rot_y + car_state_.car_state.y;
-      cone.position_global.z = detections.points[i].z;
+      cone.position_global.x = rot_x + lidar_offset_x + car_state_.car_state.x;
+      cone.position_global.y = rot_y + lidar_offset_y + car_state_.car_state.y;
+      cone.position_global.z = det.point.z;
 
       cone.id = static_cast<std::uint32_t>(getNewId());
 
@@ -263,16 +310,34 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
       cloud_->width = cloud_->points.size();
       cloud_->height = 1;
       point_ids_.push_back(static_cast<int>(cone.id));
+      point_obs_counts_.push_back(1);
+      point_types_.push_back(normalizeConeType(det.color_type));
     }
     kdtree_.setInputCloud(cloud_);
   }
   else
   {
     bool cloud_modified = false;
-    for (size_t i = 0; i < detections.points.size(); i++)
+    for (size_t i = 0; i < detections.detections.size(); i++)
     {
-      const double lx = detections.points[i].x;
-      const double ly = detections.points[i].y;
+      const auto &det = detections.detections[i];
+
+      // 过滤层1：bbox 硬约束
+      const double height = det.bbox_max.z - det.bbox_min.z;
+      const double width_x = det.bbox_max.x - det.bbox_min.x;
+      const double width_y = det.bbox_max.y - det.bbox_min.y;
+      const double width = std::max(width_x, width_y);
+      if (height > params_.max_cone_height || width > params_.max_cone_width)
+        continue;
+      if (height < params_.min_cone_height)
+        continue;
+
+      const double lx = det.point.x;
+      const double ly = det.point.y;
+
+      // 过滤层1.5：几何约束验证
+      if (!passesGeometryFilter(lx, ly))
+        continue;
 
       const double rot_x = cos_yaw * lx - sin_yaw * ly;
       const double rot_y = sin_yaw * lx + cos_yaw * ly;
@@ -280,11 +345,11 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
       Cone cone;
       cone.position_base_link.x = lx + params_.lidar_to_imu_dist;
       cone.position_base_link.y = ly;
-      cone.position_base_link.z = detections.points[i].z;
+      cone.position_base_link.z = det.point.z;
 
-      cone.position_global.x = rot_x + car_state_.car_state.x;
-      cone.position_global.y = rot_y + car_state_.car_state.y;
-      cone.position_global.z = detections.points[i].z;
+      cone.position_global.x = rot_x + lidar_offset_x + car_state_.car_state.x;
+      cone.position_global.y = rot_y + lidar_offset_y + car_state_.car_state.y;
+      cone.position_global.z = det.point.z;
 
       pcl::PointXYZ point;
       point.x = cone.position_global.x;
@@ -299,32 +364,63 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
         if (pointNKNSquaredDistance[0] <= merge_distance_sq &&
             pointIdxNKNSearch[0] >= 0 && pointIdxNKNSearch[0] < static_cast<int>(cloud_->size()))
         {
-          cloud_->points[pointIdxNKNSearch[0]].x = (cloud_->points[pointIdxNKNSearch[0]].x + point.x) / 2.0;
-          cloud_->points[pointIdxNKNSearch[0]].y = (cloud_->points[pointIdxNKNSearch[0]].y + point.y) / 2.0;
-          cloud_->points[pointIdxNKNSearch[0]].z = (cloud_->points[pointIdxNKNSearch[0]].z + point.z) / 2.0;
-          cone.position_global.x = cloud_->points[pointIdxNKNSearch[0]].x;
-          cone.position_global.y = cloud_->points[pointIdxNKNSearch[0]].y;
-          cone.id = static_cast<std::uint32_t>(point_ids_[pointIdxNKNSearch[0]]);
+          // 过滤层2：合并 confidence 门控
+          if (det.confidence < params_.min_confidence_to_merge)
+            continue;
+
+          // 加权合并：使用递增均值 new = old * n/(n+1) + obs * 1/(n+1)
+          const int idx = pointIdxNKNSearch[0];
+          const int n = point_obs_counts_[idx];
+          const double w_old = static_cast<double>(n) / static_cast<double>(n + 1);
+          const double w_new = 1.0 / static_cast<double>(n + 1);
+          cloud_->points[idx].x = static_cast<float>(cloud_->points[idx].x * w_old + point.x * w_new);
+          cloud_->points[idx].y = static_cast<float>(cloud_->points[idx].y * w_old + point.y * w_new);
+          cloud_->points[idx].z = static_cast<float>(cloud_->points[idx].z * w_old + point.z * w_new);
+          point_obs_counts_[idx]++;
+          if (idx < static_cast<int>(point_types_.size()))
+          {
+            const std::uint8_t obs_type = normalizeConeType(det.color_type);
+            if (point_types_[idx] == kConeNone && obs_type != kConeNone)
+            {
+              point_types_[idx] = obs_type;
+            }
+          }
+          cone.position_global.x = cloud_->points[idx].x;
+          cone.position_global.y = cloud_->points[idx].y;
+          cone.id = static_cast<std::uint32_t>(point_ids_[idx]);
+          cloud_modified = true;
         }
         else
         {
+          // 过滤层2：新锥桶 confidence 门控
+          if (det.confidence < params_.min_confidence_to_add)
+            continue;
+
           int id = getNewId();
           cone.id = static_cast<std::uint32_t>(id);
           cloud_->push_back(point);
           cloud_->width = cloud_->points.size();
           cloud_->height = 1;
           point_ids_.push_back(id);
+          point_obs_counts_.push_back(1);
+          point_types_.push_back(normalizeConeType(det.color_type));
           cloud_modified = true;
         }
       }
       else
       {
+        // 过滤层2：新锥桶 confidence 门控
+        if (det.confidence < params_.min_confidence_to_add)
+          continue;
+
         int id = getNewId();
         cone.id = static_cast<std::uint32_t>(id);
         cloud_->push_back(point);
         cloud_->width = cloud_->points.size();
         cloud_->height = 1;
         point_ids_.push_back(id);
+        point_obs_counts_.push_back(1);
+        point_types_.push_back(normalizeConeType(det.color_type));
         cloud_modified = true;
       }
     }
@@ -335,23 +431,109 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
     }
   }
 
+  // 地图清理：超过最大容量时，移除低观测次数的锥桶
+  if (params_.max_map_size > 0 &&
+      static_cast<int>(cloud_->points.size()) > params_.max_map_size)
+  {
+    PointCloudPtr new_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+    std::vector<int> new_ids;
+    std::vector<int> new_obs;
+    std::vector<std::uint8_t> new_types;
+    new_cloud->reserve(cloud_->points.size());
+    new_ids.reserve(cloud_->points.size());
+    new_obs.reserve(cloud_->points.size());
+    new_types.reserve(cloud_->points.size());
+
+    for (size_t i = 0; i < cloud_->points.size() && i < point_obs_counts_.size(); ++i)
+    {
+      if (point_obs_counts_[i] >= params_.min_obs_to_keep)
+      {
+        new_cloud->push_back(cloud_->points[i]);
+        new_ids.push_back(point_ids_[i]);
+        new_obs.push_back(point_obs_counts_[i]);
+        if (i < point_types_.size())
+        {
+          new_types.push_back(point_types_[i]);
+        }
+        else
+        {
+          new_types.push_back(kConeNone);
+        }
+      }
+    }
+    new_cloud->width = new_cloud->points.size();
+    new_cloud->height = 1;
+    cloud_ = new_cloud;
+    point_ids_ = std::move(new_ids);
+    point_obs_counts_ = std::move(new_obs);
+    point_types_ = std::move(new_types);
+    kdtree_.setInputCloud(cloud_);
+  }
+
   const double cos_theta = std::cos(car_state_.car_state.theta);
   const double sin_theta = std::sin(car_state_.car_state.theta);
+  const double range_sq = params_.local_cone_range * params_.local_cone_range;
 
-  map_out->cones.reserve(cloud_->points.size());
+  std::vector<size_t> local_indices;
+  local_indices.reserve(cloud_->points.size());
   for (size_t i = 0; i < cloud_->points.size() && i < point_ids_.size(); ++i)
   {
+    const double dx = cloud_->points[i].x - car_state_.car_state.x;
+    const double dy = cloud_->points[i].y - car_state_.car_state.y;
+
+    if (dx * dx + dy * dy > range_sq)
+    {
+      continue;
+    }
+    local_indices.push_back(i);
+  }
+
+  // 发布前做一次近邻去重，抑制同一物理锥桶被重复建图导致的多锥桶显示
+  const double dedup_radius = std::max(0.6, params_.merge_distance * 0.4);
+  const double dedup_radius_sq = dedup_radius * dedup_radius;
+
+  map_out->cones.reserve(local_indices.size());
+  for (const size_t i : local_indices)
+  {
+    bool suppressed = false;
+    const int obs_i = (i < point_obs_counts_.size()) ? point_obs_counts_[i] : 1;
+    for (const size_t j : local_indices)
+    {
+      if (i == j)
+      {
+        continue;
+      }
+      const double ddx = cloud_->points[i].x - cloud_->points[j].x;
+      const double ddy = cloud_->points[i].y - cloud_->points[j].y;
+      if (ddx * ddx + ddy * ddy > dedup_radius_sq)
+      {
+        continue;
+      }
+      const int obs_j = (j < point_obs_counts_.size()) ? point_obs_counts_[j] : 1;
+      // 保留观测次数更多的点；次数相同保留ID更小（更早建立）的点
+      if (obs_j > obs_i || (obs_j == obs_i && point_ids_[j] < point_ids_[i]))
+      {
+        suppressed = true;
+        break;
+      }
+    }
+    if (suppressed)
+    {
+      continue;
+    }
+
+    const double dx = cloud_->points[i].x - car_state_.car_state.x;
+    const double dy = cloud_->points[i].y - car_state_.car_state.y;
     Cone cone_msg;
     cone_msg.id = static_cast<std::uint32_t>(point_ids_[i]);
     cone_msg.position_global.x = cloud_->points[i].x;
     cone_msg.position_global.y = cloud_->points[i].y;
     cone_msg.position_global.z = cloud_->points[i].z;
 
-    const double dx = cone_msg.position_global.x - car_state_.car_state.x;
-    const double dy = cone_msg.position_global.y - car_state_.car_state.y;
     cone_msg.position_base_link.x = cos_theta * dx + sin_theta * dy;
     cone_msg.position_base_link.y = -sin_theta * dx + cos_theta * dy;
     cone_msg.position_base_link.z = cone_msg.position_global.z;
+    cone_msg.type = (i < point_types_.size()) ? point_types_[i] : kConeNone;
     map_out->cones.push_back(cone_msg);
   }
 
@@ -386,6 +568,45 @@ void LocationMapper::saveCarstate(double x, double y)
   }
   f << ss.str();
   f.close();
+}
+
+bool LocationMapper::passesGeometryFilter(double lx, double ly) const
+{
+  if (params_.map_mode == "accel")
+  {
+    // 加速赛：锥桶只在 Y 轴 ±cone_y_max 范围内
+    if (params_.cone_y_max > 0.0 && std::abs(ly) > params_.cone_y_max)
+    {
+      return false;
+    }
+  }
+  else if (params_.map_mode == "skidpad")
+  {
+    if (params_.enable_circle_validation)
+    {
+      // 八字绕环：检测点到两个预期圆心的最近距离是否接近 circle_radius
+      // 两个圆心在 X 轴方向，间距 circle_center_dist，关于原点对称
+      const double half_dist = params_.circle_center_dist * 0.5;
+      const double dx1 = lx;
+      const double dy1 = ly - half_dist;
+      const double dist1 = std::sqrt(dx1 * dx1 + dy1 * dy1);
+
+      const double dx2 = lx;
+      const double dy2 = ly + half_dist;
+      const double dist2 = std::sqrt(dx2 * dx2 + dy2 * dy2);
+
+      const double err1 = std::abs(dist1 - params_.circle_radius);
+      const double err2 = std::abs(dist2 - params_.circle_radius);
+      const double min_err = std::min(err1, err2);
+
+      if (min_err > params_.circle_tolerance)
+      {
+        return false;
+      }
+    }
+  }
+  // track 模式：不做额外约束
+  return true;
 }
 
 }  // namespace localization_core

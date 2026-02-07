@@ -14,6 +14,13 @@
     <arg name="launch_rviz" default="true" doc="启动 RViz"/>
     <arg name="launch_viz" default="true" doc="启动可视化节点"/>
     <arg name="rviz_mode" default="main" doc="RViz模式: main(综合), global(全局), pointcloud(点云), dual(双窗口)"/>
+    <arg name="publish_base_to_velodyne_tf" default="true" doc="发布 base_link->velodyne 静态TF"/>
+    <arg name="velodyne_x" default="0.0" doc="velodyne 相对 base_link 的 x"/>
+    <arg name="velodyne_y" default="0.0" doc="velodyne 相对 base_link 的 y"/>
+    <arg name="velodyne_z" default="0.0" doc="velodyne 相对 base_link 的 z"/>
+    <arg name="velodyne_roll" default="0.0" doc="velodyne 相对 base_link 的 roll"/>
+    <arg name="velodyne_pitch" default="0.0" doc="velodyne 相对 base_link 的 pitch"/>
+    <arg name="velodyne_yaw" default="0.0" doc="velodyne 相对 base_link 的 yaw"/>
 
     <!-- ========== Simulation Time ========== -->
     <param name="/use_sim_time" value="$(arg simulation)"/>
@@ -29,9 +36,12 @@
     <!-- ========== Subsystems ========== -->
     <include file="$(find fsd_launch)/launch/subsystems/perception.launch">
         <arg name="launch_rviz" value="false"/>
+        <arg name="mode" value="track"/>
     </include>
 
-    <include file="$(find fsd_launch)/launch/subsystems/localization.launch"/>
+    <include file="$(find fsd_launch)/launch/subsystems/localization.launch">
+        <arg name="mode" value="track"/>
+    </include>
 
     <include file="$(find fsd_launch)/launch/subsystems/planning.launch">
         <arg name="planner" value="high_speed"/>
@@ -43,8 +53,12 @@
     <include unless="$(arg simulation)" file="$(find fsd_launch)/launch/subsystems/vehicle.launch"/>
 
     <!-- ========== Tools ========== -->
-    <!-- Static TF: world → velodyne (全局坐标系到车辆坐标系) REMOVED: Corrected in visualization node to use proper TF frames -->
-    <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="world_to_velodyne_tf" args="0 0 0 0 0 0 world velodyne"/> -->
+    <!-- Static TF: base_link -> velodyne -->
+    <node if="$(arg publish_base_to_velodyne_tf)"
+          pkg="tf2_ros"
+          type="static_transform_publisher"
+          name="base_link_to_velodyne"
+          args="$(arg velodyne_x) $(arg velodyne_y) $(arg velodyne_z) $(arg velodyne_roll) $(arg velodyne_pitch) $(arg velodyne_yaw) base_link velodyne"/>
 
     <!-- Rosbag Player (仿真模式) -->
     <include if="$(arg simulation)" file="$(find fsd_launch)/launch/tools/rosbag_play.launch">
@@ -57,6 +71,7 @@
     <include if="$(arg launch_viz)" file="$(find fsd_visualization)/launch/visualization.launch">
         <arg name="frame_id" value="world"/>
         <arg name="show_trail" value="true"/>
+        <arg name="use_mesh" value="false"/>
     </include>
 
     <!-- RViz -->

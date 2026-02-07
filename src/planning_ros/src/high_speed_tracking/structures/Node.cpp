@@ -29,7 +29,9 @@ Node::Node(const double &x, const double &y, const double &xGlobal, const double
 }
 
 Node::Node(const autodrive_msgs::HUAT_Cone &c)
-    : Node(c.position_baseLink.x, c.position_baseLink.y, c.position_global.x, c.position_global.y, c.id) {}
+    : Node(c.position_baseLink.x, c.position_baseLink.y, c.position_global.x, c.position_global.y, c.id) {
+  type_ = c.type;
+}
 
 const double &Node::x() const {
   return this->point_.x;
@@ -83,7 +85,7 @@ autodrive_msgs::HUAT_Cone Node::cone() const {
   res.position_baseLink.x = this->point().gmPoint().x;
   res.position_baseLink.y = this->point().gmPoint().y;
 
-  res.type = 4;  // None
+  res.type = this->type_;
   return res;
 }
 

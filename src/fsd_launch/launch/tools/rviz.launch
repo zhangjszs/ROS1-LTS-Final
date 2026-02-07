@@ -12,10 +12,11 @@
     <arg name="config" default="default" doc="配置类型: high_speed, skidpad, line, default"/>
     <arg name="mode" default="main" doc="显示模式: main(综合), global(全局俯视图), pointcloud(仅点云), dual(双窗口)"/>
     <arg name="enable_viz_node" default="true" doc="启动可视化节点"/>
+    <arg name="viz_frame" default="world" doc="可视化坐标系: world(全局) / velodyne(车体雷达)"/>
 
     <!-- FSD Visualization Node -->
     <include file="$(find fsd_visualization)/launch/visualization.launch" if="$(arg enable_viz_node)">
-        <arg name="frame_id" value="velodyne"/>
+        <arg name="frame_id" value="$(arg viz_frame)"/>
         <arg name="show_trail" value="true"/>
     </include>
 

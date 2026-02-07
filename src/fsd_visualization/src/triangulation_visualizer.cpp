@@ -12,7 +12,8 @@ TriangulationVisualizer::TriangulationVisualizer(ros::NodeHandle& nh, ros::NodeH
     pnh.param<bool>("show_computed_path", show_computed_path_, true);
 
     sub_viz_ = nh.subscribe(viz_topic_, 1, &TriangulationVisualizer::vizCallback, this);
-    pub_markers_ = nh.advertise<visualization_msgs::MarkerArray>(markers_topic_, 1);
+    // Latch latest triangulation markers for RViz late subscribers.
+    pub_markers_ = nh.advertise<visualization_msgs::MarkerArray>(markers_topic_, 1, true);
 
     ROS_INFO("[TriangulationVisualizer] Initialized");
 }
@@ -38,7 +39,7 @@ void TriangulationVisualizer::vizCallback(
         tri_marker.color.g = TRI_EDGE[1];
         tri_marker.color.b = TRI_EDGE[2];
         tri_marker.color.a = TRI_EDGE[3];
-        tri_marker.lifetime = ros::Duration(0.5);
+        tri_marker.lifetime = ros::Duration(0.0);
         tri_marker.points = msg->triangulation_lines;
         markers.markers.push_back(tri_marker);
     }
@@ -60,7 +61,7 @@ void TriangulationVisualizer::vizCallback(
         cc_marker.color.g = 1.0f;
         cc_marker.color.b = 0.0f;
         cc_marker.color.a = 0.8f;
-        cc_marker.lifetime = ros::Duration(0.5);
+        cc_marker.lifetime = ros::Duration(0.0);
         cc_marker.points = msg->circumcenters;
         markers.markers.push_back(cc_marker);
     }
@@ -89,7 +90,7 @@ void TriangulationVisualizer::vizCallback(
             mp_marker.color.g = TRI_MIDPOINT[1];
             mp_marker.color.b = TRI_MIDPOINT[2];
             mp_marker.color.a = TRI_MIDPOINT[3];
-            mp_marker.lifetime = ros::Duration(0.5);
+            mp_marker.lifetime = ros::Duration(0.0);
             mp_marker.points = all_midpoints;
             markers.markers.push_back(mp_marker);
         }
@@ -110,7 +111,7 @@ void TriangulationVisualizer::vizCallback(
         path_marker.color.g = 0.0f;
         path_marker.color.b = 0.8f;
         path_marker.color.a = 1.0f;
-        path_marker.lifetime = ros::Duration(0.5);
+        path_marker.lifetime = ros::Duration(0.0);
         path_marker.points = msg->path;
         markers.markers.push_back(path_marker);
     }
@@ -130,7 +131,7 @@ void TriangulationVisualizer::vizCallback(
         left_marker.color.g = BOUNDARY_LEFT[1];
         left_marker.color.b = BOUNDARY_LEFT[2];
         left_marker.color.a = BOUNDARY_LEFT[3];
-        left_marker.lifetime = ros::Duration(0.5);
+        left_marker.lifetime = ros::Duration(0.0);
         left_marker.points = msg->left;
         markers.markers.push_back(left_marker);
     }
@@ -150,7 +151,7 @@ void TriangulationVisualizer::vizCallback(
         right_marker.color.g = BOUNDARY_RIGHT[1];
         right_marker.color.b = BOUNDARY_RIGHT[2];
         right_marker.color.a = BOUNDARY_RIGHT[3];
-        right_marker.lifetime = ros::Duration(0.5);
+        right_marker.lifetime = ros::Duration(0.0);
         right_marker.points = msg->right;
         markers.markers.push_back(right_marker);
     }

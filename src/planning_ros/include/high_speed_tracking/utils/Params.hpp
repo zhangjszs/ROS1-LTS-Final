@@ -28,6 +28,7 @@ class Params {
     std::string markers_full_topic, markers_partial_topic;
     std::string package_path;
     bool shutdown_on_loop_closure;
+    bool debug_save_way_files;
     float min_cone_confidence;
     int number_of_stopped_turns;
     int the_mode_of_partial_path,the_mode_of_full_path;

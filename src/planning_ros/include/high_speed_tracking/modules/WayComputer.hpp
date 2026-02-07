@@ -86,6 +86,8 @@ class WayComputer {
 
   size_t last_triangle_count_ = 0;
   size_t last_edge_count_ = 0;
+  TriangleSet last_filtered_triangulation_;
+  EdgeSet last_filtered_edges_;
 
   /**
    * @brief 车身位置
@@ -257,4 +259,7 @@ class WayComputer {
 
   size_t lastTriangleCount() const;
   size_t lastEdgeCount() const;
+  const TriangleSet &lastFilteredTriangulation() const;
+  const EdgeSet &lastFilteredEdges() const;
+  const Way &wayForVisualization() const;
 };

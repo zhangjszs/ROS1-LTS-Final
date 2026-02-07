@@ -1,7 +1,14 @@
 <launch>
   <arg name="bag" default="" />
   <rosparam command="load" file="$(find control_ros)/config/param.yaml" />
-  <node name="control" pkg="control_ros" type="control_node" output="screen" />
+  <node name="control" pkg="control_ros" type="control_node" output="screen">
+    <!-- Remap legacy topic names to new unified names -->
+    <remap from="/Carstate" to="localization/car_state"/>
+    <remap from="/AS/P/pathlimits/partial" to="planning/high_speed_tracking/pathlimits/partial"/>
+    <remap from="/line_creat/line_global_path" to="planning/line_detection/path"/>
+    <remap from="/skidpad_detection_node/log_path" to="planning/skidpad/log_path"/>
+    <remap from="/skidpad_detection_node/approaching_goal" to="planning/skidpad/approaching_goal"/>
+  </node>
   <node name="PP_Car" pkg="control_ros" type="pp_car_node" output="screen" />
   <node pkg="rosbag" type="play" name="rosbag_play" output="screen" args="$(arg bag)" if="$(eval arg('bag') != '')" />
 </launch>

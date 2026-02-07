@@ -92,8 +92,15 @@ double ConfidenceScorer::scoreShapeConstraints(const ClusterFeatures& f) {
     double aspect_score = 1.0 / (1.0 + std::exp(-5.0 * (f.aspect_ratio - config_.min_aspect_ratio)));
 
     // 垂直度评分：线性映射到[0,1]
-    double verticality_score = std::max(0.0, std::min(1.0,
-        (f.verticality_score - 0.5) / (config_.min_verticality - 0.5)));
+    // min_verticality <= 0.5 时，避免分母接近0导致数值不稳定。
+    double verticality_score = 0.0;
+    if (config_.min_verticality <= 0.5001) {
+        verticality_score = std::max(0.0, std::min(1.0, f.verticality_score));
+    } else {
+        const double denom = config_.min_verticality - 0.5;
+        verticality_score = std::max(0.0, std::min(1.0,
+            (f.verticality_score - 0.5) / denom));
+    }
 
     return (aspect_score + verticality_score) / 2.0;
 }

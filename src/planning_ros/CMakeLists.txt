@@ -47,6 +47,7 @@ target_link_libraries(${PROJECT_NAME}
 
 add_library(${PROJECT_NAME}_high_speed
   src/high_speed_tracking/modules/DelaunayTri.cpp
+  src/high_speed_tracking/modules/Visualization.cpp
   src/high_speed_tracking/modules/WayComputer.cpp
   src/high_speed_tracking/structures/Circle.cpp
   src/high_speed_tracking/structures/Edge.cpp
@@ -94,3 +95,15 @@ target_link_libraries(high_speed_tracking_node
   ${PROJECT_NAME}_high_speed
   ${catkin_LIBRARIES}
 )
+
+if(CATKIN_ENABLE_TESTING)
+  catkin_add_gtest(test_way_safety
+    test/test_way_safety.cpp
+  )
+  if(TARGET test_way_safety)
+    target_link_libraries(test_way_safety
+      ${PROJECT_NAME}_high_speed
+      ${catkin_LIBRARIES}
+    )
+  endif()
+endif()

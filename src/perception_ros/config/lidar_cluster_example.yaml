@@ -138,7 +138,7 @@ patchworkpp:
 # ROI 裁剪 & 预处理滤波
 # ==========================
 roi:
-  mode: accel                     # skidpad | accel | track | custom  ROI 模式
+  mode: track                     # skidpad | accel | track | custom  ROI 模式
   use_point_clip: false           # 仅 skidpad 时有效（true=使用历史 point_clip）
   z_min: -0.5                     # Z轴下限（m）
   z_max: 0.7                      # Z轴上限，覆盖锥桶高度
@@ -168,7 +168,7 @@ roi:
   #       远处赛道在视野中更窄，收窄Y范围可有效过滤赛道外噪声
   # 注意：skidpad模式不适用（圆形赛道），建议关闭
   adaptive_y:
-    enable: true                  # 启用自适应Y轴收窄
+    enable: false                 # 关闭自适应Y轴收窄（A/B验证“看太近”假设）
     near_y_half: 5.0              # 近处Y半宽 (m)，覆盖弯道
     far_y_half: 2.5               # 远处Y半宽 (m)，赛道宽3.5m/2=1.75m，留余量
     ramp_start_x: 10.0            # 开始收窄的X距离 (m)
@@ -239,8 +239,8 @@ confidence:
   max_box_altitude: 0.05          # bbox最低点最大高度 (m)
 
   # Shape constraints
-  min_aspect_ratio: 0.5           # 最小纵横比 - 小锥桶30/(20+20)=0.75，需降低
-  min_verticality: 0.5            # 最小垂直度 - 远处稀疏点PCA不稳定，放宽
+  min_aspect_ratio: 0.9           # 最小纵横比，避免低矮散点簇被判为锥桶
+  min_verticality: 0.7            # 最小垂直度，抑制平面/拉丝噪声误检
 
   # Density constraints
   min_density_near: 50.0          # 近距离最小点密度
@@ -248,13 +248,13 @@ confidence:
   distance_threshold: 5.0         # 近远距离分界 (m)
 
   # Intensity constraints
-  min_intensity_mean: 5.0         # 最小平均强度 - 反光带可能没有，不能依赖强度
+  min_intensity_mean: 15.0        # 最小平均强度（软约束），过滤弱反射杂点
 
-  # Feature weights（降低尺寸权重，增加形状和密度权重）
-  weight_size: 0.5                # 尺寸特征权重
-  weight_shape: 0.2               # 形状特征权重
-  weight_density: 0.15            # 密度特征权重
-  weight_intensity: 0.05          # 强度特征权重（反光带不可靠）
+  # Feature weights（提高形状/密度约束，降低“仅靠尺寸”误检）
+  weight_size: 0.35               # 尺寸特征权重
+  weight_shape: 0.3               # 形状特征权重
+  weight_density: 0.2             # 密度特征权重
+  weight_intensity: 0.05          # 强度特征权重（仍保持弱约束）
   weight_position: 0.1            # 位置特征权重
 
   # Model fitting (Phase 2)
@@ -263,15 +263,26 @@ confidence:
   model_fit_penalty: 0.05         # 拟合失败惩罚
 
   # 距离自适应置信度门槛（远处要求更高置信度才判定为锥桶）
-  min_confidence_near: 0.0        # 近处(<=ramp_start)门槛，0=保持原行为
-  min_confidence_far: 0.3         # 远处(>=ramp_end)门槛，0.3=需要30%置信度
-  confidence_ramp_start: 10.0     # 开始升高门槛的距离 (m)
-  confidence_ramp_end: 30.0       # 达到最大门槛的距离 (m)
+  min_confidence_near: 0.2        # 近处门槛，避免“confidence>0 即判锥桶”
+  min_confidence_far: 0.45        # 远处门槛更高，抑制稀疏噪声误检
+  confidence_ramp_start: 8.0      # 开始升高门槛的距离 (m)
+  confidence_ramp_end: 25.0       # 达到最大门槛的距离 (m)
+
+# 锥桶类型输出（当前仅按几何尺寸区分小橙桶/大橙桶）
+cone_size_typing:
+  enable: true                    # true: 输出 ORANGE_SMALL/ORANGE_BIG；false: 输出 NONE
+  big_height_threshold: 0.45      # 高度阈值 (m)，超过判为大锥桶
+  big_area_threshold: 0.09        # footprint阈值 (m²)，超过判为大锥桶
 
 # ==========================
 # Sensor Model (传感器模型)
 # ==========================
 sensor_model: 32                  # velodyne product type（16/32），影响聚类模型选择
+
+# 兼容旧版参数（当前主要由 roi/mode 与 cluster/* 生效）
+road_type: 3                      # 1=skidpad, 2=accel, 3=track（会被 roi/mode 覆盖）
+str_range: "15,30,45,60"
+str_seg_distance: "0.5,1.1,1.6,2.1,2.6"
 
 # ==========================
 # Clustering (聚类)
@@ -294,7 +305,7 @@ cluster:
     near_min_size: 3              # 近距离最小聚类点数（过滤噪声）
     near_max_size: 100            # 近距离最大聚类点数（锥桶点多）
     # 远距离参数（> distance_segments.back()）
-    far_min_size: 1               # 远距离最小聚类点数（接受稀疏锥桶）
+    far_min_size: 2               # 远距离最小聚类点数（减少单点/双点噪声）
     far_max_size: 30              # 远距离最大聚类点数
 
   # 固定聚类大小（adaptive_size.enable=false 时使用）
@@ -333,7 +344,7 @@ cluster:
   # 远处锥桶每帧只有2-3个点，累积2-3帧后点数翻倍，聚类更可靠
   # 仅对远处点做累积，近处不累积（避免运动模糊）
   multi_frame:
-    enable: true                  # 启用多帧累积
+    enable: false                 # 先关闭：车动/掉帧时易堆叠成假簇
     num_frames: 2                 # 累积帧数（含当前帧），2-3帧最佳
     max_distance: 10.0            # 仅远处点(>max_distance)累积，近处不累积
 
@@ -432,7 +443,7 @@ imu:
 # ==========================
 # Performance Statistics (性能统计)
 # ==========================
-perf_stats_enable: true           # 性能统计开关
+perf_stats_enable: false           # 性能统计开关
 perf_stats_window: 300            # 统计窗口大小（帧数）
 perf_stats_log_every: 50          # 每N帧打印一次统计信息
 
@@ -444,10 +455,10 @@ perf_stats_log_every: 50          # 每N帧打印一次统计信息
 mode_presets:
   accel:
     confidence:
-      min_confidence_near: 0.0
-      min_confidence_far: 0.35
-      confidence_ramp_start: 10.0
-      confidence_ramp_end: 40.0
+      min_confidence_near: 0.25
+      min_confidence_far: 0.55
+      confidence_ramp_start: 8.0
+      confidence_ramp_end: 30.0
     adaptive_y:
       enable: true
       near_y_half: 3.0
@@ -459,10 +470,10 @@ mode_presets:
 
   track:
     confidence:
-      min_confidence_near: 0.0
-      min_confidence_far: 0.3
-      confidence_ramp_start: 10.0
-      confidence_ramp_end: 30.0
+      min_confidence_near: 0.2
+      min_confidence_far: 0.5
+      confidence_ramp_start: 8.0
+      confidence_ramp_end: 28.0
     adaptive_y:
       enable: true
       near_y_half: 5.0
@@ -474,10 +485,10 @@ mode_presets:
 
   skidpad:
     confidence:
-      min_confidence_near: 0.0
-      min_confidence_far: 0.15
+      min_confidence_near: 0.15
+      min_confidence_far: 0.3
       confidence_ramp_start: 5.0
-      confidence_ramp_end: 20.0
+      confidence_ramp_end: 18.0
     adaptive_y:
       enable: false
     cluster:

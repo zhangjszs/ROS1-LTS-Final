@@ -4,6 +4,8 @@
 #include <visualization_msgs/MarkerArray.h>
 #include <autodrive_msgs/HUAT_ConeDetections.h>
 #include <autodrive_msgs/HUAT_ConeMap.h>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
 #include "fsd_visualization/viz_config.hpp"
 
 namespace fsd_viz {
@@ -45,8 +47,11 @@ private:
     bool show_distance_label_;
     bool use_mesh_;
     bool use_confidence_alpha_;
+    bool publish_detection_markers_;
     float min_alpha_;
     std::string cone_mesh_type_;  // "fssim" or "gazebo"
+    tf2_ros::Buffer tf_buffer_;
+    tf2_ros::TransformListener tf_listener_;
 };
 
 }  // namespace fsd_viz

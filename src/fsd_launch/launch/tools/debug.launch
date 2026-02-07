@@ -10,7 +10,7 @@
     <env name="ROSCONSOLE_CONFIG_FILE" value="$(find fsd_launch)/config/debug_console.conf"/>
 
     <!-- 启动对应任务（仿真模式 + RViz） -->
-    <include file="$(find fsd_launch)/launch/missions/$(arg mission).launch">
+    <include file="$(find fsd_launch)/launch/$(arg mission).launch">
         <arg name="simulation" value="true"/>
         <arg name="bag" value="$(arg bag)"/>
         <arg name="launch_rviz" value="true"/>

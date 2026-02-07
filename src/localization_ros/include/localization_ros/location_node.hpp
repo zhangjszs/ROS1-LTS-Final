@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <string>
 
 #include <ros/ros.h>
@@ -15,6 +16,7 @@
 #include <pcl_conversions/pcl_conversions.h>
 
 #include <localization_core/location_mapper.hpp>
+#include <localization_core/factor_graph_optimizer.hpp>
 #include <localization_core/types.hpp>
 
 namespace localization_ros {
@@ -68,6 +70,14 @@ class LocationNode {
 
   localization_core::LocationParams params_;
   localization_core::LocationMapper mapper_;
+
+  // Factor graph backend (shadow mode)
+  std::string backend_;  // "mapper" (default) or "factor_graph"
+  std::unique_ptr<localization_core::FactorGraphOptimizer> fg_optimizer_;
+  localization_core::FactorGraphConfig fg_config_;
+  double fg_start_time_ = -1.0;
+  void feedFactorGraph(const autodrive_msgs::HUAT_InsP2 &msg);
+  void feedFactorGraphCones(const autodrive_msgs::HUAT_ConeDetections &msg);
 };
 
 }  // namespace localization_ros

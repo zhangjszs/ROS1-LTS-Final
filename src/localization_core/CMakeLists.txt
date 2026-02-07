@@ -6,6 +6,7 @@ add_compile_options(-std=c++17)
 find_package(catkin REQUIRED)
 find_package(PCL REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(GTSAM REQUIRED)
 if(NOT Eigen3_INCLUDE_DIRS)
   if(EIGEN3_INCLUDE_DIRS)
     set(Eigen3_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIRS})
@@ -27,6 +28,7 @@ include_directories(
   include
   ${PCL_INCLUDE_DIRS}
   ${Eigen3_INCLUDE_DIRS}
+  ${GTSAM_INCLUDE_DIR}
 )
 
 link_directories(${PCL_LIBRARY_DIRS})
@@ -35,10 +37,12 @@ add_definitions(${PCL_DEFINITIONS})
 add_library(${PROJECT_NAME}
   src/imu_state_estimator.cpp
   src/location_mapper.cpp
+  src/factor_graph_optimizer.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}
   ${PCL_LIBRARIES}
+  gtsam
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC

@@ -6,11 +6,13 @@
     <arg name="input_topic" default="/velodyne_points"/>
     <arg name="lidar_cluster_ns" default="perception/lidar_cluster"/>
     <arg name="launch_rviz" default="false"/>
+    <arg name="mode" default="track" doc="赛道模式: accel | skidpad | track"/>
 
     <!-- LiDAR Cluster -->
     <include file="$(find perception_ros)/launch/lidar_cluster.launch">
         <arg name="ns" value="$(arg lidar_cluster_ns)"/>
         <arg name="input_topic" value="$(arg input_topic)"/>
         <arg name="launch_rviz" value="$(arg launch_rviz)"/>
+        <arg name="mode" value="$(arg mode)"/>
     </include>
 </launch>

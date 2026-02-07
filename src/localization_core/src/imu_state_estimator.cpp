@@ -71,8 +71,13 @@ bool ImuStateEstimator::Process(const Asensing &msg, double stamp_sec, CarState 
     dt = params_.max_dt;
   }
 
-  const double ax = msg.x_acc * params_.accel_gravity;
-  const double ay = msg.y_acc * params_.accel_gravity;
+  // 去除重力在车体坐标系x/y轴上的投影分量
+  // FRD车体系下，重力投影: gx = g*sin(pitch), gy = -g*sin(roll)*cos(pitch)
+  const double g = params_.accel_gravity;
+  const double roll_rad = msg.roll * kDegToRad;
+  const double pitch_rad = msg.pitch * kDegToRad;
+  const double ax = msg.x_acc * g - g * std::sin(pitch_rad);
+  const double ay = msg.y_acc * g - (-g * std::sin(roll_rad) * std::cos(pitch_rad));
   const double gyro_z = msg.z_angular_velocity;
 
   Predict(dt, ax, ay, gyro_z);
@@ -272,22 +277,53 @@ void ImuStateEstimator::Predict(double dt, double ax, double ay, double gyro_z)
   Eigen::Matrix<double, 5, 5> F = Eigen::Matrix<double, 5, 5>::Identity();
   F(0, 2) = dt;
   F(1, 3) = dt;
+  // ∂(pos)/∂θ = 0.5 * ∂(a_world)/∂θ * dt²
+  F(0, 4) = 0.5 * (-sin_yaw * ax - cos_yaw * ay) * dt * dt;
+  F(1, 4) = 0.5 * (cos_yaw * ax - sin_yaw * ay) * dt * dt;
+  // ∂(vel)/∂θ = ∂(a_world)/∂θ * dt
   F(2, 4) = (-sin_yaw * ax - cos_yaw * ay) * dt;
   F(3, 4) = (cos_yaw * ax - sin_yaw * ay) * dt;
 
+  // Q矩阵：基于连续白噪声加速度模型的离散化
+  // 位置噪声 ~ σ_a² * dt⁴/4, 速度噪声 ~ σ_a² * dt², 交叉项 ~ σ_a² * dt³/2
+  const double sa2 = params_.accel_noise * params_.accel_noise;
+  const double sg2 = params_.gyro_noise * params_.gyro_noise;
+  const double dt2 = dt * dt;
+  const double dt3 = dt2 * dt;
+  const double dt4 = dt2 * dt2;
+
   Eigen::Matrix<double, 5, 5> Q = Eigen::Matrix<double, 5, 5>::Zero();
-  Q(0, 0) = params_.accel_noise * params_.accel_noise * dt * dt;
-  Q(1, 1) = params_.accel_noise * params_.accel_noise * dt * dt;
-  Q(2, 2) = params_.accel_noise * params_.accel_noise * dt * dt;
-  Q(3, 3) = params_.accel_noise * params_.accel_noise * dt * dt;
-  Q(4, 4) = params_.gyro_noise * params_.gyro_noise * dt * dt;
+  Q(0, 0) = sa2 * dt4 * 0.25;   // pos_x
+  Q(1, 1) = sa2 * dt4 * 0.25;   // pos_y
+  Q(2, 2) = sa2 * dt2;           // vel_x
+  Q(3, 3) = sa2 * dt2;           // vel_y
+  Q(0, 2) = sa2 * dt3 * 0.5;    // pos_x - vel_x 交叉项
+  Q(2, 0) = sa2 * dt3 * 0.5;
+  Q(1, 3) = sa2 * dt3 * 0.5;    // pos_y - vel_y 交叉项
+  Q(3, 1) = sa2 * dt3 * 0.5;
+  Q(4, 4) = sg2 * dt2;           // yaw
 
   P_ = F * P_ * F.transpose() + Q;
 
+  // 协方差健康检查：NaN时重置为初始值，否则限制对角线范围
   if (P_.hasNaN() || !P_.allFinite())
   {
-    P_.setIdentity();
-    P_ *= 10.0;
+    P_.setZero();
+    P_(0, 0) = params_.init_pos_var;
+    P_(1, 1) = params_.init_pos_var;
+    P_(2, 2) = params_.init_vel_var;
+    P_(3, 3) = params_.init_vel_var;
+    P_(4, 4) = params_.init_yaw_var;
+  }
+  else
+  {
+    // 限制对角线元素范围，防止协方差爆炸或收缩到零
+    constexpr double kMinVar = 1e-6;
+    constexpr double kMaxVar = 1e4;
+    for (int i = 0; i < 5; ++i)
+    {
+      P_(i, i) = std::fmax(kMinVar, std::fmin(kMaxVar, P_(i, i)));
+    }
   }
 }
 
@@ -321,8 +357,12 @@ void ImuStateEstimator::Update(const Eigen::VectorXd &z,
 
   if (P_.hasNaN() || !P_.allFinite())
   {
-    P_.setIdentity();
-    P_ *= 10.0;
+    P_.setZero();
+    P_(0, 0) = params_.init_pos_var;
+    P_(1, 1) = params_.init_pos_var;
+    P_(2, 2) = params_.init_vel_var;
+    P_(3, 3) = params_.init_vel_var;
+    P_(4, 4) = params_.init_yaw_var;
   }
 }
 
@@ -366,15 +406,12 @@ void ImuStateEstimator::GeoDeticToENU(double lat, double lon, double h,
 
 double ImuStateEstimator::NormalizeAngle(double angle) const
 {
-  while (angle > M_PI)
-  {
-    angle -= 2.0 * M_PI;
-  }
-  while (angle < -M_PI)
+  angle = std::fmod(angle + M_PI, 2.0 * M_PI);
+  if (angle < 0.0)
   {
     angle += 2.0 * M_PI;
   }
-  return angle;
+  return angle - M_PI;
 }
 
 void ImuStateEstimator::ToMapFrame(double east, double north, double &x, double &y) const

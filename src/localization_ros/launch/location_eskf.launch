@@ -1,11 +1,13 @@
 <launch>
   <arg name="bag" default="" />
+  <arg name="mode" default="track" doc="赛道模式: accel | skidpad | track"/>
   <node pkg="localization_ros" type="state_estimator_node" name="state_estimator_node" output="screen">
     <rosparam command="load" file="$(find localization_ros)/config/state_estimator.yaml" />
   </node>
 
   <node pkg="localization_ros" type="location_node" name="location_node" output="screen">
     <rosparam command="load" file="$(find localization_ros)/config/location.yaml" />
+    <param name="map/mode" value="$(arg mode)"/>
     <param name="use_external_carstate" value="true" />
   </node>
   <node pkg="rosbag" type="play" name="rosbag_play" output="screen" args="$(arg bag)" if="$(eval arg('bag') != '')" />

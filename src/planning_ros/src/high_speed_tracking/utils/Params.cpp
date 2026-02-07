@@ -25,10 +25,11 @@ Params::Params(ros::NodeHandle *const nh) {
   pnh.param<std::string>("output_partial_topic", main.output_partial_topic, "planning/high_speed_tracking/pathlimits/partial");
   pnh.param<std::string>("stop_topic", main.stop_topic, "planning/high_speed_tracking/stop");
   pnh.param<bool>("shutdown_on_loop_closure", main.shutdown_on_loop_closure, true);
+  pnh.param<bool>("debug_save_way_files", main.debug_save_way_files, false);
   pnh.param<float>("min_cone_confidence", main.min_cone_confidence, 0.0);
   pnh.param<int>("number_of_stopped_turns", main.number_of_stopped_turns, 3);
-  pnh.param<int>("the_mode_of_partial_path", main.the_mode_of_partial_path, 4);
-  pnh.param<int>("the_mode_of_full_path", main.the_mode_of_full_path, 5);
+  pnh.param<int>("the_mode_of_partial_path", main.the_mode_of_partial_path, 2);
+  pnh.param<int>("the_mode_of_full_path", main.the_mode_of_full_path, 3);
 
   // WayComputer
   pnh.param<double>("max_triangle_edge_len", wayComputer.max_triangle_edge_len, 9.0);

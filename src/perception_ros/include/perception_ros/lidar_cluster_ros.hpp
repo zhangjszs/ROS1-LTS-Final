@@ -74,6 +74,9 @@ class LidarClusterRos {
 
   // 性能优化选项
   bool use_point_cloud_pool_ = false;  // 是否启用点云内存池
+  bool enable_cone_size_typing_ = true;   // 基于几何尺寸推断 ORANGE_SMALL / ORANGE_BIG
+  double big_cone_height_threshold_ = 0.45;
+  double big_cone_area_threshold_ = 0.08;
 
   // 零拷贝优化：复用发布消息缓冲区
   sensor_msgs::PointCloud2 pub_pc_msg_;       // 复用的PointCloud2消息

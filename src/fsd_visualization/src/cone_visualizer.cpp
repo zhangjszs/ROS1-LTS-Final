@@ -1,9 +1,41 @@
 #include "fsd_visualization/cone_visualizer.hpp"
 #include <algorithm>
+#include <cstdint>
+#include <geometry_msgs/PointStamped.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 namespace fsd_viz {
 
-ConeVisualizer::ConeVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh) {
+namespace {
+constexpr std::uint8_t kConeBlue = 0;
+constexpr std::uint8_t kConeYellow = 1;
+constexpr std::uint8_t kConeOrangeSmall = 2;
+constexpr std::uint8_t kConeOrangeBig = 3;
+constexpr std::uint8_t kConeNone = 4;
+
+int normalizeConeType(int raw_type) {
+    switch (raw_type) {
+        case kConeBlue:
+        case kConeYellow:
+        case kConeOrangeSmall:
+        case kConeOrangeBig:
+        case kConeNone:
+            return raw_type;
+        default:
+            return kConeNone;
+    }
+}
+
+int parseLegacyColorChar(char c) {
+    if (c == 'b' || c == 'B') return kConeBlue;
+    if (c == 'y' || c == 'Y') return kConeYellow;
+    if (c == 'r' || c == 'R' || c == 'o' || c == 'O') return kConeOrangeSmall;
+    return kConeNone;
+}
+}  // namespace
+
+ConeVisualizer::ConeVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh)
+    : tf_listener_(tf_buffer_) {
     // 参数
     pnh.param<std::string>("frame_id", frame_id_, FRAME_GLOBAL);
     pnh.param<double>("cone_radius", cone_radius_, CONE_RADIUS);
@@ -12,6 +44,7 @@ ConeVisualizer::ConeVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh) {
     pnh.param<bool>("show_distance_label", show_distance_label_, true);
     pnh.param<bool>("use_mesh", use_mesh_, true);
     pnh.param<bool>("use_confidence_alpha", use_confidence_alpha_, true);
+    pnh.param<bool>("publish_detection_markers", publish_detection_markers_, true);
     pnh.param<float>("min_alpha", min_alpha_, 0.3f);
     pnh.param<std::string>("cone_mesh_type", cone_mesh_type_, "gazebo");
     pnh.param<std::string>("topics/cone_detections", cone_detections_topic_, "perception/lidar_cluster/detections");
@@ -25,7 +58,8 @@ ConeVisualizer::ConeVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh) {
         &ConeVisualizer::coneMapCallback, this);
     
     // 发布
-    pub_markers_ = nh.advertise<visualization_msgs::MarkerArray>(markers_topic_, 1);
+    // Latch latest markers so RViz opened later can still render world objects.
+    pub_markers_ = nh.advertise<visualization_msgs::MarkerArray>(markers_topic_, 1, true);
     
     ROS_INFO("[ConeVisualizer] Initialized");
 }
@@ -33,29 +67,82 @@ ConeVisualizer::ConeVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh) {
 void ConeVisualizer::coneDetectionsCallback(
     const autodrive_msgs::HUAT_ConeDetections::ConstPtr& msg) {
 
-    visualization_msgs::MarkerArray markers;
-
-    // HUAT_ConeDetections 使用 points 数组和 color 字符串
-    // 解析 color 字符串确定颜色类型
-    int color_type = static_cast<int>(ConeType::UNKNOWN);
-    if (!msg->color.data.empty()) {
-        char c = msg->color.data[0];
-        if (c == 'b' || c == 'B') color_type = static_cast<int>(ConeType::BLUE);
-        else if (c == 'y' || c == 'Y') color_type = static_cast<int>(ConeType::YELLOW);
-        else if (c == 'r' || c == 'R' || c == 'o' || c == 'O')
-            color_type = static_cast<int>(ConeType::ORANGE);
+    if (!publish_detection_markers_) {
+        return;
     }
+
+    visualization_msgs::MarkerArray markers;
+    const std::string source_frame =
+        msg->header.frame_id.empty() ? frame_id_ : msg->header.frame_id;
+    const bool need_transform = source_frame != frame_id_;
+    std::string marker_frame = source_frame;
+    geometry_msgs::TransformStamped tf_msg;
+
+    if (need_transform) {
+        try {
+            tf_msg = tf_buffer_.lookupTransform(
+                frame_id_, source_frame, msg->header.stamp, ros::Duration(0.05));
+        } catch (const tf2::TransformException&) {
+            try {
+                tf_msg = tf_buffer_.lookupTransform(
+                    frame_id_, source_frame, ros::Time(0), ros::Duration(0.05));
+            } catch (const tf2::TransformException& ex) {
+                ROS_WARN_THROTTLE(1.0,
+                                  "[ConeVisualizer] TF %s->%s unavailable for detections: %s",
+                                  source_frame.c_str(), frame_id_.c_str(), ex.what());
+                return;
+            }
+        }
+        marker_frame = frame_id_;
+    }
+
+    auto transform_point = [&](const geometry_msgs::Point32& in,
+                               geometry_msgs::Point32& out) -> bool {
+        if (!need_transform) {
+            out = in;
+            return true;
+        }
+        geometry_msgs::PointStamped in_stamped;
+        geometry_msgs::PointStamped out_stamped;
+        in_stamped.header.frame_id = source_frame;
+        in_stamped.header.stamp = msg->header.stamp;
+        in_stamped.point.x = in.x;
+        in_stamped.point.y = in.y;
+        in_stamped.point.z = in.z;
+        try {
+            tf2::doTransform(in_stamped, out_stamped, tf_msg);
+        } catch (const tf2::TransformException& ex) {
+            ROS_WARN_THROTTLE(1.0, "[ConeVisualizer] Point transform failed: %s", ex.what());
+            return false;
+        }
+        out.x = static_cast<float>(out_stamped.point.x);
+        out.y = static_cast<float>(out_stamped.point.y);
+        out.z = static_cast<float>(out_stamped.point.z);
+        return true;
+    };
 
     // 创建锥桶 markers（圆柱体）
     for (size_t i = 0; i < msg->points.size(); ++i) {
-        const auto& point = msg->points[i];
+        geometry_msgs::Point32 point_world;
+        if (!transform_point(msg->points[i], point_world)) {
+            continue;
+        }
         float confidence = 1.0f;
         if (use_confidence_alpha_ && i < msg->confidence.size()) {
             confidence = msg->confidence[i];
         }
+
+        int color_type = kConeNone;
+        if (i < msg->color_types.size()) {
+            color_type = normalizeConeType(static_cast<int>(msg->color_types[i]));
+        } else if (!msg->color.data.empty()) {
+            // 兼容旧消息：只有一个全局 color 字段
+            color_type = parseLegacyColorChar(msg->color.data[0]);
+        }
+
         auto marker = createConeMarker(
-            point.x, point.y, point.z,
-            static_cast<int>(i), color_type, "cone_detections", msg->header.frame_id,
+            point_world.x, point_world.y, point_world.z,
+            static_cast<int>(i), color_type, "cone_detections", marker_frame,
             confidence);
         marker.header.stamp = msg->header.stamp;
         markers.markers.push_back(marker);
@@ -64,9 +151,14 @@ void ConeVisualizer::coneDetectionsCallback(
     // 创建边界框 markers
     if (show_bounding_box_ && msg->minPoints.size() == msg->maxPoints.size()) {
         for (size_t i = 0; i < msg->minPoints.size(); ++i) {
+            geometry_msgs::Point32 min_world, max_world;
+            if (!transform_point(msg->minPoints[i], min_world) ||
+                !transform_point(msg->maxPoints[i], max_world)) {
+                continue;
+            }
             auto bbox = createBoundingBoxMarker(
-                msg->minPoints[i], msg->maxPoints[i],
-                static_cast<int>(i), "cone_bbox", msg->header.frame_id);
+                min_world, max_world,
+                static_cast<int>(i), "cone_bbox", marker_frame);
             bbox.header.stamp = msg->header.stamp;
             markers.markers.push_back(bbox);
         }
@@ -75,10 +167,13 @@ void ConeVisualizer::coneDetectionsCallback(
     // 创建距离标签 markers
     if (show_distance_label_ && msg->obj_dist.size() == msg->points.size()) {
         for (size_t i = 0; i < msg->points.size(); ++i) {
-            const auto& point = msg->points[i];
+            geometry_msgs::Point32 point_world;
+            if (!transform_point(msg->points[i], point_world)) {
+                continue;
+            }
             auto label = createDistanceLabel(
-                point.x, point.y, point.z,
-                msg->obj_dist[i], static_cast<int>(i), "cone_distance", msg->header.frame_id);
+                point_world.x, point_world.y, point_world.z,
+                msg->obj_dist[i], static_cast<int>(i), "cone_distance", marker_frame);
             label.header.stamp = msg->header.stamp;
             markers.markers.push_back(label);
         }
@@ -103,7 +198,7 @@ void ConeVisualizer::coneMapCallback(
         // Use global frame_id_ for global map
         auto marker = createConeMarker(
             cone.position_global.x, cone.position_global.y, cone.position_global.z,
-            static_cast<int>(cone.id), static_cast<int>(cone.type), "cone_map", frame_id_,
+            static_cast<int>(cone.id), normalizeConeType(static_cast<int>(cone.type)), "cone_map", frame_id_,
             confidence);
         marker.header.stamp = msg->header.stamp;
         markers.markers.push_back(marker);
@@ -131,10 +226,14 @@ visualization_msgs::Marker ConeVisualizer::createConeMarker(
             // Gazebo construction_cone：带纹理贴图，所有锥桶用同一模型
             marker.mesh_resource = MESH_CONE_GAZEBO;
             marker.mesh_use_embedded_materials = true;
-            // DAE 单位 inch，需 scale=10 得到约 0.3m 高
-            marker.scale.x = CONE_GAZEBO_SCALE;
-            marker.scale.y = CONE_GAZEBO_SCALE;
-            marker.scale.z = CONE_GAZEBO_SCALE;
+            // DAE 单位 inch，scale=10 约 0.3m；大橙桶放大以区分大小锥桶
+            double mesh_scale = CONE_GAZEBO_SCALE;
+            if (type == static_cast<int>(ConeType::ORANGE_BIG)) {
+                mesh_scale *= 1.6;
+            }
+            marker.scale.x = mesh_scale;
+            marker.scale.y = mesh_scale;
+            marker.scale.z = mesh_scale;
         } else {
             // FSSIM 分色 DAE：蓝/黄/橙各一个模型，颜色内嵌
             marker.mesh_resource = getConeMeshURI(type);
@@ -161,6 +260,12 @@ visualization_msgs::Marker ConeVisualizer::createConeMarker(
         marker.scale.x = cone_radius_ * 2.0;
         marker.scale.y = cone_radius_ * 2.0;
         marker.scale.z = cone_height_;
+        if (type == static_cast<int>(ConeType::ORANGE_BIG)) {
+            marker.scale.x *= 1.3;
+            marker.scale.y *= 1.3;
+            marker.scale.z *= 1.6;
+            marker.pose.position.z = z + marker.scale.z / 2.0;
+        }
     }
 
     // 颜色
@@ -183,7 +288,12 @@ visualization_msgs::Marker ConeVisualizer::createConeMarker(
         marker.color.a = 1.0f;
     }
 
-    marker.lifetime = ros::Duration(1.0);
+    // Keep global map cones persistent (FSSIM-like behavior), while detections remain transient.
+    if (ns == "cone_map") {
+        marker.lifetime = ros::Duration(0.0);
+    } else {
+        marker.lifetime = ros::Duration(1.0);
+    }
 
     return marker;
 }

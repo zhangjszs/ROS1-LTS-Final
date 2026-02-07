@@ -19,4 +19,65 @@ length:
   rearToIMUdistanceX: 0.0
   rearToIMUdistanceY: 0.0
   rearToIMUdistanceZ: 0.0
-  
+
+# 锥桶地图管理
+map:
+  mode: track                     # accel | skidpad | track
+  merge_distance: 2.5             # 锥桶合并距离阈值 (m)
+  max_map_size: 500               # 地图最大锥桶数量，超过时清理低观测锥桶
+  min_obs_to_keep: 2              # 清理时保留的最小观测次数
+  local_cone_range: 50.0          # 输出局部锥桶的最大距离 (m)
+  # 入图过滤
+  min_confidence_to_add: 0.3      # 新锥桶入图最低置信度
+  min_confidence_to_merge: 0.15   # 合并已有锥桶的最低置信度
+  max_cone_height: 0.75           # 锥桶最大高度 (m)
+  max_cone_width: 0.5             # 锥桶最大宽度 (m)
+  min_cone_height: 0.03           # 锥桶最小高度 (m)
+
+  # 赛道模式预设
+  mode_presets:
+    accel:
+      merge_distance: 1.5
+      max_map_size: 60
+      local_cone_range: 30.0
+      min_confidence_to_add: 0.35
+      cone_y_max: 2.5
+      expected_cone_spacing: 5.0
+      track_width: 3.0
+
+    skidpad:
+      merge_distance: 2.0
+      max_map_size: 100
+      local_cone_range: 35.0
+      min_confidence_to_add: 0.2
+      min_confidence_to_merge: 0.1
+      enable_circle_validation: true
+      circle_radius: 15.25
+      circle_center_dist: 18.25
+      circle_tolerance: 2.0
+      track_width: 3.0
+
+    track:
+      merge_distance: 2.5
+      max_map_size: 500
+      local_cone_range: 30.0
+      track_width: 3.5
+
+# Backend selection: "mapper" (default) or "factor_graph" (shadow mode)
+backend: mapper
+
+# Factor graph parameters (only used when backend=factor_graph)
+fg:
+  keyframe_dist: 1.0          # m - keyframe distance threshold
+  keyframe_yaw: 0.1           # rad - keyframe yaw change threshold
+  keyframe_dt: 0.5            # s - keyframe time threshold
+  run_extra_update: false     # bool - optional second isam update (more accurate but slower)
+  sigma_imu_xy: 0.05          # m - IMU position noise per sqrt(s)
+  sigma_imu_theta: 0.01       # rad - IMU heading noise per sqrt(s)
+  sigma_gnss_good: 0.5        # m - GNSS noise (good quality)
+  sigma_gnss_medium: 2.0      # m - GNSS noise (medium quality)
+  sigma_gnss_poor: 10.0       # m - GNSS noise (poor quality)
+  min_cone_confidence: 0.15   # only keep reliable cone observations
+  max_cone_factors_per_keyframe: 10  # cap cone factors to avoid graph blow-up
+  color_mismatch_penalty: 2.0 # color mismatch cost
+  merge_distance: 2.0         # m - landmark merge distance

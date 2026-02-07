@@ -22,8 +22,9 @@ PathVisualizer::PathVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh) {
         &PathVisualizer::navPathCallback, this);
     
     // 发布
-    pub_path_markers_ = nh.advertise<visualization_msgs::MarkerArray>(markers_topic_, 1);
-    pub_boundary_markers_ = nh.advertise<visualization_msgs::MarkerArray>(boundaries_topic_, 1);
+    // Latch latest path/boundary markers so RViz can render immediately.
+    pub_path_markers_ = nh.advertise<visualization_msgs::MarkerArray>(markers_topic_, 1, true);
+    pub_boundary_markers_ = nh.advertise<visualization_msgs::MarkerArray>(boundaries_topic_, 1, true);
     
     ROS_INFO("[PathVisualizer] Initialized");
 }

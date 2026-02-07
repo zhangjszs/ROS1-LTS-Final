@@ -61,6 +61,11 @@ class Node {
   const Point pointGlobal_;
 
   /**
+   * @brief Cone type from the cone map (0=BLUE, 1=YELLOW, 2=ORANGE_SMALL, 3=ORANGE_BIG, 4=NONE).
+   */
+  uint32_t type_ = 4;
+
+  /**
    * @brief Construct a new Node object that will be a supertriangle.
    *
    * @param[in] x

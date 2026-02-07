@@ -1,5 +1,6 @@
 <launch>
   <arg name="bag" default="" />
+  <arg name="mode" default="track" doc="赛道模式: accel | skidpad | track"/>
   <!-- <include file="$(find velodyne_pointcloud)/launch/VLP-32C_points.launch"/>
   <include file="$(find perception_ros)/launch/lidar_cluster.launch"/> -->
 
@@ -7,6 +8,7 @@
     <!-- 注意: 若传感器仍发布 /pbox_pub/Ins，请在 location.yaml 中将 topics/ins 设为 /pbox_pub/Ins -->
     <!-- 消息类型需要兼容: ins/ASENSING -> autodrive_msgs/HUAT_Asensing -->
     <rosparam command="load" file="$(find localization_ros)/config/location.yaml" />
+    <param name="map/mode" value="$(arg mode)"/>
   </node>
 
   <!-- <node name="high_speed_tracking" pkg="high_speed_tracking" type="high_speed_tracking_exec" output="screen" ns="/AS/P">

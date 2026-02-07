@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 #include <pcl/point_cloud.h>
@@ -62,15 +63,24 @@ struct Cone {
   Point3 position_global;
   std::uint32_t id = 0;
   std::uint32_t confidence = 0;
-  std::uint32_t type = 0;
+  std::uint32_t type = 4;  // 0=BLUE,1=YELLOW,2=ORANGE_SMALL,3=ORANGE_BIG,4=NONE
 };
 
 struct ConeMap {
   std::vector<Cone> cones;
 };
 
+struct ConeDetection {
+  Point3 point;
+  Point3 bbox_min;
+  Point3 bbox_max;
+  double confidence = 0.0;
+  double distance = 0.0;
+  std::uint8_t color_type = 4;  // 0=BLUE, 1=YELLOW, 2=ORANGE_SMALL, 3=ORANGE_BIG, 4=NONE
+};
+
 struct ConeDetections {
-  std::vector<Point3> points;
+  std::vector<ConeDetection> detections;
 };
 
 struct LocationParams {
@@ -84,6 +94,33 @@ struct LocationParams {
   std::uint8_t min_ins_status = 2;
   std::uint8_t min_satellite_count = 8;
   std::uint8_t max_diff_age = 30;
+
+  // 锥桶合并与地图管理
+  double merge_distance = 2.5;       // 锥桶合并距离阈值 (m)
+  int max_map_size = 500;            // 地图最大锥桶数量
+  int min_obs_to_keep = 2;           // 清理时保留的最小观测次数
+  double local_cone_range = 50.0;    // 输出局部锥桶的最大距离 (m)
+
+  // 入图过滤参数
+  double min_confidence_to_add = 0.3;    // 新锥桶入图最低 confidence
+  double min_confidence_to_merge = 0.15; // 合并到已有锥桶的最低 confidence
+  double max_cone_height = 0.75;         // 锥桶最大高度 (m)
+  double max_cone_width = 0.5;           // 锥桶最大宽度 (m)
+  double min_cone_height = 0.03;         // 锥桶最小高度 (m)
+
+  // 赛道模式
+  std::string map_mode = "track";  // "accel" | "skidpad" | "track"
+
+  // 几何约束参数（由模式预设覆盖）
+  double cone_y_max = 0.0;              // base_link Y 轴最大偏移，0=不启用
+  double expected_cone_spacing = 0.0;    // 预期锥桶间距，0=不启用
+  double track_width = 3.0;             // 赛道宽度 (m)
+
+  // Skidpad 圆弧验证
+  bool enable_circle_validation = false;
+  double circle_radius = 15.25;          // 圆半径 (m)
+  double circle_center_dist = 18.25;     // 两圆心距离 (m)
+  double circle_tolerance = 2.0;         // 圆弧验证容差 (m)
 };
 
 using PointCloud = pcl::PointCloud<pcl::PointXYZ>;

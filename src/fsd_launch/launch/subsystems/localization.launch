@@ -4,10 +4,19 @@
 -->
 <launch>
     <arg name="use_eskf" default="false" doc="使用 ESKF 滤波器"/>
+    <arg name="mode" default="track" doc="赛道模式: accel | skidpad | track"/>
 
     <!-- Location KD-Tree -->
-    <include unless="$(arg use_eskf)" file="$(find localization_ros)/launch/location.launch"/>
+    <!-- 将 location_node 期望的 sensors/ins 重映射到 ins_bridge 发布的 /pbox_pub/Ins -->
+    <group>
+        <remap from="sensors/ins" to="/pbox_pub/Ins"/>
+        <include unless="$(arg use_eskf)" file="$(find localization_ros)/launch/location.launch">
+            <arg name="mode" value="$(arg mode)"/>
+        </include>
+    </group>
 
     <!-- Location ESKF (可选) -->
-    <include if="$(arg use_eskf)" file="$(find localization_ros)/launch/location_eskf.launch"/>
+    <include if="$(arg use_eskf)" file="$(find localization_ros)/launch/location_eskf.launch">
+        <arg name="mode" value="$(arg mode)"/>
+    </include>
 </launch>

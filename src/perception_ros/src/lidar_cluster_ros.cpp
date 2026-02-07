@@ -1,6 +1,7 @@
 #include <perception_ros/lidar_cluster_ros.hpp>
 
 #include <algorithm>
+#include <cstdint>
 #include <ros/serialization.h>
 #include <xmlrpcpp/XmlRpcValue.h>
 #include <pcl_conversions/pcl_conversions.h>
@@ -9,6 +10,32 @@
 namespace perception_ros {
 
 namespace {
+
+constexpr std::uint8_t kConeOrangeSmall = 2;
+constexpr std::uint8_t kConeOrangeBig = 3;
+constexpr std::uint8_t kConeNone = 4;
+
+std::uint8_t classifyConeTypeBySize(const ConeDetection &det,
+                                    bool enable_size_typing,
+                                    double big_height_threshold,
+                                    double big_area_threshold)
+{
+  if (!enable_size_typing)
+  {
+    return kConeNone;
+  }
+
+  const double height = std::max(0.0, static_cast<double>(det.max.z - det.min.z));
+  const double width_x = std::max(0.0, static_cast<double>(det.max.x - det.min.x));
+  const double width_y = std::max(0.0, static_cast<double>(det.max.y - det.min.y));
+  const double footprint_area = width_x * width_y;
+
+  if (height >= big_height_threshold || footprint_area >= big_area_threshold)
+  {
+    return kConeOrangeBig;
+  }
+  return kConeOrangeSmall;
+}
 
 bool LoadIntVector(const ros::NodeHandle &nh, const std::string &key, std::vector<int> &out)
 {
@@ -697,6 +724,11 @@ void LidarClusterRos::loadParams()
   private_nh_.param<double>("confidence/confidence_ramp_start", config_.confidence.confidence_ramp_start, 10.0);
   private_nh_.param<double>("confidence/confidence_ramp_end", config_.confidence.confidence_ramp_end, 30.0);
 
+  // 锥桶类型参数（当前仅根据几何尺寸区分小橙桶/大橙桶）
+  private_nh_.param<bool>("cone_size_typing/enable", enable_cone_size_typing_, true);
+  private_nh_.param<double>("cone_size_typing/big_height_threshold", big_cone_height_threshold_, 0.45);
+  private_nh_.param<double>("cone_size_typing/big_area_threshold", big_cone_area_threshold_, 0.09);
+
   // ---- 距离自适应Y轴ROI参数 ----
   private_nh_.param<bool>("roi/adaptive_y/enable", config_.roi.adaptive_y.enable, false);
   private_nh_.param<double>("roi/adaptive_y/near_y_half", config_.roi.adaptive_y.near_y_half, 5.0);
@@ -776,6 +808,10 @@ void LidarClusterRos::loadParams()
            config_.roi.adaptive_y.near_y_half,
            config_.roi.adaptive_y.far_y_half,
            config_.roi.adaptive_y.ramp_start_x);
+  ROS_INFO("cone_size_typing: %s (big_height_thr=%.2f, big_area_thr=%.3f)",
+           enable_cone_size_typing_ ? "on" : "off",
+           big_cone_height_threshold_,
+           big_cone_area_threshold_);
   if (config_.cluster.method == "dbscan")
   {
     ROS_INFO("cluster/dbscan: eps=%f, min_pts=%d, adaptive_eps=%s (near=%f, far=%f)",
@@ -1039,6 +1075,11 @@ void LidarClusterRos::publishOutput(const LidarClusterOutput &output)
       detections.confidence.push_back(0.0f);  // VLP-16 填充默认值
     }
     detections.obj_dist.push_back(static_cast<float>(det.distance));
+    detections.color_types.push_back(
+        classifyConeTypeBySize(det,
+                               enable_cone_size_typing_,
+                               big_cone_height_threshold_,
+                               big_cone_area_threshold_));
 
     if (det.cluster)
     {

@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 find_package(PCL REQUIRED)
+find_package(GTSAM REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS include
@@ -27,6 +28,7 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
+  ${GTSAM_INCLUDE_DIR}
 )
 
 link_directories(${PCL_LIBRARY_DIRS})
@@ -46,6 +48,7 @@ target_link_libraries(location_node
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
   localization_core
+  gtsam
 )
 
 target_link_libraries(state_estimator_node
