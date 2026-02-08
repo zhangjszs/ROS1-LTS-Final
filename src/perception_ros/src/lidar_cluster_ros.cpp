@@ -758,6 +758,10 @@ void LidarClusterRos::loadParams()
   private_nh_.param<double>("topology/outlier_lateral_threshold", config_.topology.outlier_lateral_threshold, 5.0);
   private_nh_.param<double>("topology/interpolated_confidence", config_.topology.interpolated_confidence, 0.2);
 
+  // ---- Proximity Deduplication 参数加载 ----
+  private_nh_.param<bool>("dedup/enable", config_.dedup.enable, true);
+  private_nh_.param<double>("dedup/radius", config_.dedup.radius, 0.5);
+
   // ---- 距离自适应Y轴ROI参数 ----
   private_nh_.param<bool>("roi/adaptive_y/enable", config_.roi.adaptive_y.enable, false);
   private_nh_.param<double>("roi/adaptive_y/near_y_half", config_.roi.adaptive_y.near_y_half, 5.0);

@@ -1645,3 +1645,53 @@ void lidar_cluster::AccumulateFrames(pcl::PointCloud<PointType>::Ptr &cloud)
         cloud->height = 1;
     }
 }
+
+void lidar_cluster::deduplicateDetections(std::vector<ConeDetection>& cones,
+                                           pcl::PointCloud<PointType>::Ptr& cones_cloud)
+{
+    const double radius_sq = config_.dedup.radius * config_.dedup.radius;
+    const size_t n = cones.size();
+    if (n <= 1) return;
+
+    // Sort indices by confidence descending
+    std::vector<size_t> order(n);
+    for (size_t i = 0; i < n; ++i) order[i] = i;
+    std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
+        return cones[a].confidence > cones[b].confidence;
+    });
+
+    // Greedy suppression: keep highest-confidence, suppress neighbors within radius
+    std::vector<bool> suppressed(n, false);
+    for (size_t i = 0; i < n; ++i) {
+        size_t idx = order[i];
+        if (suppressed[idx]) continue;
+        for (size_t j = i + 1; j < n; ++j) {
+            size_t jdx = order[j];
+            if (suppressed[jdx]) continue;
+            double dx = cones[idx].centroid.x - cones[jdx].centroid.x;
+            double dy = cones[idx].centroid.y - cones[jdx].centroid.y;
+            if (dx * dx + dy * dy < radius_sq) {
+                suppressed[jdx] = true;
+            }
+        }
+    }
+
+    // Rebuild cones and cones_cloud
+    std::vector<ConeDetection> kept;
+    kept.reserve(n);
+    pcl::PointCloud<PointType>::Ptr new_cloud(new pcl::PointCloud<PointType>);
+    for (size_t i = 0; i < n; ++i) {
+        if (suppressed[i]) continue;
+        kept.push_back(std::move(cones[i]));
+        if (kept.back().cluster) {
+            new_cloud->points.insert(new_cloud->points.end(),
+                                     kept.back().cluster->points.begin(),
+                                     kept.back().cluster->points.end());
+        }
+    }
+    new_cloud->width = new_cloud->points.size();
+    new_cloud->height = 1;
+    new_cloud->is_dense = true;
+    cones = std::move(kept);
+    cones_cloud = new_cloud;
+}

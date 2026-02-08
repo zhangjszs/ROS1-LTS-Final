@@ -273,7 +273,7 @@ confidence:
   # 孤立的假阳性会因缺少邻居而获得更低的置信度
   track_semantic:
     enable: true                 # 语义评分总开关（默认关闭，不影响基线）
-    weight: 0.0                   # 语义维度权重（推荐 0.15，0=禁用）
+    weight: 0.15                  # 语义维度权重（15% 语义 + 85% 基础特征）
     expected_track_width: 3.0     # 预期赛道宽度 (m)
     expected_cone_spacing: 5.0    # 预期同侧锥桶间距 (m)
     spacing_tolerance: 2.0        # 间距评分容差 (m)
@@ -300,6 +300,15 @@ tracker:
   measurement_noise: 0.05         # 测量噪声
   only_output_confirmed: true     # 仅输出已确认的锥桶
   confirmed_confidence_boost: 0.1 # 确认后的置信度加成
+
+# ==========================
+# Proximity Deduplication (近距离去重)
+# ==========================
+# 去除堆叠备用锥桶：按置信度降序贪心抑制半径内低置信度检测（类似NMS）
+# 竞赛规则同侧间距≥5m，radius=0.5m不会误合并合法锥桶
+dedup:
+  enable: true                     # 去重总开关
+  radius: 0.5                      # 抑制半径 (m)，小于此距离的低置信度检测被抑制
 
 # ==========================
 # Topology Repair (拓扑修复)
@@ -501,6 +510,7 @@ mode_presets:
       confidence_ramp_start: 8.0
       confidence_ramp_end: 30.0
       track_semantic:
+        weight: 0.15
         expected_track_width: 3.0
     adaptive_y:
       enable: true
@@ -518,6 +528,7 @@ mode_presets:
       confidence_ramp_start: 8.0
       confidence_ramp_end: 28.0
       track_semantic:
+        weight: 0.15
         expected_track_width: 3.5    # trackdrive赛道宽度略大
     adaptive_y:
       enable: true

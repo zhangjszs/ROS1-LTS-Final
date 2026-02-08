@@ -99,8 +99,8 @@ struct LidarClusterConfig
     // Track semantic confidence (neighbor-context scoring)
     struct TrackSemanticConfig
     {
-      bool enable = false;
-      double weight = 0.0;
+      bool enable = true;
+      double weight = 0.15;
       double expected_track_width = 3.0;
       double expected_cone_spacing = 5.0;
       double spacing_tolerance = 2.0;
@@ -416,6 +416,14 @@ struct LidarClusterConfig
   // Topology repair configuration
   perception::TopologyConfig topology;
 
+  // Proximity deduplication configuration (stacked cone removal)
+  struct DedupConfig
+  {
+    bool enable = true;
+    double radius = 0.5;  // [m] suppression radius
+  };
+  DedupConfig dedup;
+
   double min_height = -1;
   double max_height = -1;
   double min_area = -1;
@@ -585,6 +593,10 @@ private:
 
   // Topology repair
   perception::TopologyRepair topology_repair_;
+
+  // Proximity deduplication (stacked cone removal)
+  void deduplicateDetections(std::vector<ConeDetection>& cones,
+                             pcl::PointCloud<PointType>::Ptr& cones_cloud);
 
   // 多帧累积缓冲区（远处点）
   std::deque<pcl::PointCloud<PointType>::Ptr> frame_buffer_;

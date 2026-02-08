@@ -49,8 +49,8 @@ public:
 
         // Track semantic constraints (neighbor-context scoring)
         struct TrackSemanticConfig {
-            bool enable = false;
-            double weight = 0.0;  // Weight of semantic dimension (recommended 0.15)
+            bool enable = true;
+            double weight = 0.15;  // Weight of semantic dimension (recommended 0.15)
             double expected_track_width = 3.0;  // Expected track width [m]
             double expected_cone_spacing = 5.0; // Expected same-side spacing [m]
             double spacing_tolerance = 2.0;     // Tolerance for spacing score [m]

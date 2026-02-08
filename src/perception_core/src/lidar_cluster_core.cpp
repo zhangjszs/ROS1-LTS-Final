@@ -101,6 +101,11 @@ bool lidar_cluster::Process(LidarClusterOutput *output)
   const std::size_t cluster_count = last_cluster_count_;
   lock.unlock();
 
+  // ⑤b Proximity deduplication: remove stacked/duplicate cones
+  if (config_.dedup.enable && !output->cones.empty()) {
+    deduplicateDetections(output->cones, output->cones_cloud);
+  }
+
   // ⑤ Cone tracker: temporal consistency filtering
   if (tracker_enabled_ && !output->cones.empty()) {
     auto now = std::chrono::steady_clock::now();
