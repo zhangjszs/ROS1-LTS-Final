@@ -27,8 +27,13 @@ namespace cone_type {
 }  // namespace cone_type
 
 namespace cone_semantic {
+  // FSG rules: left boundary = BLUE, right boundary = YELLOW
+  // NOTE: LiDAR-only perception currently outputs ORANGE_SMALL/ORANGE_BIG/NONE.
+  // These semantic constants will be used when camera fusion provides color info.
   constexpr int LEFT_BOUNDARY  = cone_type::BLUE;
   constexpr int RIGHT_BOUNDARY = cone_type::YELLOW;
+  // Unknown boundary: used when color is not available (LiDAR-only mode)
+  constexpr int UNKNOWN_BOUNDARY = cone_type::NONE;
 }  // namespace cone_semantic
 
 // ---- 加速赛约束 (ACC_*) ----

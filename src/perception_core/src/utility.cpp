@@ -306,7 +306,32 @@ void lidar_cluster::Configure(const LidarClusterConfig &config)
     scorer_config.enable_model_fitting = config.confidence.enable_model_fitting;
     scorer_config.model_fit_bonus = config.confidence.model_fit_bonus;
     scorer_config.model_fit_penalty = config.confidence.model_fit_penalty;
+    // Track semantic config
+    scorer_config.track_semantic.enable = config.confidence.track_semantic.enable;
+    scorer_config.track_semantic.weight = config.confidence.track_semantic.weight;
+    scorer_config.track_semantic.expected_track_width = config.confidence.track_semantic.expected_track_width;
+    scorer_config.track_semantic.expected_cone_spacing = config.confidence.track_semantic.expected_cone_spacing;
+    scorer_config.track_semantic.spacing_tolerance = config.confidence.track_semantic.spacing_tolerance;
+    scorer_config.track_semantic.width_tolerance = config.confidence.track_semantic.width_tolerance;
+    scorer_config.track_semantic.isolation_radius = config.confidence.track_semantic.isolation_radius;
     confidence_scorer_.setConfig(scorer_config);
+
+    // Configure cone tracker
+    tracker_enabled_ = config.tracker.enable;
+    if (tracker_enabled_) {
+        perception::ConeTracker::Config tracker_config;
+        tracker_config.association_threshold = config.tracker.association_threshold;
+        tracker_config.confirm_frames = config.tracker.confirm_frames;
+        tracker_config.delete_frames = config.tracker.delete_frames;
+        tracker_config.process_noise = config.tracker.process_noise;
+        tracker_config.measurement_noise = config.tracker.measurement_noise;
+        tracker_config.only_output_confirmed = config.tracker.only_output_confirmed;
+        tracker_config.confirmed_confidence_boost = config.tracker.confirmed_confidence_boost;
+        cone_tracker_.setConfig(tracker_config);
+    }
+
+    // Configure topology repair
+    topology_repair_.setConfig(config.topology);
 
     accel_x_max_ = roi_.accel.x_max;
     accel_x_min_ = roi_.accel.x_min;
@@ -1417,6 +1442,65 @@ void lidar_cluster::clusterMethod32(LidarClusterOutput *output)
     output->cones_cloud->height = 1;
     output->cones_cloud->is_dense = g_not_ground_pc->is_dense;
     last_cluster_count_ = total_clusters;
+
+    // Two-pass re-scoring with track semantic context (Phase 4 / Innovation I1)
+    if (config_.confidence.track_semantic.enable &&
+        config_.confidence.track_semantic.weight > 0.0 &&
+        output->cones.size() >= 2) {
+
+        // Collect all cone centroids
+        std::vector<pcl::PointXYZ> all_centroids;
+        all_centroids.reserve(output->cones.size());
+        for (const auto& det : output->cones) {
+            all_centroids.push_back(det.centroid);
+        }
+
+        // Re-score each cone with neighbor context
+        for (size_t i = 0; i < output->cones.size(); ++i) {
+            auto& det = output->cones[i];
+            if (det.cluster) {
+                perception::ClusterFeatures features = feature_extractor_.extract(det.cluster);
+                det.confidence = confidence_scorer_.computeConfidenceWithContext(
+                    features, det.cluster, all_centroids, static_cast<int>(i));
+            }
+        }
+
+        // Re-filter with distance-adaptive threshold
+        std::vector<ConeDetection> filtered;
+        filtered.reserve(output->cones.size());
+        pcl::PointCloud<PointType>::Ptr new_cloud(new pcl::PointCloud<PointType>);
+
+        for (auto& det : output->cones) {
+            double euc = det.distance;
+            double min_conf;
+            const auto &cc = config_.confidence;
+            if (euc <= cc.confidence_ramp_start) {
+                min_conf = cc.min_confidence_near;
+            } else if (euc >= cc.confidence_ramp_end) {
+                min_conf = cc.min_confidence_far;
+            } else {
+                double t = (euc - cc.confidence_ramp_start) /
+                           (cc.confidence_ramp_end - cc.confidence_ramp_start);
+                min_conf = cc.min_confidence_near + t * (cc.min_confidence_far - cc.min_confidence_near);
+            }
+
+            if (det.confidence > min_conf) {
+                if (det.cluster) {
+                    new_cloud->points.insert(
+                        new_cloud->points.end(),
+                        det.cluster->points.begin(),
+                        det.cluster->points.end());
+                }
+                filtered.push_back(std::move(det));
+            }
+        }
+
+        output->cones = std::move(filtered);
+        new_cloud->width = new_cloud->points.size();
+        new_cloud->height = 1;
+        new_cloud->is_dense = g_not_ground_pc->is_dense;
+        output->cones_cloud = new_cloud;
+    }
 }
 
 void lidar_cluster::clusterMethod16(LidarClusterOutput *output)

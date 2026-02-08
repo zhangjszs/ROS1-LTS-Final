@@ -57,6 +57,7 @@ class LocationMapper {
   std::vector<int> point_ids_;
   std::vector<int> point_obs_counts_;  // 每个锥桶的观测次数（用于加权合并）
   std::vector<std::uint8_t> point_types_;  // 每个锥桶类型: 0/1/2/3/4
+  std::vector<double> point_confidences_;  // 每个锥桶的置信度 [0.0, 1.0]
   pcl::KdTreeFLANN<pcl::PointXYZ> kdtree_;
 
   mutable std::mutex state_mutex_;

@@ -30,6 +30,8 @@
 #include <perception_core/fast_ground_segmentation.hpp>
 #include <perception_core/cluster_feature_extractor.hpp>
 #include <perception_core/confidence_scorer.hpp>
+#include <perception_core/cone_tracker.hpp>
+#include <perception_core/topology_repair.hpp>
 
 #include <deque>
 
@@ -93,6 +95,19 @@ struct LidarClusterConfig
     double min_confidence_far = 0.3;     // >ramp_end 距离的门槛
     double confidence_ramp_start = 10.0; // 开始升高门槛的距离 (m)
     double confidence_ramp_end = 30.0;   // 达到最大门槛的距离 (m)
+
+    // Track semantic confidence (neighbor-context scoring)
+    struct TrackSemanticConfig
+    {
+      bool enable = false;
+      double weight = 0.0;
+      double expected_track_width = 3.0;
+      double expected_cone_spacing = 5.0;
+      double spacing_tolerance = 2.0;
+      double width_tolerance = 1.0;
+      double isolation_radius = 8.0;
+    };
+    TrackSemanticConfig track_semantic;
   };
 
   struct RansacConfig
@@ -384,6 +399,23 @@ struct LidarClusterConfig
   FilterConfig filters;
   ClusterConfig cluster;
 
+  // Cone tracker configuration
+  struct TrackerConfig
+  {
+    bool enable = false;
+    double association_threshold = 0.5;
+    int confirm_frames = 3;
+    int delete_frames = 5;
+    double process_noise = 0.1;
+    double measurement_noise = 0.05;
+    bool only_output_confirmed = true;
+    double confirmed_confidence_boost = 0.1;
+  };
+  TrackerConfig tracker;
+
+  // Topology repair configuration
+  perception::TopologyConfig topology;
+
   double min_height = -1;
   double max_height = -1;
   double min_area = -1;
@@ -545,6 +577,14 @@ private:
 
   perception::ClusterFeatureExtractor feature_extractor_;
   perception::ConfidenceScorer confidence_scorer_;
+
+  // Cone tracker for temporal consistency
+  perception::ConeTracker cone_tracker_;
+  bool tracker_enabled_ = false;
+  double last_frame_time_ = -1.0;
+
+  // Topology repair
+  perception::TopologyRepair topology_repair_;
 
   // 多帧累积缓冲区（远处点）
   std::deque<pcl::PointCloud<PointType>::Ptr> frame_buffer_;

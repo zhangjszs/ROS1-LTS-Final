@@ -3,6 +3,7 @@
 #include <vector>
 #include <unordered_map>
 #include <cmath>
+#include <cstdint>
 #include <utility>
 
 namespace perception {
@@ -14,6 +15,7 @@ namespace perception {
  * 1. 多帧一致性验证：连续N帧检测到才确认
  * 2. 卡尔曼滤波平滑位置
  * 3. 减少闪烁和误检
+ * 4. Hungarian algorithm for optimal track-detection association
  */
 class ConeTracker {
 public:
@@ -28,6 +30,7 @@ public:
         bool confirmed = false; // 是否已确认
         double vx = 0.0;        // 速度估计（用于预测）
         double vy = 0.0;
+        std::uint8_t color_type = 4;  // 锥桶颜色类型 (for future camera fusion)
     };
 
     struct Config {
@@ -37,6 +40,8 @@ public:
         double process_noise = 0.1;          // 过程噪声
         double measurement_noise = 0.05;     // 测量噪声
         bool enable_velocity_prediction = true;
+        bool only_output_confirmed = true;   // 仅输出已确认的锥桶
+        double confirmed_confidence_boost = 0.1;  // 确认后的置信度加成
     };
 
     struct Detection {
@@ -44,6 +49,7 @@ public:
         double y = 0.0;
         double z = 0.0;
         double confidence = 0.0;
+        std::uint8_t color_type = 4;  // 锥桶颜色类型
     };
 
     ConeTracker() = default;
@@ -77,29 +83,27 @@ public:
     }
 
 private:
-    /**
-     * @brief 预测步骤
-     */
     void predict(double dt);
 
     /**
-     * @brief 数据关联（匈牙利算法简化版）
+     * @brief 数据关联 - Hungarian algorithm (Munkres) for optimal assignment
      */
     std::vector<std::pair<int, int>> associate(const std::vector<Detection>& detections);
 
     /**
-     * @brief 更新已关联的轨迹
+     * @brief Hungarian algorithm (Munkres solver) for optimal assignment
+     * @param cost_matrix NxM cost matrix (tracks x detections)
+     * @param n_rows number of rows (tracks)
+     * @param n_cols number of columns (detections)
+     * @param threshold maximum cost for valid assignment
+     * @return vector of (row, col) assignments
      */
+    std::vector<std::pair<int, int>> hungarianAssign(
+        const std::vector<std::vector<double>>& cost_matrix,
+        int n_rows, int n_cols, double threshold);
+
     void updateTrack(TrackedCone& track, const Detection& det);
-
-    /**
-     * @brief 创建新轨迹
-     */
     void createTrack(const Detection& det);
-
-    /**
-     * @brief 删除丢失的轨迹
-     */
     void pruneDeadTracks();
 
     Config config_;

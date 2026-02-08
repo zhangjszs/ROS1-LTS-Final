@@ -258,8 +258,8 @@ confidence:
   weight_position: 0.1            # 位置特征权重
 
   # Model fitting (Phase 2)
-  enable_model_fitting: false     # 启用几何模型拟合
-  model_fit_bonus: 0.5            # 拟合成功奖励
+  enable_model_fitting: true     # 启用几何模型拟合
+  model_fit_bonus: 0.2            # 拟合成功奖励
   model_fit_penalty: 0.05         # 拟合失败惩罚
 
   # 距离自适应置信度门槛（远处要求更高置信度才判定为锥桶）
@@ -268,11 +268,52 @@ confidence:
   confidence_ramp_start: 8.0      # 开始升高门槛的距离 (m)
   confidence_ramp_end: 25.0       # 达到最大门槛的距离 (m)
 
+  # Track semantic confidence (邻域上下文评分)
+  # 利用赛道几何先验（锥桶间距、赛道宽度）评估检测的合理性
+  # 孤立的假阳性会因缺少邻居而获得更低的置信度
+  track_semantic:
+    enable: true                 # 语义评分总开关（默认关闭，不影响基线）
+    weight: 0.0                   # 语义维度权重（推荐 0.15，0=禁用）
+    expected_track_width: 3.0     # 预期赛道宽度 (m)
+    expected_cone_spacing: 5.0    # 预期同侧锥桶间距 (m)
+    spacing_tolerance: 2.0        # 间距评分容差 (m)
+    width_tolerance: 1.0          # 宽度评分容差 (m)
+    isolation_radius: 8.0         # 邻居搜索半径 (m)
+
 # 锥桶类型输出（当前仅按几何尺寸区分小橙桶/大橙桶）
 cone_size_typing:
   enable: true                    # true: 输出 ORANGE_SMALL/ORANGE_BIG；false: 输出 NONE
   big_height_threshold: 0.45      # 高度阈值 (m)，超过判为大锥桶
   big_area_threshold: 0.09        # footprint阈值 (m²)，超过判为大锥桶
+
+# ==========================
+# Cone Tracker (时序跟踪)
+# ==========================
+# 利用多帧时序信息提高检测稳定性，减少闪烁和误检
+# 使用 Hungarian algorithm 进行最优关联
+tracker:
+  enable: true                    # 跟踪器总开关（默认关闭，不影响基线）
+  association_threshold: 2.0      # 关联距离阈值 (m)，ego frame下需放宽（车速10m/s×0.1s=1m帧间位移）
+  confirm_frames: 2               # 确认所需连续帧数（ego frame关联困难，降低要求）
+  delete_frames: 5                # 删除所需连续丢失帧数
+  process_noise: 0.1              # 过程噪声
+  measurement_noise: 0.05         # 测量噪声
+  only_output_confirmed: true     # 仅输出已确认的锥桶
+  confirmed_confidence_boost: 0.1 # 确认后的置信度加成
+
+# ==========================
+# Topology Repair (拓扑修复)
+# ==========================
+# 利用赛道几何先验（锥桶间距≤5m，赛道宽3-3.5m）填补缺口、剔除离群点
+# 使用PCA估计赛道方向，投影分左右侧后沿赛道方向排序
+topology:
+  enable: true                   # 拓扑修复总开关（默认关闭，不影响基线）
+  max_same_side_spacing: 5.0      # 同侧最大间距 (m)，超过则插值
+  min_track_width: 2.5            # 最小赛道宽度 (m)
+  max_track_width: 4.0            # 最大赛道宽度 (m)
+  max_repair_range: 15.0          # 仅在此距离内修复 (m)
+  outlier_lateral_threshold: 5.0  # 横向离群阈值 (m)
+  interpolated_confidence: 0.2    # 插值锥桶的置信度
 
 # ==========================
 # Sensor Model (传感器模型)
@@ -459,6 +500,8 @@ mode_presets:
       min_confidence_far: 0.55
       confidence_ramp_start: 8.0
       confidence_ramp_end: 30.0
+      track_semantic:
+        expected_track_width: 3.0
     adaptive_y:
       enable: true
       near_y_half: 3.0
@@ -474,6 +517,8 @@ mode_presets:
       min_confidence_far: 0.5
       confidence_ramp_start: 8.0
       confidence_ramp_end: 28.0
+      track_semantic:
+        expected_track_width: 3.5    # trackdrive赛道宽度略大
     adaptive_y:
       enable: true
       near_y_half: 5.0
@@ -489,6 +534,8 @@ mode_presets:
       min_confidence_far: 0.3
       confidence_ramp_start: 5.0
       confidence_ramp_end: 18.0
+      track_semantic:
+        enable: false                # skidpad圆形赛道不适用线性赛道语义
     adaptive_y:
       enable: false
     cluster:

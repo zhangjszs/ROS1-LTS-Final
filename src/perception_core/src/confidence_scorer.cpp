@@ -1,6 +1,7 @@
 #include "perception_core/confidence_scorer.hpp"
 #include <cmath>
 #include <algorithm>
+#include <limits>
 
 namespace perception {
 
@@ -136,6 +137,94 @@ double ConfidenceScorer::scorePositionConstraints(const ClusterFeatures& f) {
     }
 
     return std::max(0.0, score);
+}
+
+double ConfidenceScorer::scoreTrackSemanticConstraints(
+    const pcl::PointXYZ& centroid,
+    const std::vector<pcl::PointXYZ>& all_centroids,
+    int self_index) {
+
+    const auto& ts = config_.track_semantic;
+    if (!ts.enable || all_centroids.size() < 2) {
+        return 0.5;  // neutral score when disabled
+    }
+
+    double cx = centroid.x;
+    double cy = centroid.y;
+
+    // Find nearest neighbor and nearest opposite-side neighbor
+    double min_dist = std::numeric_limits<double>::max();
+    double min_opposite_dist = std::numeric_limits<double>::max();
+    int neighbor_count = 0;
+
+    for (size_t i = 0; i < all_centroids.size(); ++i) {
+        if (static_cast<int>(i) == self_index) continue;
+
+        double dx = all_centroids[i].x - cx;
+        double dy = all_centroids[i].y - cy;
+        double dist = std::sqrt(dx * dx + dy * dy);
+
+        if (dist > ts.isolation_radius) continue;
+
+        neighbor_count++;
+        if (dist < min_dist) {
+            min_dist = dist;
+        }
+
+        // Check if on opposite side (different sign of y in base_link frame)
+        bool opposite_side = (all_centroids[i].y * cy < 0.0);
+        if (opposite_side && dist < min_opposite_dist) {
+            min_opposite_dist = dist;
+        }
+    }
+
+    // Sub-score 1: Spacing score (nearest same-side neighbor within expected spacing)
+    double spacing_score = 0.0;
+    if (min_dist < std::numeric_limits<double>::max()) {
+        double spacing_err = std::abs(min_dist - ts.expected_cone_spacing);
+        spacing_score = std::max(0.0, 1.0 - spacing_err / ts.spacing_tolerance);
+    }
+
+    // Sub-score 2: Width score (nearest opposite-side neighbor at expected track width)
+    double width_score = 0.0;
+    if (min_opposite_dist < std::numeric_limits<double>::max()) {
+        double width_err = std::abs(min_opposite_dist - ts.expected_track_width);
+        width_score = std::max(0.0, 1.0 - width_err / ts.width_tolerance);
+    }
+
+    // Sub-score 3: Isolation penalty (no neighbors → low score)
+    double isolation_score = 0.0;
+    if (neighbor_count >= 3) {
+        isolation_score = 1.0;
+    } else if (neighbor_count >= 1) {
+        isolation_score = 0.5;
+    }
+
+    return (spacing_score + width_score + isolation_score) / 3.0;
+}
+
+double ConfidenceScorer::computeConfidenceWithContext(
+    const ClusterFeatures& features,
+    const pcl::PointCloud<PointType>::Ptr& cluster,
+    const std::vector<pcl::PointXYZ>& all_centroids,
+    int self_index) {
+
+    // Get base confidence with model fitting
+    double confidence = computeConfidenceWithFitting(features, cluster);
+
+    // Add track semantic dimension if enabled
+    if (config_.track_semantic.enable && config_.track_semantic.weight > 0.0 &&
+        self_index >= 0 && self_index < static_cast<int>(all_centroids.size())) {
+
+        double semantic_score = scoreTrackSemanticConstraints(
+            all_centroids[self_index], all_centroids, self_index);
+
+        // Blend: reduce other weights proportionally to make room for semantic weight
+        double other_weight = 1.0 - config_.track_semantic.weight;
+        confidence = other_weight * confidence + config_.track_semantic.weight * semantic_score;
+    }
+
+    return std::max(0.0, std::min(1.0, confidence));
 }
 
 }  // namespace perception

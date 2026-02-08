@@ -46,6 +46,7 @@ add_library(${PROJECT_NAME}
   src/confidence_scorer.cpp
   src/cone_model_fitter.cpp
   src/cone_tracker.cpp
+  src/topology_repair.cpp
   src/point_cloud_pool.cpp
 )
 

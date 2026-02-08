@@ -188,7 +188,8 @@ void callback_ccat(const autodrive_msgs::HUAT_ConeMap::ConstPtr &data)
   nodes.reserve(data->cone.size());
   for (const autodrive_msgs::HUAT_Cone &c : data->cone)
   {
-    if (c.confidence >= params->main.min_cone_confidence)
+    // confidence is scaled 0–1000 in the message; decode to [0.0, 1.0] for comparison
+    if (static_cast<double>(c.confidence) / 1000.0 >= params->main.min_cone_confidence)
     {
       nodes.emplace_back(c);
     }

@@ -325,12 +325,12 @@ void LocationNode::coneCallback(const autodrive_msgs::HUAT_ConeDetections::Const
 {
   if (!mapper_.has_carstate())
   {
-    ROS_WARN("INS 数据没更新!");
+    ROS_WARN_THROTTLE(5.0, "[location] INS data not updated yet, skipping cone update");
     return;
   }
   if (msg->points.empty())
   {
-    ROS_WARN("锥桶坐标为空!");
+    ROS_WARN_THROTTLE(5.0, "[location] Cone coordinates empty, skipping");
     return;
   }
 
@@ -463,6 +463,13 @@ localization_core::ConeDetections LocationNode::ToCore(const autodrive_msgs::HUA
     det.point.y = msg.points[i].y;
     det.point.z = msg.points[i].z;
 
+    // NaN/Inf 防护：跳过非有限坐标的检测
+    if (!std::isfinite(det.point.x) || !std::isfinite(det.point.y) || !std::isfinite(det.point.z))
+    {
+      ROS_WARN_THROTTLE(5.0, "Skipping cone detection %zu with non-finite coordinates", i);
+      continue;
+    }
+
     if (i < msg.confidence.size())
       det.confidence = msg.confidence[i];
     if (i < msg.obj_dist.size())
@@ -477,6 +484,13 @@ localization_core::ConeDetections LocationNode::ToCore(const autodrive_msgs::HUA
       det.bbox_min.y = msg.minPoints[i].y;
       det.bbox_min.z = msg.minPoints[i].z;
     }
+    // Clamp non-finite bbox values to zero
+    if (!std::isfinite(det.bbox_max.x)) det.bbox_max.x = 0.0;
+    if (!std::isfinite(det.bbox_max.y)) det.bbox_max.y = 0.0;
+    if (!std::isfinite(det.bbox_max.z)) det.bbox_max.z = 0.0;
+    if (!std::isfinite(det.bbox_min.x)) det.bbox_min.x = 0.0;
+    if (!std::isfinite(det.bbox_min.y)) det.bbox_min.y = 0.0;
+    if (!std::isfinite(det.bbox_min.z)) det.bbox_min.z = 0.0;
     if (i < msg.color_types.size())
       det.color_type = msg.color_types[i];
     out.detections.push_back(det);

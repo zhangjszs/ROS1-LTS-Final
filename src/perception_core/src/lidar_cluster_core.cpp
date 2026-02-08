@@ -101,6 +101,132 @@ bool lidar_cluster::Process(LidarClusterOutput *output)
   const std::size_t cluster_count = last_cluster_count_;
   lock.unlock();
 
+  // ⑤ Cone tracker: temporal consistency filtering
+  if (tracker_enabled_ && !output->cones.empty()) {
+    auto now = std::chrono::steady_clock::now();
+    double dt = 0.1;  // default 10Hz
+    if (last_frame_time_ >= 0.0) {
+      double now_sec = std::chrono::duration<double>(now.time_since_epoch()).count();
+      dt = now_sec - last_frame_time_;
+      if (dt <= 0.0 || dt > 2.0) dt = 0.1;
+    }
+    last_frame_time_ = std::chrono::duration<double>(now.time_since_epoch()).count();
+
+    // Convert ConeDetections to tracker Detections
+    std::vector<perception::ConeTracker::Detection> tracker_dets;
+    tracker_dets.reserve(output->cones.size());
+    for (const auto& cone : output->cones) {
+      perception::ConeTracker::Detection td;
+      td.x = cone.centroid.x;
+      td.y = cone.centroid.y;
+      td.z = cone.centroid.z;
+      td.confidence = cone.confidence;
+      tracker_dets.push_back(td);
+    }
+
+    cone_tracker_.update(tracker_dets, dt);
+
+    // Get confirmed tracks and match back to original detections
+    auto confirmed = config_.tracker.only_output_confirmed
+                         ? cone_tracker_.getConfirmedCones()
+                         : cone_tracker_.getAllTracks();
+
+    // Build a map from tracker detection index to original cone index
+    // by matching confirmed track positions back to closest original detection
+    std::vector<ConeDetection> filtered_cones;
+    filtered_cones.reserve(confirmed.size());
+    pcl::PointCloud<PointType>::Ptr filtered_cloud(new pcl::PointCloud<PointType>);
+
+    for (const auto& track : confirmed) {
+      // Find closest original detection
+      int best_idx = -1;
+      double best_dist = config_.tracker.association_threshold;
+      for (size_t j = 0; j < output->cones.size(); ++j) {
+        double dx = track.x - output->cones[j].centroid.x;
+        double dy = track.y - output->cones[j].centroid.y;
+        double d = std::sqrt(dx * dx + dy * dy);
+        if (d < best_dist) {
+          best_dist = d;
+          best_idx = static_cast<int>(j);
+        }
+      }
+      if (best_idx >= 0) {
+        ConeDetection det = output->cones[best_idx];
+        // Boost confidence for confirmed tracks
+        det.confidence = std::min(1.0, det.confidence + config_.tracker.confirmed_confidence_boost);
+        filtered_cones.push_back(std::move(det));
+        if (output->cones[best_idx].cluster) {
+          filtered_cloud->points.insert(
+              filtered_cloud->points.end(),
+              output->cones[best_idx].cluster->points.begin(),
+              output->cones[best_idx].cluster->points.end());
+        }
+      }
+    }
+
+    output->cones = std::move(filtered_cones);
+    filtered_cloud->width = filtered_cloud->points.size();
+    filtered_cloud->height = 1;
+    filtered_cloud->is_dense = true;
+    output->cones_cloud = filtered_cloud;
+  }
+
+  // ⑥ Topology repair: fill gaps and remove outliers
+  if (config_.topology.enable && !output->cones.empty()) {
+    // Convert to TopologyCone
+    std::vector<perception::TopologyCone> topo_cones;
+    topo_cones.reserve(output->cones.size());
+    for (size_t i = 0; i < output->cones.size(); ++i) {
+      perception::TopologyCone tc;
+      tc.x = output->cones[i].centroid.x;
+      tc.y = output->cones[i].centroid.y;
+      tc.z = output->cones[i].centroid.z;
+      tc.confidence = output->cones[i].confidence;
+      tc.is_interpolated = false;
+      tc.original_index = static_cast<int>(i);
+      topo_cones.push_back(tc);
+    }
+
+    auto repaired = topology_repair_.repair(topo_cones);
+
+    // Rebuild output: keep original detections for non-interpolated,
+    // create synthetic detections for interpolated cones
+    std::vector<ConeDetection> new_cones;
+    new_cones.reserve(repaired.size());
+    pcl::PointCloud<PointType>::Ptr new_cloud(new pcl::PointCloud<PointType>);
+
+    for (const auto& rc : repaired) {
+      if (!rc.is_interpolated && rc.original_index >= 0 &&
+          rc.original_index < static_cast<int>(output->cones.size())) {
+        new_cones.push_back(output->cones[rc.original_index]);
+        if (output->cones[rc.original_index].cluster) {
+          new_cloud->points.insert(
+              new_cloud->points.end(),
+              output->cones[rc.original_index].cluster->points.begin(),
+              output->cones[rc.original_index].cluster->points.end());
+        }
+      } else if (rc.is_interpolated) {
+        // Create synthetic detection for interpolated cone
+        ConeDetection det;
+        det.centroid = pcl::PointXYZ(static_cast<float>(rc.x),
+                                      static_cast<float>(rc.y),
+                                      static_cast<float>(rc.z));
+        det.min = det.centroid;
+        det.max = det.centroid;
+        det.confidence = rc.confidence;
+        det.distance = std::sqrt(rc.x * rc.x + rc.y * rc.y);
+        det.is_cone = true;
+        new_cones.push_back(std::move(det));
+      }
+    }
+
+    output->cones = std::move(new_cones);
+    new_cloud->width = new_cloud->points.size();
+    new_cloud->height = 1;
+    new_cloud->is_dense = true;
+    output->cones_cloud = new_cloud;
+  }
+
   auto endTimeTotal = std::chrono::steady_clock::now();
   auto elapsedTimeTotal =
       std::chrono::duration_cast<std::chrono::microseconds>(endTimeTotal - startTimePassThrough);

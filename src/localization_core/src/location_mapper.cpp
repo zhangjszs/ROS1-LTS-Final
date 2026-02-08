@@ -325,6 +325,7 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
       point_ids_.push_back(static_cast<int>(cone.id));
       point_obs_counts_.push_back(1);
       point_types_.push_back(normalizeConeType(det.color_type));
+      point_confidences_.push_back(det.confidence);
     }
     kdtree_.setInputCloud(cloud_);
   }
@@ -398,6 +399,11 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
               point_types_[idx] = obs_type;
             }
           }
+          // 置信度递增均值更新
+          if (idx < static_cast<int>(point_confidences_.size()))
+          {
+            point_confidences_[idx] = point_confidences_[idx] * w_old + det.confidence * w_new;
+          }
           cone.position_global.x = cloud_->points[idx].x;
           cone.position_global.y = cloud_->points[idx].y;
           cone.id = static_cast<std::uint32_t>(point_ids_[idx]);
@@ -417,6 +423,7 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
           point_ids_.push_back(id);
           point_obs_counts_.push_back(1);
           point_types_.push_back(normalizeConeType(det.color_type));
+          point_confidences_.push_back(det.confidence);
           cloud_modified = true;
         }
       }
@@ -434,6 +441,7 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
         point_ids_.push_back(id);
         point_obs_counts_.push_back(1);
         point_types_.push_back(normalizeConeType(det.color_type));
+        point_confidences_.push_back(det.confidence);
         cloud_modified = true;
       }
     }
@@ -452,10 +460,12 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
     std::vector<int> new_ids;
     std::vector<int> new_obs;
     std::vector<std::uint8_t> new_types;
+    std::vector<double> new_confidences;
     new_cloud->reserve(cloud_->points.size());
     new_ids.reserve(cloud_->points.size());
     new_obs.reserve(cloud_->points.size());
     new_types.reserve(cloud_->points.size());
+    new_confidences.reserve(cloud_->points.size());
 
     for (size_t i = 0; i < cloud_->points.size() && i < point_obs_counts_.size(); ++i)
     {
@@ -472,6 +482,8 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
         {
           new_types.push_back(kConeNone);
         }
+        new_confidences.push_back(
+            (i < point_confidences_.size()) ? point_confidences_[i] : 0.0);
       }
     }
     new_cloud->width = new_cloud->points.size();
@@ -480,6 +492,7 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
     point_ids_ = std::move(new_ids);
     point_obs_counts_ = std::move(new_obs);
     point_types_ = std::move(new_types);
+    point_confidences_ = std::move(new_confidences);
     kdtree_.setInputCloud(cloud_);
   }
 
@@ -547,6 +560,15 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
     cone_msg.position_base_link.y = -sin_theta * dx + cos_theta * dy;
     cone_msg.position_base_link.z = cone_msg.position_global.z;
     cone_msg.type = (i < point_types_.size()) ? point_types_[i] : kConeNone;
+    // 置信度传播：将 [0.0, 1.0] 映射到 [0, 1000]
+    {
+      double conf = (i < point_confidences_.size()) ? point_confidences_[i] : 0.0;
+      // 观测次数越多，置信度越高（上限 +0.2 加成）
+      int obs = (i < point_obs_counts_.size()) ? point_obs_counts_[i] : 1;
+      double obs_bonus = std::min(0.2, 0.05 * (obs - 1));
+      conf = std::min(1.0, std::max(0.0, conf + obs_bonus));
+      cone_msg.confidence = static_cast<std::uint32_t>(conf * 1000.0);
+    }
     map_out->cones.push_back(cone_msg);
   }
 

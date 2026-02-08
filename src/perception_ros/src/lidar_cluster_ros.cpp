@@ -1,6 +1,7 @@
 #include <perception_ros/lidar_cluster_ros.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <ros/serialization.h>
 #include <xmlrpcpp/XmlRpcValue.h>
@@ -724,10 +725,38 @@ void LidarClusterRos::loadParams()
   private_nh_.param<double>("confidence/confidence_ramp_start", config_.confidence.confidence_ramp_start, 10.0);
   private_nh_.param<double>("confidence/confidence_ramp_end", config_.confidence.confidence_ramp_end, 30.0);
 
+  // Track semantic confidence (neighbor-context scoring)
+  private_nh_.param<bool>("confidence/track_semantic/enable", config_.confidence.track_semantic.enable, false);
+  private_nh_.param<double>("confidence/track_semantic/weight", config_.confidence.track_semantic.weight, 0.0);
+  private_nh_.param<double>("confidence/track_semantic/expected_track_width", config_.confidence.track_semantic.expected_track_width, 3.0);
+  private_nh_.param<double>("confidence/track_semantic/expected_cone_spacing", config_.confidence.track_semantic.expected_cone_spacing, 5.0);
+  private_nh_.param<double>("confidence/track_semantic/spacing_tolerance", config_.confidence.track_semantic.spacing_tolerance, 2.0);
+  private_nh_.param<double>("confidence/track_semantic/width_tolerance", config_.confidence.track_semantic.width_tolerance, 1.0);
+  private_nh_.param<double>("confidence/track_semantic/isolation_radius", config_.confidence.track_semantic.isolation_radius, 8.0);
+
   // 锥桶类型参数（当前仅根据几何尺寸区分小橙桶/大橙桶）
   private_nh_.param<bool>("cone_size_typing/enable", enable_cone_size_typing_, true);
   private_nh_.param<double>("cone_size_typing/big_height_threshold", big_cone_height_threshold_, 0.45);
   private_nh_.param<double>("cone_size_typing/big_area_threshold", big_cone_area_threshold_, 0.09);
+
+  // ---- Cone Tracker 参数加载 ----
+  private_nh_.param<bool>("tracker/enable", config_.tracker.enable, false);
+  private_nh_.param<double>("tracker/association_threshold", config_.tracker.association_threshold, 0.5);
+  private_nh_.param<int>("tracker/confirm_frames", config_.tracker.confirm_frames, 3);
+  private_nh_.param<int>("tracker/delete_frames", config_.tracker.delete_frames, 5);
+  private_nh_.param<double>("tracker/process_noise", config_.tracker.process_noise, 0.1);
+  private_nh_.param<double>("tracker/measurement_noise", config_.tracker.measurement_noise, 0.05);
+  private_nh_.param<bool>("tracker/only_output_confirmed", config_.tracker.only_output_confirmed, true);
+  private_nh_.param<double>("tracker/confirmed_confidence_boost", config_.tracker.confirmed_confidence_boost, 0.1);
+
+  // ---- Topology Repair 参数加载 ----
+  private_nh_.param<bool>("topology/enable", config_.topology.enable, false);
+  private_nh_.param<double>("topology/max_same_side_spacing", config_.topology.max_same_side_spacing, 5.0);
+  private_nh_.param<double>("topology/min_track_width", config_.topology.min_track_width, 2.5);
+  private_nh_.param<double>("topology/max_track_width", config_.topology.max_track_width, 4.0);
+  private_nh_.param<double>("topology/max_repair_range", config_.topology.max_repair_range, 15.0);
+  private_nh_.param<double>("topology/outlier_lateral_threshold", config_.topology.outlier_lateral_threshold, 5.0);
+  private_nh_.param<double>("topology/interpolated_confidence", config_.topology.interpolated_confidence, 0.2);
 
   // ---- 距离自适应Y轴ROI参数 ----
   private_nh_.param<bool>("roi/adaptive_y/enable", config_.roi.adaptive_y.enable, false);
@@ -891,6 +920,20 @@ void LidarClusterRos::applyModePreset()
                               config_.roi.adaptive_y.ramp_start_x);
   }
 
+  // 覆盖 track_semantic 参数
+  private_nh_.param<bool>(prefix + "/confidence/track_semantic/enable",
+                          config_.confidence.track_semantic.enable,
+                          config_.confidence.track_semantic.enable);
+  private_nh_.param<double>(prefix + "/confidence/track_semantic/weight",
+                            config_.confidence.track_semantic.weight,
+                            config_.confidence.track_semantic.weight);
+  private_nh_.param<double>(prefix + "/confidence/track_semantic/expected_track_width",
+                            config_.confidence.track_semantic.expected_track_width,
+                            config_.confidence.track_semantic.expected_track_width);
+  private_nh_.param<double>(prefix + "/confidence/track_semantic/expected_cone_spacing",
+                            config_.confidence.track_semantic.expected_cone_spacing,
+                            config_.confidence.track_semantic.expected_cone_spacing);
+
   // 覆盖 cluster 分段参数
   std::vector<double> segments, tolerances;
   if (LoadDoubleVector(private_nh_, prefix + "/cluster/distance_segments", segments)) {
@@ -1047,6 +1090,12 @@ void LidarClusterRos::publishOutput(const LidarClusterOutput &output)
 
   for (const auto &det : output.cones)
   {
+    // Defense-in-depth: skip detections with non-finite centroids
+    if (!std::isfinite(det.centroid.x) || !std::isfinite(det.centroid.y) || !std::isfinite(det.centroid.z))
+    {
+      continue;
+    }
+
     geometry_msgs::Point32 center;
     center.x = det.centroid.x;
     center.y = det.centroid.y;
