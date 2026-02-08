@@ -4,6 +4,7 @@ use_yaw: true
 
 accel_noise: 1.0
 gyro_noise: 0.05
+gyro_scale: 1.0
 
 meas_pos_noise: 0.5
 meas_vel_noise: 0.2

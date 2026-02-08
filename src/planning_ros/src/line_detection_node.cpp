@@ -37,9 +37,15 @@ void LineDetectionNode::LoadParameters()
 
   pnh_.param("cones/max_distance", params_.max_cone_distance, 50.0);
   pnh_.param("cones/min_distance", params_.min_cone_distance, 2.0);
+  pnh_.param("cones/max_lateral_distance", params_.max_cone_lateral_distance, 10.0);
+
+  pnh_.param("hough/min_rho_diff", params_.min_rho_diff, 2.0);
+  pnh_.param("hough/max_rho_diff", params_.max_rho_diff, 20.0);
+  pnh_.param("hough/max_lines_to_check", params_.max_lines_to_check, 10);
 
   pnh_.param("path/interval", params_.path_interval, 0.1);
   pnh_.param("path/max_distance", params_.max_path_distance, 75.0);
+  pnh_.param("path/start_x", params_.path_start_x, 1.0);
 
   pnh_.param("vehicle/imu_offset_x", params_.imu_offset_x, 1.88);
 

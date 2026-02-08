@@ -40,10 +40,6 @@ double ConfidenceScorer::computeConfidenceWithFitting(
     // Get base confidence from features
     double confidence = computeConfidence(features);
 
-    if (confidence < 0) {
-        return confidence;  // Failed basic shape check
-    }
-
     // Apply model fitting if enabled
     if (config_.enable_model_fitting && cluster &&
         features.point_count >= 8) {

@@ -68,7 +68,7 @@ namespace nodelet_lidar
     running_ = false;
   }
 
-} // namespace velodyne_driver
+} // namespace nodelet_lidar
 
 // Register this plugin with pluginlib.  Names must match nodelet_velodyne.xml.
 //

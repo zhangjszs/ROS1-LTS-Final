@@ -16,6 +16,15 @@ hough:
   # Tolerance for theta angle when selecting parallel boundary lines (radians)
   theta_tolerance: 0.2
 
+  # Minimum rho difference between two boundary lines (meters)
+  min_rho_diff: 2.0
+
+  # Maximum rho difference between two boundary lines (meters)
+  max_rho_diff: 20.0
+
+  # Maximum number of lines to check for boundary pairs
+  max_lines_to_check: 10
+
 # Cone Filtering Parameters
 cones:
   # Maximum cone distance to consider from vehicle (meters)
@@ -24,14 +33,19 @@ cones:
   # Minimum cone distance to consider from vehicle (meters)
   min_distance: 2.0
 
+  # Maximum lateral (Y-axis) distance for cone filtering (meters)
+  max_lateral_distance: 10.0
+
 # Path Generation Parameters
 path:
   # Interval between path points (meters)
   interval: 0.1
 
   # Maximum path distance for the straight track (meters)
-  # This is typically the length of the acceleration track (75m for FSAE)
   max_distance: 75.0
+
+  # Starting X position for path generation (meters)
+  start_x: 1.0
 
 # Vehicle Parameters
 vehicle:

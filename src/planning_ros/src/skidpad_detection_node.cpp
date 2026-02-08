@@ -62,18 +62,26 @@ void SkidpadDetectionNode::LoadParameters()
 
   if (!pnh_.param("length/leavedistanceThreshold", params_.leavedistanceThreshold, 1.0))
   {
-    ROS_WARN_STREAM("Did not load distanceThreshold. Standard value is " << params_.leavedistanceThreshold);
+    ROS_WARN_STREAM("Did not load leavedistanceThreshold. Standard value is " << params_.leavedistanceThreshold);
   }
 
   if (!pnh_.param("inverse_flag", params_.inverse_flag, 1))
   {
-    ROS_WARN_STREAM("Did not load topic name. Standard value is: " << params_.inverse_flag);
+    ROS_WARN_STREAM("Did not load inverse_flag. Standard value is: " << params_.inverse_flag);
   }
 
   if (!pnh_.param("length/stopdistance", params_.stopdistance, 5.0))
   {
-    ROS_WARN_STREAM("Did not load topic name. Standard value is: " << params_.stopdistance);
+    ROS_WARN_STREAM("Did not load stopdistance. Standard value is: " << params_.stopdistance);
   }
+
+  pnh_.param("circle/radius", params_.circle_radius, 9.125);
+  pnh_.param("circle/car_length", params_.car_length, 1.87);
+  pnh_.param("circle/path_interval", params_.path_interval, 0.05);
+  pnh_.param("passthrough/x_min", params_.passthrough_x_min, 0.1);
+  pnh_.param("passthrough/x_max", params_.passthrough_x_max, 15.0);
+  pnh_.param("passthrough/y_min", params_.passthrough_y_min, -3.0);
+  pnh_.param("passthrough/y_max", params_.passthrough_y_max, 3.0);
 
   if (!pnh_.param<std::string>("topics/cone", cone_topic_, "perception/lidar_cluster/detections"))
   {
@@ -96,6 +104,9 @@ void SkidpadDetectionNode::LoadParameters()
 void SkidpadDetectionNode::SyncCallback(const ConeMsg::ConstPtr &cone_msg,
                                          const StateMsg::ConstPtr &car_state)
 {
+  std::lock_guard<std::mutex> lock(data_mutex_);
+  latest_sync_time_ = cone_msg->header.stamp;
+
   // 时间戳验证
   double time_diff = std::abs((cone_msg->header.stamp - car_state->header.stamp).toSec());
   if (time_diff > max_data_age_)
@@ -109,6 +120,10 @@ void SkidpadDetectionNode::SyncCallback(const ConeMsg::ConstPtr &cone_msg,
 
   for (const geometry_msgs::Point32 &point : cone_msg->points)
   {
+    if (!std::isfinite(point.x) || !std::isfinite(point.y) || !std::isfinite(point.z))
+    {
+      continue;
+    }
     planning_core::ConePoint cone;
     cone.x = point.x;
     cone.y = point.y;
@@ -131,6 +146,7 @@ void SkidpadDetectionNode::PublishPath(const std::vector<planning_core::Pose> &p
 {
   nav_msgs::Path path_msg;
   path_msg.header.frame_id = "world";  // 全局坐标系
+  path_msg.header.stamp = latest_sync_time_;
   path_msg.poses.reserve(path_points.size());
 
   for (const auto &pose : path_points)

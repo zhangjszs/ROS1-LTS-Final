@@ -13,6 +13,18 @@ length:
   FinTargetY: 0.0
   distanceThreshold: 0.7
   leavedistanceThreshold: 1.0
+
+circle:
+  radius: 9.125           # 八字圆弧半径 (m)
+  car_length: 1.87         # 车身长度 (m)
+  path_interval: 0.05      # 路径点间隔 (m)
+
+passthrough:
+  x_min: 0.1               # PassThrough X轴最小值 (m)
+  x_max: 15.0              # PassThrough X轴最大值 (m)
+  y_min: -3.0              # PassThrough Y轴最小值 (m)
+  y_max: 3.0               # PassThrough Y轴最大值 (m)
+
 #参数可能代表车辆或系统中的某种物理距离或尺寸，具体是从圆心到激光雷达（Lidar）的距离。
 #: 这个键值对指定了一个名为 "inverse_flag" 的参数，其值为 "0"。
 #FinTargetX: 40.0: 这个表示终点的X坐标

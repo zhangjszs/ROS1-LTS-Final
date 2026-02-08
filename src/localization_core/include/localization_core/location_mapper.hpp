@@ -16,8 +16,8 @@ class LocationMapper {
   void Configure(const LocationParams &params);
   void SetDataDirectory(const std::string &path);
 
-  bool has_carstate() const { return has_carstate_; }
-  const CarState &car_state() const { return car_state_; }
+  bool has_carstate() const { std::lock_guard<std::mutex> lk(state_mutex_); return has_carstate_; }
+  CarState car_state() const { std::lock_guard<std::mutex> lk(state_mutex_); return car_state_; }
 
   bool UpdateFromIns(const Asensing &imu, CarState *state_out);
   void UpdateFromCarState(const CarState &state);
@@ -48,8 +48,6 @@ class LocationMapper {
 
   int next_id_ = 0;
   double enu_xyz_[3] = {0.0, 0.0, 0.0};
-  double front_wheel_[3] = {0.0, 0.0, 0.0};
-  double rear_wheel_[3] = {0.0, 0.0, 0.0};
   double first_lat_ = 0.0;
   double first_lon_ = 0.0;
   double first_alt_ = 0.0;

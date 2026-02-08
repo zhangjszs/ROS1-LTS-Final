@@ -28,6 +28,17 @@ struct SkidpadParams
   double leavedistanceThreshold{1.0};
   int inverse_flag{1};
   double stopdistance{5.0};
+
+  // 圆弧与车辆参数
+  double circle_radius{9.125};
+  double car_length{1.87};
+  double path_interval{0.05};
+
+  // PassThrough 滤波器限制
+  double passthrough_x_min{0.1};
+  double passthrough_x_max{15.0};
+  double passthrough_y_min{-3.0};
+  double passthrough_y_max{3.0};
 };
 
 struct Trajectory
@@ -74,8 +85,8 @@ public:
 
 private:
   void PassThrough(pcl::PointCloud<pcl::PointXYZ>::Ptr &in_ptr);
-  bool ChangPathFlag(double current_x, double current_y, double TargetX_, double TargetY_, double DistanceThreshold_);
-  void ChangLeavePathFlag(double current_x, double current_y, double TargetX_, double TargetY_, double LeaveDistanceThreshold_);
+  bool ChangePathFlag(double current_x, double current_y, double TargetX_, double TargetY_, double DistanceThreshold_);
+  void ChangeLeavePathFlag(double current_x, double current_y, double TargetX_, double TargetY_, double LeaveDistanceThreshold_);
   void UpdateApproaching(double current_x, double current_y, double FinTargetX_, double FInTargetY_, double stopdistance_);
   std::vector<Pose> TransformPath(const std::vector<Pose> &path) const;
 
@@ -113,9 +124,7 @@ private:
   double mid_y_fir_{0.0};
   double mid_x_sec_{0.0};
   double mid_y_sec_{0.0};
-
-public:
-  double lipu{0.0};
+  double initial_angle_{0.0};  // 首次计算的角度基准
 };
 
 } // namespace planning_core

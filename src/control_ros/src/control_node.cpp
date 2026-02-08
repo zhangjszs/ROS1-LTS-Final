@@ -27,6 +27,7 @@ public:
   ControlNode(ros::NodeHandle &nh, ros::NodeHandle &pnh, int mode, int racing_num)
     : nh_(nh), pnh_(pnh), mode_(mode), racing_num_(racing_num)
   {
+    nh_.param("/use_sim_time", simulation_, false);
     InitController();
     LoadParams();
     SetupSubscribers();
@@ -36,7 +37,7 @@ public:
 
   void SpinOnce()
   {
-    if (CheckExternalStop())
+    if (!simulation_ && CheckExternalStop())
     {
       PublishEmergencyStop();
       ros::shutdown();
@@ -280,6 +281,7 @@ private:
   bool path_ready_{false};
   bool pose_ready_{false};
   bool finish_signal_{false};
+  bool simulation_{false};
 };
 
 int GetModeFromFile()

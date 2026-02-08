@@ -91,7 +91,7 @@ void SkidpadDetectionCore::ProcessConeDetections(const std::vector<ConePoint> &c
     mid_y_sec_ = (order[2].y + order[3].y) / 2;
 
     at2_angle_mid_ = atan2(std::abs(mid_y_sec_ - mid_y_fir_), std::abs(mid_x_sec_ - mid_x_fir_));
-    lipu = at2_angle_mid_;
+    initial_angle_ = at2_angle_mid_;
     // std::cout << "angle_mid:" << at2_angle_mid_ << std::endl;
     if (find_four_bucket_)
       at2_angle_calced_ = true;
@@ -114,15 +114,15 @@ void SkidpadDetectionCore::PassThrough(pcl::PointCloud<pcl::PointXYZ>::Ptr &in_p
   pcl::PassThrough<pcl::PointXYZ> pass;
   pass.setInputCloud(in_ptr);
   pass.setFilterFieldName("x");
-  pass.setFilterLimits(0.1, 15);
+  pass.setFilterLimits(params_.passthrough_x_min, params_.passthrough_x_max);
   pass.filter(*in_ptr);
 
   pass.setFilterFieldName("y");
-  pass.setFilterLimits(-3, 3);
+  pass.setFilterLimits(params_.passthrough_y_min, params_.passthrough_y_max);
   pass.filter(*in_ptr);
 }
 
-bool SkidpadDetectionCore::ChangPathFlag(double current_x, double current_y, double TargetX_, double TargetY_, double DistanceThreshold_)
+bool SkidpadDetectionCore::ChangePathFlag(double current_x, double current_y, double TargetX_, double TargetY_, double DistanceThreshold_)
 {
   double dx = TargetX_ - current_x;
   double dy = TargetY_ - current_y;
@@ -130,7 +130,7 @@ bool SkidpadDetectionCore::ChangPathFlag(double current_x, double current_y, dou
   return distance < DistanceThreshold_;
 }
 
-void SkidpadDetectionCore::ChangLeavePathFlag(double current_x, double current_y, double TargetX_, double TargetY_, double LeaveDistanceThreshold_)
+void SkidpadDetectionCore::ChangeLeavePathFlag(double current_x, double current_y, double TargetX_, double TargetY_, double LeaveDistanceThreshold_)
 {
   double dx = TargetX_ - current_x;
   double dy = TargetY_ - current_y;
@@ -158,7 +158,7 @@ std::vector<Pose> SkidpadDetectionCore::TransformPath(const std::vector<Pose> &p
 {
   std::vector<Pose> transformed_path = path;
 
-  double angle = at2_angle_mid_ - lipu;
+  double angle = at2_angle_mid_ - initial_angle_;
   Eigen::AngleAxisf t_V(angle, Eigen::Vector3f::UnitZ());
   Eigen::Matrix3f rotate_matrix = t_V.matrix();
   Eigen::Matrix4f transform_matrix = Eigen::Matrix4f::Identity();
@@ -185,17 +185,17 @@ std::vector<Pose> SkidpadDetectionCore::TransformPath(const std::vector<Pose> &p
 
 void SkidpadDetectionCore::RunAlgorithm()
 {
-  double interval = 0.05;
+  double interval = params_.path_interval;
   double forward_distance = circle2lidar_;
-  double circle_radius = 9.125;
-  const double car_length = 1.87;
+  double circle_radius = params_.circle_radius;
+  const double car_length = params_.car_length;
   double right_circle_x = forward_distance + car_length;
   double right_circle_y = -circle_radius;
   double left_circle_x = right_circle_x;
   double left_circle_y = circle_radius;
 
-  changFlag_ = ChangPathFlag(current_pose_.x, current_pose_.y, targetX_, targetY_, distanceThreshold_);
-  ChangLeavePathFlag(current_pose_.x, current_pose_.y, targetX_, targetY_, LeavedistanceThreshold_);
+  changFlag_ = ChangePathFlag(current_pose_.x, current_pose_.y, targetX_, targetY_, distanceThreshold_);
+  ChangeLeavePathFlag(current_pose_.x, current_pose_.y, targetX_, targetY_, LeavedistanceThreshold_);
   UpdateApproaching(current_pose_.x, current_pose_.y, FinTargetX_, FInTargetY_, stopdistance_);
   // std::cout << "runAlgorithm:" << matchFlag_ << "  " << at2_angle_calced_ << std::endl;
 

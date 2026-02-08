@@ -1,6 +1,7 @@
 #ifndef PLANNING_ROS_SKIDPAD_DETECTION_NODE_HPP_
 #define PLANNING_ROS_SKIDPAD_DETECTION_NODE_HPP_
 
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -54,8 +55,9 @@ private:
   std::string car_state_topic_;
   std::string log_path_topic_;
   std::string approaching_goal_topic_;
-  int inverse_flag_{1};
   double max_data_age_ = 0.5;  // 数据过期阈值 (秒)
+  ros::Time latest_sync_time_;
+  std::mutex data_mutex_;
 };
 
 } // namespace planning_ros

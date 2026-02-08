@@ -13,6 +13,7 @@
 #include <gtsam/nonlinear/DoglegOptimizerImpl.h>
 
 #include <chrono>
+#include <cstdio>
 #include <algorithm>
 #include <cmath>
 
@@ -390,7 +391,10 @@ int FactorGraphOptimizer::findOrCreateLandmark(const ConeObservation& obs,
   }
 
   // Create new landmark
-  if (static_cast<int>(landmarks_.size()) >= cfg_.max_landmarks) return -1;
+  if (static_cast<int>(landmarks_.size()) >= cfg_.max_landmarks) {
+    fprintf(stderr, "[FG] Landmark limit reached (%d), dropping new observation\n", cfg_.max_landmarks);
+    return -1;
+  }
 
   FgLandmark lm;
   lm.id = next_landmark_id_++;

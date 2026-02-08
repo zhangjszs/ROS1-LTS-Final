@@ -45,6 +45,7 @@ private:
     pnh_.param("max_dt", params.max_dt, 0.1);
 
     pnh_.param("accel_gravity", params.accel_gravity, 9.79);
+    pnh_.param("gyro_scale", params.gyro_scale, 1.0);
 
     if (!pnh_.param("length/frontToIMUdistanceX", params.front_to_imu_x, 0.0))
     {

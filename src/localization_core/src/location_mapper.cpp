@@ -96,6 +96,12 @@ bool LocationMapper::UpdateFromIns(const Asensing &imu, CarState *state_out)
                              std::pow(mins_.y_acc, 2) +
                              std::pow(mins_.z_acc, 2));
 
+    // FSSIM-style body-frame state (heading=0 at init)
+    car_state_.Vy = 0.0;
+    car_state_.Wz = mins_.z_angular_velocity;
+    car_state_.Ax = mins_.x_acc;
+    car_state_.Ay = mins_.y_acc;
+
     first_lat_ = imu_data.latitude;
     first_lon_ = imu_data.longitude;
     first_alt_ = imu_data.altitude;
@@ -128,6 +134,21 @@ bool LocationMapper::UpdateFromIns(const Asensing &imu, CarState *state_out)
     car_state_.A = std::sqrt(std::pow(mins_.x_acc, 2) +
                              std::pow(mins_.y_acc, 2) +
                              std::pow(mins_.z_acc, 2));
+
+    // FSSIM-style body-frame state
+    // Rotate NED velocity to body frame using heading
+    double heading = car_state_.car_state.theta;
+    double cos_h = std::cos(heading);
+    double sin_h = std::sin(heading);
+    // ENU velocity: east=Vx_enu, north=Vy_enu
+    double vx_enu = mins_.east_velocity;
+    double vy_enu = mins_.north_velocity;
+    // Body frame: Vx_body = cos(h)*vx_enu + sin(h)*vy_enu
+    //             Vy_body = -sin(h)*vx_enu + cos(h)*vy_enu
+    car_state_.Vy = -sin_h * vx_enu + cos_h * vy_enu;
+    car_state_.Wz = mins_.z_angular_velocity;
+    car_state_.Ax = mins_.x_acc;
+    car_state_.Ay = mins_.y_acc;
 
     GeoDeticToENU(imu_data.latitude * kPi / 180.0,
                   imu_data.longitude * kPi / 180.0,
@@ -188,14 +209,6 @@ void LocationMapper::GeoDeticToENU(double lat, double lon, double h,
   enu_xyz[0] = -sin_lon0 * xd + cos_lon0 * yd;
   enu_xyz[1] = (-cos_lon0 * xd - sin_lon0 * yd) * sin_lat0 + cos_lat0 * zd;
   enu_xyz[2] = cos_lat0 * cos_lon0 * xd + cos_lat0 * sin_lon0 * yd + sin_lat0 * zd;
-
-  front_wheel_[0] = enu_xyz[0] + params_.front_to_imu_x;
-  front_wheel_[1] = enu_xyz[1] + params_.front_to_imu_y;
-  front_wheel_[2] = enu_xyz[2] + params_.front_to_imu_z;
-
-  rear_wheel_[0] = enu_xyz[0] + params_.rear_to_imu_x;
-  rear_wheel_[1] = enu_xyz[1] + params_.rear_to_imu_y;
-  rear_wheel_[2] = enu_xyz[2] + params_.rear_to_imu_z;
 
   const double yaw = (standard_azimuth_ - 90.0) * (kPi / 180.0);
   const double cos_yaw = std::cos(yaw);

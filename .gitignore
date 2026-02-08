@@ -154,3 +154,6 @@ local_settings.py
 instance/
 .webassets-cache
 .scrapy
+
+# Ignore temporary CTest files and test artifacts
+Testing/Temporary/

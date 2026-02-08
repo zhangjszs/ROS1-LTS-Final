@@ -14,9 +14,8 @@ class IMUSubscriber{
 public:
       IMUSubscriber(ros::NodeHandle nh,std::string topic_name, size_t buff_size);
       IMUSubscriber() = default;
-      bool buff_mutex_;
-     
-    
+
+
       void ParseData(std::deque<IMUData>& imu_data_buff);
       void SetInsInfo(autodrive_msgs::HUAT_InsP2ConstPtr imu_msg_ptr);
       bool SyncData(std::deque<IMUData>& UnsyncedData, IMUData& synced_data,double sync_time);
