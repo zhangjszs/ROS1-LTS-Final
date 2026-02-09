@@ -1,0 +1,9 @@
+# Vehicle profile overlay for localization (global ns, consumed by location/state_estimator).
+length:
+  lidarToIMUDist: 1.87
+  frontToIMUdistanceX: 0.0
+  frontToIMUdistanceY: 0.0
+  frontToIMUdistanceZ: 0.0
+  rearToIMUdistanceX: 0.0
+  rearToIMUdistanceY: 0.0
+  rearToIMUdistanceZ: 0.0

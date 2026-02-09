@@ -7,11 +7,12 @@
 ```
 fsd_launch/
 ├── launch/
-│   ├── missions/           # 按比赛任务
+│   ├── *.launch            # 按比赛任务
 │   │   ├── trackdrive.launch    # 高速循迹
 │   │   ├── skidpad.launch       # 八字绕环
 │   │   ├── acceleration.launch  # 加速赛
-│   │   └── autocross.launch     # 障碍赛
+│   │   ├── autocross.launch     # 障碍赛
+│   │   └── ebs_test.launch      # EBS 接口预留
 │   │
 │   ├── subsystems/         # 子系统（内部使用）
 │   │   ├── perception.launch    # 感知
@@ -54,6 +55,16 @@ roslaunch fsd_launch skidpad.launch simulation:=true bag:=/path/to/bag.bag
 roslaunch fsd_launch acceleration.launch simulation:=true bag:=/path/to/bag.bag
 ```
 
+### EBS 接口预留
+
+```bash
+# 默认仅跑感知/定位，不下发控制
+roslaunch fsd_launch ebs_test.launch simulation:=true bag:=/path/to/bag.bag
+
+# 显式开启控制（保留接口）：control_mode=5
+roslaunch fsd_launch ebs_test.launch simulation:=true bag:=/path/to/bag.bag enable_ebs_control:=true control_mode:=5
+```
+
 ### 调试模式
 
 ```bash
@@ -68,6 +79,7 @@ roslaunch fsd_launch debug.launch mission:=trackdrive bag:=/path/to/bag.bag
 | `bag` | "" | Rosbag 文件路径 |
 | `rate` | 1.0 | 回放速率 |
 | `launch_rviz` | true | 启动 RViz |
+| `control_mode` | -1 | 控制算法模式ID（在 mission launch 中已按任务下发） |
 
 ## 子系统单独启动
 

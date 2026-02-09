@@ -1,0 +1,18 @@
+# Fleet-level vehicle profile index for fsd_launch.
+version: 1
+
+default_vehicle: A13
+supported_vehicles:
+  - A13
+
+vehicles:
+  A13:
+    description: "FSAC single car profile"
+    notes:
+      - "Current workflow is rosbag-first; real-vehicle calibration pending."
+      - "LiDAR/IMU rotation placeholders are set to zero in perception profile."
+    profile_files:
+      perception: "config/vehicles/A13/perception.yaml"
+      localization: "config/vehicles/A13/localization.yaml"
+      control: "config/vehicles/A13/control.yaml"
+      planning: "config/vehicles/A13/planning.yaml"

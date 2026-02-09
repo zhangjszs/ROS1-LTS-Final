@@ -1,0 +1,5 @@
+# Copy this file to `localization.local.yaml` (gitignored) for machine-specific overrides.
+# Example:
+# length:
+#   lidarToIMUDist: 1.87
+{}

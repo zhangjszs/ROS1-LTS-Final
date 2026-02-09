@@ -1,0 +1,12 @@
+# Vehicle profile overlay for perception (private ns of lidar_cluster_node).
+# Keep distortion compensation disabled for bag-based stage.
+imu:
+  sensor:
+    extrinsics:
+      enable: false
+      tx: 0.0
+      ty: 0.0
+      tz: 0.0
+      roll: 0.0
+      pitch: 0.0
+      yaw: 0.0

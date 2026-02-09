@@ -1,0 +1,6 @@
+# Vehicle profile overlay for planning.
+# Reserved for planner-specific vehicle parameters.
+# Example future fields:
+# vehicle:
+#   imu_offset_x: 1.87
+{}

@@ -13,18 +13,33 @@
     <arg name="launch_rviz" default="true" doc="启动 RViz"/>
     <arg name="launch_viz" default="true" doc="启动可视化节点"/>
     <arg name="rviz_mode" default="dual" doc="RViz模式: global(全局), pointcloud(点云), dual(双窗口)"/>
+    <arg name="vehicle" default="A13" doc="车辆型谱ID"/>
+    <arg name="fleet_config" default="$(find fsd_launch)/config/vehicle_fleet.yaml" doc="车辆型谱清单"/>
+    <arg name="perception_vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/perception.yaml"/>
+    <arg name="perception_vehicle_local_config" default=""/>
+    <arg name="localization_vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/localization.yaml"/>
+    <arg name="localization_vehicle_local_config" default=""/>
+    <arg name="control_vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/control.yaml"/>
+    <arg name="control_vehicle_local_config" default=""/>
 
     <!-- ========== Simulation Time ========== -->
     <param name="/use_sim_time" value="$(arg simulation)"/>
+    <rosparam command="load" file="$(arg fleet_config)" ns="vehicle_fleet"/>
 
     <!-- ========== Subsystems ========== -->
     <include file="$(find fsd_launch)/launch/subsystems/perception.launch">
         <arg name="launch_rviz" value="false"/>
         <arg name="mode" value="skidpad"/>
+        <arg name="vehicle" value="$(arg vehicle)"/>
+        <arg name="vehicle_config" value="$(arg perception_vehicle_config)"/>
+        <arg name="vehicle_local_config" value="$(arg perception_vehicle_local_config)"/>
     </include>
 
     <include file="$(find fsd_launch)/launch/subsystems/localization.launch">
         <arg name="mode" value="skidpad"/>
+        <arg name="vehicle" value="$(arg vehicle)"/>
+        <arg name="vehicle_config" value="$(arg localization_vehicle_config)"/>
+        <arg name="vehicle_local_config" value="$(arg localization_vehicle_local_config)"/>
     </include>
 
     <include file="$(find fsd_launch)/launch/subsystems/planning.launch">
@@ -33,6 +48,10 @@
 
     <include file="$(find fsd_launch)/launch/subsystems/control.launch">
         <arg name="mode" value="skidpad"/>
+        <arg name="control_mode" value="3"/>
+        <arg name="vehicle" value="$(arg vehicle)"/>
+        <arg name="vehicle_config" value="$(arg control_vehicle_config)"/>
+        <arg name="vehicle_local_config" value="$(arg control_vehicle_local_config)"/>
     </include>
 
     <!-- Vehicle Interface (非仿真模式) -->

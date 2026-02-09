@@ -1,8 +1,9 @@
 # perception_ros 激光雷达点云聚类（ROS 包装层）
 
-检测接收到的的点云并进行滤波与聚类，算法核心已拆到 `perception_core`（无 ROS 依赖），本包仅负责 ROS 订阅/发布/参数/可视化。  
-参考 `config/lidar_cluster_example.yaml` 中的注释来修改参数。  
-复制一份 example yaml 文件，更名为 “lidar_cluster.yaml”。
+检测接收到的点云并进行滤波与聚类，算法核心已拆到 `perception_core`（无 ROS 依赖），本包仅负责 ROS 订阅/发布/参数/可视化。  
+当前参数体系已迁移为 `Base + Overlay`：
+- `config/lidar_base.yaml`：通用基线参数
+- `config/lidar_track.yaml` / `config/lidar_accel.yaml` / `config/lidar_skidpad.yaml`：按任务的覆盖参数
 
 ## 使用方法
 
@@ -28,19 +29,21 @@ Launch 文件位置：
 
 ### 参数加载与匹配规则（rosparam）
 
-Launch 会加载：
-- [src/perception_ros/config/lidar_cluster_example.yaml](src/perception_ros/config/lidar_cluster_example.yaml)
+Launch 会按顺序加载：
+- [src/perception_ros/config/lidar_base.yaml](src/perception_ros/config/lidar_base.yaml)
+- [src/perception_ros/config/lidar_$(arg mode).yaml](src/perception_ros/config/lidar_track.yaml)
 
 加载方式：
 - 参数通过 `rosparam load` 载入到 nodelet 的私有命名空间（`~`）。
 - 例如 YAML 中的 `topics/input` 会映射为：
   `/perception/lidar_cluster/lidar_cluster_node/topics/input`
+- 后加载文件会覆盖前加载文件（overlay 覆盖 base）。
 
 ### 如何新增/覆盖参数
 
-1. 推荐做法：复制 `lidar_cluster_example.yaml` 为 `lidar_cluster.yaml`，只保留需要修改的项。
-2. 在 launch 中把 `rosparam` 指向你的配置文件。
-3. 若需要在启动时覆盖单个参数，可追加 `<param name="xxx" value="yyy" />`。
+1. 修改 `lidar_base.yaml` 作为全任务通用参数。
+2. 在 `lidar_<mode>.yaml` 里只保留该模式需要覆盖的参数。
+3. 若需要临时覆盖单个参数，可在 launch 追加 `<param name="xxx" value="yyy" />`。
 
 ### 参数分类（与 YAML 对应）
 

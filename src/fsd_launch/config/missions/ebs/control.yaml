@@ -1,0 +1,24 @@
+# EBS mission overlay (control)
+# Loaded after control_<mode>.yaml and before vehicle overlay.
+# NOTE: mode=5 currently still uses HighController and reads `pp/*`.
+
+pp:
+  angle_kv: 0.0
+  angle_kl: 2.5
+  angle_kp: 0.9
+  angle_ki: 0.0
+  angle_kd: 0.0
+  steering_delta_max: 0.35
+  enable_slip_compensation: true
+  slip_gain: 0.4
+  min_lookahead: 2.0
+  max_lookahead: 8.0
+
+# Reserved namespace for future dedicated EBS controller wiring.
+ebs:
+  enable_interface_only: true
+  target_decel_mps2: 8.0
+  hold_brake_force: 1.0
+  trigger_distance_m: 12.0
+
+# TODO(real-car): map fields above to VCU protocol in src/fsd_launch/reference/vcu_mapping.md.

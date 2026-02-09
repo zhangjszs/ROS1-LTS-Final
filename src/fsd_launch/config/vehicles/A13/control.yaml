@@ -1,0 +1,10 @@
+# Vehicle profile overlay for control (global ns, consumed by control_node).
+car_arg:
+  length: 1.55
+  front_axle: 0.5
+  rear_axle: 1.05
+  delta_max: 0.4
+  delta_min: 0.0174
+  cg_to_front: 0.77
+  cg_to_rear: 0.78
+  mass: 190.0

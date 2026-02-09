@@ -1,0 +1,5 @@
+# Copy this file to `control.local.yaml` (gitignored) for machine-specific overrides.
+# Example:
+# car_arg:
+#   mass: 190.0
+{}

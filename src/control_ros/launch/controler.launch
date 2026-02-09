@@ -1,9 +1,13 @@
 <launch>
   <arg name="bag" default="" />
-  <arg name="mode" default="track" doc="赛道模式: accel | skidpad | track"/>
-  <rosparam command="load" file="$(find control_ros)/config/param.yaml" />
-  <rosparam command="load" file="$(find control_ros)/config/control_$(arg mode).yaml" />
+  <arg name="mode" default="track" doc="赛道模式配置: accel | skidpad | track"/>
+  <arg name="mode_profile" default="$(arg mode)" doc="控制参数配置文件后缀"/>
+  <arg name="control_mode" default="-1" doc="控制算法模式ID；-1表示不显式下发，沿用旧逻辑"/>
+  <arg name="skip_param_load" default="false" doc="是否跳过本launch内参数加载（由上层统一加载时置true）"/>
+  <rosparam unless="$(arg skip_param_load)" command="load" file="$(find control_ros)/config/param.yaml" />
+  <rosparam unless="$(arg skip_param_load)" command="load" file="$(find control_ros)/config/control_$(arg mode_profile).yaml" />
   <node name="control" pkg="control_ros" type="control_node" output="screen">
+    <param if="$(eval int(arg('control_mode')) >= 0)" name="mode" value="$(arg control_mode)" />
     <!-- Remap legacy topic names to new unified names -->
     <remap from="/Carstate" to="localization/car_state"/>
     <remap from="/AS/P/pathlimits/partial" to="planning/high_speed_tracking/pathlimits/partial"/>

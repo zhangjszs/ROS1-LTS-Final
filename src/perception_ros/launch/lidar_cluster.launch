@@ -5,6 +5,9 @@
     <arg name="ns" default="/perception/lidar_cluster" />
     <arg name="input_topic" default="/velodyne_points" />
     <arg name="mode" default="track" doc="赛道模式: accel | skidpad | track"/>
+    <arg name="mission_config" default="" doc="任务级参数覆盖文件（mission overlay）"/>
+    <arg name="extra_config" default="" doc="额外参数覆盖文件（vehicle overlay）"/>
+    <arg name="extra_local_config" default="" doc="额外本地覆盖文件（*.local.yaml）"/>
 
     <!-- Enable sim time when playing rosbag -->
     <param name="/use_sim_time" value="true" if="$(eval arg('bag') != '')" />
@@ -12,8 +15,12 @@
     <group ns="$(arg ns)">
         <node pkg="nodelet" type="nodelet" name="lidar_cluster_nodelet_manager" args="manager" output="screen" />
         <node pkg="nodelet" type="nodelet" name="lidar_cluster_node" args="load nodelet_lidar/Lidar_Cluster_Nodelet lidar_cluster_nodelet_manager" output="screen">
-            <!-- 按赛道模式加载对应参数文件 -->
+            <!-- 新参数体系：Base + Overlay(按任务模式) -->
+            <rosparam command="load" file="$(find perception_ros)/config/lidar_base.yaml" />
             <rosparam command="load" file="$(find perception_ros)/config/lidar_$(arg mode).yaml" />
+            <rosparam if="$(eval arg('mission_config') != '')" command="load" file="$(arg mission_config)" />
+            <rosparam if="$(eval arg('extra_config') != '')" command="load" file="$(arg extra_config)" />
+            <rosparam if="$(eval arg('extra_local_config') != '')" command="load" file="$(arg extra_local_config)" />
             <param name="topics/input" value="$(arg input_topic)" />
         </node>
     </group>

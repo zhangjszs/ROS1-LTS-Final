@@ -93,6 +93,9 @@ Thumbs.db
 # Logs
 *.log
 
+# Local parameter overlays
+*.local.yaml
+
 # Database
 *.db
 *.sqlite

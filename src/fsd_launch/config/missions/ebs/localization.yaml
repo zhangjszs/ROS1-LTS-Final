@@ -1,0 +1,18 @@
+# EBS mission overlay (localization)
+# Loaded after location_common.yaml + location_<mode>.yaml.
+# Keep map/mode distinct so mode_presets/ebs can be tuned independently.
+
+map:
+  mode: ebs
+
+  mode_presets:
+    ebs:
+      merge_distance: 2.0
+      max_map_size: 120
+      min_obs_to_keep: 2
+      local_cone_range: 35.0
+      min_confidence_to_add: 0.25
+      min_confidence_to_merge: 0.12
+      track_width: 3.0
+
+# TODO(real-car): fill GNSS/INS quality gating if EBS uses absolute stop-zone logic.

@@ -1,0 +1,13 @@
+# Copy this file to `perception.local.yaml` (gitignored) for machine-specific overrides.
+# Example:
+# imu:
+#   sensor:
+#     extrinsics:
+#       enable: true
+#       tx: 0.0
+#       ty: 0.0
+#       tz: 0.0
+#       roll: 0.0
+#       pitch: 0.0
+#       yaw: 0.0
+{}

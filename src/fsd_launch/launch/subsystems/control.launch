@@ -4,8 +4,25 @@
 -->
 <launch>
     <arg name="mode" default="track" doc="赛道模式: accel | skidpad | track"/>
+    <arg name="control_mode" default="-1" doc="控制算法模式ID；-1表示沿用旧逻辑"/>
+    <arg name="skip_param_load" default="true" doc="是否跳过controler.launch内部参数加载"/>
+    <arg name="control_base_config" default="$(find control_ros)/config/param.yaml"/>
+    <arg name="control_mode_config" default="$(find control_ros)/config/control_$(arg mode).yaml"/>
+    <arg name="mission_config" default="" doc="任务级参数覆盖文件（mission overlay）"/>
+    <arg name="vehicle" default="A13" doc="车辆型谱ID"/>
+    <arg name="vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/control.yaml"/>
+    <arg name="vehicle_local_config" default="" doc="本地覆盖参数文件（*.local.yaml）"/>
+
+    <!-- 控制参数加载顺序：base -> mode -> mission -> vehicle -> vehicle.local -->
+    <rosparam command="load" file="$(arg control_base_config)"/>
+    <rosparam command="load" file="$(arg control_mode_config)"/>
+    <rosparam if="$(eval arg('mission_config') != '')" command="load" file="$(arg mission_config)"/>
+    <rosparam command="load" file="$(arg vehicle_config)"/>
+    <rosparam if="$(eval arg('vehicle_local_config') != '')" command="load" file="$(arg vehicle_local_config)"/>
     <!-- Controller -->
     <include file="$(find control_ros)/launch/controler.launch">
-        <arg name="mode" value="$(arg mode)"/>
+        <arg name="mode_profile" value="$(arg mode)"/>
+        <arg name="control_mode" value="$(arg control_mode)"/>
+        <arg name="skip_param_load" value="$(arg skip_param_load)"/>
     </include>
 </launch>

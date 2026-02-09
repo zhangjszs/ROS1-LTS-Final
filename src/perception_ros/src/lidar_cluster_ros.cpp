@@ -890,9 +890,8 @@ void LidarClusterRos::applyModePreset()
   std::string prefix = "mode_presets/" + mode;
 
   if (!private_nh_.hasParam(prefix)) {
-    if (mode != "custom") {
-      ROS_WARN("No mode_preset found for '%s', using defaults", mode.c_str());
-    }
+    // mode_presets 是可选项：缺失时直接使用文件内顶层参数
+    ROS_INFO("No mode_preset found for '%s', using top-level parameters", mode.c_str());
     return;
   }
 
