@@ -1,0 +1,357 @@
+# ==========================
+# ROS Wrapper (perception_ros)
+# ==========================
+topics:
+  input: points/raw                # 输入点云话题（相对命名空间）
+  points:
+    passthrough: points/passthrough  # 直通滤波输出点云
+    no_ground: points/no_ground      # 去地面点云
+    cones: points/cones              # 锥桶点云
+  detections: detections             # 锥桶检测结果
+
+# ==========================
+# Performance Optimization (性能优化)
+# ==========================
+use_point_cloud_pool: false       # 是否启用点云内存池
+pipeline_mode: event_driven       # 调度模式：event_driven | legacy_poll
+legacy_poll_hz: 10.0              # 轮询频率（legacy_poll模式下生效）
+
+# ==========================
+# Ground Segmentation (地面分割)
+# ==========================
+sensor_height: 0.125              # 激光雷达安装高度 (m)
+ground_method: fgs                # 地面分割方法：ransac | patchworkpp | fgs
+force_fgs_fast_path: true         # 强制使用FGS快路径
+
+# --- FGS Fast Ground Segmentation ---
+fgs:
+  num_sectors: 32                 # 扇区数量（角度划分）
+  num_bins: 80                    # 每个扇区的bin数量（距离划分）
+  max_range: 80.0                 # 最大处理距离 (m)
+  min_range: 0.1                  # 最小处理距离 (m)
+  sensor_height: 0.135            # 传感器高度 (m)
+  th_ground: 0.08                 # 地面距离阈值 (m)
+  th_ground_far: 0.15             # 远距离地面阈值 (m)
+  far_distance: 20.0              # 远距离分界点 (m)
+  near_distance: 2.0              # 近距离分界点 (m)
+  th_ground_near: 0.12            # 近距离地面阈值 (m)
+  max_slope: 0.3                  # 最大地面坡度 (tan值)
+  min_normal_z: 0.85              # 法向量Z分量最小值
+  max_height_diff: 0.3            # 相邻bin最大高度差 (m)
+  use_neighbor_model: true        # 无效扇区使用邻近扇区模型
+  max_segments_per_sector: 4      # 每扇区最大线段数
+  segment_merge_dist: 0.15        # 线段生长偏差阈值 (m)
+  enable_refinement: false        # 二次拟合开关
+  use_lowest_n_mean: true         # 使用lowest-N均值代替min_z
+  lowest_n: 3                     # N值
+  enable_sector_smoothing: true   # 相邻扇区模型平滑
+  enable_temporal_smoothing: true # 帧间EMA平滑开关
+  temporal_alpha: 0.5             # EMA系数
+  ground_below_factor: 1.5        # 下方阈值放宽系数
+  enable_adaptive_alpha: true     # 自适应alpha开关
+  adaptive_alpha_max: 0.9         # 最大alpha
+  adaptive_alpha_threshold: 0.05  # 触发自适应的模型变化阈值
+
+# --- RANSAC ---
+ransac:
+  num_iter: 15                    # 迭代次数
+  num_lpr: 5                      # 用于种子点提取的最低高程点数量
+  th_seeds: 0.1                   # 种子点高度阈值 (m)
+  th_dist: 0.06                   # 点到平面的距离阈值 (m)
+  enable_zone: true               # 启用分区处理
+  zone_boundaries: [5.0, 10.0, 20.0, 35.0, 50.0]  # 分区边界 (m)
+  adaptive_threshold: true        # 启用自适应阈值
+  th_dist_far_scale: 3.0          # 远处阈值放大系数
+  min_normal_z: 0.7               # 法向量Z分量最小值
+  progressive_iteration: true     # 启用渐进式迭代
+
+# --- Patchwork++ ---
+patchworkpp:
+  enable_rnr: true                # 启用RNR（反射率法）
+  enable_rvpf: true               # 启用RVPF（垂直平面滤波）
+  enable_tgr: true                # 启用TGR（地面修正）
+  num_iter: 4                     # 迭代次数
+  num_lpr: 20                     # LPR种子点数量
+  num_min_pts: 15                 # 最小点数阈值
+  num_zones: 4                    # 分区数量
+  num_rings_of_interest: 4        # 感兴趣环数
+  rnr_ver_angle_thr: -15.0        # RNR垂直角阈值
+  rnr_intensity_thr: 0.2          # RNR强度阈值
+  th_seeds: 0.05                  # 种子阈值
+  th_dist: 0.05                   # 距离阈值
+  th_seeds_v: 0.25                # 垂直方向种子阈值
+  th_dist_v: 0.1                  # 垂直方向距离阈值
+  max_range: 80.0                 # 最大处理距离 (m)
+  min_range: 0.1                  # 最小处理距离 (m)
+  uprightness_thr: 0.9            # 直立性阈值
+  adaptive_seed_selection_margin: -1.2  # 自适应种子边界
+  num_sectors_each_zone: [16, 32, 54, 32]  # 各分区扇区数
+  num_rings_each_zone: [2, 4, 4, 4]        # 各分区环数
+  max_flatness_storage: 1000      # 平坦度缓存上限
+  max_elevation_storage: 1000     # 高度缓存上限
+  elevation_thr: [0, 0, 0, 0]     # 高度阈值数组
+  flatness_thr: [0, 0, 0, 0]      # 平坦度阈值数组
+  th_dist_far_scale: 1.5          # 远区阈值放大系数
+  min_normal_z: 0.7               # 法向量Z分量最小值
+  far_zone_min_pts_scale: 2.0     # 远区最小点数缩放
+
+# ==========================
+# ROI — 直线加速赛 (Acceleration)
+# ==========================
+# 特点：长距离前向探测（100m），窄Y范围（±5m），高置信度门槛
+roi:
+  mode: accel                     # ROI模式：skidpad | accel | track
+  use_point_clip: false           # accel不使用point_clip
+  z_min: -0.5                     # Z轴下限 (m)
+  z_max: 0.7                      # Z轴上限，覆盖锥桶高度
+  x_min: 0.5                      # 前向最小距离 (m) - 排除车前盲区
+  x_max: 100                      # 前向最大距离 (m) - 直线加速需要远距离探测
+  y_min: -5                       # 横向最小范围 (m) - 直线赛道窄
+  y_max: 5                        # 横向最大范围 (m)
+
+  # 距离自适应Y轴梯形ROI
+  # 特点：直线赛道窄，近处±3m即可覆盖赛道
+  adaptive_y:
+    enable: true                  # 启用自适应Y轴收窄
+    near_y_half: 3.0              # 近处Y半宽 (m) - 直线赛道窄，近处±3m足够
+    far_y_half: 1.8               # 远处Y半宽 (m) - 远处±1.8m（赛道宽3m/2=1.5m，留余量）
+    ramp_start_x: 5.0             # 5m即开始收窄 - 直线赛道尽早收窄
+
+# ==========================
+# Filters (滤波)
+# ==========================
+filters:
+  sor:
+    enable: false                 # SOR统计离群点剔除
+    mean_k: 50                    # 邻域点数
+    stddev_mul: 1.0               # 标准差倍数阈值
+  voxel:
+    enable: false                 # 普通体素滤波
+    leaf_size: 0.05               # 5cm体素
+  adaptive_voxel:
+    enable: false                 # 自适应体素滤波
+    leaf_size: 0.1                # 基础体素大小
+    density_thr: 8                # 密度阈值
+  distance_adaptive_voxel:
+    enable: true                  # 推荐启用，替代普通voxel滤波
+    near_leaf: 0.08               # 近距离体素大小 8cm
+    far_leaf: 0.03                # 远距离体素大小 3cm
+    dist_threshold: 10.0           # 距离分界点 (m)
+  intensity:
+    enable: false                 # 强度滤波
+    min_intensity: 5.0            # 最小强度值
+  use_cropbox: true               # 用CropBox单次遍历替代多次PassThrough
+  obstacle_height:
+    enable: true                  # 柱状障碍物滤波
+    grid_size: 0.5                # 2D栅格大小 (m)
+    max_z_span: 0.4              # 栅格内最大z跨度 (m)
+    min_points_to_judge: 3        # 栅格内最少点数
+    min_distance: 10.0            # 生效距离下限 (m)
+
+# ==========================
+# Cone Cluster & Confidence (锥桶聚类与置信度)
+# ==========================
+min_height: 0.05                  # 锥桶高度下限 (m)
+max_height: 0.75                  # 锥桶高度上限 (m)
+min_area: 0.01                    # 底面积下限 (m²)
+max_area: 0.25                    # 底面积上限 (m²)
+max_box_altitude: 0.05            # bbox最低点高度上限 (m)
+
+confidence:
+  # Size constraints
+  min_height: 0.05                # 锥桶最小高度 (m)
+  max_height: 0.75                # 锥桶最大高度 (m)
+  min_area: 0.01                  # 最小底面积 (m²)
+  max_area: 0.25                  # 最大底面积 (m²)
+  max_box_altitude: 0.05          # bbox最低点最大高度 (m)
+
+  # Shape constraints
+  min_aspect_ratio: 0.9           # 最小纵横比
+  min_verticality: 0.7            # 最小垂直度
+  max_linearity: 0.85             # PCA线性度上限
+
+  # Density constraints
+  min_density_near: 50.0          # 近距离最小点密度
+  min_density_far: 10.0           # 远距离最小点密度
+  distance_threshold: 5.0          # 近远距离分界 (m)
+
+  # Intensity constraints
+  min_intensity_mean: 15.0        # 最小平均强度
+
+  # Feature weights
+  weight_size: 0.35               # 尺寸特征权重
+  weight_shape: 0.3               # 形状特征权重
+  weight_density: 0.2             # 密度特征权重
+  weight_intensity: 0.05          # 强度特征权重
+  weight_position: 0.1            # 位置特征权重
+
+  # Model fitting
+  enable_model_fitting: true       # 启用几何模型拟合
+  model_fit_bonus: 0.2            # 拟合成功奖励
+  model_fit_penalty: 0.05        # 拟合失败惩罚
+
+  # 距离自适应置信度门槛
+  # Acceleration特点：直线赛道，长距离探测，需要高门槛过滤远处噪声
+  min_confidence_near: 0.25       # 近处门槛 - 比trackdrive更高
+  min_confidence_far: 0.55        # 远处门槛 - 最高门槛，抑制远处噪声误检
+  confidence_ramp_start: 8.0      # 开始升高门槛的距离 (m)
+  confidence_ramp_end: 30.0       # 达到最大门槛的距离 (m)
+
+  # Track semantic confidence (邻域上下文评分)
+  # Acceleration特点：直线赛道，线性赛道语义适用
+  track_semantic:
+    enable: true                  # 启用语义评分
+    weight: 0.15                  # 语义维度权重
+    expected_track_width: 3.0     # 预期赛道宽度 (m) - 直线赛道宽3m
+    expected_cone_spacing: 5.0    # 预期同侧锥桶间距 (m)
+    spacing_tolerance: 2.0        # 间距评分容差 (m)
+    width_tolerance: 1.0          # 宽度评分容差 (m)
+    isolation_radius: 8.0         # 邻居搜索半径 (m)
+    min_neighbors_hard: 0          # 硬剔除邻居数阈值
+    max_isolation_distance: 12.0   # 最大孤立距离 (m)
+
+# 锥桶类型输出
+cone_size_typing:
+  enable: true                    # 按几何尺寸区分小橙桶/大橙桶
+  big_height_threshold: 0.45      # 高度阈值 (m)
+  big_area_threshold: 0.09        # footprint阈值 (m²)
+
+# ==========================
+# Cone Tracker (时序跟踪)
+# ==========================
+tracker:
+  enable: true                    # 跟踪器总开关
+  association_threshold: 2.0      # 关联距离阈值 (m)
+  confirm_frames: 3                # 确认所需连续帧数
+  delete_frames: 5                # 删除所需连续丢失帧数
+  process_noise: 0.1              # 过程噪声
+  measurement_noise: 0.05          # 测量噪声
+  only_output_confirmed: true     # 仅输出已确认的锥桶
+  confirmed_confidence_boost: 0.1 # 确认后的置信度加成
+
+# ==========================
+# Proximity Deduplication (近距离去重)
+# ==========================
+dedup:
+  enable: true                     # 去重总开关
+  radius: 0.5                      # 抑制半径 (m)
+
+# ==========================
+# Topology Repair (拓扑修复)
+# ==========================
+topology:
+  enable: true                   # 拓扑修复总开关
+  max_same_side_spacing: 5.0      # 同侧最大间距 (m)
+  min_track_width: 2.5            # 最小赛道宽度 (m)
+  max_track_width: 4.0            # 最大赛道宽度 (m)
+  max_repair_range: 15.0          # 修复最大距离 (m)
+  outlier_lateral_threshold: 5.0  # 横向离群阈值 (m)
+  interpolated_confidence: 0.2    # 插值锥桶的置信度
+
+# ==========================
+# Sensor Model (传感器模型)
+# ==========================
+sensor_model: 32                  # velodyne product type (16/32)
+road_type: 2                      # 1=skidpad, 2=accel, 3=track
+str_range: "15,30,45,60"
+str_seg_distance: "0.5,1.1,1.6,2.1,2.6"
+
+# ==========================
+# Clustering — accel：直线远距配置
+# ==========================
+cluster:
+  method: euclidean               # 聚类方法：euclidean | dbscan
+
+  # 距离分段阈值 (m)，由近到远
+  # Acceleration特点：直线长距离，需要更多分段处理远处点云
+  distance_segments: [5.0, 10.0, 20.0, 35.0, 50.0, 70.0]
+  # 各分段聚类距离阈值 (m)
+  # 远处容差递减，防止远处噪声误合并
+  cluster_tolerance: [0.15, 0.3, 0.5, 0.4, 0.3, 0.25, 0.2]
+
+  # 自适应聚类大小
+  adaptive_size:
+    enable: true                  # 启用自适应聚类大小
+    near_min_size: 3              # 近距离最小聚类点数
+    near_max_size: 100            # 近距离最大聚类点数
+    far_min_size: 2               # 远距离最小聚类点数
+    far_max_size: 30              # 远距离最大聚类点数
+
+  min_cluster_size: 1
+  max_cluster_size: 50
+
+  # DBSCAN参数
+  dbscan:
+    eps: 0.3                      # 邻域半径
+    min_pts: 3                    # 核心点最小邻居数
+    adaptive_eps: true            # 自适应调整eps
+    eps_near: 0.15                # 近距离eps
+    eps_far: 0.5                  # 远距离eps
+
+  # VLP-16专用参数
+  vlp16:
+    cluster_tolerance: 0.3        # 聚类距离阈值
+    max_bbox_x: 0.4               # 锥桶bbox最大X尺寸 (m)
+    max_bbox_y: 0.4               # 锥桶bbox最大Y尺寸 (m)
+    max_bbox_z: 0.5               # 锥桶bbox最大Z尺寸 (m)
+
+  point_clip:
+    min_distance: 1.0            # 最小距离 (m)
+    max_distance: 15.0            # 最大距离 (m)
+
+  # FEC快速欧式聚类
+  fec:
+    enable: true                  # 启用FEC
+    quality: 0.3                  # 质量参数
+
+  # 多帧累积
+  multi_frame:
+    enable: false                 # 先关闭
+    num_frames: 2                 # 累积帧数
+    max_distance: 10.0            # 仅远处点累积
+
+# 赛道参数
+length:
+  circle2lidar: 15.0              # 圆心到雷达距离 (m)
+
+# ==========================
+# IMU & Distortion Compensation
+# ==========================
+imu:
+  enable: false                   # IMU功能总开关
+  topic: /pbox_pub/Ins            # IMU数据话题
+  buffer_size: 200                # IMU数据缓冲区大小
+
+  # 畸变补偿
+  distortion:
+    enable: false                 # 畸变补偿开关
+    scan_period: 0.1              # 激光扫描周期 (s)
+    mode: velocity_accel          # 补偿模式
+    point_time_source: auto       # 点云时间源
+    ref_time: scan_end            # 参考时刻
+    debug:
+      enable: false               # 调试模式
+      publish_debug_info: false   # 发布调试信息
+
+  # IMU-LiDAR外参
+  sensor:
+    extrinsics:
+      enable: false               # 是否使用外参
+      tx: 0.0                    # X方向平移 (m)
+      ty: 0.0                    # Y方向平移 (m)
+      tz: 0.0                    # Z方向平移 (m)
+      roll: 0.0                  # Roll旋转 (度)
+      pitch: 0.0                 # Pitch旋转 (度)
+      yaw: 0.0                   # Yaw旋转 (度)
+    noise:
+      gyro_noise: 0.01            # 陀螺仪噪声
+      accel_noise: 0.1            # 加速度计噪声
+      gyro_bias: 0.001            # 陀螺仪偏置
+      accel_bias: 0.01            # 加速度计偏置
+
+# ==========================
+# Performance Statistics
+# ==========================
+perf_stats_enable: false           # 性能统计开关
+perf_stats_window: 300             # 统计窗口大小
+perf_stats_log_every: 50          # 打印频率

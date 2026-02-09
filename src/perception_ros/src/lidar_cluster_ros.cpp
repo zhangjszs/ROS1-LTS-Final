@@ -707,6 +707,7 @@ void LidarClusterRos::loadParams()
   private_nh_.param<double>("confidence/max_box_altitude", config_.confidence.max_box_altitude, 0.5);
   private_nh_.param<double>("confidence/min_aspect_ratio", config_.confidence.min_aspect_ratio, 1.5);
   private_nh_.param<double>("confidence/min_verticality", config_.confidence.min_verticality, 0.8);
+  private_nh_.param<double>("confidence/max_linearity", config_.confidence.max_linearity, 0.85);
   private_nh_.param<double>("confidence/min_density_near", config_.confidence.min_density_near, 50.0);
   private_nh_.param<double>("confidence/min_density_far", config_.confidence.min_density_far, 10.0);
   private_nh_.param<double>("confidence/distance_threshold", config_.confidence.distance_threshold, 5.0);
@@ -733,6 +734,9 @@ void LidarClusterRos::loadParams()
   private_nh_.param<double>("confidence/track_semantic/spacing_tolerance", config_.confidence.track_semantic.spacing_tolerance, 2.0);
   private_nh_.param<double>("confidence/track_semantic/width_tolerance", config_.confidence.track_semantic.width_tolerance, 1.0);
   private_nh_.param<double>("confidence/track_semantic/isolation_radius", config_.confidence.track_semantic.isolation_radius, 8.0);
+  // Hard rejection thresholds for neighborhood filtering
+  private_nh_.param<int>("confidence/track_semantic/min_neighbors_hard", config_.confidence.track_semantic.min_neighbors_hard, 0);
+  private_nh_.param<double>("confidence/track_semantic/max_isolation_distance", config_.confidence.track_semantic.max_isolation_distance, 12.0);
 
   // 锥桶类型参数（当前仅根据几何尺寸区分小橙桶/大橙桶）
   private_nh_.param<bool>("cone_size_typing/enable", enable_cone_size_typing_, true);

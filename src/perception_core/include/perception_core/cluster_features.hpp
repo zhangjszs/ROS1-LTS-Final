@@ -28,6 +28,7 @@ struct ClusterFeatures {
     double shape_elongation = 0.0;  // ratio of eigenvalues
     double shape_planarity = 0.0;
     double verticality_score = 0.0;
+    double linearity = 0.0;         // (λ1 - λ2) / λ1, high = wall/rail-like
 
     // Position features
     Eigen::Vector3f centroid = Eigen::Vector3f::Zero();

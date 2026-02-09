@@ -1,0 +1,15 @@
+# ===== 高速避障 (TrackDrive) 控制参数 =====
+# 加载顺序：param.yaml (基础) → 本文件 (覆盖)
+# 特点：平衡前瞻距离，标准侧滑补偿
+
+pp:
+  angle_kv: 0.0
+  angle_kl: 2.5
+  angle_kp: 0.9
+  angle_ki: 0.0
+  angle_kd: 0.0
+  steering_delta_max: 0.5
+  enable_slip_compensation: true
+  slip_gain: 0.5                  # 平衡配置
+  min_lookahead: 2.0              # 标准前瞻距离
+  max_lookahead: 10.0

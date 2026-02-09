@@ -1,0 +1,17 @@
+# ===== 八字绕环 (Skidpad) 定位参数 =====
+
+map:
+  merge_distance: 2.0
+  max_map_size: 100
+  min_obs_to_keep: 2
+  local_cone_range: 35.0
+  min_confidence_to_add: 0.2
+  min_confidence_to_merge: 0.1
+  max_cone_height: 0.75
+  max_cone_width: 0.5
+  min_cone_height: 0.03
+  track_width: 3.0
+  enable_circle_validation: true
+  circle_radius: 15.25
+  circle_center_dist: 18.25
+  circle_tolerance: 2.0

@@ -99,7 +99,15 @@ double ConfidenceScorer::scoreShapeConstraints(const ClusterFeatures& f) {
             (f.verticality_score - 0.5) / denom));
     }
 
-    return (aspect_score + verticality_score) / 2.0;
+    // 线性度惩罚：linearity > max_linearity → 强线性结构（墙边、栏杆），大幅降分
+    double linearity_penalty = 1.0;
+    if (config_.max_linearity > 0.0 && f.linearity > config_.max_linearity) {
+        // 超过阈值越多，惩罚越重（线性衰减到0.1）
+        double excess = (f.linearity - config_.max_linearity) / (1.0 - config_.max_linearity);
+        linearity_penalty = std::max(0.1, 1.0 - 0.9 * excess);
+    }
+
+    return (aspect_score + verticality_score) / 2.0 * linearity_penalty;
 }
 
 double ConfidenceScorer::scoreDensityConstraints(const ClusterFeatures& f) {
@@ -200,6 +208,15 @@ double ConfidenceScorer::scoreTrackSemanticConstraints(
         isolation_score = 0.5;
     }
 
+    // Hard rejection: completely isolated detections get zero confidence
+    // This is checked via the return value of -1.0 (sentinel)
+    if (neighbor_count <= ts.min_neighbors_hard) {
+        return -1.0;  // sentinel: caller should set confidence=0
+    }
+    if (min_dist > ts.max_isolation_distance) {
+        return -1.0;  // sentinel: extremely isolated, hard reject
+    }
+
     return (spacing_score + width_score + isolation_score) / 3.0;
 }
 
@@ -218,6 +235,11 @@ double ConfidenceScorer::computeConfidenceWithContext(
 
         double semantic_score = scoreTrackSemanticConstraints(
             all_centroids[self_index], all_centroids, self_index);
+
+        // Hard rejection sentinel: semantic scoring determined this is isolated noise
+        if (semantic_score < 0.0) {
+            return 0.0;
+        }
 
         // Blend: reduce other weights proportionally to make room for semantic weight
         double other_weight = 1.0 - config_.track_semantic.weight;

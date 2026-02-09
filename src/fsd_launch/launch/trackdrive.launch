@@ -47,7 +47,9 @@
         <arg name="planner" value="high_speed"/>
     </include>
 
-    <include file="$(find fsd_launch)/launch/subsystems/control.launch"/>
+    <include file="$(find fsd_launch)/launch/subsystems/control.launch">
+        <arg name="mode" value="track"/>
+    </include>
 
     <!-- Vehicle Interface (非仿真模式) -->
     <include unless="$(arg simulation)" file="$(find fsd_launch)/launch/subsystems/vehicle.launch"/>

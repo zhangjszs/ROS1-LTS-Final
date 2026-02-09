@@ -12,11 +12,13 @@
         <remap from="sensors/ins" to="/pbox_pub/Ins"/>
         <include unless="$(arg use_eskf)" file="$(find localization_ros)/launch/location.launch">
             <arg name="mode" value="$(arg mode)"/>
+            <arg name="bag" value=""/>
         </include>
     </group>
 
     <!-- Location ESKF (可选) -->
     <include if="$(arg use_eskf)" file="$(find localization_ros)/launch/location_eskf.launch">
         <arg name="mode" value="$(arg mode)"/>
+        <arg name="bag" value=""/>
     </include>
 </launch>

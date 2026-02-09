@@ -293,6 +293,7 @@ void lidar_cluster::Configure(const LidarClusterConfig &config)
     scorer_config.max_box_altitude = config.confidence.max_box_altitude;
     scorer_config.min_aspect_ratio = config.confidence.min_aspect_ratio;
     scorer_config.min_verticality = config.confidence.min_verticality;
+    scorer_config.max_linearity = config.confidence.max_linearity;
     scorer_config.min_density_near = config.confidence.min_density_near;
     scorer_config.min_density_far = config.confidence.min_density_far;
     scorer_config.distance_threshold = config.confidence.distance_threshold;
@@ -314,6 +315,8 @@ void lidar_cluster::Configure(const LidarClusterConfig &config)
     scorer_config.track_semantic.spacing_tolerance = config.confidence.track_semantic.spacing_tolerance;
     scorer_config.track_semantic.width_tolerance = config.confidence.track_semantic.width_tolerance;
     scorer_config.track_semantic.isolation_radius = config.confidence.track_semantic.isolation_radius;
+    scorer_config.track_semantic.min_neighbors_hard = config.confidence.track_semantic.min_neighbors_hard;
+    scorer_config.track_semantic.max_isolation_distance = config.confidence.track_semantic.max_isolation_distance;
     confidence_scorer_.setConfig(scorer_config);
 
     // Configure cone tracker

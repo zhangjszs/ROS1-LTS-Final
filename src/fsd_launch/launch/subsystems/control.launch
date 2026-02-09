@@ -3,6 +3,9 @@
   控制子系统：路径跟踪、车辆控制
 -->
 <launch>
+    <arg name="mode" default="track" doc="赛道模式: accel | skidpad | track"/>
     <!-- Controller -->
-    <include file="$(find control_ros)/launch/controler.launch"/>
+    <include file="$(find control_ros)/launch/controler.launch">
+        <arg name="mode" value="$(arg mode)"/>
+    </include>
 </launch>

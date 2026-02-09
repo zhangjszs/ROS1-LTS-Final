@@ -23,6 +23,7 @@ public:
         // Shape constraints
         double min_aspect_ratio = 1.5;
         double min_verticality = 0.8;
+        double max_linearity = 0.85;  // linearity > this → wall/rail penalty
 
         // Density constraints
         double min_density_near = 50.0;
@@ -56,6 +57,9 @@ public:
             double spacing_tolerance = 2.0;     // Tolerance for spacing score [m]
             double width_tolerance = 1.0;       // Tolerance for width score [m]
             double isolation_radius = 8.0;      // Radius to check for neighbors [m]
+            // Hard rejection thresholds
+            int min_neighbors_hard = 0;         // If neighbor_count <= this within isolation_radius → confidence=0
+            double max_isolation_distance = 12.0; // If nearest neighbor > this → confidence=0
         };
         TrackSemanticConfig track_semantic;
     };

@@ -77,6 +77,7 @@ struct LidarClusterConfig
     double max_box_altitude = 0.5;
     double min_aspect_ratio = 1.5;
     double min_verticality = 0.8;
+    double max_linearity = 0.85;  // linearity > this → wall/rail penalty
     double min_density_near = 50.0;
     double min_density_far = 10.0;
     double distance_threshold = 5.0;
@@ -106,6 +107,9 @@ struct LidarClusterConfig
       double spacing_tolerance = 2.0;
       double width_tolerance = 1.0;
       double isolation_radius = 8.0;
+      // Hard rejection thresholds
+      int min_neighbors_hard = 0;         // neighbor_count <= this → confidence=0
+      double max_isolation_distance = 12.0; // nearest neighbor > this → confidence=0
     };
     TrackSemanticConfig track_semantic;
   };

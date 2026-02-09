@@ -12,9 +12,9 @@
     <group ns="$(arg ns)">
         <node pkg="nodelet" type="nodelet" name="lidar_cluster_nodelet_manager" args="manager" output="screen" />
         <node pkg="nodelet" type="nodelet" name="lidar_cluster_node" args="load nodelet_lidar/Lidar_Cluster_Nodelet lidar_cluster_nodelet_manager" output="screen">
-            <rosparam command="load" file="$(find perception_ros)/config/lidar_cluster_example.yaml" />
+            <!-- 按赛道模式加载对应参数文件 -->
+            <rosparam command="load" file="$(find perception_ros)/config/lidar_$(arg mode).yaml" />
             <param name="topics/input" value="$(arg input_topic)" />
-            <param name="roi/mode" value="$(arg mode)"/>
         </node>
     </group>
 

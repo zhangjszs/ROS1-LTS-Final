@@ -95,6 +95,7 @@ void ClusterFeatureExtractor::computeShapeFeatures(
     if (eigenvalues[0] > 1e-6) {
         features.shape_elongation = eigenvalues[2] / eigenvalues[0];
         features.shape_planarity = (eigenvalues[1] - eigenvalues[2]) / eigenvalues[0];
+        features.linearity = (eigenvalues[0] - eigenvalues[1]) / eigenvalues[0];
     }
 
     Eigen::Vector3f eigenvector = pca.getEigenVectors().col(0);

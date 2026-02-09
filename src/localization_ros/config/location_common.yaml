@@ -1,0 +1,38 @@
+use_external_carstate: false
+topics:
+  ins: "sensors/ins"
+  car_state_in: "localization/car_state"
+  cone: "perception/lidar_cluster/detections"
+  car_state_out: "localization/car_state"
+  cone_map: "localization/cone_map"
+  global_map: "localization/global_map"
+  pose: "localization/pose"
+  odom: "localization/odom"
+frames:
+  world: "world"
+  base_link: "base_link"
+length:
+  lidarToIMUDist: 1.87
+  frontToIMUdistanceX: 0.0
+  frontToIMUdistanceY: 0.0
+  frontToIMUdistanceZ: 0.0
+  rearToIMUdistanceX: 0.0
+  rearToIMUdistanceY: 0.0
+  rearToIMUdistanceZ: 0.0
+
+backend: mapper
+
+fg:
+  keyframe_dist: 1.0
+  keyframe_yaw: 0.1
+  keyframe_dt: 0.5
+  run_extra_update: false
+  sigma_imu_xy: 0.05
+  sigma_imu_theta: 0.01
+  sigma_gnss_good: 0.5
+  sigma_gnss_medium: 2.0
+  sigma_gnss_poor: 10.0
+  min_cone_confidence: 0.15
+  max_cone_factors_per_keyframe: 10
+  color_mismatch_penalty: 2.0
+  merge_distance: 2.0

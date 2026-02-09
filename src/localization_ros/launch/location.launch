@@ -5,10 +5,8 @@
   <include file="$(find perception_ros)/launch/lidar_cluster.launch"/> -->
 
   <node pkg="localization_ros" type="location_node" name="location_node" output="screen">
-    <!-- 注意: 若传感器仍发布 /pbox_pub/Ins，请在 location.yaml 中将 topics/ins 设为 /pbox_pub/Ins -->
-    <!-- 消息类型需要兼容: ins/ASENSING -> autodrive_msgs/HUAT_Asensing -->
-    <rosparam command="load" file="$(find localization_ros)/config/location.yaml" />
-    <param name="map/mode" value="$(arg mode)"/>
+    <rosparam command="load" file="$(find localization_ros)/config/location_common.yaml" />
+    <rosparam command="load" file="$(find localization_ros)/config/location_$(arg mode).yaml" />
   </node>
 
   <!-- <node name="high_speed_tracking" pkg="high_speed_tracking" type="high_speed_tracking_exec" output="screen" ns="/AS/P">

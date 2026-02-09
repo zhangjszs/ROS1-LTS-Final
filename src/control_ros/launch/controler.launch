@@ -1,6 +1,8 @@
 <launch>
   <arg name="bag" default="" />
+  <arg name="mode" default="track" doc="赛道模式: accel | skidpad | track"/>
   <rosparam command="load" file="$(find control_ros)/config/param.yaml" />
+  <rosparam command="load" file="$(find control_ros)/config/control_$(arg mode).yaml" />
   <node name="control" pkg="control_ros" type="control_node" output="screen">
     <!-- Remap legacy topic names to new unified names -->
     <remap from="/Carstate" to="localization/car_state"/>

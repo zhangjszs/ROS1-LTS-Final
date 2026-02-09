@@ -1,0 +1,15 @@
+# ===== 直线加速 (Acceleration) 定位参数 =====
+
+map:
+  merge_distance: 1.5
+  max_map_size: 60
+  min_obs_to_keep: 2
+  local_cone_range: 30.0
+  min_confidence_to_add: 0.35
+  min_confidence_to_merge: 0.15
+  max_cone_height: 0.75
+  max_cone_width: 0.5
+  min_cone_height: 0.03
+  cone_y_max: 2.5
+  expected_cone_spacing: 5.0
+  track_width: 3.0

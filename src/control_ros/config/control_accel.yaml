@@ -1,0 +1,15 @@
+# ===== 直线加速赛 (Acceleration) 控制参数 =====
+# 加载顺序：param.yaml (基础) → 本文件 (覆盖)
+# 特点：长前瞻距离，小转向幅度，弱侧滑补偿
+
+pp:
+  angle_kv: 0.0
+  angle_kl: 2.5
+  angle_kp: 0.9
+  angle_ki: 0.0
+  angle_kd: 0.0
+  steering_delta_max: 0.3         # 直线赛转向幅度小
+  enable_slip_compensation: true
+  slip_gain: 0.3                  # 直线赛侧滑补偿弱
+  min_lookahead: 3.0              # 长前瞻距离
+  max_lookahead: 15.0
