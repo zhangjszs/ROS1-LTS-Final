@@ -1,22 +1,33 @@
 <launch>
-    <!-- 
+    <!--
     Debug Launch for Perception + Localization + Visualization
-    用于联合调试感知和定位模块，包含必要的TF变换和可视化环境
+    用于联合调试感知和定位模块，走统一的子系统参数加载链路。
     -->
 
     <arg name="simulation" default="false" doc="Whether to play rosbag"/>
     <arg name="bag" default="" doc="Path to rosbag file"/>
     <arg name="rviz_mode" default="world" doc="RViz mode: world|ego|dual|none"/>
     <arg name="mode" default="track" doc="赛道模式: accel | skidpad | track"/>
+    <arg name="use_eskf" default="false" doc="定位侧是否启用ESKF"/>
+
+    <arg name="vehicle" default="A13" doc="车辆型谱ID"/>
+    <arg name="fleet_config" default="$(find fsd_launch)/config/vehicle_fleet.yaml"/>
+    <arg name="perception_mission_config" default="" doc="感知任务overlay，可传EBS任务文件"/>
+    <arg name="localization_mission_config" default="" doc="定位任务overlay，可传EBS任务文件"/>
+    <arg name="perception_vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/perception.yaml"/>
+    <arg name="perception_vehicle_local_config" default=""/>
+    <arg name="localization_vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/localization.yaml"/>
+    <arg name="localization_vehicle_local_config" default=""/>
 
     <!-- Lidar Topic Configuration -->
     <arg name="lidar_topic" default="/velodyne_points" doc="Input point cloud topic name"/>
 
     <!-- Set use_sim_time true if simulation is enabled -->
     <param name="/use_sim_time" value="$(arg simulation)"/>
+    <rosparam command="load" file="$(arg fleet_config)" ns="vehicle_fleet"/>
 
     <!-- 1. Data Source (Rosbag) -->
-    <!-- 
+    <!--
          注意：rosbag_play.launch 内部会启动 ins_bridge 节点，
          它将 /INS/ASENSING_INS 转换为 /pbox_pub/Ins
     -->
@@ -24,23 +35,26 @@
         <arg name="bag" value="$(arg bag)"/>
     </include>
 
-    <!-- 2. Perception (LiDAR Cluster) -->
-    <include file="$(find perception_ros)/launch/lidar_cluster.launch">
+    <!-- 2. Perception (统一子系统入口) -->
+    <include file="$(find fsd_launch)/launch/subsystems/perception.launch">
         <arg name="launch_rviz" value="false"/>
         <arg name="input_topic" value="$(arg lidar_topic)"/>
         <arg name="mode" value="$(arg mode)"/>
+        <arg name="mission_config" value="$(arg perception_mission_config)"/>
+        <arg name="vehicle" value="$(arg vehicle)"/>
+        <arg name="vehicle_config" value="$(arg perception_vehicle_config)"/>
+        <arg name="vehicle_local_config" value="$(arg perception_vehicle_local_config)"/>
     </include>
 
-    <!-- 3. Localization -->
-    <!-- 
-         关键修复：将 location_node 期望的 sensors/ins 重映射到 ins_bridge 发布的 /pbox_pub/Ins
-    -->
-    <group>
-        <remap from="sensors/ins" to="/pbox_pub/Ins"/>
-        <include file="$(find localization_ros)/launch/location.launch">
-            <arg name="mode" value="$(arg mode)"/>
-        </include>
-    </group>
+    <!-- 3. Localization (统一子系统入口) -->
+    <include file="$(find fsd_launch)/launch/subsystems/localization.launch">
+        <arg name="use_eskf" value="$(arg use_eskf)"/>
+        <arg name="mode" value="$(arg mode)"/>
+        <arg name="mission_config" value="$(arg localization_mission_config)"/>
+        <arg name="vehicle" value="$(arg vehicle)"/>
+        <arg name="vehicle_config" value="$(arg localization_vehicle_config)"/>
+        <arg name="vehicle_local_config" value="$(arg localization_vehicle_local_config)"/>
+    </include>
 
     <!-- 4. Visualization -->
     <include file="$(find fsd_visualization)/launch/visualization.launch">
@@ -51,11 +65,6 @@
     </include>
 
     <!-- 5. Static TF: base_link -> velodyne -->
-    <!-- 
-         CRITICAL: 连接定位坐标系(base_link)与雷达坐标系(velodyne)。
-         如果缺少此变换，RViz无法将雷达点云/锥桶显示在全局地图上。
-         当前假设雷达安装在车辆中心(0,0,0)，如有偏差请修改此处 args (x y z yaw pitch roll)。
-    -->
     <node pkg="tf2_ros" type="static_transform_publisher" name="base_link_to_velodyne" args="0 0 0 0 0 0 base_link velodyne"/>
 
     <!-- 6. RViz -->

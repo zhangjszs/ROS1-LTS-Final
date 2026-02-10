@@ -1,8 +1,23 @@
 <launch>
   <!-- Full simulation launch file -->
   <arg name="track" default="fsg"/>
+  <arg name="mode" default="track" doc="赛道模式: accel | skidpad | track"/>
+  <arg name="planner" default="high_speed" doc="规划器: high_speed | line | skidpad | none"/>
+  <arg name="control_mode" default="4" doc="控制模式ID"/>
   <arg name="rviz_mode" default="dual"/>
+  <arg name="rviz_config" default="high_speed"/>
   <arg name="sim_rate" default="100"/>
+  <arg name="vehicle" default="A13" doc="车辆型谱ID"/>
+  <arg name="fleet_config" default="$(find fsd_launch)/config/vehicle_fleet.yaml"/>
+  <arg name="perception_mission_config" default="" doc="感知任务overlay"/>
+  <arg name="control_mission_config" default="" doc="控制任务overlay"/>
+  <arg name="perception_vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/perception.yaml"/>
+  <arg name="perception_vehicle_local_config" default=""/>
+  <arg name="control_vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/control.yaml"/>
+  <arg name="control_vehicle_local_config" default=""/>
+
+  <param name="/use_sim_time" value="true"/>
+  <rosparam command="load" file="$(arg fleet_config)" ns="vehicle_fleet"/>
 
   <!-- Simulation core -->
   <include file="$(find simulation_ros)/launch/simulation.launch">
@@ -13,21 +28,31 @@
 
   <!-- Perception subsystem -->
   <include file="$(find fsd_launch)/launch/subsystems/perception.launch">
-    <arg name="simulation" value="true"/>
+    <arg name="mode" value="$(arg mode)"/>
+    <arg name="mission_config" value="$(arg perception_mission_config)"/>
+    <arg name="vehicle" value="$(arg vehicle)"/>
+    <arg name="vehicle_config" value="$(arg perception_vehicle_config)"/>
+    <arg name="vehicle_local_config" value="$(arg perception_vehicle_local_config)"/>
   </include>
 
   <!-- Planning subsystem -->
   <include file="$(find fsd_launch)/launch/subsystems/planning.launch">
-    <arg name="simulation" value="true"/>
+    <arg name="planner" value="$(arg planner)"/>
   </include>
 
   <!-- Control subsystem -->
   <include file="$(find fsd_launch)/launch/subsystems/control.launch">
-    <arg name="simulation" value="true"/>
+    <arg name="mode" value="$(arg mode)"/>
+    <arg name="control_mode" value="$(arg control_mode)"/>
+    <arg name="mission_config" value="$(arg control_mission_config)"/>
+    <arg name="vehicle" value="$(arg vehicle)"/>
+    <arg name="vehicle_config" value="$(arg control_vehicle_config)"/>
+    <arg name="vehicle_local_config" value="$(arg control_vehicle_local_config)"/>
   </include>
 
   <!-- Visualization -->
   <include file="$(find fsd_launch)/launch/tools/rviz.launch">
-    <arg name="rviz_mode" value="$(arg rviz_mode)"/>
+    <arg name="config" value="$(arg rviz_config)"/>
+    <arg name="mode" value="$(arg rviz_mode)"/>
   </include>
 </launch>

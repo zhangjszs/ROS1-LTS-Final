@@ -3,18 +3,59 @@
   调试模式：启动更多日志、可视化
 -->
 <launch>
-    <arg name="mission" default="trackdrive" doc="任务类型"/>
+    <arg name="mission" default="trackdrive" doc="任务类型: trackdrive | acceleration | skidpad | autocross | ebs_test"/>
     <arg name="bag" default="" doc="Rosbag 路径"/>
+    <arg name="rviz_mode" default="dual" doc="RViz显示模式"/>
+    <arg name="vehicle" default="A13" doc="车辆型谱ID"/>
+    <arg name="fleet_config" default="$(find fsd_launch)/config/vehicle_fleet.yaml"/>
+    <arg name="perception_vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/perception.yaml"/>
+    <arg name="perception_vehicle_local_config" default=""/>
+    <arg name="localization_vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/localization.yaml"/>
+    <arg name="localization_vehicle_local_config" default=""/>
+    <arg name="control_vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/control.yaml"/>
+    <arg name="control_vehicle_local_config" default=""/>
+    <arg name="enable_ebs_control" default="false" doc="仅在 mission:=ebs_test 下生效"/>
+    <arg name="control_mode" default="5" doc="仅在 mission:=ebs_test 下生效"/>
 
     <!-- 设置日志级别 -->
     <env name="ROSCONSOLE_CONFIG_FILE" value="$(find fsd_launch)/config/debug_console.conf"/>
 
     <!-- 启动对应任务（仿真模式 + RViz） -->
-    <include file="$(find fsd_launch)/launch/$(arg mission).launch">
-        <arg name="simulation" value="true"/>
-        <arg name="bag" value="$(arg bag)"/>
-        <arg name="launch_rviz" value="true"/>
-    </include>
+    <group if="$(eval arg('mission') != 'ebs_test')">
+        <include file="$(find fsd_launch)/launch/$(arg mission).launch">
+            <arg name="simulation" value="true"/>
+            <arg name="bag" value="$(arg bag)"/>
+            <arg name="launch_rviz" value="true"/>
+            <arg name="rviz_mode" value="$(arg rviz_mode)"/>
+            <arg name="vehicle" value="$(arg vehicle)"/>
+            <arg name="fleet_config" value="$(arg fleet_config)"/>
+            <arg name="perception_vehicle_config" value="$(arg perception_vehicle_config)"/>
+            <arg name="perception_vehicle_local_config" value="$(arg perception_vehicle_local_config)"/>
+            <arg name="localization_vehicle_config" value="$(arg localization_vehicle_config)"/>
+            <arg name="localization_vehicle_local_config" value="$(arg localization_vehicle_local_config)"/>
+            <arg name="control_vehicle_config" value="$(arg control_vehicle_config)"/>
+            <arg name="control_vehicle_local_config" value="$(arg control_vehicle_local_config)"/>
+        </include>
+    </group>
+
+    <group if="$(eval arg('mission') == 'ebs_test')">
+        <include file="$(find fsd_launch)/launch/ebs_test.launch">
+            <arg name="simulation" value="true"/>
+            <arg name="bag" value="$(arg bag)"/>
+            <arg name="launch_rviz" value="true"/>
+            <arg name="rviz_mode" value="$(arg rviz_mode)"/>
+            <arg name="vehicle" value="$(arg vehicle)"/>
+            <arg name="fleet_config" value="$(arg fleet_config)"/>
+            <arg name="perception_vehicle_config" value="$(arg perception_vehicle_config)"/>
+            <arg name="perception_vehicle_local_config" value="$(arg perception_vehicle_local_config)"/>
+            <arg name="localization_vehicle_config" value="$(arg localization_vehicle_config)"/>
+            <arg name="localization_vehicle_local_config" value="$(arg localization_vehicle_local_config)"/>
+            <arg name="control_vehicle_config" value="$(arg control_vehicle_config)"/>
+            <arg name="control_vehicle_local_config" value="$(arg control_vehicle_local_config)"/>
+            <arg name="enable_ebs_control" value="$(arg enable_ebs_control)"/>
+            <arg name="control_mode" value="$(arg control_mode)"/>
+        </include>
+    </group>
 
     <!-- 额外调试工具 -->
     <node pkg="rqt_graph" type="rqt_graph" name="rqt_graph"/>
