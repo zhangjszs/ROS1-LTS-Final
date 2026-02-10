@@ -38,6 +38,9 @@ add_library(${PROJECT_NAME}
   src/imu_state_estimator.cpp
   src/location_mapper.cpp
   src/factor_graph_optimizer.cpp
+  src/anomaly_state_machine.cpp
+  src/descriptor_relocator.cpp
+  src/particle_relocator.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}
@@ -53,6 +56,11 @@ if(CATKIN_ENABLE_TESTING)
   find_package(rostest REQUIRED)
   catkin_add_gtest(${PROJECT_NAME}_test test/test_localization.cpp)
   if(TARGET ${PROJECT_NAME}_test)
-    target_link_libraries(${PROJECT_NAME}_test ${PROJECT_NAME} ${catkin_LIBRARIES})
+    target_link_libraries(${PROJECT_NAME}_test ${PROJECT_NAME} ${catkin_LIBRARIES} gtsam)
+  endif()
+
+  catkin_add_gtest(${PROJECT_NAME}_perf_test test/test_localization_perf.cpp)
+  if(TARGET ${PROJECT_NAME}_perf_test)
+    target_link_libraries(${PROJECT_NAME}_perf_test ${PROJECT_NAME} ${catkin_LIBRARIES})
   endif()
 endif()

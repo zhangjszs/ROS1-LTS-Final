@@ -1,9 +1,11 @@
 #pragma once
 
+#include <deque>
 #include <memory>
 #include <string>
 
 #include <ros/ros.h>
+#include <std_msgs/String.h>
 #include <autodrive_msgs/HUAT_InsP2.h>
 #include <autodrive_msgs/HUAT_CarState.h>
 #include <autodrive_msgs/HUAT_Cone.h>
@@ -18,6 +20,7 @@
 #include <localization_core/location_mapper.hpp>
 #include <localization_core/factor_graph_optimizer.hpp>
 #include <localization_core/types.hpp>
+#include <localization_ros/localization_perf_stats.hpp>
 
 namespace localization_ros {
 
@@ -50,6 +53,7 @@ class LocationNode {
   ros::Publisher global_map_pub_;
   ros::Publisher pose_pub_;
   ros::Publisher odom_pub_;
+  ros::Publisher status_pub_;
   tf2_ros::TransformBroadcaster tf_broadcaster_;
 
   bool use_external_carstate_ = false;
@@ -63,6 +67,7 @@ class LocationNode {
   std::string odom_topic_;
   std::string world_frame_;
   std::string base_link_frame_;
+  std::string status_topic_;
 
   bool has_last_state_ = false;
   localization_core::CarState last_state_;
@@ -78,6 +83,21 @@ class LocationNode {
   double fg_start_time_ = -1.0;
   void feedFactorGraph(const autodrive_msgs::HUAT_InsP2 &msg);
   void feedFactorGraphCones(const autodrive_msgs::HUAT_ConeDetections &msg);
+
+  // INS 状态环形缓冲区，用于检测-状态时间戳对齐
+  struct StampedIns {
+    ros::Time stamp;
+    localization_core::Asensing data;
+  };
+  static constexpr size_t kInsBufferSize = 200;  // ~2s @ 100Hz
+  std::deque<StampedIns> ins_buffer_;
+  bool interpolateIns(const ros::Time &target, localization_core::Asensing &out) const;
+
+  // Performance statistics
+  LocPerfStats perf_stats_;
+  bool perf_enabled_ = true;
+  size_t perf_window_ = 300;
+  size_t perf_log_every_ = 30;
 };
 
 }  // namespace localization_ros

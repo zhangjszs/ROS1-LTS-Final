@@ -53,6 +53,17 @@ Params::Params(ros::NodeHandle *const nh) {
   pnh.param<double>("max_dist_loop_closure", wayComputer.way.max_dist_loop_closure, 1.0);
   pnh.param<double>("max_angle_diff_loop_closure", wayComputer.way.max_angle_diff_loop_closure, 0.6);
   pnh.param<int>("vital_num_midpoints", wayComputer.way.vital_num_midpoints, 5);
+  // WayComputer::Speed
+  pnh.param<double>("speed_cap_safe", wayComputer.speed.speed_cap_safe, 11.11);
+  pnh.param<double>("speed_cap_fast", wayComputer.speed.speed_cap_fast, 13.33);
+  pnh.param<double>("max_lateral_acc", wayComputer.speed.max_lateral_acc, 6.5);
+  pnh.param<double>("max_accel", wayComputer.speed.max_accel, 2.5);
+  pnh.param<double>("max_brake", wayComputer.speed.max_brake, 4.0);
+  pnh.param<double>("min_speed", wayComputer.speed.min_speed, 1.0);
+  pnh.param<double>("curvature_epsilon", wayComputer.speed.curvature_epsilon, 1e-3);
+  pnh.param<int>("loop_close_debounce_frames", wayComputer.speed.loop_close_debounce_frames, 5);
+  pnh.param<int>("loop_open_debounce_frames", wayComputer.speed.loop_open_debounce_frames, 15);
+  pnh.param<int>("mode_min_hold_frames", wayComputer.speed.mode_min_hold_frames, 30);
 
   // Visualization
   pnh.param<bool>("publish_viz_data", visualization.publish_viz_data, true);

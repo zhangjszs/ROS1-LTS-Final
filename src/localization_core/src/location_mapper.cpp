@@ -16,6 +16,7 @@ constexpr std::uint8_t kConeYellow = 1;
 constexpr std::uint8_t kConeOrangeSmall = 2;
 constexpr std::uint8_t kConeOrangeBig = 3;
 constexpr std::uint8_t kConeNone = 4;
+constexpr std::uint8_t kConeRed = 5;
 
 std::uint8_t normalizeConeType(std::uint8_t raw_type)
 {
@@ -26,6 +27,7 @@ std::uint8_t normalizeConeType(std::uint8_t raw_type)
     case kConeOrangeSmall:
     case kConeOrangeBig:
     case kConeNone:
+    case kConeRed:
       return raw_type;
     default:
       return kConeNone;
@@ -57,7 +59,7 @@ bool LocationMapper::UpdateFromIns(const Asensing &imu, CarState *state_out)
   {
     return false;
   }
-  if (imu.nsv1 < params_.min_satellite_count)
+  if (std::max(imu.nsv1, imu.nsv2) < params_.min_satellite_count)
   {
     return false;
   }
@@ -78,9 +80,12 @@ bool LocationMapper::UpdateFromIns(const Asensing &imu, CarState *state_out)
   mins_.y_angular_velocity = imu_data.y_angular_velocity;
   mins_.z_angular_velocity = imu_data.z_angular_velocity;
 
-  mins_.x_acc = imu_data.x_acc * 9.79;
-  mins_.y_acc = imu_data.y_acc * 9.79;
-  mins_.z_acc = (imu_data.z_acc + std::cos(imu_data.roll) * std::cos(imu_data.pitch)) * 9.79;
+  // HUAT_InsP2 加速度已经是 m/s²，不再乘以 g
+  mins_.x_acc = imu_data.x_acc;
+  mins_.y_acc = imu_data.y_acc;
+  // z 轴去除重力分量：FRD 车体系下 gz = g * cos(roll) * cos(pitch)
+  constexpr double kGravity = 9.79;
+  mins_.z_acc = imu_data.z_acc + kGravity * std::cos(imu_data.roll) * std::cos(imu_data.pitch);
 
   if (!has_carstate_)
   {

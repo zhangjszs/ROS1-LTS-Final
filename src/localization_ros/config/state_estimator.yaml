@@ -1,36 +1,45 @@
-use_gnss: true
-use_velocity: true
-use_yaw: true
+# ===== 状态估计器参数 =====
 
-accel_noise: 1.0
-gyro_noise: 0.05
-gyro_scale: 1.0
+# 传感器使用开关
+use_gnss: true                       # 使用GNSS定位
+use_velocity: true                   # 使用速度观测
+use_yaw: true                        # 使用航向角观测
 
-meas_pos_noise: 0.5
-meas_vel_noise: 0.2
-meas_yaw_noise: 0.05
+# IMU噪声参数
+accel_noise: 1.0                     # 加速度计噪声 (m/s²)
+gyro_noise: 0.05                     # 陀螺仪噪声 (rad/s)
+gyro_scale: 1.0                      # 陀螺仪比例因子
 
-init_pos_var: 1.0
-init_vel_var: 1.0
-init_yaw_var: 0.1
+# 观测噪声参数
+meas_pos_noise: 0.5                  # 位置观测噪声 (m)
+meas_vel_noise: 0.2                  # 速度观测噪声 (m/s)
+meas_yaw_noise: 0.05                 # 航向角观测噪声 (rad)
 
-min_dt: 0.001
-max_dt: 0.1
+# 初始方差
+init_pos_var: 1.0                    # 初始位置方差 (m²)
+init_vel_var: 1.0                    # 初始速度方差 (m/s)²
+init_yaw_var: 0.1                    # 初始航向角方差 (rad²)
 
-accel_gravity: 9.79
+# 时间步长限制
+min_dt: 0.001                        # 最小时间步长 (s)
+max_dt: 0.1                          # 最大时间步长 (s)
 
-# FSSIM-style low-speed kinematic correction
+# 重力加速度
+accel_gravity: 9.79                  # 当地重力加速度 (m/s²)
+
+# FSSIM风格低速运动学修正
 # 低速时动力学模型不稳定，使用运动学模型进行修正
 kinematic_correction:
-  enable: true              # 启用低速运动学修正
-  wheelbase: 1.55           # 轴距 [m]
-  cg_to_rear: 0.775         # 重心到后轴距离 [m]
-  blend_speed: 1.5          # 混合速度阈值 [m/s]，低于此速度使用运动学模型
-  blend_range: 1.0          # 混合过渡范围 [m/s]
-                            # 0~1.5 m/s: 纯运动学
-                            # 1.5~2.5 m/s: 混合
-                            # >2.5 m/s: 纯动力学
+  enable: true                       # 启用低速运动学修正
+  wheelbase: 1.55                    # 轴距 [m]
+  cg_to_rear: 0.775                  # 重心到后轴距离 [m]
+  blend_speed: 1.5                   # 混合速度阈值 [m/s]，低于此速度使用运动学模型
+  blend_range: 1.0                   # 混合过渡范围 [m/s]
+                                     # 0~1.5 m/s: 纯运动学
+                                     # 1.5~2.5 m/s: 混合
+                                     # >2.5 m/s: 纯动力学
 
+# ROS话题配置
 topics:
-  ins: "sensors/ins"
-  car_state: "localization/car_state"
+  ins: "sensors/ins"                 # INS惯导数据输入话题
+  car_state: "localization/car_state"  # 车辆状态输出话题

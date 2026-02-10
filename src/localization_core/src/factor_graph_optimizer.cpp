@@ -1,10 +1,12 @@
 #include <localization_core/factor_graph_optimizer.hpp>
+#include <localization_core/circle_constraint_factor.hpp>
 
 #include <gtsam/geometry/Pose2.h>
 #include <gtsam/geometry/Point2.h>
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/nonlinear/ISAM2.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
+#include <gtsam/nonlinear/NonlinearFactor.h>
 #include <gtsam/nonlinear/Values.h>
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/slam/BearingRangeFactor.h>
@@ -27,10 +29,23 @@ using gtsam::noiseModel::Robust;
 using gtsam::noiseModel::mEstimator::Huber;
 using gtsam::noiseModel::mEstimator::Cauchy;
 
+namespace {
+constexpr uint8_t kConeBlue = 0;
+constexpr uint8_t kConeNone = 4;
+constexpr uint8_t kConeRed = 5;
+
+inline bool isBoundaryColor(uint8_t c) {
+  return c == kConeBlue || c == kConeRed;
+}
+}  // namespace
+
 // ─── Construction / Configuration ──────────────────────────────
 
 FactorGraphOptimizer::FactorGraphOptimizer(const FactorGraphConfig& cfg)
-    : cfg_(cfg) {
+    : cfg_(cfg),
+      anomaly_sm_(cfg.anomaly),
+      descriptor_reloc_(cfg.reloc),
+      particle_reloc_(cfg.reloc) {
   Reset();
 }
 
@@ -71,6 +86,14 @@ void FactorGraphOptimizer::Reset() {
   opt_pose_ = {};
   opt_vx_ = opt_vy_ = 0.0;
   last_opt_time_ms_ = 0.0;
+
+  // Reset anomaly & relocalization
+  anomaly_sm_.Reset();
+  descriptor_reloc_.ClearDatabase();
+  particle_reloc_.Reset();
+  matched_count_ = 0;
+  total_obs_count_ = 0;
+  last_chi2_normalized_ = 0.0;
 }
 
 // ─── Sensor input ──────────────────────────────────────────────
@@ -131,6 +154,7 @@ bool FactorGraphOptimizer::TryUpdate(const localization_core::Pose2& current_pos
   addGnssFactor();
   addSpeedFactor();
   addConeFactors(current_pose);
+  addGeometryPriorFactors();
 
   // Add initial values for new keyframe
   Symbol pose_key(fg_symbols::kPose, keyframe_idx_);
@@ -142,6 +166,94 @@ bool FactorGraphOptimizer::TryUpdate(const localization_core::Pose2& current_pos
 
   // Run optimization
   runOptimization();
+
+  // Compute health metrics and evaluate anomaly state
+  last_chi2_normalized_ = computeChi2Normalized();
+  const double match_ratio = computeConeMatchRatio();
+  anomaly_sm_.Evaluate(last_chi2_normalized_, match_ratio,
+                       gnss_quality_, timestamp);
+
+  // Build and store descriptor for relocalization database
+  if (anomaly_sm_.GetState() == AnomalyState::TRACKING) {
+    auto desc_vec = descriptor_reloc_.BuildDescriptor(landmarks_, opt_pose_);
+    SubMapDescriptor smd;
+    smd.keyframe_id = keyframe_idx_;
+    smd.px = opt_pose_.x;
+    smd.py = opt_pose_.y;
+    smd.ptheta = opt_pose_.theta;
+    smd.histogram = std::move(desc_vec);
+
+    // Store local landmark IDs and positions for RANSAC verification
+    const double r2 = cfg_.reloc.submap_radius * cfg_.reloc.submap_radius;
+    for (const auto& lm : landmarks_) {
+      const double dx = lm.x - opt_pose_.x;
+      const double dy = lm.y - opt_pose_.y;
+      if (dx * dx + dy * dy <= r2) {
+        smd.local_landmark_ids.push_back(lm.id);
+        smd.local_landmark_positions.emplace_back(lm.x, lm.y);
+      }
+    }
+
+    descriptor_reloc_.AddToDatabase(smd);
+  }
+
+  // ─── Execute relocalization when in RELOC states ──────────────
+  const AnomalyState astate = anomaly_sm_.GetState();
+
+  if (astate == AnomalyState::RELOC_A) {
+    // Descriptor-based relocalization
+    auto cur_desc = descriptor_reloc_.BuildDescriptor(landmarks_, opt_pose_);
+
+    // Collect local landmarks for RANSAC
+    std::vector<FgLandmark> local_lms;
+    const double r2 = cfg_.reloc.submap_radius * cfg_.reloc.submap_radius;
+    for (const auto& lm : landmarks_) {
+      const double dx = lm.x - opt_pose_.x;
+      const double dy = lm.y - opt_pose_.y;
+      if (dx * dx + dy * dy <= r2) {
+        local_lms.push_back(lm);
+      }
+    }
+
+    RelocResult rr = descriptor_reloc_.TryRelocalize(cur_desc, local_lms, opt_pose_);
+    if (rr.success) {
+      // Apply correction: shift the optimized pose
+      opt_pose_.x += rr.dx;
+      opt_pose_.y += rr.dy;
+      opt_pose_.theta += rr.dtheta;
+      opt_pose_.theta = std::atan2(std::sin(opt_pose_.theta),
+                                    std::cos(opt_pose_.theta));
+      fprintf(stderr, "[FG] RELOC_A success: dx=%.2f dy=%.2f dtheta=%.3f inliers=%d\n",
+              rr.dx, rr.dy, rr.dtheta, rr.inlier_count);
+      // Force anomaly SM back to TRACKING on next evaluation
+      anomaly_sm_.ForceState(AnomalyState::TRACKING);
+    }
+  } else if (astate == AnomalyState::RELOC_B) {
+    // Particle-filter relocalization
+    if (particle_reloc_.GetParticles().empty()) {
+      // Initialize particles around current (possibly drifted) pose
+      particle_reloc_.Initialize(opt_pose_);
+    }
+
+    // Predict with accumulated IMU
+    if (accum_dt_ > 0.0) {
+      particle_reloc_.Predict(last_speed_, accum_dtheta_ / std::max(accum_dt_, 1e-6), accum_dt_);
+    }
+
+    // Update with cone observations
+    if (!cone_obs_.empty()) {
+      particle_reloc_.Update(cone_obs_, landmarks_);
+    }
+
+    if (particle_reloc_.HasConverged()) {
+      Pose2 reloc_pose = particle_reloc_.GetEstimate();
+      opt_pose_ = reloc_pose;
+      fprintf(stderr, "[FG] RELOC_B converged: x=%.2f y=%.2f theta=%.3f\n",
+              reloc_pose.x, reloc_pose.y, reloc_pose.theta);
+      anomaly_sm_.ForceState(AnomalyState::TRACKING);
+      particle_reloc_.Reset();
+    }
+  }
 
   // Update bookkeeping
   last_keyframe_pose_ = opt_pose_;
@@ -303,6 +415,10 @@ void FactorGraphOptimizer::addSpeedFactor() {
 
 // FG-5 + cone observation factors
 void FactorGraphOptimizer::addConeFactors(const localization_core::Pose2& ref_pose) {
+  // Reset per-keyframe match counters
+  matched_count_ = 0;
+  total_obs_count_ = 0;
+
   if (cone_obs_.empty()) return;
 
   Symbol pose_key(fg_symbols::kPose, keyframe_idx_);
@@ -332,9 +448,19 @@ void FactorGraphOptimizer::addConeFactors(const localization_core::Pose2& ref_po
   for (const auto* obs_ptr : valid_obs) {
     const auto& obs = *obs_ptr;
 
+    // Track landmark count before to distinguish match vs creation
+    const size_t lm_count_before = landmarks_.size();
+
     // Find or create landmark using mapper's reference pose for global coords
     int lm_idx = findOrCreateLandmark(obs, ref_pose);
+    total_obs_count_++;
     if (lm_idx < 0) continue;
+
+    // Only count as "matched" if we associated with an existing landmark,
+    // not if we created a new one
+    if (landmarks_.size() == lm_count_before) {
+      matched_count_++;
+    }
 
     Symbol lm_key(fg_symbols::kLandmark, static_cast<uint64_t>(lm_idx));
 
@@ -342,11 +468,8 @@ void FactorGraphOptimizer::addConeFactors(const localization_core::Pose2& ref_po
     double sr = cfg_.sigma_range_base + cfg_.sigma_range_scale * obs.range;
     double sb = cfg_.sigma_bearing_base + cfg_.sigma_bearing_scale * obs.range;
 
-    // Color mismatch penalty added to range noise
-    if (obs.color_type != 4 && landmarks_[lm_idx].color_type != 4 &&
-        obs.color_type != landmarks_[lm_idx].color_type) {
-      sr += cfg_.color_mismatch_penalty * cfg_.color_weight;
-    }
+    // Color-topology soft association: inflate range sigma based on confusion
+    sr += addColorTopologyFactor(obs, lm_idx);
 
     auto base_noise = Diagonal::Sigmas(Vector2(sb, sr));
     auto robust_noise = Robust::Create(Huber::Create(cfg_.huber_cone), base_noise);
@@ -368,15 +491,38 @@ int FactorGraphOptimizer::findOrCreateLandmark(const ConeObservation& obs,
   const double gx = pose.x + c * lx_body - s * ly_body;
   const double gy = pose.y + s * lx_body + c * ly_body;
 
-  // Search existing landmarks
-  double best_dist_sq = cfg_.merge_distance * cfg_.merge_distance;
+  // Search existing landmarks using multi-dimensional cost
+  double best_cost = cfg_.gate_threshold;
   int best_idx = -1;
   for (size_t i = 0; i < landmarks_.size(); ++i) {
     const double dx = landmarks_[i].x - gx;
     const double dy = landmarks_[i].y - gy;
     const double d2 = dx * dx + dy * dy;
-    if (d2 < best_dist_sq) {
-      best_dist_sq = d2;
+
+    // Skip if beyond merge distance (fast reject)
+    if (d2 > cfg_.merge_distance * cfg_.merge_distance) continue;
+
+    // Multi-dimensional cost: w_maha * d² + w_color * color_cost + w_topo * topo_cost
+    double cost = cfg_.w_maha * d2;
+
+    // Color confusion cost
+    const uint8_t obs_c = obs.color_type;
+    const uint8_t lm_c = landmarks_[i].color_type;
+    if (obs_c < kColorTypeCount && lm_c < kColorTypeCount) {
+      // Use confusion matrix: higher P(obs|true) → lower cost
+      cost += cfg_.w_color * (1.0 - cfg_.color_confusion[obs_c][lm_c]);
+    }
+
+    // Topology cost (HUAT convention): left=RED, right=BLUE.
+    if (obs_c != kConeNone && lm_c != kConeNone && obs_c != lm_c) {
+      // Different colors on same side → penalty
+      if ((obs_c == kConeBlue && lm_c == kConeRed) || (obs_c == kConeRed && lm_c == kConeBlue)) {
+        cost += cfg_.w_topo * cfg_.topo_penalty;
+      }
+    }
+
+    if (cost < best_cost) {
+      best_cost = cost;
       best_idx = static_cast<int>(i);
     }
   }
@@ -384,7 +530,7 @@ int FactorGraphOptimizer::findOrCreateLandmark(const ConeObservation& obs,
   if (best_idx >= 0) {
     landmarks_[best_idx].obs_count++;
     // Update color if previously unknown
-    if (landmarks_[best_idx].color_type == 4 && obs.color_type != 4) {
+    if (landmarks_[best_idx].color_type == kConeNone && obs.color_type != kConeNone) {
       landmarks_[best_idx].color_type = obs.color_type;
     }
     return best_idx;
@@ -414,6 +560,16 @@ int FactorGraphOptimizer::findOrCreateLandmark(const ConeObservation& obs,
   auto lm_noise = Diagonal::Sigmas(
       Vector2(cfg_.landmark_init_sigma, cfg_.landmark_init_sigma));
   new_factors_->addPrior(lm_key, Point2(gx, gy), lm_noise);
+
+  // Add circle constraint once for skidpad mode
+  if (cfg_.map_mode == "skidpad") {
+    gtsam::Point2 c1(cfg_.circle_center1_x, cfg_.circle_center1_y);
+    gtsam::Point2 c2(cfg_.circle_center2_x, cfg_.circle_center2_y);
+    auto circle_noise = Diagonal::Sigmas(
+        (gtsam::Vector(1) << cfg_.circle_sigma).finished());
+    new_factors_->emplace_shared<CircleConstraintFactor>(
+        lm_key, c1, c2, cfg_.circle_radius, circle_noise);
+  }
 
   return idx;
 }
@@ -460,6 +616,102 @@ void FactorGraphOptimizer::runOptimization() {
 
   auto t1 = std::chrono::steady_clock::now();
   last_opt_time_ms_ = std::chrono::duration<double, std::milli>(t1 - t0).count();
+}
+
+// ─── New methods ────────────────────────────────────────────────
+
+AnomalyState FactorGraphOptimizer::GetAnomalyState() const {
+  return anomaly_sm_.GetState();
+}
+
+double FactorGraphOptimizer::addColorTopologyFactor(
+    const ConeObservation& obs, int lm_idx) {
+  if (lm_idx < 0 || lm_idx >= static_cast<int>(landmarks_.size())) return 0.0;
+
+  double sigma_inflate = 0.0;
+  const uint8_t obs_c = obs.color_type;
+  const uint8_t lm_c = landmarks_[lm_idx].color_type;
+
+  // Color confusion cost: use confusion matrix to compute soft penalty
+  if (obs_c < kColorTypeCount && lm_c < kColorTypeCount) {
+    const double p_match = cfg_.color_confusion[obs_c][lm_c];
+    // Lower probability → higher sigma inflation
+    sigma_inflate += cfg_.color_weight * (1.0 - p_match) * cfg_.color_mismatch_penalty;
+  }
+
+  // Topology penalty (HUAT): red/blue boundary mismatch.
+  if (obs_c != kConeNone && lm_c != kConeNone) {
+    if ((obs_c == kConeBlue && lm_c == kConeRed) || (obs_c == kConeRed && lm_c == kConeBlue)) {
+      sigma_inflate += cfg_.topo_penalty * cfg_.w_topo;
+    }
+  }
+
+  return sigma_inflate;
+}
+
+void FactorGraphOptimizer::addGeometryPriorFactors() {
+  // Circle constraints are now added once per landmark at creation time
+  // in findOrCreateLandmark(). This method is kept for future
+  // non-per-landmark geometry priors (e.g. lane-width constraints).
+}
+
+double FactorGraphOptimizer::computeChi2Normalized() {
+  if (!isam_ || keyframe_idx_ == 0) return 0.0;
+
+  // Compute proper per-DOF chi²: sum of squared whitened residuals / total DOF
+  try {
+    gtsam::Values result = isam_->calculateEstimate();
+    const auto& factors = isam_->getFactorsUnsafe();
+    double total_chi2 = 0.0;
+    int total_dof = 0;
+    for (size_t i = 0; i < factors.size(); ++i) {
+      auto nf = boost::dynamic_pointer_cast<gtsam::NoiseModelFactor>(factors[i]);
+      if (!nf) continue;
+      // unwhitenedError → whitenedError via noise model
+      gtsam::Vector uw = nf->unwhitenedError(result);
+      gtsam::Vector w = nf->noiseModel()->whiten(uw);
+      total_chi2 += w.squaredNorm();
+      total_dof += static_cast<int>(w.size());
+    }
+    return (total_dof > 0) ? total_chi2 / total_dof : 0.0;
+  } catch (...) {
+    return 0.0;
+  }
+}
+
+double FactorGraphOptimizer::computeConeMatchRatio() {
+  return (total_obs_count_ > 0)
+      ? static_cast<double>(matched_count_) / total_obs_count_
+      : 0.0;
+}
+
+TopoRelation FactorGraphOptimizer::classifyRelation(
+    const ConeObservation& obs, int lm_idx,
+    const Pose2& pose) const {
+  if (lm_idx < 0 || lm_idx >= static_cast<int>(landmarks_.size()))
+    return TopoRelation::UNKNOWN;
+
+  // Classify based on bearing: left side (bearing > 0) vs right side.
+  // HUAT convention: left=RED, right=BLUE.
+  const double bearing = obs.bearing;
+  const uint8_t lm_color = landmarks_[lm_idx].color_type;
+
+  if (lm_color == kConeNone || obs.color_type == kConeNone) return TopoRelation::UNKNOWN;
+
+  // Same color type → SAME_SIDE
+  if (obs.color_type == lm_color) return TopoRelation::SAME_SIDE;
+
+  if (!isBoundaryColor(lm_color) || !isBoundaryColor(obs.color_type)) {
+    return TopoRelation::UNKNOWN;
+  }
+
+  // If observation and landmark have different boundary colors, check side consistency.
+  const bool obs_left = (bearing > 0);
+  const bool lm_is_red = (lm_color == kConeRed);
+  const bool lm_is_blue = (lm_color == kConeBlue);
+  const bool consistent = (obs_left && lm_is_red) || (!obs_left && lm_is_blue);
+
+  return consistent ? TopoRelation::SAME_SIDE : TopoRelation::OPPOSITE_SIDE;
 }
 
 }  // namespace localization_core

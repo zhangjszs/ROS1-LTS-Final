@@ -1,6 +1,9 @@
 #pragma once
 
 #include <localization_core/factor_graph_types.hpp>
+#include <localization_core/anomaly_state_machine.hpp>
+#include <localization_core/descriptor_relocator.hpp>
+#include <localization_core/particle_relocator.hpp>
 #include <localization_core/types.hpp>
 
 #include <cstdint>
@@ -86,6 +89,19 @@ class FactorGraphOptimizer {
   /// Last optimization wall-clock time in milliseconds.
   double LastOptTimeMs() const;
 
+  /// Current anomaly state.
+  AnomalyState GetAnomalyState() const;
+
+  /// Last computed normalized chi² value.
+  double GetChi2Normalized() const { return last_chi2_normalized_; }
+
+  /// Last computed cone match ratio.
+  double GetConeMatchRatio() const {
+    return (total_obs_count_ > 0)
+        ? static_cast<double>(matched_count_) / total_obs_count_
+        : 0.0;
+  }
+
  private:
   // ─── Internal helpers ────────────────────────────────────────
 
@@ -97,6 +113,14 @@ class FactorGraphOptimizer {
   void addConeFactors(const Pose2& ref_pose);
   int findOrCreateLandmark(const ConeObservation& obs, const Pose2& pose);
   void runOptimization();
+
+  // New methods for color-topology association and anomaly detection
+  double addColorTopologyFactor(const ConeObservation& obs, int lm_idx);
+  void addGeometryPriorFactors();
+  double computeChi2Normalized();
+  double computeConeMatchRatio();
+  TopoRelation classifyRelation(const ConeObservation& obs, int lm_idx,
+                                 const Pose2& pose) const;
 
   // ─── State ───────────────────────────────────────────────────
 
@@ -142,6 +166,14 @@ class FactorGraphOptimizer {
 
   // Diagnostics
   double last_opt_time_ms_ = 0.0;
+
+  // Anomaly detection & relocalization
+  AnomalyStateMachine anomaly_sm_;
+  DescriptorRelocator descriptor_reloc_;
+  ParticleRelocator particle_reloc_;
+  int matched_count_ = 0;
+  int total_obs_count_ = 0;
+  double last_chi2_normalized_ = 0.0;
 };
 
 }  // namespace localization_core

@@ -4,6 +4,7 @@
 当前参数体系已迁移为 `Base + Overlay`：
 - `config/lidar_base.yaml`：通用基线参数
 - `config/lidar_track.yaml` / `config/lidar_accel.yaml` / `config/lidar_skidpad.yaml`：按任务的覆盖参数
+- `config/lidar_cluster_example.yaml`：overlay 模板（mission / vehicle / local 示例）
 
 ## 使用方法
 

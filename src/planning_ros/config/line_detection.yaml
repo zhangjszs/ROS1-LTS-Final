@@ -71,5 +71,17 @@ topics:
   # Planned path output topic
   path: "planning/line_detection/path"
 
+  # PathLimits output topic (P1)
+  pathlimits: "planning/line_detection/pathlimits"
+
   # Finish signal output topic
   finish: "planning/line_detection/finish_signal"
+
+# Speed profile for PathLimits (P1)
+speed:
+  speed_cap: 20.0
+  max_lateral_acc: 6.5
+  max_accel: 3.0
+  max_brake: 4.0
+  min_speed: 1.0
+  curvature_epsilon: 0.001

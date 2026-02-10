@@ -73,6 +73,16 @@ class WayComputer {
    * @brief Whether or not \a way_ has its loop closed.
    */
   bool isLoopClosed_ = false;
+  bool loopClosedRaw_ = false;
+
+  enum class LapMode {
+    MAP_BUILD_SAFE = 0,
+    FAST_LAP = 1
+  };
+  LapMode lapMode_ = LapMode::MAP_BUILD_SAFE;
+  int loopCloseDebounceCount_ = 0;
+  int loopOpenDebounceCount_ = 0;
+  int modeHoldFrames_ = 0;
 
   /**
    * @brief The transform between global and local frame.
@@ -182,6 +192,17 @@ class WayComputer {
    * @param[in] params
    */
   void computeWay(const std::vector<Edge> &edges, const Params::WayComputer::Search &params);
+
+  /**
+   * @brief Fills per-point curvature and target speed arrays in HUAT_PathLimits.
+   * Ensures output lengths are consistent with path[].
+   */
+  void fillPathDynamics(autodrive_msgs::HUAT_PathLimits &msg) const;
+
+  /**
+   * @brief Update SAFE_LAP/FAST_LAP mode with debounce and minimum hold time.
+   */
+  void updateLapMode(bool loop_closed_now);
 
  public:
   /**

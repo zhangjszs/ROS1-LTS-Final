@@ -1,13 +1,21 @@
-# Perception overlay: Acceleration
-roi:
-  mode: accel
-road_type: 2
+# ==========================================================
+# Mission Overlay: Acceleration (直线加速模式覆盖)
+# ==========================================================
+# 此文件仅保留直线加速模式的特定覆盖参数。
+# 加载顺序：在 lidar_base.yaml 之后加载。
 
-# Keep explicit to avoid semantic scorer mismatches in downstream modules.
+# 赛事模式选择
+roi:
+  mode: accel                        # ROI模式：直线加速
+
+# 旧版兼容（部分旧分支仍读取 road_type）
+road_type: 2                         # 2 = 直线加速
+
+# 显式声明以避免后续调整默认值时行为漂移
 filters:
   obstacle_height:
-    enable: true
+    enable: true                     # 启用柱状障碍物滤波
 tracker:
-  enable: true
+  enable: true                       # 启用时序跟踪器
 topology:
-  enable: true
+  enable: true                       # 启用拓扑修复

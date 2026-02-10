@@ -61,7 +61,7 @@ class Node {
   const Point pointGlobal_;
 
   /**
-   * @brief Cone type from the cone map (0=BLUE, 1=YELLOW, 2=ORANGE_SMALL, 3=ORANGE_BIG, 4=NONE).
+   * @brief Cone type from the cone map (0=BLUE,1=YELLOW,2=ORANGE_SMALL,3=ORANGE_BIG,4=NONE,5=RED).
    */
   uint32_t type_ = 4;
 

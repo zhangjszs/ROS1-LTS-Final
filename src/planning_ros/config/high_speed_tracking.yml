@@ -51,6 +51,18 @@ shutdown_on_loop_closure:       false   # bool   [-]   路线闭环之后是否�
 max_dist_loop_closure:          1.0     # double [m]   用于表示首尾中间点之间的最大距离,只有小于此距离才会被判定回环
 max_angle_diff_loop_closure:    0.65    # double [rad] 用于确定闭环中首尾中间点之间的最大角度差
 
+# Speed Profile (P1)
+speed_cap_safe:                 11.11   # double [m/s] SAFE_LAP 速度上限（约 40 km/h）
+speed_cap_fast:                 13.33   # double [m/s] FAST_LAP 速度上限（约 48 km/h）
+max_lateral_acc:                6.5     # double [m/s^2] 曲率限速使用的横向加速度上限
+max_accel:                      2.5     # double [m/s^2] 前向积分加速度上限
+max_brake:                      4.0     # double [m/s^2] 后向积分制动上限（正值）
+min_speed:                      1.0     # double [m/s] 最低巡航速度，避免低速抖动
+curvature_epsilon:              0.001   # double [1/m] 曲率限速分母下限
+loop_close_debounce_frames:     5       # int    [frame] 回环成立防抖帧数，连续满足后切到 FAST_LAP
+loop_open_debounce_frames:      15      # int    [frame] 回环失效防抖帧数，连续失效后回退到 SAFE_LAP
+mode_min_hold_frames:           30      # int    [frame] 模式切换后的最短驻留帧数，避免来回抖动
+
 # Replan flag
 vital_num_midpoints:            10      # int    [num] 没搞清楚,建议没问题就别动.number of midpoints that are considered "vital" from the car's position on. This is taken into account when computing the (inner) replan flag.
 

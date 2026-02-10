@@ -11,8 +11,9 @@
     <!-- Remap legacy topic names to new unified names -->
     <remap from="/Carstate" to="localization/car_state"/>
     <remap from="/AS/P/pathlimits/partial" to="planning/high_speed_tracking/pathlimits/partial"/>
-    <remap from="/line_creat/line_global_path" to="planning/line_detection/path"/>
-    <remap from="/skidpad_detection_node/log_path" to="planning/skidpad/log_path"/>
+    <remap from="/AS/P/pathlimits/full" to="planning/high_speed_tracking/pathlimits/full"/>
+    <remap from="/line_detection/pathlimits" to="planning/line_detection/pathlimits"/>
+    <remap from="/skidpad_detection_node/pathlimits" to="planning/skidpad/pathlimits"/>
     <remap from="/skidpad_detection_node/approaching_goal" to="planning/skidpad/approaching_goal"/>
   </node>
   <node name="PP_Car" pkg="control_ros" type="pp_car_node" output="screen" />

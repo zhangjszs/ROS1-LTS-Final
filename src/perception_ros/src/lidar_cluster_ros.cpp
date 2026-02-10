@@ -21,6 +21,8 @@ std::uint8_t classifyConeTypeBySize(const ConeDetection &det,
                                     double big_height_threshold,
                                     double big_area_threshold)
 {
+  // LiDAR-only pipeline: geometry typing emits ORANGE_SMALL/ORANGE_BIG/NONE.
+  // BLUE/YELLOW/RED are reserved for future camera-fused color outputs.
   if (!enable_size_typing)
   {
     return kConeNone;

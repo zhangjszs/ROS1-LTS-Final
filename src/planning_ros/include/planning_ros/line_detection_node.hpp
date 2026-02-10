@@ -7,6 +7,7 @@
 
 #include <autodrive_msgs/HUAT_CarState.h>
 #include <autodrive_msgs/HUAT_ConeDetections.h>
+#include <autodrive_msgs/HUAT_PathLimits.h>
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/synchronizer.h>
@@ -36,6 +37,8 @@ private:
   void SyncCallback(const ConeMsg::ConstPtr &cone_msg,
                     const StateMsg::ConstPtr &car_state);
   void PublishPath(const std::vector<planning_core::Pose> &path_points);
+  void PublishPathLimits(const std::vector<planning_core::Pose> &path_points);
+  void FillPathDynamics(autodrive_msgs::HUAT_PathLimits &msg) const;
   void PublishFinishOnce();
 
   ros::NodeHandle nh_;
@@ -47,6 +50,7 @@ private:
   std::unique_ptr<message_filters::Synchronizer<SyncPolicy>> sync_;
 
   ros::Publisher path_pub_;
+  ros::Publisher pathlimits_pub_;
   ros::Publisher finish_pub_;
 
   planning_core::LineDetectionParams params_;
@@ -55,12 +59,19 @@ private:
   std::string cone_topic_;
   std::string car_state_topic_;
   std::string path_topic_;
+  std::string pathlimits_topic_;
   std::string finish_topic_;
   std::string expected_cone_frame_;
   std::string output_frame_;
 
   ros::Time latest_sync_time_;
   double max_data_age_ = 0.5;  // 数据过期阈值 (秒)
+  double speed_cap_ = 20.0;
+  double max_lateral_acc_ = 6.5;
+  double max_accel_ = 3.0;
+  double max_brake_ = 4.0;
+  double min_speed_ = 1.0;
+  double curvature_epsilon_ = 1e-3;
 
   bool finish_published_{false};
   std::mutex data_mutex_;

@@ -1,9 +1,11 @@
 #include <localization_ros/location_node.hpp>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 
 #include <geometry_msgs/TransformStamped.h>
+#include <std_msgs/String.h>
 #include <ros/package.h>
 
 namespace localization_ros {
@@ -62,11 +64,27 @@ LocationNode::LocationNode(ros::NodeHandle &nh)
   pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>(pose_topic_, 10);
   odom_pub_ = nh_.advertise<nav_msgs::Odometry>(odom_topic_, 10);
 
+  // Status diagnostics publisher
+  LoadParam(pnh_, nh_, "topics/fg_status", status_topic_, std::string("localization/fg_status"));
+  status_pub_ = nh_.advertise<std_msgs::String>(status_topic_, 10);
+
   // Initialize factor graph backend if configured
   if (backend_ == "factor_graph")
   {
     fg_optimizer_ = std::make_unique<localization_core::FactorGraphOptimizer>(fg_config_);
     ROS_INFO("Factor graph backend enabled (shadow mode)");
+  }
+
+  // Performance statistics
+  {
+    int pw = static_cast<int>(perf_window_);
+    int pl = static_cast<int>(perf_log_every_);
+    LoadParam(pnh_, nh_, "perf_stats_enable", perf_enabled_, true);
+    LoadParam(pnh_, nh_, "perf_stats_window", pw, 300);
+    LoadParam(pnh_, nh_, "perf_stats_log_every", pl, 30);
+    perf_window_ = static_cast<size_t>(pw);
+    perf_log_every_ = static_cast<size_t>(pl);
+    perf_stats_.Configure("localization", perf_enabled_, perf_window_, perf_log_every_);
   }
 
 }
@@ -153,6 +171,21 @@ void LocationNode::loadParameters()
   LoadParam(pnh_, nh_, "map/min_obs_to_keep", params_.min_obs_to_keep, 2);
   LoadParam(pnh_, nh_, "map/local_cone_range", params_.local_cone_range, 50.0);
 
+  // INS 质量门控参数
+  {
+    int tmp_status = static_cast<int>(params_.min_ins_status);
+    LoadParam(pnh_, nh_, "ins_quality/min_ins_status", tmp_status, tmp_status);
+    params_.min_ins_status = static_cast<std::uint8_t>(tmp_status);
+
+    int tmp_nsv = static_cast<int>(params_.min_satellite_count);
+    LoadParam(pnh_, nh_, "ins_quality/min_satellite_count", tmp_nsv, tmp_nsv);
+    params_.min_satellite_count = static_cast<std::uint8_t>(tmp_nsv);
+
+    int tmp_age = static_cast<int>(params_.max_diff_age);
+    LoadParam(pnh_, nh_, "ins_quality/max_diff_age", tmp_age, tmp_age);
+    params_.max_diff_age = static_cast<std::uint8_t>(tmp_age);
+  }
+
   // 入图过滤参数
   LoadParam(pnh_, nh_, "map/min_confidence_to_add", params_.min_confidence_to_add, 0.3);
   LoadParam(pnh_, nh_, "map/min_confidence_to_merge", params_.min_confidence_to_merge, 0.15);
@@ -224,6 +257,52 @@ void LocationNode::loadParameters()
     LoadParam(pnh_, nh_, "fg/max_cone_factors_per_keyframe", fg_config_.max_cone_factors_per_keyframe, 10);
     LoadParam(pnh_, nh_, "fg/color_mismatch_penalty", fg_config_.color_mismatch_penalty, 2.0);
     LoadParam(pnh_, nh_, "fg/merge_distance", fg_config_.merge_distance, 2.0);
+
+    // Color-topology soft association
+    LoadParam(pnh_, nh_, "fg/w_maha", fg_config_.w_maha, 1.0);
+    LoadParam(pnh_, nh_, "fg/w_color", fg_config_.w_color, 0.3);
+    LoadParam(pnh_, nh_, "fg/w_topo", fg_config_.w_topo, 0.2);
+    LoadParam(pnh_, nh_, "fg/topo_penalty", fg_config_.topo_penalty, 2.0);
+    LoadParam(pnh_, nh_, "fg/neighbor_radius", fg_config_.neighbor_radius, 8.0);
+    LoadParam(pnh_, nh_, "fg/gate_threshold", fg_config_.gate_threshold, 15.0);
+
+    // Map mode & geometry priors
+    fg_config_.map_mode = params_.map_mode;
+    LoadParam(pnh_, nh_, "fg/circle_radius", fg_config_.circle_radius, params_.circle_radius);
+    LoadParam(pnh_, nh_, "fg/circle_center1_x", fg_config_.circle_center1_x, 0.0);
+    LoadParam(pnh_, nh_, "fg/circle_center1_y", fg_config_.circle_center1_y, -params_.circle_center_dist / 2.0);
+    LoadParam(pnh_, nh_, "fg/circle_center2_x", fg_config_.circle_center2_x, 0.0);
+    LoadParam(pnh_, nh_, "fg/circle_center2_y", fg_config_.circle_center2_y, params_.circle_center_dist / 2.0);
+    LoadParam(pnh_, nh_, "fg/circle_sigma", fg_config_.circle_sigma, 1.0);
+
+    // Anomaly state machine
+    LoadParam(pnh_, nh_, "fg/anomaly/chi2_degrade", fg_config_.anomaly.chi2_degrade, 15.0);
+    LoadParam(pnh_, nh_, "fg/anomaly/chi2_recover", fg_config_.anomaly.chi2_recover, 5.0);
+    LoadParam(pnh_, nh_, "fg/anomaly/chi2_window", fg_config_.anomaly.chi2_window, 10);
+    LoadParam(pnh_, nh_, "fg/anomaly/match_ratio_lost", fg_config_.anomaly.match_ratio_lost, 0.3);
+    LoadParam(pnh_, nh_, "fg/anomaly/match_lost_duration", fg_config_.anomaly.match_lost_duration, 2.0);
+    LoadParam(pnh_, nh_, "fg/anomaly/no_cone_frames_max", fg_config_.anomaly.no_cone_frames_max, 30);
+    LoadParam(pnh_, nh_, "fg/anomaly/reloc_a_timeout", fg_config_.anomaly.reloc_a_timeout, 3.0);
+    LoadParam(pnh_, nh_, "fg/anomaly/reloc_b_timeout", fg_config_.anomaly.reloc_b_timeout, 5.0);
+
+    // Relocalization
+    LoadParam(pnh_, nh_, "fg/reloc/submap_radius", fg_config_.reloc.submap_radius, 15.0);
+    LoadParam(pnh_, nh_, "fg/reloc/n_sectors", fg_config_.reloc.n_sectors, 12);
+    LoadParam(pnh_, nh_, "fg/reloc/n_rings", fg_config_.reloc.n_rings, 5);
+    LoadParam(pnh_, nh_, "fg/reloc/max_descriptors", fg_config_.reloc.max_descriptors, 200);
+    LoadParam(pnh_, nh_, "fg/reloc/top_k", fg_config_.reloc.top_k, 5);
+    LoadParam(pnh_, nh_, "fg/reloc/ransac_max_iter", fg_config_.reloc.ransac_max_iter, 100);
+    LoadParam(pnh_, nh_, "fg/reloc/min_inliers", fg_config_.reloc.min_inliers, 4);
+    LoadParam(pnh_, nh_, "fg/reloc/n_particles", fg_config_.reloc.n_particles, 200);
+    {
+      double tmp;
+      LoadParam(pnh_, nh_, "fg/reloc/particle_sigma_xy", tmp, fg_config_.reloc.particle_sigma_xy);
+      fg_config_.reloc.particle_sigma_xy = tmp;
+      LoadParam(pnh_, nh_, "fg/reloc/converge_sigma", tmp, fg_config_.reloc.converge_sigma_xy);
+      fg_config_.reloc.converge_sigma_xy = tmp;
+      LoadParam(pnh_, nh_, "fg/reloc/timeout", tmp, fg_config_.reloc.timeout);
+      fg_config_.reloc.timeout = tmp;
+    }
   }
 }
 
@@ -298,6 +377,17 @@ void LocationNode::publishState(const localization_core::CarState &state, const 
 void LocationNode::imuCallback(const autodrive_msgs::HUAT_InsP2::ConstPtr &msg)
 {
   localization_core::Asensing core_msg = ToCore(*msg);
+
+  // 缓存 INS 状态用于时间戳插值
+  {
+    const ros::Time stamp = msg->header.stamp.isZero() ? ros::Time::now() : msg->header.stamp;
+    ins_buffer_.push_back({stamp, core_msg});
+    while (ins_buffer_.size() > kInsBufferSize)
+    {
+      ins_buffer_.pop_front();
+    }
+  }
+
   localization_core::CarState state;
 
   if (mapper_.UpdateFromIns(core_msg, &state))
@@ -335,6 +425,14 @@ void LocationNode::coneCallback(const autodrive_msgs::HUAT_ConeDetections::Const
   }
 
   const ros::Time stamp = msg->header.stamp.isZero() ? ros::Time::now() : msg->header.stamp;
+
+  // 时间戳对齐：用检测时间戳插值 INS 状态，重新更新 mapper
+  localization_core::Asensing interp_ins;
+  if (interpolateIns(stamp, interp_ins))
+  {
+    localization_core::CarState unused;
+    mapper_.UpdateFromIns(interp_ins, &unused);
+  }
 
   localization_core::ConeDetections detections = ToCore(*msg);
   localization_core::ConeMap map;
@@ -573,11 +671,40 @@ void LocationNode::feedFactorGraph(const autodrive_msgs::HUAT_InsP2 &msg)
   if (fg_optimizer_->TryUpdate(current_pose, t))
   {
     auto fg_pose = fg_optimizer_->GetOptimizedPose();
-    ROS_INFO_THROTTLE(5.0, "[FG shadow] kf=%lu pose=(%.2f,%.2f,%.3f) opt_ms=%.1f lm=%zu",
+    const auto anomaly_state = fg_optimizer_->GetAnomalyState();
+    const char* state_names[] = {"TRACKING", "DEGRADED", "LOST", "RELOC_A", "RELOC_B"};
+    const int state_idx = static_cast<int>(anomaly_state);
+    const char* state_name = (state_idx >= 0 && state_idx < 5) ? state_names[state_idx] : "UNKNOWN";
+
+    ROS_INFO_THROTTLE(5.0, "[FG shadow] kf=%lu pose=(%.2f,%.2f,%.3f) opt_ms=%.1f lm=%zu chi2=%.2f match=%.2f state=%s",
                       fg_optimizer_->NumKeyframes(),
                       fg_pose.x, fg_pose.y, fg_pose.theta,
                       fg_optimizer_->LastOptTimeMs(),
-                      fg_optimizer_->GetLandmarks().size());
+                      fg_optimizer_->GetLandmarks().size(),
+                      fg_optimizer_->GetChi2Normalized(),
+                      fg_optimizer_->GetConeMatchRatio(),
+                      state_name);
+
+    // Publish diagnostics status
+    std_msgs::String status_msg;
+    status_msg.data = std::string("state=") + state_name +
+                      " chi2=" + std::to_string(fg_optimizer_->GetChi2Normalized()) +
+                      " match=" + std::to_string(fg_optimizer_->GetConeMatchRatio()) +
+                      " kf=" + std::to_string(fg_optimizer_->NumKeyframes()) +
+                      " lm=" + std::to_string(fg_optimizer_->GetLandmarks().size());
+    status_pub_.publish(status_msg);
+
+    // Collect performance sample
+    {
+      LocPerfSample sample;
+      sample.t_opt_ms = fg_optimizer_->LastOptTimeMs();
+      sample.t_total_ms = fg_optimizer_->LastOptTimeMs();
+      sample.landmark_count = static_cast<double>(fg_optimizer_->GetLandmarks().size());
+      sample.chi2_normalized = fg_optimizer_->GetChi2Normalized();
+      sample.cone_match_ratio = fg_optimizer_->GetConeMatchRatio();
+      sample.gnss_availability = (quality != localization_core::GnssQuality::INVALID) ? 1.0 : 0.0;
+      perf_stats_.Add(sample);
+    }
   }
 }
 
@@ -600,6 +727,101 @@ void LocationNode::feedFactorGraphCones(const autodrive_msgs::HUAT_ConeDetection
     obs.push_back(co);
   }
   fg_optimizer_->SetConeObservations(obs);
+}
+
+bool LocationNode::interpolateIns(const ros::Time &target, localization_core::Asensing &out) const
+{
+  if (ins_buffer_.size() < 2)
+  {
+    return false;
+  }
+
+  // 查找 target 所在的区间 [i-1, i]
+  // 缓冲区按时间递增排列
+  const double t_target = target.toSec();
+  const double t_first = ins_buffer_.front().stamp.toSec();
+  const double t_last = ins_buffer_.back().stamp.toSec();
+
+  // 如果 target 在缓冲区范围外，使用最近的样本
+  if (t_target <= t_first)
+  {
+    out = ins_buffer_.front().data;
+    return true;
+  }
+  if (t_target >= t_last)
+  {
+    out = ins_buffer_.back().data;
+    return true;
+  }
+
+  // 二分查找第一个 stamp >= target 的元素
+  size_t lo = 0;
+  size_t hi = ins_buffer_.size();
+  while (lo < hi)
+  {
+    const size_t mid = lo + (hi - lo) / 2;
+    if (ins_buffer_[mid].stamp.toSec() < t_target)
+      lo = mid + 1;
+    else
+      hi = mid;
+  }
+
+  if (lo == 0)
+  {
+    out = ins_buffer_.front().data;
+    return true;
+  }
+
+  const auto &a = ins_buffer_[lo - 1];
+  const auto &b = ins_buffer_[lo];
+  const double dt = b.stamp.toSec() - a.stamp.toSec();
+  if (dt < 1e-9)
+  {
+    out = a.data;
+    return true;
+  }
+
+  const double alpha = (t_target - a.stamp.toSec()) / dt;
+
+  // 线性插值标量字段
+  auto lerp = [alpha](double va, double vb) { return va + alpha * (vb - va); };
+
+  // 角度插值（处理 0/360 度环绕）
+  auto angle_lerp = [alpha](double va, double vb) {
+    double diff = vb - va;
+    // Normalize to [-180, 180]
+    while (diff > 180.0) diff -= 360.0;
+    while (diff < -180.0) diff += 360.0;
+    double result = va + alpha * diff;
+    // Normalize result to [0, 360)
+    while (result < 0.0) result += 360.0;
+    while (result >= 360.0) result -= 360.0;
+    return result;
+  };
+
+  out.latitude = lerp(a.data.latitude, b.data.latitude);
+  out.longitude = lerp(a.data.longitude, b.data.longitude);
+  out.altitude = lerp(a.data.altitude, b.data.altitude);
+  out.north_velocity = lerp(a.data.north_velocity, b.data.north_velocity);
+  out.east_velocity = lerp(a.data.east_velocity, b.data.east_velocity);
+  out.ground_velocity = lerp(a.data.ground_velocity, b.data.ground_velocity);
+  out.roll = lerp(a.data.roll, b.data.roll);
+  out.pitch = lerp(a.data.pitch, b.data.pitch);
+  out.azimuth = angle_lerp(a.data.azimuth, b.data.azimuth);
+  out.x_angular_velocity = lerp(a.data.x_angular_velocity, b.data.x_angular_velocity);
+  out.y_angular_velocity = lerp(a.data.y_angular_velocity, b.data.y_angular_velocity);
+  out.z_angular_velocity = lerp(a.data.z_angular_velocity, b.data.z_angular_velocity);
+  out.x_acc = lerp(a.data.x_acc, b.data.x_acc);
+  out.y_acc = lerp(a.data.y_acc, b.data.y_acc);
+  out.z_acc = lerp(a.data.z_acc, b.data.z_acc);
+
+  // 离散字段取较近的样本
+  out.status = (alpha < 0.5) ? a.data.status : b.data.status;
+  out.nsv1 = (alpha < 0.5) ? a.data.nsv1 : b.data.nsv1;
+  out.nsv2 = (alpha < 0.5) ? a.data.nsv2 : b.data.nsv2;
+  out.age = (alpha < 0.5) ? a.data.age : b.data.age;
+
+  return true;
 }
 
 }  // namespace localization_ros

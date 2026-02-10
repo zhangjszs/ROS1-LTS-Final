@@ -1,3 +1,19 @@
+# ==========================================================
+# Perception Base Config (Layer 1 / Base)
+# ==========================================================
+# Load order in launch:
+#   1) lidar_base.yaml
+#   2) lidar_<mode>.yaml (track/accel/skidpad)
+#   3) mission overlay (optional)
+#   4) vehicle overlay (optional)
+#   5) local overlay (optional, *.local.yaml)
+#
+# This file should contain:
+#   - global defaults shared by all missions
+#   - mode_presets/* values consumed by roi.mode
+# Do not put vehicle-unique calibration here.
+# ==========================================================
+
 # ==========================
 # ROS Wrapper (perception_ros)
 # ==========================
@@ -102,8 +118,10 @@ patchworkpp:
   far_zone_min_pts_scale: 2.0     # 远区最小点数缩放
 
 # ==========================
-# ROI (Base + per-mode ranges)
+# ROI (base ranges + mode switch)
 # ==========================
+# Runtime mode is selected by roi.mode.
+# Per-mode parameter overrides are defined in mode_presets below.
 roi:
   mode: track                     # ROI模式：skidpad | accel | track
   use_point_clip: false           # 仅skidpad时有效
@@ -230,6 +248,7 @@ confidence:
     max_isolation_distance: 12.0   # 最大孤立距离 (m)
 
 # 模式覆盖（由 roi/mode 选择）
+# Only keep values that are truly mission-sensitive.
 mode_presets:
   track:
     confidence:
@@ -331,12 +350,14 @@ topology:
 # Sensor Model (传感器模型)
 # ==========================
 sensor_model: 32                  # velodyne product type (16/32)
+# Legacy fallback: utility.cpp still reads road_type_ in some branches.
+# Keep it consistent with roi.mode in overlays.
 road_type: 3                      # 1=skidpad, 2=accel, 3=track
 str_range: "15,30,45,60"
 str_seg_distance: "0.5,1.1,1.6,2.1,2.6"
 
 # ==========================
-# Clustering — trackdrive：标准配置
+# Clustering (shared defaults)
 # ==========================
 cluster:
   method: euclidean               # 聚类方法：euclidean | dbscan
@@ -394,6 +415,7 @@ length:
 # ==========================
 # IMU & Distortion Compensation
 # ==========================
+# Installation extrinsics should be overridden by vehicle overlay.
 imu:
   enable: false                   # IMU功能总开关
   topic: /pbox_pub/Ins            # IMU数据话题

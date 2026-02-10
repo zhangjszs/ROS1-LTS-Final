@@ -1,83 +1,100 @@
+# ===== 定位主配置文件 =====
+
+# 是否使用外部车辆状态（而非内部估计）
 use_external_carstate: false
+
+# ROS话题配置
 topics:
-  ins: "sensors/ins"
-  car_state_in: "localization/car_state"
-  cone: "perception/lidar_cluster/detections"
-  car_state_out: "localization/car_state"
-  cone_map: "localization/cone_map"
-  global_map: "localization/global_map"
-  pose: "localization/pose"
-  odom: "localization/odom"
+  ins: "sensors/ins"                           # INS惯导数据输入
+  car_state_in: "localization/car_state"       # 车辆状态输入
+  cone: "perception/lidar_cluster/detections"  # 锥桶检测结果输入
+  car_state_out: "localization/car_state"      # 车辆状态输出
+  cone_map: "localization/cone_map"            # 锥桶地图输出
+  global_map: "localization/global_map"        # 全局地图输出
+  pose: "localization/pose"                    # 位姿输出
+  odom: "localization/odom"                    # 里程计输出
+
+# 坐标系配置
 frames:
-  world: "world"
-  base_link: "base_link"
+  world: "world"                     # 世界坐标系
+  base_link: "base_link"             # 车体坐标系
+
+# 传感器安装距离参数
 length:
-  lidarToIMUDist: 1.87
-  frontToIMUdistanceX: 0.0
-  frontToIMUdistanceY: 0.0
-  frontToIMUdistanceZ: 0.0
-  rearToIMUdistanceX: 0.0
-  rearToIMUdistanceY: 0.0
-  rearToIMUdistanceZ: 0.0
+  lidarToIMUDist: 1.87               # 激光雷达到IMU的距离 (m)
+  frontToIMUdistanceX: 0.0           # 前轴到IMU的X方向距离 (m)
+  frontToIMUdistanceY: 0.0           # 前轴到IMU的Y方向距离 (m)
+  frontToIMUdistanceZ: 0.0           # 前轴到IMU的Z方向距离 (m)
+  rearToIMUdistanceX: 0.0            # 后轴到IMU的X方向距离 (m)
+  rearToIMUdistanceY: 0.0            # 后轴到IMU的Y方向距离 (m)
+  rearToIMUdistanceZ: 0.0            # 后轴到IMU的Z方向距离 (m)
 
 # 锥桶地图管理
 map:
-  mode: track                     # accel | skidpad | track
-  merge_distance: 2.5             # 锥桶合并距离阈值 (m)
-  max_map_size: 500               # 地图最大锥桶数量，超过时清理低观测锥桶
-  min_obs_to_keep: 2              # 清理时保留的最小观测次数
-  local_cone_range: 50.0          # 输出局部锥桶的最大距离 (m)
+  mode: track                        # 地图模式：accel | skidpad | track
+  merge_distance: 2.5                # 锥桶合并距离阈值 (m)
+  max_map_size: 500                  # 地图最大锥桶数量，超过时清理低观测锥桶
+  min_obs_to_keep: 2                 # 清理时保留的最小观测次数
+  local_cone_range: 50.0             # 输出局部锥桶的最大距离 (m)
   # 入图过滤
-  min_confidence_to_add: 0.3      # 新锥桶入图最低置信度
-  min_confidence_to_merge: 0.15   # 合并已有锥桶的最低置信度
-  max_cone_height: 0.75           # 锥桶最大高度 (m)
-  max_cone_width: 0.5             # 锥桶最大宽度 (m)
-  min_cone_height: 0.03           # 锥桶最小高度 (m)
+  min_confidence_to_add: 0.3         # 新锥桶入图最低置信度
+  min_confidence_to_merge: 0.15      # 合并已有锥桶的最低置信度
+  max_cone_height: 0.75              # 锥桶最大高度 (m)
+  max_cone_width: 0.5                # 锥桶最大宽度 (m)
+  min_cone_height: 0.03              # 锥桶最小高度 (m)
 
   # 赛道模式预设
   mode_presets:
-    accel:
-      merge_distance: 1.5
-      max_map_size: 60
-      local_cone_range: 30.0
-      min_confidence_to_add: 0.35
-      cone_y_max: 2.5
-      expected_cone_spacing: 5.0
-      track_width: 3.0
+    accel:                           # --- 直线加速模式 ---
+      merge_distance: 1.5            # 合并距离 (m)
+      max_map_size: 60               # 最大锥桶数
+      local_cone_range: 30.0         # 局部范围 (m)
+      min_confidence_to_add: 0.35    # 入图置信度
+      cone_y_max: 2.5                # Y轴最大偏移 (m)
+      expected_cone_spacing: 5.0     # 预期锥桶间距 (m)
+      track_width: 3.0               # 赛道宽度 (m)
 
-    skidpad:
-      merge_distance: 2.0
-      max_map_size: 100
-      local_cone_range: 35.0
-      min_confidence_to_add: 0.2
-      min_confidence_to_merge: 0.1
-      enable_circle_validation: true
-      circle_radius: 15.25
-      circle_center_dist: 18.25
-      circle_tolerance: 2.0
-      track_width: 3.0
+    skidpad:                         # --- 八字绕环模式 ---
+      merge_distance: 2.0            # 合并距离 (m)
+      max_map_size: 100              # 最大锥桶数
+      local_cone_range: 35.0         # 局部范围 (m)
+      min_confidence_to_add: 0.2     # 入图置信度
+      min_confidence_to_merge: 0.1   # 合并置信度
+      enable_circle_validation: true # 启用圆形验证
+      circle_radius: 15.25           # 圆弧半径 (m)
+      circle_center_dist: 18.25      # 两圆心间距 (m)
+      circle_tolerance: 2.0          # 圆形验证容差 (m)
+      track_width: 3.0               # 赛道宽度 (m)
 
-    track:
-      merge_distance: 2.5
-      max_map_size: 500
-      local_cone_range: 30.0
-      track_width: 3.5
+    track:                           # --- 高速循迹模式 ---
+      merge_distance: 2.5            # 合并距离 (m)
+      max_map_size: 500              # 最大锥桶数
+      local_cone_range: 30.0         # 局部范围 (m)
+      track_width: 3.5               # 赛道宽度 (m)
 
-# Backend selection: "mapper" (default) or "factor_graph" (shadow mode)
+# 后端选择："mapper"（默认）或 "factor_graph"（影子模式）
 backend: mapper
 
-# Factor graph parameters (only used when backend=factor_graph)
+# 因子图参数（仅在 backend=factor_graph 时使用）
 fg:
-  keyframe_dist: 1.0          # m - keyframe distance threshold
-  keyframe_yaw: 0.1           # rad - keyframe yaw change threshold
-  keyframe_dt: 0.5            # s - keyframe time threshold
-  run_extra_update: false     # bool - optional second isam update (more accurate but slower)
-  sigma_imu_xy: 0.05          # m - IMU position noise per sqrt(s)
-  sigma_imu_theta: 0.01       # rad - IMU heading noise per sqrt(s)
-  sigma_gnss_good: 0.5        # m - GNSS noise (good quality)
-  sigma_gnss_medium: 2.0      # m - GNSS noise (medium quality)
-  sigma_gnss_poor: 10.0       # m - GNSS noise (poor quality)
-  min_cone_confidence: 0.15   # only keep reliable cone observations
-  max_cone_factors_per_keyframe: 10  # cap cone factors to avoid graph blow-up
-  color_mismatch_penalty: 2.0 # color mismatch cost
-  merge_distance: 2.0         # m - landmark merge distance
+  keyframe_dist: 1.0                 # 关键帧距离阈值 (m)
+  keyframe_yaw: 0.1                  # 关键帧航向变化阈值 (rad)
+  keyframe_dt: 0.5                   # 关键帧时间阈值 (s)
+  run_extra_update: false            # 是否执行额外的iSAM更新（更精确但更慢）
+  sigma_imu_xy: 0.05                 # IMU位置噪声 (m/√s)
+  sigma_imu_theta: 0.01              # IMU航向噪声 (rad/√s)
+  sigma_gnss_good: 0.5              # GNSS噪声 - 良好质量 (m)
+  sigma_gnss_medium: 2.0             # GNSS噪声 - 中等质量 (m)
+  sigma_gnss_poor: 10.0              # GNSS噪声 - 较差质量 (m)
+  min_cone_confidence: 0.15          # 锥桶最低置信度，仅保留可靠观测
+  max_cone_factors_per_keyframe: 10  # 每关键帧最大锥桶因子数，防止图膨胀
+  # 颜色不匹配惩罚（等待相机颜色分类可用后启用）
+  color_mismatch_penalty: 0.0        # 颜色不匹配代价
+  merge_distance: 2.0                # 路标合并距离 (m)
+  # 颜色-拓扑软关联（等待相机颜色分类可用后启用）
+  w_maha: 1.0                        # 马氏距离权重
+  w_color: 0.0                       # 颜色权重（当前禁用）
+  w_topo: 0.0                        # 拓扑权重（当前禁用）
+  topo_penalty: 0.0                  # 拓扑惩罚
+  neighbor_radius: 8.0               # 邻域搜索半径 (m)
+  gate_threshold: 15.0               # 关联门限阈值

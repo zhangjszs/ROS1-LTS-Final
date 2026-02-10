@@ -7,6 +7,7 @@
 
 #include <autodrive_msgs/HUAT_CarState.h>
 #include <autodrive_msgs/HUAT_ConeDetections.h>
+#include <autodrive_msgs/HUAT_PathLimits.h>
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/synchronizer.h>
@@ -35,6 +36,8 @@ private:
   void SyncCallback(const ConeMsg::ConstPtr &cone_msg,
                     const StateMsg::ConstPtr &car_state);
   void PublishPath(const std::vector<planning_core::Pose> &path_points);
+  void PublishPathLimits(const std::vector<planning_core::Pose> &path_points);
+  void FillPathDynamics(autodrive_msgs::HUAT_PathLimits &msg) const;
   void PublishApproachingGoal(bool approaching);
 
   ros::NodeHandle nh_;
@@ -46,6 +49,7 @@ private:
   std::unique_ptr<message_filters::Synchronizer<SyncPolicy>> sync_;
 
   ros::Publisher log_path_pub_;
+  ros::Publisher pathlimits_pub_;
   ros::Publisher approaching_goal_pub_;
 
   planning_core::SkidpadParams params_{};
@@ -54,8 +58,15 @@ private:
   std::string cone_topic_;
   std::string car_state_topic_;
   std::string log_path_topic_;
+  std::string pathlimits_topic_;
   std::string approaching_goal_topic_;
   double max_data_age_ = 0.5;  // 数据过期阈值 (秒)
+  double speed_cap_ = 8.0;
+  double max_lateral_acc_ = 6.5;
+  double max_accel_ = 2.5;
+  double max_brake_ = 4.0;
+  double min_speed_ = 1.0;
+  double curvature_epsilon_ = 1e-3;
   ros::Time latest_sync_time_;
   std::mutex data_mutex_;
 };

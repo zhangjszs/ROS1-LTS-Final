@@ -10,6 +10,32 @@
 
 #include "modules/WayComputer.hpp"
 
+#include <algorithm>
+#include <cmath>
+#include <vector>
+
+namespace {
+double pointDistance(const geometry_msgs::Point &a, const geometry_msgs::Point &b) {
+  const double dx = b.x - a.x;
+  const double dy = b.y - a.y;
+  return std::sqrt(dx * dx + dy * dy);
+}
+
+double signedCurvature(const geometry_msgs::Point &p0,
+                       const geometry_msgs::Point &p1,
+                       const geometry_msgs::Point &p2) {
+  const double a = pointDistance(p0, p1);
+  const double b = pointDistance(p1, p2);
+  const double c = pointDistance(p0, p2);
+  const double denom = a * b * c;
+  if (denom < 1e-6) {
+    return 0.0;
+  }
+  const double cross = (p1.x - p0.x) * (p2.y - p0.y) - (p1.y - p0.y) * (p2.x - p0.x);
+  return 2.0 * cross / denom;
+}
+}  // namespace
+
 /* ----------------------------- Private Methods ---------------------------- */
 
 void WayComputer::filterTriangulation(TriangleSet &triangulation) const {
@@ -326,7 +352,7 @@ void WayComputer::computeWay(const std::vector<Edge> &edges, const Params::WayCo
     // Check for loop closure
     if (this->way_.closesLoop()) {
       this->wayToPublish_ = this->way_.restructureClosure();
-      this->isLoopClosed_ = true;
+      this->loopClosedRaw_ = true;
       return;
     }
   //两次调用`findNextEdges`函数的目的是确保在每次循环迭代中，`nextEdges`向量都包含了当前路径状态下的可能边。通过在每个循环迭代中更新`nextEdges`向量，
@@ -334,8 +360,128 @@ void WayComputer::computeWay(const std::vector<Edge> &edges, const Params::WayCo
     // Get next set of possible edges
     this->findNextEdges(nextEdges, nullptr, midpointsKDT, edges, params);
   }
-  this->isLoopClosed_ = false;
+  this->loopClosedRaw_ = false;
   this->wayToPublish_ = this->way_;
+}
+
+void WayComputer::fillPathDynamics(autodrive_msgs::HUAT_PathLimits &msg) const {
+  const size_t n = msg.path.size();
+  msg.curvatures.assign(n, 0.0);
+  msg.target_speeds.assign(n, 0.0);
+
+  if (n == 0) {
+    return;
+  }
+
+  // Curvature from 3-point geometry, then a light 3-point smoothing.
+  if (n >= 3) {
+    for (size_t i = 1; i + 1 < n; ++i) {
+      msg.curvatures[i] = signedCurvature(msg.path[i - 1], msg.path[i], msg.path[i + 1]);
+    }
+    msg.curvatures.front() = msg.curvatures[1];
+    msg.curvatures.back() = msg.curvatures[n - 2];
+
+    std::vector<double> smoothed = msg.curvatures;
+    for (size_t i = 1; i + 1 < n; ++i) {
+      smoothed[i] = (msg.curvatures[i - 1] + msg.curvatures[i] + msg.curvatures[i + 1]) / 3.0;
+    }
+    msg.curvatures.swap(smoothed);
+  }
+
+  const auto &speed_cfg = this->params_.speed;
+  const double v_cap_raw = (this->lapMode_ == LapMode::FAST_LAP) ? speed_cfg.speed_cap_fast : speed_cfg.speed_cap_safe;
+  const double v_cap = std::max(0.0, v_cap_raw);
+  const double a_lat = std::max(0.1, speed_cfg.max_lateral_acc);
+  const double a_acc = std::max(0.0, speed_cfg.max_accel);
+  const double a_brake = std::max(0.0, speed_cfg.max_brake);
+  const double kappa_eps = std::max(1e-6, speed_cfg.curvature_epsilon);
+  const double v_min = std::max(0.0, std::min(speed_cfg.min_speed, v_cap));
+
+  std::vector<double> ds;
+  if (n >= 2) {
+    ds.resize(n - 1, 1e-3);
+    for (size_t i = 0; i + 1 < n; ++i) {
+      ds[i] = std::max(1e-3, pointDistance(msg.path[i], msg.path[i + 1]));
+    }
+  }
+
+  std::vector<double> v_ref(n, v_cap);
+  for (size_t i = 0; i < n; ++i) {
+    const double abs_kappa = std::abs(msg.curvatures[i]);
+    const double denom = std::max(abs_kappa, kappa_eps);
+    const double v_lat_max = std::sqrt(std::max(0.0, a_lat / denom));
+    v_ref[i] = std::max(v_min, std::min(v_cap, v_lat_max));
+  }
+
+  const double current_speed = std::isfinite(this->CarState.V) ? std::max(0.0, static_cast<double>(this->CarState.V)) : v_min;
+  v_ref[0] = std::min(v_ref[0], std::max(v_min, std::min(v_cap, current_speed)));
+
+  // Forward pass (acceleration constraint).
+  for (size_t i = 1; i < n; ++i) {
+    const double reachable = std::sqrt(std::max(0.0, v_ref[i - 1] * v_ref[i - 1] + 2.0 * a_acc * ds[i - 1]));
+    v_ref[i] = std::min(v_ref[i], reachable);
+  }
+
+  // Backward pass (braking constraint).
+  for (size_t i = n - 1; i > 0; --i) {
+    const double reachable = std::sqrt(std::max(0.0, v_ref[i] * v_ref[i] + 2.0 * a_brake * ds[i - 1]));
+    v_ref[i - 1] = std::min(v_ref[i - 1], reachable);
+  }
+
+  for (size_t i = 0; i < n; ++i) {
+    if (!std::isfinite(msg.curvatures[i])) {
+      msg.curvatures[i] = 0.0;
+    }
+    if (!std::isfinite(v_ref[i]) || v_ref[i] < 0.0) {
+      msg.target_speeds[i] = 0.0;
+    } else {
+      msg.target_speeds[i] = v_ref[i];
+    }
+  }
+}
+
+void WayComputer::updateLapMode(bool loop_closed_now) {
+  const auto &speed_cfg = this->params_.speed;
+  const int close_frames = std::max(1, speed_cfg.loop_close_debounce_frames);
+  const int open_frames = std::max(1, speed_cfg.loop_open_debounce_frames);
+  const int hold_frames = std::max(0, speed_cfg.mode_min_hold_frames);
+
+  if (loop_closed_now) {
+    ++this->loopCloseDebounceCount_;
+    this->loopOpenDebounceCount_ = 0;
+  } else {
+    ++this->loopOpenDebounceCount_;
+    this->loopCloseDebounceCount_ = 0;
+  }
+
+  if (this->modeHoldFrames_ > 0) {
+    --this->modeHoldFrames_;
+  }
+
+  const LapMode prev_mode = this->lapMode_;
+  if (this->lapMode_ == LapMode::MAP_BUILD_SAFE) {
+    if (this->loopCloseDebounceCount_ >= close_frames) {
+      this->lapMode_ = LapMode::FAST_LAP;
+      this->modeHoldFrames_ = hold_frames;
+      this->loopCloseDebounceCount_ = 0;
+      this->loopOpenDebounceCount_ = 0;
+    }
+  } else {
+    if (this->modeHoldFrames_ == 0 && this->loopOpenDebounceCount_ >= open_frames) {
+      this->lapMode_ = LapMode::MAP_BUILD_SAFE;
+      this->modeHoldFrames_ = hold_frames;
+      this->loopCloseDebounceCount_ = 0;
+      this->loopOpenDebounceCount_ = 0;
+    }
+  }
+
+  this->isLoopClosed_ = (this->lapMode_ == LapMode::FAST_LAP);
+
+  if (prev_mode != this->lapMode_) {
+    const char *new_mode = (this->lapMode_ == LapMode::FAST_LAP) ? "FAST_LAP" : "MAP_BUILD_SAFE";
+    ROS_INFO_STREAM("[high_speed_tracking] Lap mode switched to " << new_mode
+                    << " (loop_closed_now=" << (loop_closed_now ? "true" : "false") << ")");
+  }
 }
 
 /* ----------------------------- Public Methods ----------------------------- */
@@ -426,10 +572,12 @@ void WayComputer::update(TriangleSet &triangulation, const ros::Time &stamp) {
   // #6: Check failsafe(s)
   //总的来说，这段代码的目的是检查是否需要启用一般失败安全机制，即当前路径长度不足且没有闭环时预先计算一条新的路径，以保证安全性。
   //如果满足条件，则输出警告信息并调用 `computeWay()` 方法生成新路径。
-  if (this->params_.general_failsafe and this->way_.sizeAheadOfCar() < MIN_FAILSAFE_WAY_SIZE and !this->isLoopClosed_) {
+  if (this->params_.general_failsafe and this->way_.sizeAheadOfCar() < MIN_FAILSAFE_WAY_SIZE and !this->loopClosedRaw_) {
     ROS_WARN("[high_speed_tracking] GENERAL FAILSAFE ACTIVATED!");
     this->computeWay(edgeVec, this->generalFailsafe_);
   }
+
+  this->updateLapMode(this->loopClosedRaw_);
 
   // 可视化已移除
 }
@@ -489,6 +637,7 @@ autodrive_msgs::HUAT_PathLimits WayComputer::getPathLimits() const  {
   // res.tracklimits.replan indicates if the n midpoints in front of the car
   // have varied from last iteration
   res.tracklimits.replan = this->way_.quinEhLobjetiuDeLaSevaDiresio(this->lastWay_);
+  this->fillPathDynamics(res);
   return res;
 }
 
@@ -579,6 +728,7 @@ autodrive_msgs::HUAT_PathLimits WayComputer::getPathLimitsGlobal(int x)  {
   // res.tracklimits.replan indicates if the n midpoints in front of the car
   // have varied from last iteration
   res.tracklimits.replan = this->way_.quinEhLobjetiuDeLaSevaDiresio(this->lastWay_);
+  this->fillPathDynamics(res);
   return res;
 }
 

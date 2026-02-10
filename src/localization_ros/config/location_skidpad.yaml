@@ -1,17 +1,18 @@
 # ===== 八字绕环 (Skidpad) 定位参数 =====
 
 map:
-  merge_distance: 2.0
-  max_map_size: 100
-  min_obs_to_keep: 2
-  local_cone_range: 35.0
-  min_confidence_to_add: 0.2
-  min_confidence_to_merge: 0.1
-  max_cone_height: 0.75
-  max_cone_width: 0.5
-  min_cone_height: 0.03
-  track_width: 3.0
-  enable_circle_validation: true
-  circle_radius: 15.25
-  circle_center_dist: 18.25
-  circle_tolerance: 2.0
+  mode: skidpad                      # 地图模式：八字绕环
+  merge_distance: 2.0                # 锥桶合并距离阈值 (m)
+  max_map_size: 100                  # 地图最大锥桶数量
+  min_obs_to_keep: 2                 # 清理时保留的最小观测次数
+  local_cone_range: 35.0             # 输出局部锥桶的最大距离 (m)
+  min_confidence_to_add: 0.2         # 新锥桶入图最低置信度
+  min_confidence_to_merge: 0.1       # 合并已有锥桶的最低置信度
+  max_cone_height: 0.75              # 锥桶最大高度 (m)
+  max_cone_width: 0.5                # 锥桶最大宽度 (m)
+  min_cone_height: 0.03              # 锥桶最小高度 (m)
+  track_width: 3.0                   # 赛道宽度 (m)
+  enable_circle_validation: true     # 启用圆形验证
+  circle_radius: 15.25               # 圆弧半径 (m)
+  circle_center_dist: 18.25          # 两圆心间距 (m)
+  circle_tolerance: 2.0              # 圆形验证容差 (m)

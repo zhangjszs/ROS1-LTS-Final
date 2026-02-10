@@ -1,38 +1,97 @@
-use_external_carstate: false
-topics:
-  ins: "sensors/ins"
-  car_state_in: "localization/car_state"
-  cone: "perception/lidar_cluster/detections"
-  car_state_out: "localization/car_state"
-  cone_map: "localization/cone_map"
-  global_map: "localization/global_map"
-  pose: "localization/pose"
-  odom: "localization/odom"
-frames:
-  world: "world"
-  base_link: "base_link"
-length:
-  lidarToIMUDist: 1.87
-  frontToIMUdistanceX: 0.0
-  frontToIMUdistanceY: 0.0
-  frontToIMUdistanceZ: 0.0
-  rearToIMUdistanceX: 0.0
-  rearToIMUdistanceY: 0.0
-  rearToIMUdistanceZ: 0.0
+# ===== 定位通用参数 =====
 
+# 是否使用外部车辆状态（而非内部估计）
+use_external_carstate: false
+
+# ROS话题配置
+topics:
+  ins: "sensors/ins"                           # INS惯导数据输入
+  car_state_in: "localization/car_state"       # 车辆状态输入
+  cone: "perception/lidar_cluster/detections"  # 锥桶检测结果输入
+  car_state_out: "localization/car_state"      # 车辆状态输出
+  cone_map: "localization/cone_map"            # 锥桶地图输出
+  global_map: "localization/global_map"        # 全局地图输出
+  pose: "localization/pose"                    # 位姿输出
+  odom: "localization/odom"                    # 里程计输出
+
+# 坐标系配置
+frames:
+  world: "world"                     # 世界坐标系
+  base_link: "base_link"             # 车体坐标系
+
+# 传感器安装距离参数
+length:
+  lidarToIMUDist: 1.87               # 激光雷达到IMU的距离 (m)
+  frontToIMUdistanceX: 0.0           # 前轴到IMU的X方向距离 (m)
+  frontToIMUdistanceY: 0.0           # 前轴到IMU的Y方向距离 (m)
+  frontToIMUdistanceZ: 0.0           # 前轴到IMU的Z方向距离 (m)
+  rearToIMUdistanceX: 0.0            # 后轴到IMU的X方向距离 (m)
+  rearToIMUdistanceY: 0.0            # 后轴到IMU的Y方向距离 (m)
+  rearToIMUdistanceZ: 0.0            # 后轴到IMU的Z方向距离 (m)
+
+# 后端选择："mapper"（默认）或 "factor_graph"（影子模式）
 backend: mapper
 
+# INS信号质量过滤
+ins_quality:
+  min_ins_status: 2                  # 最低INS状态等级
+  min_satellite_count: 8             # 最少卫星数量
+  max_diff_age: 30                   # 最大差分龄期，单位 0.1s（30 = 3.0 秒）
+
+# 因子图参数（仅在 backend=factor_graph 时使用）
 fg:
-  keyframe_dist: 1.0
-  keyframe_yaw: 0.1
-  keyframe_dt: 0.5
-  run_extra_update: false
-  sigma_imu_xy: 0.05
-  sigma_imu_theta: 0.01
-  sigma_gnss_good: 0.5
-  sigma_gnss_medium: 2.0
-  sigma_gnss_poor: 10.0
-  min_cone_confidence: 0.15
-  max_cone_factors_per_keyframe: 10
-  color_mismatch_penalty: 2.0
-  merge_distance: 2.0
+  keyframe_dist: 1.0                 # 关键帧距离阈值 (m)
+  keyframe_yaw: 0.1                  # 关键帧航向变化阈值 (rad)
+  keyframe_dt: 0.5                   # 关键帧时间阈值 (s)
+  run_extra_update: false            # 是否执行额外的iSAM更新（更精确但更慢）
+  sigma_imu_xy: 0.05                 # IMU位置噪声 (m/√s)
+  sigma_imu_theta: 0.01              # IMU航向噪声 (rad/√s)
+  sigma_gnss_good: 0.5              # GNSS噪声 - 良好质量 (m)
+  sigma_gnss_medium: 2.0             # GNSS噪声 - 中等质量 (m)
+  sigma_gnss_poor: 10.0              # GNSS噪声 - 较差质量 (m)
+  min_cone_confidence: 0.15          # 锥桶最低置信度，仅保留可靠观测
+  max_cone_factors_per_keyframe: 10  # 每关键帧最大锥桶因子数，防止图膨胀
+  # 颜色不匹配惩罚（等待相机颜色分类可用后启用）
+  color_mismatch_penalty: 0.0        # 颜色不匹配代价
+  merge_distance: 2.0                # 路标合并距离 (m)
+
+  # 颜色-拓扑软关联（等待相机颜色分类可用后启用）
+  w_maha: 1.0                        # 马氏距离权重
+  w_color: 0.0                       # 颜色权重（当前禁用）
+  w_topo: 0.0                        # 拓扑权重（当前禁用）
+  topo_penalty: 0.0                  # 拓扑惩罚
+  neighbor_radius: 8.0               # 邻域搜索半径 (m)
+  gate_threshold: 15.0               # 关联门限阈值
+
+  # 八字绕环圆形几何参数（由 map_mode 覆盖）
+  circle_radius: 15.25               # 圆弧半径 (m)
+  circle_center1_x: 0.0              # 圆心1 X坐标 (m)
+  circle_center1_y: -9.125           # 圆心1 Y坐标 (m)
+  circle_center2_x: 0.0              # 圆心2 X坐标 (m)
+  circle_center2_y: 9.125            # 圆心2 Y坐标 (m)
+  circle_sigma: 1.0                  # 圆形约束噪声 (m)
+
+  # 异常状态机参数
+  anomaly:
+    chi2_degrade: 15.0               # 卡方退化阈值
+    chi2_recover: 5.0                # 卡方恢复阈值
+    chi2_window: 10                  # 卡方滑动窗口大小
+    match_ratio_lost: 0.3            # 匹配丢失比率阈值
+    match_lost_duration: 2.0         # 匹配丢失持续时间 (s)
+    no_cone_frames_max: 30           # 无锥桶最大帧数
+    reloc_a_timeout: 3.0             # 重定位A阶段超时 (s)
+    reloc_b_timeout: 5.0             # 重定位B阶段超时 (s)
+
+  # 重定位参数
+  reloc:
+    submap_radius: 15.0              # 子地图半径 (m)
+    n_sectors: 12                    # 描述子扇区数
+    n_rings: 5                       # 描述子环数
+    max_descriptors: 200             # 最大描述子数量
+    top_k: 5                         # 候选匹配数
+    ransac_max_iter: 100             # RANSAC最大迭代次数
+    min_inliers: 4                   # 最少内点数
+    n_particles: 200                 # 粒子数量
+    particle_sigma_xy: 3.0           # 粒子位置噪声 (m)
+    converge_sigma: 0.5              # 收敛判定标准差 (m)
+    timeout: 5.0                     # 重定位超时 (s)

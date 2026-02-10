@@ -228,6 +228,10 @@ void callback_ccat(const autodrive_msgs::HUAT_ConeMap::ConstPtr &data)
   // 发布循环和将轨迹限制写入文件
   if (wayComputer->isLoopClosed())
   {
+    if (!wasLoopClosed)
+    {
+      ROS_INFO("[high_speed_tracking] Enter FAST_LAP: publishing full path.");
+    }
     autodrive_msgs::HUAT_PathLimits full_msg = wayComputer->getPathLimitsGlobal(params->main.the_mode_of_full_path);
     if (params->main.debug_save_way_files)
     {
@@ -250,16 +254,18 @@ void callback_ccat(const autodrive_msgs::HUAT_ConeMap::ConstPtr &data)
   }
   else
   {
-    if (!wasLoopClosed)
+    if (wasLoopClosed)
     {
-      autodrive_msgs::HUAT_PathLimits partial_msg = wayComputer->getPathLimitsGlobal(params->main.the_mode_of_partial_path);
-      if (params->main.debug_save_way_files)
-      {
-        doWayMsg(partial_msg);
-      }
-      pubPartial.publish(partial_msg);
-      bytes_pub += ros::serialization::serializationLength(partial_msg);
+      ROS_WARN_THROTTLE(1.0, "[high_speed_tracking] FAST_LAP lost. Fallback to SAFE_LAP partial output.");
     }
+    autodrive_msgs::HUAT_PathLimits partial_msg = wayComputer->getPathLimitsGlobal(params->main.the_mode_of_partial_path);
+    if (params->main.debug_save_way_files)
+    {
+      doWayMsg(partial_msg);
+    }
+    pubPartial.publish(partial_msg);
+    bytes_pub += ros::serialization::serializationLength(partial_msg);
+    wasLoopClosed = false;
   }
   ros::WallDuration total_dur = ros::WallTime::now() - total_start;
   PerfSample sample;

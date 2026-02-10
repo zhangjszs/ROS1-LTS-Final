@@ -10,7 +10,6 @@
 #include <autodrive_msgs/HUAT_CarState.h>
 #include <autodrive_msgs/HUAT_PathLimits.h>
 #include <autodrive_msgs/HUAT_VehicleCmd.h>
-#include <nav_msgs/Path.h>
 #include <std_msgs/Bool.h>
 
 #include "control_core/high_controller.hpp"
@@ -131,15 +130,16 @@ private:
 
     if (mode_ == 2)
     {
-      sub_path_ = nh_.subscribe("/line_creat/line_global_path", 100, &ControlNode::PathCallback, this);
+      sub_pathlimits_ = nh_.subscribe("/line_detection/pathlimits", 100, &ControlNode::PathLimitsCallback, this);
     }
     else if (mode_ == 3)
     {
-      sub_path_ = nh_.subscribe("/skidpad_detection_node/log_path", 100, &ControlNode::PathCallback, this);
+      sub_pathlimits_ = nh_.subscribe("/skidpad_detection_node/pathlimits", 100, &ControlNode::PathLimitsCallback, this);
     }
     else if (mode_ != 1)
     {
       sub_high_path_ = nh_.subscribe("/AS/P/pathlimits/partial", 100, &ControlNode::HighPathCallback, this);
+      sub_high_path_full_ = nh_.subscribe("/AS/P/pathlimits/full", 100, &ControlNode::HighPathCallback, this);
     }
   }
 
@@ -164,37 +164,15 @@ private:
     pose_ready_ = true;
   }
 
-  void PathCallback(const nav_msgs::Path::ConstPtr &msgs)
-  {
-    if (!pose_ready_)
-    {
-      ROS_WARN("CarState not being received.");
-      return;
-    }
-    pose_ready_ = false;
-
-    std::vector<control_core::Position> path;
-    path.reserve(msgs->poses.size());
-    for (const auto &pose : msgs->poses)
-    {
-      control_core::Position pt;
-      pt.x = pose.pose.position.x;
-      pt.y = pose.pose.position.y;
-      path.push_back(pt);
-    }
-
-    if (controller_)
-    {
-      controller_->UpdatePath(path);
-    }
-    path_ready_ = true;
-  }
-
   void HighPathCallback(const autodrive_msgs::HUAT_PathLimits::ConstPtr &msgs)
   {
+    PathLimitsCallback(msgs);
+  }
+
+  void PathLimitsCallback(const autodrive_msgs::HUAT_PathLimits::ConstPtr &msgs)
+  {
     if (!pose_ready_)
     {
-      ROS_WARN("CarState not being received.");
       return;
     }
     pose_ready_ = false;
@@ -268,8 +246,9 @@ private:
   ros::NodeHandle nh_;
   ros::NodeHandle pnh_;
 
-  ros::Subscriber sub_path_;
   ros::Subscriber sub_high_path_;
+  ros::Subscriber sub_high_path_full_;
+  ros::Subscriber sub_pathlimits_;
   ros::Subscriber sub_pose_;
   ros::Subscriber sub_last_;
   ros::Publisher pub_cmd_;

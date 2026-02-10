@@ -53,6 +53,18 @@ class Params {
       double max_angle_diff_loop_closure;
       int vital_num_midpoints;
     } way;
+    struct Speed {
+      double speed_cap_safe;
+      double speed_cap_fast;
+      double max_lateral_acc;
+      double max_accel;
+      double max_brake;
+      double min_speed;
+      double curvature_epsilon;
+      int loop_close_debounce_frames;
+      int loop_open_debounce_frames;
+      int mode_min_hold_frames;
+    } speed;
   } wayComputer;
   struct Visualization {
     bool publish_viz_data;

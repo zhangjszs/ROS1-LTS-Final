@@ -20,6 +20,20 @@ metrics:
     D: "Waypoint Count"
     bytes: "Message Size"
 
+  # Localization-specific metrics
+  localization_time_metrics: [t_opt_ms, t_preint_ms, t_assoc_ms, t_prune_ms, t_total_loc_ms]
+  localization_data_metrics: [landmark_count, chi2_normalized, cone_match_ratio, gnss_availability]
+  localization_display_names:
+    t_opt_ms: "iSAM2 Optimization"
+    t_preint_ms: "IMU Preintegration"
+    t_assoc_ms: "Data Association"
+    t_prune_ms: "Landmark Pruning"
+    t_total_loc_ms: "Total Localization"
+    landmark_count: "Landmark Count"
+    chi2_normalized: "Normalized Chi²"
+    cone_match_ratio: "Cone Match Ratio"
+    gnss_availability: "GNSS Availability"
+
 thresholds:
   processing_time_ms:
     total: {warning: 40.0, critical: 50.0}
@@ -31,6 +45,18 @@ thresholds:
     message_size: {warning: 200000, critical: 300000}
   latency_percentiles:
     p99_p95_ratio: {warning: 1.3, critical: 1.5}
+
+  # Localization thresholds
+  localization_time_ms:
+    optimization: {warning: 3.0, critical: 5.0}
+    preintegration: {warning: 0.01, critical: 0.1}
+    association: {warning: 0.5, critical: 2.0}
+    pruning: {warning: 0.5, critical: 2.0}
+    total: {warning: 5.0, critical: 8.0}
+  localization_data:
+    landmark_count: {warning: 400, critical: 500}
+    chi2_normalized: {warning: 10.0, critical: 15.0}
+    cone_match_ratio_min: {warning: 0.5, critical: 0.3}
 
 visualization:
   chart_dpi: 300

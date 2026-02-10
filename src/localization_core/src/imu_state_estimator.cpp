@@ -28,16 +28,14 @@ bool ImuStateEstimator::Process(const Asensing &msg, double stamp_sec, CarState 
       out->W = std::sqrt(msg.x_angular_velocity * msg.x_angular_velocity +
                          msg.y_angular_velocity * msg.y_angular_velocity +
                          msg.z_angular_velocity * msg.z_angular_velocity);
-      const double ax = msg.x_acc * params_.accel_gravity;
-      const double ay = msg.y_acc * params_.accel_gravity;
-      const double az = msg.z_acc * params_.accel_gravity;
-      out->A = std::sqrt(ax * ax + ay * ay + az * az);
+      // HUAT_InsP2 加速度已经是 m/s²，不再乘以 g
+      out->A = std::sqrt(msg.x_acc * msg.x_acc + msg.y_acc * msg.y_acc + msg.z_acc * msg.z_acc);
 
       // FSSIM风格扩展状态
       out->Vy = 0.0;                         // 初始横向速度为0
       out->Wz = msg.z_angular_velocity;      // 偏航角速度
-      out->Ax = ax;                          // 纵向加速度
-      out->Ay = ay;                          // 横向加速度
+      out->Ax = msg.x_acc;                   // 纵向加速度
+      out->Ay = msg.y_acc;                   // 横向加速度
 
       double front_dx = 0.0;
       double front_dy = 0.0;
@@ -73,11 +71,12 @@ bool ImuStateEstimator::Process(const Asensing &msg, double stamp_sec, CarState 
 
   // 去除重力在车体坐标系x/y轴上的投影分量
   // FRD车体系下，重力投影: gx = g*sin(pitch), gy = -g*sin(roll)*cos(pitch)
+  // HUAT_InsP2 加速度已经是 m/s²，不再乘以 g
   const double g = params_.accel_gravity;
   const double roll_rad = msg.roll * kDegToRad;
   const double pitch_rad = msg.pitch * kDegToRad;
-  const double ax = msg.x_acc * g - g * std::sin(pitch_rad);
-  const double ay = msg.y_acc * g - (-g * std::sin(roll_rad) * std::cos(pitch_rad));
+  const double ax = msg.x_acc - g * std::sin(pitch_rad);
+  const double ay = msg.y_acc - (-g * std::sin(roll_rad) * std::cos(pitch_rad));
   const double gyro_z = msg.z_angular_velocity;
 
   Predict(dt, ax, ay, gyro_z);
@@ -192,10 +191,8 @@ bool ImuStateEstimator::Process(const Asensing &msg, double stamp_sec, CarState 
     out->W = std::sqrt(msg.x_angular_velocity * msg.x_angular_velocity +
                        msg.y_angular_velocity * msg.y_angular_velocity +
                        msg.z_angular_velocity * msg.z_angular_velocity);
-    const double ax_m = msg.x_acc * params_.accel_gravity;
-    const double ay_m = msg.y_acc * params_.accel_gravity;
-    const double az_m = msg.z_acc * params_.accel_gravity;
-    out->A = std::sqrt(ax_m * ax_m + ay_m * ay_m + az_m * az_m);
+    // HUAT_InsP2 加速度已经是 m/s²，不再乘以 g
+    out->A = std::sqrt(msg.x_acc * msg.x_acc + msg.y_acc * msg.y_acc + msg.z_acc * msg.z_acc);
 
     // FSSIM风格扩展状态
     // 计算车体坐标系下的速度
@@ -207,8 +204,8 @@ bool ImuStateEstimator::Process(const Asensing &msg, double stamp_sec, CarState 
     // vy_body = -vx_world * sin(yaw) + vy_world * cos(yaw)
     out->Vy = -x_(2) * sin_yaw + x_(3) * cos_yaw;  // 横向速度
     out->Wz = msg.z_angular_velocity;              // 偏航角速度
-    out->Ax = ax_m;                                // 纵向加速度
-    out->Ay = ay_m;                                // 横向加速度
+    out->Ax = msg.x_acc;                           // 纵向加速度
+    out->Ay = msg.y_acc;                           // 横向加速度
 
     double front_dx = 0.0;
     double front_dy = 0.0;
