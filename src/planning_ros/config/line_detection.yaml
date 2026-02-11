@@ -48,7 +48,7 @@ path:
   interval: 0.1
 
   # Total path distance for acceleration + braking (meters)
-  max_distance: 175.0
+  max_distance: 150.0
 
   # Starting X position for path generation (meters)
   start_x: 1.0
