@@ -22,7 +22,6 @@
     <arg name="localization_vehicle_local_config" default=""/>
     <arg name="control_vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/control.yaml"/>
     <arg name="control_vehicle_local_config" default=""/>
-    <arg name="planner" default="unified" doc="规划器: high_speed(旧) | unified(新统一管线)"/>
     <arg name="publish_base_to_velodyne_tf" default="true" doc="发布 base_link->velodyne 静态TF"/>
     <arg name="velodyne_x" default="0.0" doc="velodyne 相对 base_link 的 x"/>
     <arg name="velodyne_y" default="0.0" doc="velodyne 相对 base_link 的 y"/>
@@ -60,14 +59,12 @@
     </include>
 
     <include file="$(find fsd_launch)/launch/subsystems/planning.launch">
-        <arg name="planner" value="$(arg planner)"/>
         <arg name="mission" value="high_speed"/>
     </include>
 
     <include file="$(find fsd_launch)/launch/subsystems/control.launch">
         <arg name="mode" value="track"/>
         <arg name="control_mode" value="4"/>
-        <arg name="planner" value="$(arg planner)"/>
         <arg name="vehicle" value="$(arg vehicle)"/>
         <arg name="vehicle_config" value="$(arg control_vehicle_config)"/>
         <arg name="vehicle_local_config" value="$(arg control_vehicle_local_config)"/>

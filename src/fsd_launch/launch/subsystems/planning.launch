@@ -1,28 +1,22 @@
 <!--
   FSD Planning Subsystem
-  规划子系统：路径规划（支持多种规划器）
+  规划子系统：统一路径规划管线
+  
+  Phase 3 Cleanup: Removed legacy planner selection (high_speed/line/skidpad).
+  Only unified pipeline and none option remain.
 -->
 <launch>
-    <arg name="planner" default="unified" doc="规划器类型: high_speed, skidpad, line, unified, none"/>
-    <arg name="mission" default="" doc="统一规划器的 mission 参数（仅 planner:=unified 时使用）"/>
+    <arg name="mission" default="high_speed" doc="Mission type: high_speed, line, skidpad"/>
+    <arg name="planner" default="unified" doc="planner type: unified | none (none for EBS test)"/>
 
-    <!-- High Speed Tracking (旧节点，保留 A/B 对比) -->
-    <include if="$(eval planner == 'high_speed')" file="$(find planning_ros)/launch/high_speed_tracking.launch"/>
-
-    <!-- Skidpad Detection (旧节点，保留 A/B 对比) -->
-    <include if="$(eval planner == 'skidpad')" file="$(find planning_ros)/launch/skidpad_detection.launch"/>
-
-    <!-- Line Detection (旧节点，保留 A/B 对比) -->
-    <include if="$(eval planner == 'line')" file="$(find planning_ros)/launch/line_detection.launch"/>
-
-    <!-- Unified Pipeline (新节点) -->
-    <include if="$(eval planner == 'unified')" file="$(find planning_ros)/launch/planning_pipeline.launch">
-        <arg name="mission" value="$(eval arg('mission') if arg('mission') != '' else 'high_speed')"/>
+    <!-- Unified Planning Pipeline -->
+    <include if="$(eval arg('planner') == 'unified')" file="$(find planning_ros)/launch/planning_pipeline.launch">
+        <arg name="mission" value="$(arg mission)"/>
     </include>
 
-    <!-- none: 预留接口（例如 EBS 测试下仅保留感知/定位/控制） -->
-    <group if="$(eval planner == 'none')">
+    <!-- None: for EBS test without planning -->
+    <group if="$(eval arg('planner') == 'none')">
         <node pkg="rospy" type="message" name="planning_disabled_notice" output="screen"
-              args="planning disabled (planner:=none), reserved for EBS interface"/>
+              args="Planning disabled (planner:=none) - EBS test mode"/>
     </group>
 </launch>
