@@ -43,11 +43,23 @@ PlanningPipelineNode::PlanningPipelineNode(ros::NodeHandle &nh, const std::strin
 
 void PlanningPipelineNode::InitLine(ros::NodeHandle &nh)
 {
+  // Override topic names to publish to unified topic
+  ros::NodeHandle pnh("~");
+  std::string output_topic;
+  pnh.param<std::string>("output_pathlimits_topic", output_topic, "planning/pathlimits");
+  pnh.setParam("topics/pathlimits", output_topic);
+  
   line_node_ = std::make_unique<LineDetectionNode>(nh);
 }
 
 void PlanningPipelineNode::InitSkidpad(ros::NodeHandle &nh)
 {
+  // Override topic names to publish to unified topic
+  ros::NodeHandle pnh("~");
+  std::string output_topic;
+  pnh.param<std::string>("output_pathlimits_topic", output_topic, "planning/pathlimits");
+  pnh.setParam("topics/pathlimits", output_topic);
+  
   skidpad_node_ = std::make_unique<SkidpadDetectionNode>(nh);
 }
 
