@@ -425,6 +425,12 @@ struct LidarClusterConfig
   {
     bool enable = true;
     double radius = 0.5;  // [m] suppression radius
+    // Stacked cone detection
+    bool stacked_enable = false;
+    double z_height_threshold = 0.3;    // Z轴高度差阈值 (m)
+    double stacked_xy_threshold = 0.4;  // XY平面距离阈值 (m)
+    int max_layers = 3;
+    double layer_height = 0.25;         // 每层高度 (m)
   };
   DedupConfig dedup;
 

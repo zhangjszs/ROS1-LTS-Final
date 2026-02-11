@@ -577,6 +577,43 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
     map_out->cones.push_back(cone_msg);
   }
 
+  // 缺锥插值：检测相邻锥间距过大的间隙，线性插值虚拟锥
+  if (params_.missing_cone_fallback.enabled)
+  {
+    interpolateMissingCones(map_out);
+  }
+
+  // 短路径抑制：锥桶数量或空间范围不足时清空输出
+  if (params_.short_path_suppression.enabled && !map_out->cones.empty())
+  {
+    const auto &sps = params_.short_path_suppression;
+    const int cone_count = static_cast<int>(map_out->cones.size());
+
+    if (sps.reject_single_cone_paths && cone_count <= 1)
+    {
+      map_out->cones.clear();
+    }
+    else if (cone_count < sps.min_cone_count)
+    {
+      map_out->cones.clear();
+    }
+    else
+    {
+      // 计算锥桶空间范围（base_link 坐标系下的 X 跨度）
+      double x_min = map_out->cones[0].position_base_link.x;
+      double x_max = x_min;
+      for (const auto &c : map_out->cones)
+      {
+        if (c.position_base_link.x < x_min) x_min = c.position_base_link.x;
+        if (c.position_base_link.x > x_max) x_max = c.position_base_link.x;
+      }
+      if ((x_max - x_min) < sps.min_path_length)
+      {
+        map_out->cones.clear();
+      }
+    }
+  }
+
   if (cloud_out)
   {
     *cloud_out = cloud_;
@@ -647,6 +684,72 @@ bool LocationMapper::passesGeometryFilter(double lx, double ly) const
   }
   // track 模式：不做额外约束
   return true;
+}
+
+void LocationMapper::interpolateMissingCones(ConeMap *map_out) const
+{
+  if (!map_out || map_out->cones.size() < 2)
+  {
+    return;
+  }
+
+  const auto &cfg = params_.missing_cone_fallback;
+  const double gap_threshold = cfg.expected_spacing * 1.5;
+
+  // 按 base_link.x 排序（前方为正）
+  std::vector<size_t> order(map_out->cones.size());
+  for (size_t i = 0; i < order.size(); ++i) order[i] = i;
+  std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
+    return map_out->cones[a].position_base_link.x < map_out->cones[b].position_base_link.x;
+  });
+
+  std::vector<Cone> interpolated;
+  for (size_t k = 0; k + 1 < order.size(); ++k)
+  {
+    const auto &c1 = map_out->cones[order[k]];
+    const auto &c2 = map_out->cones[order[k + 1]];
+
+    const double dx = c2.position_base_link.x - c1.position_base_link.x;
+    const double dy = c2.position_base_link.y - c1.position_base_link.y;
+    const double dist = std::sqrt(dx * dx + dy * dy);
+
+    if (dist <= gap_threshold || dist > cfg.max_interpolation_distance)
+    {
+      continue;
+    }
+
+    // 计算需要插值的锥桶数量
+    int n_missing = static_cast<int>(std::round(dist / cfg.expected_spacing)) - 1;
+    n_missing = std::min(n_missing, cfg.max_consecutive_missing);
+    if (n_missing <= 0)
+    {
+      continue;
+    }
+
+    for (int m = 1; m <= n_missing; ++m)
+    {
+      const double t = static_cast<double>(m) / static_cast<double>(n_missing + 1);
+      Cone vc;
+      vc.position_base_link.x = c1.position_base_link.x + t * dx;
+      vc.position_base_link.y = c1.position_base_link.y + t * dy;
+      vc.position_base_link.z = (c1.position_base_link.z + c2.position_base_link.z) * 0.5;
+
+      // 全局坐标也做线性插值
+      vc.position_global.x = c1.position_global.x + t * (c2.position_global.x - c1.position_global.x);
+      vc.position_global.y = c1.position_global.y + t * (c2.position_global.y - c1.position_global.y);
+      vc.position_global.z = (c1.position_global.z + c2.position_global.z) * 0.5;
+
+      vc.id = 0;  // 虚拟锥，ID=0
+      vc.confidence = static_cast<std::uint32_t>(cfg.min_confidence_for_interpolation * 1000.0);
+      vc.type = kConeNone;
+      interpolated.push_back(vc);
+    }
+  }
+
+  for (auto &c : interpolated)
+  {
+    map_out->cones.push_back(std::move(c));
+  }
 }
 
 }  // namespace localization_core

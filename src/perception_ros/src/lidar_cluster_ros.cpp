@@ -768,6 +768,13 @@ void LidarClusterRos::loadParams()
   private_nh_.param<bool>("dedup/enable", config_.dedup.enable, true);
   private_nh_.param<double>("dedup/radius", config_.dedup.radius, 0.5);
 
+  // ---- Stacked Cone Detection 参数加载 ----
+  private_nh_.param<bool>("stacked_cone_detection/enabled", config_.dedup.stacked_enable, false);
+  private_nh_.param<double>("stacked_cone_detection/vertical_layers/layer_height", config_.dedup.layer_height, 0.25);
+  private_nh_.param<int>("stacked_cone_detection/vertical_layers/max_layers", config_.dedup.max_layers, 3);
+  private_nh_.param<double>("stacked_cone_detection/identification/max_xy_distance", config_.dedup.stacked_xy_threshold, 0.4);
+  private_nh_.param<double>("stacked_cone_detection/identification/height_variation_threshold", config_.dedup.z_height_threshold, 0.3);
+
   // ---- 距离自适应Y轴ROI参数 ----
   private_nh_.param<bool>("roi/adaptive_y/enable", config_.roi.adaptive_y.enable, false);
   private_nh_.param<double>("roi/adaptive_y/near_y_half", config_.roi.adaptive_y.near_y_half, 5.0);

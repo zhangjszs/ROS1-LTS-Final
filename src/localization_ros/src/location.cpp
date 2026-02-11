@@ -203,6 +203,27 @@ void LocationNode::loadParameters()
   LoadParam(pnh_, nh_, "map/circle_center_dist", params_.circle_center_dist, 18.25);
   LoadParam(pnh_, nh_, "map/circle_tolerance", params_.circle_tolerance, 2.0);
 
+  // 缺锥补偿参数
+  LoadParam(pnh_, nh_, "missing_cone_fallback/enabled", params_.missing_cone_fallback.enabled, false);
+  LoadParam(pnh_, nh_, "missing_cone_fallback/max_interpolation_distance", params_.missing_cone_fallback.max_interpolation_distance, 8.0);
+  LoadParam(pnh_, nh_, "missing_cone_fallback/expected_spacing", params_.missing_cone_fallback.expected_spacing, 5.0);
+  LoadParam(pnh_, nh_, "missing_cone_fallback/min_confidence_for_interpolation", params_.missing_cone_fallback.min_confidence_for_interpolation, 0.15);
+  {
+    int tmp_max_missing = params_.missing_cone_fallback.max_consecutive_missing;
+    LoadParam(pnh_, nh_, "missing_cone_fallback/max_consecutive_missing", tmp_max_missing, 3);
+    params_.missing_cone_fallback.max_consecutive_missing = tmp_max_missing;
+  }
+
+  // 短路径抑制参数
+  LoadParam(pnh_, nh_, "short_path_suppression/enabled", params_.short_path_suppression.enabled, false);
+  LoadParam(pnh_, nh_, "short_path_suppression/min_path_length", params_.short_path_suppression.min_path_length, 3.0);
+  {
+    int tmp_min_count = params_.short_path_suppression.min_cone_count;
+    LoadParam(pnh_, nh_, "short_path_suppression/min_cone_count", tmp_min_count, 3);
+    params_.short_path_suppression.min_cone_count = tmp_min_count;
+  }
+  LoadParam(pnh_, nh_, "short_path_suppression/reject_single_cone_paths", params_.short_path_suppression.reject_single_cone_paths, true);
+
   // 模式预设覆盖：从 map/mode_presets/<mode>/ 读取并覆盖对应参数
   const std::string preset_prefix = "map/mode_presets/" + params_.map_mode + "/";
   double tmp_d;

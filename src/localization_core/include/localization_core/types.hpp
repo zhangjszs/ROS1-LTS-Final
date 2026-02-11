@@ -121,6 +121,25 @@ struct LocationParams {
   double circle_radius = 15.25;          // 圆半径 (m)
   double circle_center_dist = 18.25;     // 两圆心距离 (m)
   double circle_tolerance = 2.0;         // 圆弧验证容差 (m)
+
+  // 缺锥补偿（Missing Cone Fallback）
+  struct MissingConeFallback {
+    bool enabled = false;
+    double max_interpolation_distance = 8.0;  // 最大插值距离 (m)
+    double expected_spacing = 5.0;            // 预期锥桶间距 (m)
+    double min_confidence_for_interpolation = 0.15;
+    int max_consecutive_missing = 3;
+  };
+  MissingConeFallback missing_cone_fallback;
+
+  // 短路径抑制（Short Path Suppression）
+  struct ShortPathSuppression {
+    bool enabled = false;
+    double min_path_length = 3.0;   // 最小有效路径长度 (m)
+    int min_cone_count = 3;         // 最小锥桶数量
+    bool reject_single_cone_paths = true;
+  };
+  ShortPathSuppression short_path_suppression;
 };
 
 using PointCloud = pcl::PointCloud<pcl::PointXYZ>;

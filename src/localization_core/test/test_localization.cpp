@@ -8,6 +8,7 @@
 #include "localization_core/descriptor_relocator.hpp"
 #include "localization_core/imu_state_estimator.hpp"
 #include "localization_core/particle_relocator.hpp"
+#include "localization_core/location_mapper.hpp"
 
 #include <gtsam/base/numericalDerivative.h>
 #include <gtsam/geometry/Point2.h>
@@ -490,6 +491,109 @@ TEST(CircleConstraintFactorTest, Clone) {
   CircleConstraintFactor factor(gtsam::Symbol('l', 0), c1, c2, 5.0, noise);
   auto cloned = factor.clone();
   EXPECT_NE(cloned, nullptr);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LocationMapper tests (geometry robustness)
+// ═══════════════════════════════════════════════════════════════
+
+class LocationMapperTest : public ::testing::Test {
+ protected:
+  LocationParams params_;
+  void SetUp() override {
+    params_.merge_distance = 2.5;
+    params_.max_map_size = 500;
+    params_.min_obs_to_keep = 1;
+    params_.local_cone_range = 50.0;
+    params_.min_confidence_to_add = 0.0;
+    params_.min_confidence_to_merge = 0.0;
+    params_.max_cone_height = 1.0;
+    params_.max_cone_width = 1.0;
+    params_.min_cone_height = 0.01;
+  }
+
+  // Helper: create a CarState at origin and feed it to mapper
+  void initMapper(LocationMapper &mapper) {
+    CarState cs;
+    cs.car_state.x = 0.0;
+    cs.car_state.y = 0.0;
+    cs.car_state.theta = 0.0;
+    cs.V = 0.0;
+    mapper.UpdateFromCarState(cs);
+  }
+
+  // Helper: create detections along X axis at given positions
+  ConeDetections makeDetections(const std::vector<double> &x_positions, double y = 0.0) {
+    ConeDetections dets;
+    for (double x : x_positions) {
+      ConeDetection d;
+      d.point.x = x;
+      d.point.y = y;
+      d.point.z = 0.15;
+      d.bbox_min = {x - 0.1, y - 0.1, 0.0};
+      d.bbox_max = {x + 0.1, y + 0.1, 0.3};
+      d.confidence = 0.5;
+      d.color_type = 4;  // NONE
+      dets.detections.push_back(d);
+    }
+    return dets;
+  }
+};
+
+TEST_F(LocationMapperTest, ShortPathSuppression_FewCones_ClearsOutput) {
+  params_.short_path_suppression.enabled = true;
+  params_.short_path_suppression.min_cone_count = 3;
+  params_.short_path_suppression.min_path_length = 3.0;
+  params_.short_path_suppression.reject_single_cone_paths = true;
+
+  LocationMapper mapper(params_);
+  initMapper(mapper);
+
+  // 2 cones close together (< min_cone_count)
+  auto dets = makeDetections({3.0, 3.5});
+  ConeMap map;
+  PointCloudPtr cloud;
+  mapper.UpdateFromCones(dets, &map, &cloud);
+
+  EXPECT_TRUE(map.cones.empty());
+}
+
+TEST_F(LocationMapperTest, ShortPathSuppression_EnoughCones_Passes) {
+  params_.short_path_suppression.enabled = true;
+  params_.short_path_suppression.min_cone_count = 3;
+  params_.short_path_suppression.min_path_length = 3.0;
+  params_.short_path_suppression.reject_single_cone_paths = true;
+
+  LocationMapper mapper(params_);
+  initMapper(mapper);
+
+  // 5 cones spaced 5m apart (total span = 20m)
+  auto dets = makeDetections({5.0, 10.0, 15.0, 20.0, 25.0});
+  ConeMap map;
+  PointCloudPtr cloud;
+  mapper.UpdateFromCones(dets, &map, &cloud);
+
+  EXPECT_GE(static_cast<int>(map.cones.size()), 3);
+}
+
+TEST_F(LocationMapperTest, MissingConeFallback_InterpolatesGap) {
+  params_.missing_cone_fallback.enabled = true;
+  params_.missing_cone_fallback.expected_spacing = 5.0;
+  params_.missing_cone_fallback.max_interpolation_distance = 20.0;
+  params_.missing_cone_fallback.min_confidence_for_interpolation = 0.15;
+  params_.missing_cone_fallback.max_consecutive_missing = 3;
+
+  LocationMapper mapper(params_);
+  initMapper(mapper);
+
+  // 2 cones 15m apart (gap = 3x expected_spacing, should interpolate)
+  auto dets = makeDetections({5.0, 20.0});
+  ConeMap map;
+  PointCloudPtr cloud;
+  mapper.UpdateFromCones(dets, &map, &cloud);
+
+  // Should have original 2 + interpolated cones
+  EXPECT_GT(static_cast<int>(map.cones.size()), 2);
 }
 
 int main(int argc, char **argv) {

@@ -1673,8 +1673,26 @@ void lidar_cluster::deduplicateDetections(std::vector<ConeDetection>& cones,
             if (suppressed[jdx]) continue;
             double dx = cones[idx].centroid.x - cones[jdx].centroid.x;
             double dy = cones[idx].centroid.y - cones[jdx].centroid.y;
-            if (dx * dx + dy * dy < radius_sq) {
+            double xy_dist_sq = dx * dx + dy * dy;
+            if (xy_dist_sq < radius_sq) {
                 suppressed[jdx] = true;
+            }
+            // Stacked cone detection: Z-axis check for vertically stacked cones
+            else if (config_.dedup.stacked_enable) {
+                double stacked_xy_sq = config_.dedup.stacked_xy_threshold * config_.dedup.stacked_xy_threshold;
+                if (xy_dist_sq < stacked_xy_sq) {
+                    double dz = std::abs(cones[idx].centroid.z - cones[jdx].centroid.z);
+                    // Suppress if Z difference is within threshold or is an integer multiple of layer_height
+                    if (dz < config_.dedup.z_height_threshold) {
+                        suppressed[jdx] = true;
+                    } else if (config_.dedup.layer_height > 0.01) {
+                        double ratio = dz / config_.dedup.layer_height;
+                        double frac = ratio - std::floor(ratio + 0.5);
+                        if (std::abs(frac) < 0.3 && static_cast<int>(std::round(ratio)) <= config_.dedup.max_layers) {
+                            suppressed[jdx] = true;
+                        }
+                    }
+                }
             }
         }
     }

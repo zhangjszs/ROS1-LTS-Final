@@ -5,16 +5,16 @@
 <launch>
   <arg name="mission" default="high_speed" doc="任务类型: line, acceleration, skidpad, high_speed, trackdrive, autocross"/>
 
-  <!-- 按 mission 加载对应 config -->
-  <rosparam if="$(eval arg('mission') in ('line', 'acceleration'))"
-            command="load" file="$(find planning_ros)/config/line_detection.yaml"/>
-  <rosparam if="$(eval arg('mission') == 'skidpad')"
-            command="load" file="$(find planning_ros)/config/skidpad_detection.yaml"/>
-  <rosparam if="$(eval arg('mission') in ('high_speed', 'trackdrive', 'autocross'))"
-            command="load" file="$(find planning_ros)/config/high_speed_tracking.yml"/>
-
   <node pkg="planning_ros" type="planning_pipeline_node" name="planning_pipeline" output="screen">
     <param name="mission" value="$(arg mission)"/>
     <param name="output_pathlimits_topic" value="planning/pathlimits"/>
+
+    <!-- 按 mission 加载对应 config 到节点私有命名空间 -->
+    <rosparam if="$(eval arg('mission') in ('line', 'acceleration'))"
+              command="load" file="$(find planning_ros)/config/line_detection.yaml"/>
+    <rosparam if="$(eval arg('mission') == 'skidpad')"
+              command="load" file="$(find planning_ros)/config/skidpad_detection.yaml"/>
+    <rosparam if="$(eval arg('mission') in ('high_speed', 'trackdrive', 'autocross'))"
+              command="load" file="$(find planning_ros)/config/high_speed_tracking.yml"/>
   </node>
 </launch>

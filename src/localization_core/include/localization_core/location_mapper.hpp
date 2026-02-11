@@ -36,6 +36,8 @@ class LocationMapper {
 
   bool passesGeometryFilter(double lx, double ly) const;
 
+  void interpolateMissingCones(ConeMap *map_out) const;
+
   LocationParams params_;
   std::string data_root_;
 
