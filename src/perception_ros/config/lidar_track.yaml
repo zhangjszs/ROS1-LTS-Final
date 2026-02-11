@@ -19,3 +19,53 @@ tracker:
   enable: true                       # 启用时序跟踪器
 topology:
   enable: true                       # 启用拓扑修复
+
+# ==========================
+# TrackDrive Geometry Robustness Overlay
+# 高速循迹模式几何鲁棒性增强
+# ==========================
+
+# 堆叠锥检测（高速场景锥桶密集）
+stacked_cone_detection:
+  vertical_layers:
+    layer_height: 0.2               # 更精细的分层（高速需要更高精度）
+    max_layers: 4                   # 更多层数（应对堆叠）
+  deduplication:
+    cluster_tolerance: 0.4          # 稍宽松的聚类（高速动态）
+  near_range:
+    distance_threshold: 8.0         # 扩大近距范围
+    stricter_xy_threshold: 0.3      # 高速需要更严格的去重
+
+# 缺锥预测（高速场景遮挡多）
+occlusion_handling:
+  detection:
+    angle_gap_threshold: 20.0       # 更大的角度间隙容忍
+  missing_cone_prediction:
+    max_prediction_distance: 12.0   # 更长的预测距离
+    prediction_confidence: 0.2      # 稍低的预测置信度（保守）
+    max_consecutive_predictions: 3  # 更多连续预测
+
+# 短检测抑制（高速场景噪声多）
+short_detection_suppression:
+  single_frame:
+    min_detections_for_valid: 3     # 更严格的帧数要求
+    min_confidence: 0.35            # 更高的置信度门槛
+  temporal_continuity:
+    min_track_length: 4             # 更长的跟踪长度
+
+# 几何一致性（高速场景稳定性优先）
+geometric_consistency:
+  size_consistency:
+    max_height_variance: 0.12       # 更严格的高度方差
+    max_area_variance: 0.04         # 更严格的面积方差
+  spatial_distribution:
+    max_spacing_variance: 3.0       # 更严格的间距方差
+
+# 回环优化（TrackDrive需要频繁回环）
+loop_closure_optimization:
+  feature_stability:
+    min_feature_lifetime: 8         # 更长的特征寿命
+    reidentification_threshold: 0.75 # 更高的重识别门槛
+  observation_stability:
+    min_observation_frames: 5       # 更多的观测帧数
+

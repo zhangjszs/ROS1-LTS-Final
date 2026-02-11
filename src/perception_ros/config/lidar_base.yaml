@@ -454,3 +454,149 @@ imu:
 perf_stats_enable: false           # 性能统计开关
 perf_stats_window: 300            # 统计窗口大小
 perf_stats_log_every: 50          # 打印频率
+
+# ==========================
+# GEOMETRY ROBUSTNESS ENHANCEMENT
+# 几何鲁棒性增强配置 - 非视觉模式
+# ==========================
+
+# 非视觉模式标识
+vision_independent_mode:
+  enabled: true                     # 启用视觉无关模式
+  pure_geometry_output: true        # 仅输出几何信息
+  skip_color_classification: true   # 跳过颜色分类
+  geometry_only_confidence: true    # 仅基于几何计算置信度
+
+# 堆叠锥检测与去重增强
+stacked_cone_detection:
+  enabled: true                     # 启用堆叠锥检测
+  # 垂直分层检测
+  vertical_layers:
+    enabled: true                   # 启用垂直分层
+    layer_height: 0.25              # 每层高度 (m)
+    max_layers: 3                   # 最大层数
+    overlap_threshold: 0.5          # 层间重叠阈值
+  
+  # 堆叠锥识别
+  identification:
+    min_points_per_layer: 5         # 每层最小点数
+    max_xy_distance: 0.4            # XY平面最大距离 (m)
+    height_variation_threshold: 0.1 # 高度变化阈值 (m)
+    confidence_threshold: 0.3       # 堆叠锥识别置信度
+  
+  # 去重策略
+  deduplication:
+    method: clustering              # 去重方法: clustering | grid | nearest
+    cluster_tolerance: 0.5          # 聚类距离阈值 (m)
+    min_cluster_size: 2             # 最小聚类大小（堆叠锥至少2层）
+    max_cluster_size: 10            # 最大聚类大小
+    representative_selection: highest_confidence  # 代表点选择: highest_confidence | centroid | lowest
+    
+  # 近距锥桶特殊处理（堆叠高发区）
+  near_range:
+    distance_threshold: 5.0         # 近距阈值 (m)
+    enhanced_dedup: true            # 增强去重
+    stricter_xy_threshold: 0.25     # 更严格的XY阈值 (m)
+    layer_separation: 0.15          # 层间分离度 (m)
+
+# 遮挡与缺锥处理
+occlusion_handling:
+  enabled: true                     # 启用遮挡处理
+  
+  # 遮挡检测
+  detection:
+    method: ray_tracing             # 检测方法: ray_tracing | angle_gap | density
+    angle_gap_threshold: 15.0       # 角度间隙阈值 (度)
+    min_occluded_cones: 1           # 最小遮挡锥数
+    occlusion_confidence_drop: 0.3  # 遮挡置信度下降
+  
+  # 缺失锥桶预测
+  missing_cone_prediction:
+    enabled: true                   # 启用缺失预测
+    use_spacing_model: true         # 使用间距模型
+    expected_spacing: 5.0           # 预期间距 (m)
+    spacing_tolerance: 1.5          # 间距容差 (m)
+    max_prediction_distance: 10.0   # 最大预测距离 (m)
+    prediction_confidence: 0.25     # 预测锥桶置信度
+    max_consecutive_predictions: 2  # 最大连续预测数
+    
+  # 几何插值
+  geometric_interpolation:
+    enabled: true                   # 启用几何插值
+    method: linear                  # 插值方法: linear | spline | arc
+    max_interpolation_gap: 8.0      # 最大插值间隙 (m)
+    use_track_curvature: true       # 使用赛道曲率
+    curvature_estimate_window: 5    # 曲率估计窗口
+
+# 短检测抑制（Short Detection Suppression）
+short_detection_suppression:
+  enabled: true                     # 启用短检测抑制
+  
+  # 单帧抑制
+  single_frame:
+    min_detections_for_valid: 2     # 有效检测最小帧数
+    min_confidence: 0.3             # 最小置信度
+    
+  # 空间连续性检查
+  spatial_continuity:
+    enabled: true                   # 启用空间连续性
+    check_neighbor_detections: true # 检查邻居检测
+    neighbor_radius: 3.0            # 邻居半径 (m)
+    min_neighbors: 1                # 最小邻居数
+    
+  # 时间连续性检查
+  temporal_continuity:
+    enabled: true                   # 启用时间连续性
+    min_track_length: 3             # 最小跟踪长度（帧）
+    max_gap_frames: 2               # 最大间隙帧数
+
+# 几何一致性检查（Geometric Consistency Check）
+geometric_consistency:
+  enabled: true                     # 启用几何一致性检查
+  
+  # 尺寸一致性
+  size_consistency:
+    check_height_variance: true     # 检查高度方差
+    max_height_variance: 0.15       # 最大高度方差 (m)
+    check_area_variance: true       # 检查面积方差
+    max_area_variance: 0.05         # 最大面积方差 (m²)
+    
+  # 空间分布一致性
+  spatial_distribution:
+    check_local_density: true       # 检查局部密度
+    expected_density_range: [10, 100]  # 预期密度范围
+    check_spacing_uniformity: true  # 检查间距均匀性
+    max_spacing_variance: 4.0       # 最大间距方差 (m²)
+    
+  # 角度分布一致性
+  angular_distribution:
+    check_bearing_variance: true    # 检查方位角方差
+    max_bearing_variance: 45.0      # 最大方位角方差 (度)
+    check_elevation_variance: true  # 检查俯仰角方差
+    max_elevation_variance: 10.0    # 最大俯仰角方差 (度)
+
+# 回环场景优化（Loop Closure Optimization）
+loop_closure_optimization:
+  enabled: true                     # 启用回环优化
+  
+  # 特征稳定性
+  feature_stability:
+    min_feature_lifetime: 5         # 最小特征寿命（帧）
+    feature_reidentification: true  # 特征重识别
+    reidentification_threshold: 0.7 # 重识别阈值
+    
+  # 观测稳定性
+  observation_stability:
+    require_multi_frame_obs: true   # 要求多帧观测
+    min_observation_frames: 3       # 最小观测帧数
+    observation_consistency_check: true  # 观测一致性检查
+    max_observation_variance: 0.5   # 最大观测方差 (m)
+    
+  # 几何验证
+  geometric_verification:
+    check_relative_geometry: true   # 检查相对几何
+    check_distance_consistency: true # 检查距离一致性
+    distance_tolerance: 0.5         # 距离容差 (m)
+    check_angle_consistency: true   # 检查角度一致性
+    angle_tolerance: 10.0           # 角度容差 (度)
+

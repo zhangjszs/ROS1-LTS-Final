@@ -19,3 +19,65 @@ tracker:
   enable: false                      # 关闭时序跟踪器
 topology:
   enable: false                      # 关闭拓扑修复
+
+# ==========================
+# Skidpad Geometry Robustness Overlay
+# 八字绕环模式几何鲁棒性增强
+# ==========================
+
+# 堆叠锥检测（八字场景锥桶密集且多层）
+stacked_cone_detection:
+  vertical_layers:
+    layer_height: 0.15              # 更精细的分层（密集场景）
+    max_layers: 5                   # 更多层数
+  deduplication:
+    cluster_tolerance: 0.35         # 更严格的聚类（密集场景）
+  near_range:
+    distance_threshold: 6.0         # 中等近距范围
+    stricter_xy_threshold: 0.2      # 非常严格的去重
+
+# 缺锥预测（八字场景需要圆环连续性）
+occlusion_handling:
+  detection:
+    angle_gap_threshold: 25.0       # 大的角度间隙容忍（圆环几何）
+  missing_cone_prediction:
+    max_prediction_distance: 8.0    # 中等预测距离
+    prediction_confidence: 0.2      # 保守的预测置信度
+    max_consecutive_predictions: 4  # 更多的连续预测（圆环需要连续性）
+  geometric_interpolation:
+    method: arc                     # 使用圆弧插值（八字场景）
+    max_interpolation_gap: 6.0      # 中等插值间隙
+    use_track_curvature: true       # 使用曲率（重要）
+    curvature_estimate_window: 8    # 更大的曲率估计窗口
+
+# 短检测抑制（八字场景需要稳定的圆环检测）
+short_detection_suppression:
+  single_frame:
+    min_detections_for_valid: 4     # 非常严格的帧数要求
+    min_confidence: 0.4             # 高置信度门槛
+  temporal_continuity:
+    min_track_length: 5             # 很长的跟踪长度
+    max_gap_frames: 1               # 很小的间隙容忍
+
+# 几何一致性（八字场景需要完美的圆环几何）
+geometric_consistency:
+  size_consistency:
+    max_height_variance: 0.1        # 非常严格的高度方差
+    max_area_variance: 0.03         # 非常严格的面积方差
+  spatial_distribution:
+    check_spacing_uniformity: true  # 检查圆环间距均匀性
+    max_spacing_variance: 2.0       # 非常严格的间距方差
+  angular_distribution:
+    check_bearing_variance: true    # 检查方位角变化（圆环特征）
+    max_bearing_variance: 30.0      # 允许圆环方位角变化
+
+# 回环优化（八字场景的回环特殊）
+loop_closure_optimization:
+  feature_stability:
+    min_feature_lifetime: 10        # 最长的特征寿命
+    reidentification_threshold: 0.8 # 最高的重识别门槛
+  geometric_verification:
+    check_relative_geometry: true   # 检查圆环相对几何
+    check_distance_consistency: true
+    distance_tolerance: 0.3         # 非常严格的距离容差
+

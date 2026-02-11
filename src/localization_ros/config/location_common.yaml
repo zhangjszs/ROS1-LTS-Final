@@ -95,3 +95,120 @@ fg:
     particle_sigma_xy: 3.0           # 粒子位置噪声 (m)
     converge_sigma: 0.5              # 收敛判定标准差 (m)
     timeout: 5.0                     # 重定位超时 (s)
+
+# ==========================
+# GEOMETRY ROBUSTNESS ENHANCEMENT (非视觉模式锁定)
+# ==========================
+# Mode: NON-VISION / PURE GEOMETRY
+# w_color locked to 0.0, color features disabled
+
+# 非视觉模式强制配置
+vision_mode:
+  enabled: false                    # 视觉模式总开关（锁定为false）
+  w_color_locked: 0.0              # 颜色权重锁定为0
+  color_classification: NONE       # 颜色分类模式: NONE | CAMERA | FUSION
+  
+# 几何降级策略（当视觉不可用时）
+geometry_fallback:
+  enabled: true                     # 启用纯几何降级
+  min_observations: 2               # 纯几何模式最小观测数
+  use_geometric_features_only: true # 仅使用几何特征
+  
+# 堆叠锥去重增强（Stacked Cone Dedup）
+stacked_cone_dedup:
+  enabled: true                     # 启用堆叠锥去重
+  z_height_threshold: 0.3           # Z轴高度差阈值 (m)
+  xy_distance_threshold: 0.3        # XY平面距离阈值 (m)
+  max_cones_per_cell: 1             # 每个栅格最大锥桶数
+  cell_size: 0.5                    # 栅格大小 (m)
+  multi_layer_check: true           # 多层检测（处理堆叠）
+  confidence_decay: 0.8             # 堆叠锥置信度衰减系数
+
+# 缺锥 Fallback（Missing Cone Fallback）
+missing_cone_fallback:
+  enabled: true                     # 启用缺锥补偿
+  max_interpolation_distance: 8.0   # 最大插值距离 (m)
+  expected_spacing: 5.0             # 预期锥桶间距 (m)
+  min_confidence_for_interpolation: 0.15  # 插值最小置信度
+  max_consecutive_missing: 3        # 最大连续缺失数
+  use_track_direction: true         # 利用赛道方向预测
+  history_frames: 5                 # 历史帧数用于预测
+  
+# 短路径抑制（Short Path Suppression）
+short_path_suppression:
+  enabled: true                     # 启用短路径抑制
+  min_path_length: 3.0              # 最小有效路径长度 (m)
+  min_cone_count: 3                 # 最小锥桶数量
+  velocity_based_threshold: true    # 基于速度的阈值
+  min_velocity_factor: 0.3          # 低速时的路径长度因子
+  reject_single_cone_paths: true    # 拒绝单锥路径
+  
+# 回环稳定性增强（Loop Closure Stability）
+loop_closure:
+  stability:
+    enabled: true                   # 启用回环稳定性检查
+    min_loop_length: 15.0          # 最小回环长度 (m)
+    consistency_check_frames: 10    # 一致性检查帧数
+    max_position_drift: 2.0        # 最大位置漂移 (m)
+    max_heading_drift: 0.3         # 最大航向漂移 (rad)
+    use_geometric_verification: true # 使用几何验证
+    min_inlier_ratio: 0.6          # 最小内点比率
+    
+  # 回环触发条件（保守策略）
+  trigger:
+    min_travel_distance: 20.0      # 最小行驶距离 (m)
+    min_time_elapsed: 10.0         # 最小时间间隔 (s)
+    confidence_threshold: 0.7      # 置信度阈值
+    
+  # 几何一致性检查
+  geometric_check:
+    check_relative_pose: true      # 检查相对位姿
+    check_track_width: true        # 检查赛道宽度一致性
+    max_width_variation: 0.5       # 最大宽度变化 (m)
+    check_spacing_consistency: true # 检查间距一致性
+    spacing_tolerance: 1.0         # 间距容差 (m)
+
+# 几何特征增强（Geometry Feature Boost）
+geometric_features:
+  enabled: true                     # 启用几何特征增强
+  # 距离自适应权重
+  distance_weighting:
+    near_distance: 5.0             # 近距离阈值 (m)
+    far_distance: 30.0             # 远距离阈值 (m)
+    near_weight: 1.5               # 近距离几何权重
+    far_weight: 0.8                # 远距离几何权重
+  
+  # 角度特征
+  angle_features:
+    use_bearing: true              # 使用方位角
+    use_elevation: false           # 不使用俯仰角（2D定位）
+    bearing_weight: 1.0            # 方位角权重
+    
+  # 距离特征
+  distance_features:
+    use_euclidean: true            # 使用欧氏距离
+    use_manhattan: false           # 不使用曼哈顿距离
+    use_chebyshev: false           # 不使用切比雪夫距离
+
+# 数据关联鲁棒性（Data Association Robustness）
+data_association:
+  # 多假设跟踪
+  multi_hypothesis:
+    enabled: true                  # 启用多假设
+    max_hypotheses: 3              # 最大假设数
+    hypothesis_decay: 0.9          # 假设衰减因子
+    
+  # 门控策略
+  gating:
+    method: adaptive               # 门控方法: fixed | adaptive | chi2
+    base_threshold: 3.0            # 基础门限 (m)
+    adaptive_factor: 1.5           # 自适应因子
+    max_threshold: 8.0             # 最大门限 (m)
+    
+  # 最近邻改进
+  nearest_neighbor:
+    use_mahalanobis: true          # 使用马氏距离
+    use_euclidean_fallback: true   # 欧氏距离回退
+    outlier_rejection: true        # 离群点剔除
+    outlier_threshold: 5.0         # 离群点阈值 (m)
+

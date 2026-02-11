@@ -19,3 +19,49 @@ tracker:
   enable: true                       # 启用时序跟踪器
 topology:
   enable: true                       # 启用拓扑修复
+
+# ==========================
+# Acceleration Geometry Robustness Overlay
+# 直线加速模式几何鲁棒性增强
+# ==========================
+
+# 堆叠锥检测（直线场景锥桶稀疏但可能有重叠）
+stacked_cone_detection:
+  vertical_layers:
+    layer_height: 0.25              # 标准分层
+    max_layers: 3
+  deduplication:
+    cluster_tolerance: 0.5          # 宽松聚类（稀疏场景）
+  near_range:
+    distance_threshold: 10.0        # 更大的近距范围（远距离检测）
+    stricter_xy_threshold: 0.35     # 标准去重
+
+# 缺锥预测（直线场景需要长距离预测）
+occlusion_handling:
+  detection:
+    angle_gap_threshold: 12.0       # 较小的角度间隙（直线方向明确）
+  missing_cone_prediction:
+    max_prediction_distance: 15.0   # 最长的预测距离（直线加速需要看远）
+    prediction_confidence: 0.3      # 较高的预测置信度
+    max_consecutive_predictions: 2  # 较少的连续预测（保守）
+  geometric_interpolation:
+    max_interpolation_gap: 10.0     # 更大的插值间隙
+    use_track_curvature: false      # 直线场景不使用曲率
+
+# 短检测抑制（直线场景应充分利用所有检测）
+short_detection_suppression:
+  single_frame:
+    min_detections_for_valid: 2     # 较宽松（稀疏场景）
+    min_confidence: 0.25            # 较低的置信度门槛
+  temporal_continuity:
+    min_track_length: 2             # 较短的跟踪长度
+
+# 几何一致性（直线场景主要检查对齐）
+geometric_consistency:
+  spatial_distribution:
+    check_spacing_uniformity: true  # 重点检查间距均匀性
+    max_spacing_variance: 5.0       # 较宽松的间距方差（加速段间距变化大）
+  angular_distribution:
+    check_bearing_variance: true    # 检查方位角
+    max_bearing_variance: 20.0      # 允许一定的方位角变化
+
