@@ -12,10 +12,19 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <vector>
+
+#include "planning_core/speed_profile.hpp"
 
 namespace {
 double pointDistance(const geometry_msgs::Point &a, const geometry_msgs::Point &b) {
+  const double dx = b.x - a.x;
+  const double dy = b.y - a.y;
+  return std::sqrt(dx * dx + dy * dy);
+}
+
+double pointDistance(const Point &a, const Point &b) {
   const double dx = b.x - a.x;
   const double dy = b.y - a.y;
   return std::sqrt(dx * dx + dy * dy);
@@ -33,6 +42,199 @@ double signedCurvature(const geometry_msgs::Point &p0,
   }
   const double cross = (p1.x - p0.x) * (p2.y - p0.y) - (p1.y - p0.y) * (p2.x - p0.x);
   return 2.0 * cross / denom;
+}
+
+double signedCurvature(const Point &p0, const Point &p1, const Point &p2) {
+  const double a = pointDistance(p0, p1);
+  const double b = pointDistance(p1, p2);
+  const double c = pointDistance(p0, p2);
+  const double denom = a * b * c;
+  if (denom < 1e-6) {
+    return 0.0;
+  }
+  const double cross = (p1.x - p0.x) * (p2.y - p0.y) - (p1.y - p0.y) * (p2.x - p0.x);
+  return 2.0 * cross / denom;
+}
+
+void smoothPathForCurvature(std::vector<geometry_msgs::Point> &path,
+                            const double curvature_limit,
+                            const int max_iters,
+                            const double alpha) {
+  if (path.size() < 3 || max_iters <= 0 || alpha <= 0.0 || curvature_limit <= 0.0) {
+    return;
+  }
+
+  const double limit = std::max(1e-6, curvature_limit);
+  const double blend = std::clamp(alpha, 0.0, 1.0);
+
+  for (int iter = 0; iter < max_iters; ++iter) {
+    bool changed = false;
+    for (size_t i = 1; i + 1 < path.size(); ++i) {
+      const double kappa = std::abs(signedCurvature(path[i - 1], path[i], path[i + 1]));
+      if (!std::isfinite(kappa) || kappa <= limit) {
+        continue;
+      }
+
+      const double mid_x = 0.5 * (path[i - 1].x + path[i + 1].x);
+      const double mid_y = 0.5 * (path[i - 1].y + path[i + 1].y);
+      path[i].x = (1.0 - blend) * path[i].x + blend * mid_x;
+      path[i].y = (1.0 - blend) * path[i].y + blend * mid_y;
+      changed = true;
+    }
+    if (!changed) {
+      break;
+    }
+  }
+}
+
+void smoothPathSpatialBlend(std::vector<geometry_msgs::Point> &path,
+                            const int half_window,
+                            const int passes,
+                            const double blend) {
+  if (path.size() < 3 || passes <= 0) {
+    return;
+  }
+  const int hw = std::max(1, half_window);
+  const double beta = std::clamp(blend, 0.0, 1.0);
+  if (beta <= 0.0) {
+    return;
+  }
+
+  const int n = static_cast<int>(path.size());
+  for (int pass = 0; pass < passes; ++pass) {
+    const std::vector<geometry_msgs::Point> original = path;
+    for (int i = 1; i + 1 < n; ++i) {
+      const int begin = std::max(0, i - hw);
+      const int end = std::min(n - 1, i + hw);
+      double sx = 0.0;
+      double sy = 0.0;
+      int count = 0;
+      for (int j = begin; j <= end; ++j) {
+        sx += original[j].x;
+        sy += original[j].y;
+        ++count;
+      }
+      if (count <= 0) {
+        continue;
+      }
+      const double avg_x = sx / static_cast<double>(count);
+      const double avg_y = sy / static_cast<double>(count);
+      path[i].x = (1.0 - beta) * original[i].x + beta * avg_x;
+      path[i].y = (1.0 - beta) * original[i].y + beta * avg_y;
+    }
+  }
+}
+
+int countCurvatureViolations(const std::vector<geometry_msgs::Point> &path,
+                             const double curvature_limit) {
+  const size_t n = path.size();
+  if (n < 3 || curvature_limit <= 0.0) {
+    return 0;
+  }
+
+  std::vector<double> curvatures(n, 0.0);
+  for (size_t i = 1; i + 1 < n; ++i) {
+    curvatures[i] = signedCurvature(path[i - 1], path[i], path[i + 1]);
+  }
+  curvatures.front() = curvatures[1];
+  curvatures.back() = curvatures[n - 2];
+
+  std::vector<double> smoothed = curvatures;
+  for (size_t i = 1; i + 1 < n; ++i) {
+    smoothed[i] = (curvatures[i - 1] + curvatures[i] + curvatures[i + 1]) / 3.0;
+  }
+
+  int violations = 0;
+  for (size_t i = 0; i < n; ++i) {
+    if (std::abs(smoothed[i]) > curvature_limit) {
+      ++violations;
+    }
+  }
+  return violations;
+}
+
+int countCurvatureViolations(const std::vector<Point> &path,
+                             const double curvature_limit) {
+  const size_t n = path.size();
+  if (n < 3 || curvature_limit <= 0.0) {
+    return 0;
+  }
+
+  std::vector<double> curvatures(n, 0.0);
+  for (size_t i = 1; i + 1 < n; ++i) {
+    curvatures[i] = signedCurvature(path[i - 1], path[i], path[i + 1]);
+  }
+  curvatures.front() = curvatures[1];
+  curvatures.back() = curvatures[n - 2];
+
+  std::vector<double> smoothed = curvatures;
+  for (size_t i = 1; i + 1 < n; ++i) {
+    smoothed[i] = (curvatures[i - 1] + curvatures[i] + curvatures[i + 1]) / 3.0;
+  }
+
+  int violations = 0;
+  for (size_t i = 0; i < n; ++i) {
+    if (std::abs(smoothed[i]) > curvature_limit) {
+      ++violations;
+    }
+  }
+  return violations;
+}
+
+bool detectLoopClosureByHistory(const std::vector<Point> &path_local,
+                                const double dist_threshold,
+                                const double angle_threshold,
+                                double &out_best_dist,
+                                int &out_best_idx,
+                                double &out_best_angle) {
+  out_best_dist = -1.0;
+  out_best_idx = -1;
+  out_best_angle = -1.0;
+
+  const size_t n = path_local.size();
+  constexpr size_t kTailExclusion = 10;
+  if (n < MIN_LOOP_SIZE + kTailExclusion + 1) {
+    return false;
+  }
+
+  const size_t search_end = n - kTailExclusion;
+  const size_t front_window = std::min(
+      search_end,
+      std::max<size_t>(static_cast<size_t>(MIN_LOOP_SIZE), n / 3));
+  if (front_window < 2) {
+    return false;
+  }
+
+  const Point &tail = path_local.back();
+  double best_dist = std::numeric_limits<double>::infinity();
+  size_t best_idx = 0;
+  for (size_t i = 0; i < front_window; ++i) {
+    const double dist = Point::dist(path_local[i], tail);
+    if (dist < best_dist) {
+      best_dist = dist;
+      best_idx = i;
+    }
+  }
+
+  if (!std::isfinite(best_dist)) {
+    return false;
+  }
+  out_best_dist = best_dist;
+  out_best_idx = static_cast<int>(best_idx);
+  if (best_dist > dist_threshold) {
+    return false;
+  }
+
+  const Point &tail_prev = path_local[n - 2];
+  const size_t next_idx = std::min(best_idx + 1, search_end - 1);
+  if (next_idx == best_idx) {
+    return false;
+  }
+  const Vector tail_dir(tail_prev, tail);
+  const Vector hist_dir(path_local[best_idx], path_local[next_idx]);
+  const double angle = std::abs(hist_dir.angleWith(tail_dir));
+  out_best_angle = angle;
+  return std::isfinite(angle) && angle <= angle_threshold;
 }
 }  // namespace
 
@@ -373,8 +575,24 @@ void WayComputer::fillPathDynamics(autodrive_msgs::HUAT_PathLimits &msg) const {
     return;
   }
 
-  // Curvature from 3-point geometry, then a light 3-point smoothing.
-  if (n >= 3) {
+  const auto &speed_cfg = this->params_.speed;
+  const double kappa_limit = std::max(1e-6, speed_cfg.curvature_limit);
+  const double warn_limit_scale = std::max(1.0, speed_cfg.curvature_warn_limit_scale);
+  const double kappa_warn_limit = kappa_limit * warn_limit_scale;
+  if (speed_cfg.curvature_smoothing_enable && n >= 3) {
+    smoothPathForCurvature(msg.path,
+                           kappa_limit,
+                           speed_cfg.curvature_smoothing_max_iters,
+                           speed_cfg.curvature_smoothing_alpha);
+  }
+
+  const int warn_min_points = std::max(1, speed_cfg.curvature_warn_min_points);
+  const double warn_ratio = std::max(0.0, speed_cfg.curvature_warn_ratio);
+  auto compute_curvatures_and_violations = [&]() -> int {
+    if (n < 3) {
+      std::fill(msg.curvatures.begin(), msg.curvatures.end(), 0.0);
+      return 0;
+    }
     for (size_t i = 1; i + 1 < n; ++i) {
       msg.curvatures[i] = signedCurvature(msg.path[i - 1], msg.path[i], msg.path[i + 1]);
     }
@@ -386,56 +604,170 @@ void WayComputer::fillPathDynamics(autodrive_msgs::HUAT_PathLimits &msg) const {
       smoothed[i] = (msg.curvatures[i - 1] + msg.curvatures[i] + msg.curvatures[i + 1]) / 3.0;
     }
     msg.curvatures.swap(smoothed);
-  }
 
-  const auto &speed_cfg = this->params_.speed;
-  const double v_cap_raw = (this->lapMode_ == LapMode::FAST_LAP) ? speed_cfg.speed_cap_fast : speed_cfg.speed_cap_safe;
-  const double v_cap = std::max(0.0, v_cap_raw);
-  const double a_lat = std::max(0.1, speed_cfg.max_lateral_acc);
-  const double a_acc = std::max(0.0, speed_cfg.max_accel);
-  const double a_brake = std::max(0.0, speed_cfg.max_brake);
-  const double kappa_eps = std::max(1e-6, speed_cfg.curvature_epsilon);
-  const double v_min = std::max(0.0, std::min(speed_cfg.min_speed, v_cap));
+    int violations = 0;
+    for (size_t i = 0; i < n; ++i) {
+      if (std::abs(msg.curvatures[i]) > kappa_warn_limit) {
+        ++violations;
+      }
+    }
+    return violations;
+  };
 
-  std::vector<double> ds;
-  if (n >= 2) {
-    ds.resize(n - 1, 1e-3);
-    for (size_t i = 0; i + 1 < n; ++i) {
-      ds[i] = std::max(1e-3, pointDistance(msg.path[i], msg.path[i + 1]));
+  int kappa_violations = compute_curvatures_and_violations();
+  double violation_ratio = static_cast<double>(kappa_violations) / static_cast<double>(n);
+  const bool severe_violation =
+      (kappa_violations >= warn_min_points) &&
+      (violation_ratio >= std::max(0.05, warn_ratio * 0.6));
+
+  if (speed_cfg.curvature_smoothing_enable && n >= 3 && severe_violation) {
+    const std::vector<geometry_msgs::Point> path_backup = msg.path;
+    const std::vector<double> curvature_backup = msg.curvatures;
+    const int base_iters = std::max(1, speed_cfg.curvature_smoothing_max_iters);
+    const int extra_iters = std::min(8, std::max(2, kappa_violations / warn_min_points));
+    const int adaptive_iters = base_iters + extra_iters;
+    const double adaptive_alpha =
+        std::min(0.65, std::max(speed_cfg.curvature_smoothing_alpha, 0.25) + 0.20);
+    const double adaptive_limit = std::max(1e-6, kappa_limit * 0.95);
+
+    smoothPathForCurvature(msg.path, adaptive_limit, adaptive_iters, adaptive_alpha);
+    const int adaptive_violations = compute_curvatures_and_violations();
+    if (adaptive_violations <= kappa_violations) {
+      if (adaptive_violations < kappa_violations) {
+        ROS_INFO_THROTTLE(1.0,
+                          "[high_speed_tracking] Curvature smoothing improved violations %d -> %d.",
+                          kappa_violations, adaptive_violations);
+      }
+      kappa_violations = adaptive_violations;
+      violation_ratio = static_cast<double>(kappa_violations) / static_cast<double>(n);
+    } else {
+      msg.path = path_backup;
+      msg.curvatures = curvature_backup;
     }
   }
 
-  std::vector<double> v_ref(n, v_cap);
+  auto try_extra_smoothing = [&](double limit_scale, int extra_iters, double alpha) {
+    const std::vector<geometry_msgs::Point> path_backup = msg.path;
+    const std::vector<double> curvature_backup = msg.curvatures;
+    const int prev_violations = kappa_violations;
+    const double prev_ratio = violation_ratio;
+
+    const double scaled_limit = std::max(1e-6, kappa_limit * limit_scale);
+    smoothPathForCurvature(msg.path, scaled_limit, extra_iters, alpha);
+    const int new_violations = compute_curvatures_and_violations();
+    const double new_ratio = static_cast<double>(new_violations) / static_cast<double>(n);
+
+    if (new_violations <= prev_violations) {
+      if (new_violations < prev_violations) {
+        ROS_INFO_THROTTLE(1.0,
+                          "[high_speed_tracking] Extra curvature smoothing improved violations %d -> %d.",
+                          prev_violations, new_violations);
+      }
+      kappa_violations = new_violations;
+      violation_ratio = new_ratio;
+    } else {
+      msg.path = path_backup;
+      msg.curvatures = curvature_backup;
+      kappa_violations = prev_violations;
+      violation_ratio = prev_ratio;
+    }
+  };
+
+  auto try_spatial_blend_smoothing = [&](int half_window, int passes, double blend) {
+    const std::vector<geometry_msgs::Point> path_backup = msg.path;
+    const std::vector<double> curvature_backup = msg.curvatures;
+    const int prev_violations = kappa_violations;
+    const double prev_ratio = violation_ratio;
+
+    smoothPathSpatialBlend(msg.path, half_window, passes, blend);
+    const int new_violations = compute_curvatures_and_violations();
+    const double new_ratio = static_cast<double>(new_violations) / static_cast<double>(n);
+
+    if (new_violations <= prev_violations) {
+      if (new_violations < prev_violations) {
+        ROS_INFO_THROTTLE(
+            1.0,
+            "[high_speed_tracking] Spatial curvature smoothing improved violations %d -> %d (window=%d passes=%d).",
+            prev_violations, new_violations, half_window, passes);
+      }
+      kappa_violations = new_violations;
+      violation_ratio = new_ratio;
+    } else {
+      msg.path = path_backup;
+      msg.curvatures = curvature_backup;
+      kappa_violations = prev_violations;
+      violation_ratio = prev_ratio;
+    }
+  };
+
+  if (speed_cfg.curvature_smoothing_enable && n >= 3) {
+    const bool still_warn =
+        (kappa_violations >= warn_min_points) &&
+        (violation_ratio >= std::max(0.05, warn_ratio * 0.8));
+    if (still_warn) {
+      const int base_iters = std::max(1, speed_cfg.curvature_smoothing_max_iters);
+      const double alpha_stage2 =
+          std::min(0.75, std::max(speed_cfg.curvature_smoothing_alpha, 0.30) + 0.25);
+      try_extra_smoothing(0.90, base_iters + 10, alpha_stage2);
+
+      const bool still_bad =
+          (kappa_violations >= warn_min_points) &&
+          (violation_ratio >= std::max(0.05, warn_ratio * 0.8));
+      if (still_bad) {
+        const double alpha_stage3 = std::min(0.80, alpha_stage2 + 0.10);
+        try_extra_smoothing(0.85, base_iters + 16, alpha_stage3);
+      }
+
+      const bool still_severe =
+          (kappa_violations >= warn_min_points) &&
+          (violation_ratio >= std::max(0.05, warn_ratio * 0.8));
+      if (still_severe) {
+        try_spatial_blend_smoothing(2, 2, 0.45);
+      }
+      const bool still_high =
+          (kappa_violations >= warn_min_points) &&
+          (violation_ratio >= std::max(0.05, warn_ratio * 0.8));
+      if (still_high) {
+        try_spatial_blend_smoothing(3, 2, 0.55);
+      }
+    }
+  }
+
+  if (kappa_violations >= warn_min_points && violation_ratio >= warn_ratio) {
+    ROS_WARN_THROTTLE(1.0,
+                      "[high_speed_tracking] Curvature exceeds warning limit %.3f (base %.3f x %.2f) at %d/%zu points (ratio=%.3f).",
+                      kappa_warn_limit, kappa_limit, warn_limit_scale,
+                      kappa_violations, n, violation_ratio);
+  }
+
+  // Mode-blended speed cap (SAFE_LAP → FAST_LAP transition)
+  const double safe_cap = std::max(0.0, speed_cfg.speed_cap_safe);
+  const double fast_cap = std::max(0.0, speed_cfg.speed_cap_fast);
+  const double blend = std::clamp(this->modeSpeedBlend_, 0.0, 1.0);
+  const double v_cap = std::max(0.0, safe_cap + blend * (fast_cap - safe_cap));
+
+  // Convert to Point2D for shared speed profile module
+  std::vector<planning_core::Point2D> pts(n);
   for (size_t i = 0; i < n; ++i) {
-    const double abs_kappa = std::abs(msg.curvatures[i]);
-    const double denom = std::max(abs_kappa, kappa_eps);
-    const double v_lat_max = std::sqrt(std::max(0.0, a_lat / denom));
-    v_ref[i] = std::max(v_min, std::min(v_cap, v_lat_max));
+    pts[i].x = msg.path[i].x;
+    pts[i].y = msg.path[i].y;
   }
 
-  const double current_speed = std::isfinite(this->CarState.V) ? std::max(0.0, static_cast<double>(this->CarState.V)) : v_min;
-  v_ref[0] = std::min(v_ref[0], std::max(v_min, std::min(v_cap, current_speed)));
+  planning_core::SpeedProfileParams sp;
+  sp.speed_cap = v_cap;
+  sp.max_lateral_acc = speed_cfg.max_lateral_acc;
+  sp.max_accel = speed_cfg.max_accel;
+  sp.max_brake = speed_cfg.max_brake;
+  sp.min_speed = speed_cfg.min_speed;
+  sp.curvature_epsilon = speed_cfg.curvature_epsilon;
+  sp.current_speed = std::isfinite(this->CarState.V) ? static_cast<double>(this->CarState.V) : 0.0;
 
-  // Forward pass (acceleration constraint).
-  for (size_t i = 1; i < n; ++i) {
-    const double reachable = std::sqrt(std::max(0.0, v_ref[i - 1] * v_ref[i - 1] + 2.0 * a_acc * ds[i - 1]));
-    v_ref[i] = std::min(v_ref[i], reachable);
-  }
+  planning_core::ComputeSpeedProfile(pts, msg.curvatures, sp, msg.target_speeds);
 
-  // Backward pass (braking constraint).
-  for (size_t i = n - 1; i > 0; --i) {
-    const double reachable = std::sqrt(std::max(0.0, v_ref[i] * v_ref[i] + 2.0 * a_brake * ds[i - 1]));
-    v_ref[i - 1] = std::min(v_ref[i - 1], reachable);
-  }
-
+  // Sanitize curvatures (speed profile already sanitizes target_speeds)
   for (size_t i = 0; i < n; ++i) {
     if (!std::isfinite(msg.curvatures[i])) {
       msg.curvatures[i] = 0.0;
-    }
-    if (!std::isfinite(v_ref[i]) || v_ref[i] < 0.0) {
-      msg.target_speeds[i] = 0.0;
-    } else {
-      msg.target_speeds[i] = v_ref[i];
     }
   }
 }
@@ -444,7 +776,9 @@ void WayComputer::updateLapMode(bool loop_closed_now) {
   const auto &speed_cfg = this->params_.speed;
   const int close_frames = std::max(1, speed_cfg.loop_close_debounce_frames);
   const int open_frames = std::max(1, speed_cfg.loop_open_debounce_frames);
+  const bool allow_reopen = speed_cfg.loop_allow_reopen;
   const int hold_frames = std::max(0, speed_cfg.mode_min_hold_frames);
+  const int transition_frames = std::max(1, speed_cfg.mode_transition_frames);
 
   if (loop_closed_now) {
     ++this->loopCloseDebounceCount_;
@@ -467,7 +801,9 @@ void WayComputer::updateLapMode(bool loop_closed_now) {
       this->loopOpenDebounceCount_ = 0;
     }
   } else {
-    if (this->modeHoldFrames_ == 0 && this->loopOpenDebounceCount_ >= open_frames) {
+    if (allow_reopen &&
+        this->modeHoldFrames_ == 0 &&
+        this->loopOpenDebounceCount_ >= open_frames) {
       this->lapMode_ = LapMode::MAP_BUILD_SAFE;
       this->modeHoldFrames_ = hold_frames;
       this->loopCloseDebounceCount_ = 0;
@@ -476,6 +812,14 @@ void WayComputer::updateLapMode(bool loop_closed_now) {
   }
 
   this->isLoopClosed_ = (this->lapMode_ == LapMode::FAST_LAP);
+
+  const double target_blend = (this->lapMode_ == LapMode::FAST_LAP) ? 1.0 : 0.0;
+  const double blend_step = 1.0 / static_cast<double>(transition_frames);
+  if (this->modeSpeedBlend_ < target_blend) {
+    this->modeSpeedBlend_ = std::min(target_blend, this->modeSpeedBlend_ + blend_step);
+  } else if (this->modeSpeedBlend_ > target_blend) {
+    this->modeSpeedBlend_ = std::max(target_blend, this->modeSpeedBlend_ - blend_step);
+  }
 
   if (prev_mode != this->lapMode_) {
     const char *new_mode = (this->lapMode_ == LapMode::FAST_LAP) ? "FAST_LAP" : "MAP_BUILD_SAFE";
@@ -562,22 +906,305 @@ void WayComputer::update(TriangleSet &triangulation, const ros::Time &stamp) {
     e.updateLocal(this->localTf_);                        
   }
 
-  // #5: Perform the search through the midpoints in order to obtain a way
-  //     using normal parameters.
-  // 是使用中点进行搜索，以便获取一条路径 (`way`)，使用正常的参数进行搜索。
-  // 具体来说，这段代码执行了通过中点进行搜索以获取路径的操作。
-  // 这里面的边已经是过滤后的边  通过这里边的中点来进行规划中线。
-  this->computeWay(edgeVec, this->params_.search);
+  const auto &speed_cfg = this->params_.speed;
+  const size_t min_publish_size = static_cast<size_t>(std::max(1, speed_cfg.min_publish_path_size));
+
+  auto compute_adaptive_level = [&](const int short_streak, const bool force_retry) -> int {
+    if (!speed_cfg.search_adaptive_enable) return 0;
+    const int trigger_frames = std::max(1, speed_cfg.search_adaptive_trigger_frames);
+    const int step_frames = std::max(1, speed_cfg.search_adaptive_step_frames);
+    const int max_level = std::max(0, speed_cfg.search_adaptive_max_level);
+    if (max_level == 0) return 0;
+    if (short_streak < trigger_frames && !force_retry) return 0;
+    const int effective = std::max(0, short_streak - trigger_frames);
+    int level = 1 + (effective / step_frames);
+    if (force_retry) {
+      level += 1;
+    }
+    return std::min(level, max_level);
+  };
+
+  auto apply_adaptive_search = [&](Params::WayComputer::Search &search_cfg, const int level) {
+    if (level <= 0) return;
+    const double radius_step = std::max(0.0, speed_cfg.search_adaptive_radius_step);
+    const double heuristic_step = std::max(0.0, speed_cfg.search_adaptive_heuristic_step);
+    const double radius_limit = (speed_cfg.search_adaptive_radius_max > 0.0)
+                                    ? speed_cfg.search_adaptive_radius_max
+                                    : this->params_.search.search_radius;
+    const double heuristic_limit = (speed_cfg.search_adaptive_heuristic_max > 0.0)
+                                       ? speed_cfg.search_adaptive_heuristic_max
+                                       : this->params_.search.max_next_heuristic;
+    search_cfg.search_radius = std::min(
+        radius_limit,
+        this->params_.search.search_radius + radius_step * static_cast<double>(level));
+    search_cfg.max_next_heuristic = std::min(
+        heuristic_limit,
+        this->params_.search.max_next_heuristic + heuristic_step * static_cast<double>(level));
+  };
+
+  auto adaptive_min_publish_threshold = [&](const int level) -> size_t {
+    const size_t base = min_publish_size;
+    if (!speed_cfg.search_adaptive_enable || level <= 0) {
+      return base;
+    }
+    const int scaled_floor = std::max(1, (speed_cfg.min_publish_path_size * 2) / 5);
+    const size_t floor = static_cast<size_t>(
+        std::max<int>(static_cast<int>(MIN_FAILSAFE_WAY_SIZE) + 1,
+                      scaled_floor));
+    const size_t relax = static_cast<size_t>(level);
+    if (base <= relax) {
+      return floor;
+    }
+    return std::max(floor, base - relax);
+  };
+
+  auto stable_short_path_threshold = [&](const size_t threshold) -> size_t {
+    size_t relaxed = threshold;
+    if (this->hasStableWay_) {
+      const size_t relax_pts = static_cast<size_t>(
+          std::max(0, speed_cfg.short_path_stable_relax_points));
+      if (relax_pts > 0) {
+        if (relaxed > relax_pts) {
+          relaxed -= relax_pts;
+        } else {
+          relaxed = 0;
+        }
+      }
+    }
+    return std::max(
+        relaxed,
+        static_cast<size_t>(std::max<int>(1, static_cast<int>(MIN_FAILSAFE_WAY_SIZE) + 1)));
+  };
+
+  // #5: Perform the search through the midpoints in order to obtain a way.
+  //     When short-path streak appears, expand search radius and heuristic threshold.
+  int adaptive_level = compute_adaptive_level(this->shortPathStreak_, false);
+  if (speed_cfg.search_adaptive_enable && !this->hasStableWay_) {
+    const int bootstrap_level = std::clamp(speed_cfg.search_adaptive_bootstrap_level,
+                                           0,
+                                           std::max(0, speed_cfg.search_adaptive_max_level));
+    adaptive_level = std::max(adaptive_level, bootstrap_level);
+  }
+  if (adaptive_level != this->adaptiveSearchLevel_) {
+    ROS_INFO_STREAM_THROTTLE(1.0,
+                             "[high_speed_tracking] Adaptive search level "
+                                 << this->adaptiveSearchLevel_ << " -> " << adaptive_level
+                                 << " (short_streak=" << this->shortPathStreak_ << ").");
+    this->adaptiveSearchLevel_ = adaptive_level;
+  }
+
+  Params::WayComputer::Search primary_search = this->params_.search;
+  apply_adaptive_search(primary_search, adaptive_level);
+  this->computeWay(edgeVec, primary_search);
+
+  size_t min_publish_size_adaptive = adaptive_min_publish_threshold(adaptive_level);
+  size_t short_path_threshold = stable_short_path_threshold(min_publish_size_adaptive);
+  bool short_path = this->wayToPublish_.size() < short_path_threshold;
+  if (short_path && speed_cfg.search_adaptive_enable && speed_cfg.search_adaptive_retry_on_short && !this->loopClosedRaw_) {
+    int retry_level = compute_adaptive_level(this->shortPathStreak_, true);
+    if (speed_cfg.search_adaptive_enable && !this->hasStableWay_) {
+      const int bootstrap_retry = std::clamp(speed_cfg.search_adaptive_bootstrap_level + 1,
+                                             0,
+                                             std::max(0, speed_cfg.search_adaptive_max_level));
+      retry_level = std::max(retry_level, bootstrap_retry);
+    }
+    if (retry_level > adaptive_level) {
+      Params::WayComputer::Search retry_search = this->params_.search;
+      apply_adaptive_search(retry_search, retry_level);
+      this->computeWay(edgeVec, retry_search);
+      min_publish_size_adaptive = adaptive_min_publish_threshold(retry_level);
+      short_path_threshold = stable_short_path_threshold(min_publish_size_adaptive);
+      short_path = this->wayToPublish_.size() < short_path_threshold;
+      if (!short_path) {
+        ROS_INFO_THROTTLE(1.0,
+                          "[high_speed_tracking] Short-path recovered by adaptive retry (level=%d).",
+                          retry_level);
+      }
+    }
+  }
 
   // #6: Check failsafe(s)
-  //总的来说，这段代码的目的是检查是否需要启用一般失败安全机制，即当前路径长度不足且没有闭环时预先计算一条新的路径，以保证安全性。
-  //如果满足条件，则输出警告信息并调用 `computeWay()` 方法生成新路径。
-  if (this->params_.general_failsafe and this->way_.sizeAheadOfCar() < MIN_FAILSAFE_WAY_SIZE and !this->loopClosedRaw_) {
-    ROS_WARN("[high_speed_tracking] GENERAL FAILSAFE ACTIVATED!");
+  //仅当“前方可用路径过短”且当前没有可用hold缓冲时，触发通用failsafe。
+  bool ahead_path_short = this->way_.sizeAheadOfCar() < MIN_FAILSAFE_WAY_SIZE;
+  if (ahead_path_short && speed_cfg.search_adaptive_enable && !this->loopClosedRaw_) {
+    const int rescue_level = std::clamp(
+        std::max(adaptive_level + 1, compute_adaptive_level(this->shortPathStreak_, true)),
+        0, std::max(0, speed_cfg.search_adaptive_max_level));
+    if (rescue_level > adaptive_level) {
+      Params::WayComputer::Search rescue_search = this->params_.search;
+      apply_adaptive_search(rescue_search, rescue_level);
+      this->computeWay(edgeVec, rescue_search);
+      min_publish_size_adaptive = adaptive_min_publish_threshold(rescue_level);
+      short_path_threshold = stable_short_path_threshold(min_publish_size_adaptive);
+      short_path = this->wayToPublish_.size() < short_path_threshold;
+      ahead_path_short = this->way_.sizeAheadOfCar() < MIN_FAILSAFE_WAY_SIZE;
+      if (!ahead_path_short) {
+        ROS_INFO_THROTTLE(1.0,
+                          "[high_speed_tracking] Ahead-path recovered by adaptive rescue (level=%d).",
+                          rescue_level);
+      }
+    }
+  }
+
+  const bool can_hold_now = speed_cfg.hold_last_valid_path && this->hasStableWay_ && this->holdFramesRemaining_ > 0;
+  if (this->params_.general_failsafe && !this->loopClosedRaw_ && ahead_path_short && !can_hold_now) {
+    ROS_WARN_THROTTLE(1.0,
+                      "[high_speed_tracking] GENERAL FAILSAFE ACTIVATED (ahead=%u, publish=%zu).",
+                      static_cast<unsigned int>(this->way_.sizeAheadOfCar()),
+                      this->wayToPublish_.size());
     this->computeWay(edgeVec, this->generalFailsafe_);
+    short_path_threshold = stable_short_path_threshold(min_publish_size_adaptive);
+    short_path = this->wayToPublish_.size() < short_path_threshold;
+  }
+
+  bool loop_closed_strict = this->loopClosedRaw_;
+  bool loop_closed_history = false;
+  bool loop_closed_stable_source = false;
+  double loop_hist_dist = -1.0;
+  int loop_hist_idx = -1;
+  double loop_hist_angle = -1.0;
+
+  std::vector<Point> way_local_for_loop = this->way_.getPathLocal();
+  if (!this->loopClosedRaw_ &&
+      this->hasStableWay_ &&
+      way_local_for_loop.size() < MIN_LOOP_SIZE) {
+    if (this->lastStableWay_.closesLoop()) {
+      this->loopClosedRaw_ = true;
+      loop_closed_strict = true;
+      loop_closed_stable_source = true;
+      ROS_INFO_THROTTLE(
+          1.0,
+          "[high_speed_tracking] Geometric loop closure by stable-path strict check.");
+    } else {
+      const std::vector<Point> stable_way_local = this->lastStableWay_.getPathLocal();
+      if (stable_way_local.size() > way_local_for_loop.size()) {
+        way_local_for_loop = stable_way_local;
+        loop_closed_stable_source = true;
+      }
+    }
+  }
+
+  if (!this->loopClosedRaw_) {
+    const double hist_dist_threshold =
+        std::max(0.2, this->params_.way.max_dist_loop_closure * 1.10);
+    const double hist_angle_threshold =
+        std::min(M_PI_2, this->params_.way.max_angle_diff_loop_closure + 0.25);
+    loop_closed_history = detectLoopClosureByHistory(way_local_for_loop,
+                                                     hist_dist_threshold,
+                                                     hist_angle_threshold,
+                                                     loop_hist_dist,
+                                                     loop_hist_idx,
+                                                     loop_hist_angle);
+    if (loop_closed_history) {
+      this->loopClosedRaw_ = true;
+      ROS_INFO_THROTTLE(
+          1.0,
+          "[high_speed_tracking] Geometric loop closure by %s history candidate (dist=%.3f idx=%d angle=%.3f).",
+          loop_closed_stable_source ? "stable-path" : "current-path",
+          loop_hist_dist,
+          loop_hist_idx,
+          loop_hist_angle);
+    }
   }
 
   this->updateLapMode(this->loopClosedRaw_);
+
+  if (speed_cfg.loop_diag_enable) {
+    const std::vector<Point> way_local = this->way_.getPathLocal();
+    const size_t wn = way_local.size();
+    double dist_front_back = -1.0;
+    double dist_back_hist_min = -1.0;
+    int min_hist_idx = -1;
+    if (wn >= 2) {
+      dist_front_back = Point::dist(way_local.front(), way_local.back());
+      if (wn > 12) {
+        double best = std::numeric_limits<double>::infinity();
+        const Point &tail = way_local.back();
+        for (size_t i = 0; i + 10 < wn; ++i) {
+          const double d = Point::dist(way_local[i], tail);
+          if (d < best) {
+            best = d;
+            min_hist_idx = static_cast<int>(i);
+          }
+        }
+        if (std::isfinite(best)) {
+          dist_back_hist_min = best;
+        }
+      }
+    }
+    ROS_INFO_THROTTLE(
+        1.0,
+        "[high_speed_tracking] loop_diag raw=%d strict=%d hist=%d stable_src=%d way_size=%zu dist_front_back=%.3f dist_back_hist_min=%.3f min_hist_idx=%d hist_dist=%.3f hist_idx=%d hist_angle=%.3f",
+        this->loopClosedRaw_ ? 1 : 0,
+        loop_closed_strict ? 1 : 0,
+        loop_closed_history ? 1 : 0,
+        loop_closed_stable_source ? 1 : 0,
+        wn,
+        dist_front_back,
+        dist_back_hist_min,
+        min_hist_idx,
+        loop_hist_dist,
+        loop_hist_idx,
+        loop_hist_angle);
+  }
+
+  const std::vector<Point> quality_path = this->wayToPublish_.getPathLocal();
+  const double quality_curvature_limit = std::max(
+      1e-6, speed_cfg.curvature_limit * std::max(1.0, speed_cfg.curvature_warn_limit_scale));
+  const int kappa_violations = countCurvatureViolations(
+      quality_path, quality_curvature_limit);
+  const double kappa_ratio = quality_path.empty()
+                                 ? 0.0
+                                 : static_cast<double>(kappa_violations) /
+                                       static_cast<double>(quality_path.size());
+  const bool bad_curvature_quality =
+      !short_path &&
+      (kappa_violations >= std::max(1, speed_cfg.curvature_warn_min_points)) &&
+      (kappa_ratio >= std::max(0.0, speed_cfg.curvature_warn_ratio));
+
+  if (!short_path && !bad_curvature_quality) {
+    this->lastStableWay_ = this->wayToPublish_;
+    this->hasStableWay_ = true;
+    this->holdFramesRemaining_ = std::max(0, speed_cfg.hold_last_valid_max_frames);
+  } else if (speed_cfg.hold_last_valid_path && this->hasStableWay_ &&
+             this->holdFramesRemaining_ > 0) {
+    const size_t degraded_path_size = this->wayToPublish_.size();
+    this->wayToPublish_ = this->lastStableWay_;
+    this->way_ = this->lastStableWay_;
+    --this->holdFramesRemaining_;
+    if (bad_curvature_quality) {
+      ROS_WARN_THROTTLE(
+          1.0,
+          "[high_speed_tracking] Holding last stable path (curvature quality: %d/%zu > %.3f, remaining_hold=%d).",
+          kappa_violations, quality_path.size(),
+          std::max(0.0, speed_cfg.curvature_warn_ratio), this->holdFramesRemaining_);
+    } else {
+      ROS_WARN_THROTTLE(
+          1.0,
+          "[high_speed_tracking] Holding last stable path (short path: %zu < %zu, remaining_hold=%d).",
+          degraded_path_size, short_path_threshold, this->holdFramesRemaining_);
+    }
+  } else if (short_path || bad_curvature_quality) {
+    if (bad_curvature_quality) {
+      ROS_WARN_THROTTLE(
+          1.0,
+          "[high_speed_tracking] Curvature quality degraded without hold fallback (%d/%zu exceeds ratio %.3f).",
+          kappa_violations, quality_path.size(),
+          std::max(0.0, speed_cfg.curvature_warn_ratio));
+    } else {
+      ROS_WARN_THROTTLE(
+          1.0,
+          "[high_speed_tracking] Short path without hold fallback (%zu < %zu).",
+          this->wayToPublish_.size(), short_path_threshold);
+    }
+    this->holdFramesRemaining_ = 0;
+  }
+
+  if (short_path || bad_curvature_quality) {
+    this->shortPathStreak_ = std::min(this->shortPathStreak_ + 1, 1000000);
+  } else {
+    this->shortPathStreak_ = 0;
+  }
 
   // 可视化已移除
 }

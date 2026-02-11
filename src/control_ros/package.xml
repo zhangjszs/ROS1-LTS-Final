@@ -14,7 +14,6 @@
   <depend>control_core</depend>
   <depend>eigen_conversions</depend>
   <depend>geometry_msgs</depend>
-  <depend>nav_msgs</depend>
   <depend>std_msgs</depend>
   <depend>roslib</depend>
   <depend>tf</depend>

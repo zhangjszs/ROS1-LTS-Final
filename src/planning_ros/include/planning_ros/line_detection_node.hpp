@@ -11,7 +11,6 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/synchronizer.h>
-#include <nav_msgs/Path.h>
 #include <ros/ros.h>
 #include <std_msgs/Bool.h>
 
@@ -36,7 +35,6 @@ private:
   void LoadParameters();
   void SyncCallback(const ConeMsg::ConstPtr &cone_msg,
                     const StateMsg::ConstPtr &car_state);
-  void PublishPath(const std::vector<planning_core::Pose> &path_points);
   void PublishPathLimits(const std::vector<planning_core::Pose> &path_points);
   void FillPathDynamics(autodrive_msgs::HUAT_PathLimits &msg) const;
   void PublishFinishOnce();
@@ -49,7 +47,6 @@ private:
   message_filters::Subscriber<StateMsg> car_state_sub_;
   std::unique_ptr<message_filters::Synchronizer<SyncPolicy>> sync_;
 
-  ros::Publisher path_pub_;
   ros::Publisher pathlimits_pub_;
   ros::Publisher finish_pub_;
 
@@ -58,7 +55,6 @@ private:
 
   std::string cone_topic_;
   std::string car_state_topic_;
-  std::string path_topic_;
   std::string pathlimits_topic_;
   std::string finish_topic_;
   std::string expected_cone_frame_;
@@ -72,6 +68,10 @@ private:
   double max_brake_ = 4.0;
   double min_speed_ = 1.0;
   double curvature_epsilon_ = 1e-3;
+  double accel_zone_length_ = 75.0;
+  double brake_zone_length_ = 100.0;
+  double timing_start_offset_ = 0.3;
+  double latest_vehicle_speed_ = 0.0;
 
   bool finish_published_{false};
   std::mutex data_mutex_;

@@ -96,6 +96,18 @@ target_link_libraries(high_speed_tracking_node
   ${catkin_LIBRARIES}
 )
 
+add_executable(planning_pipeline_node
+  nodes/planning_pipeline_node.cpp
+  src/planning_pipeline_node.cpp
+)
+
+target_link_libraries(planning_pipeline_node
+  ${PROJECT_NAME}
+  ${PROJECT_NAME}_high_speed
+  ${catkin_LIBRARIES}
+  planning_core
+)
+
 if(CATKIN_ENABLE_TESTING)
   catkin_add_gtest(test_way_safety
     test/test_way_safety.cpp

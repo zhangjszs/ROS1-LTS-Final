@@ -11,7 +11,6 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/synchronizer.h>
-#include <nav_msgs/Path.h>
 #include <ros/ros.h>
 #include <std_msgs/Bool.h>
 
@@ -35,7 +34,6 @@ private:
   void LoadParameters();
   void SyncCallback(const ConeMsg::ConstPtr &cone_msg,
                     const StateMsg::ConstPtr &car_state);
-  void PublishPath(const std::vector<planning_core::Pose> &path_points);
   void PublishPathLimits(const std::vector<planning_core::Pose> &path_points);
   void FillPathDynamics(autodrive_msgs::HUAT_PathLimits &msg) const;
   void PublishApproachingGoal(bool approaching);
@@ -48,7 +46,6 @@ private:
   message_filters::Subscriber<StateMsg> car_state_sub_;
   std::unique_ptr<message_filters::Synchronizer<SyncPolicy>> sync_;
 
-  ros::Publisher log_path_pub_;
   ros::Publisher pathlimits_pub_;
   ros::Publisher approaching_goal_pub_;
 
@@ -57,7 +54,6 @@ private:
 
   std::string cone_topic_;
   std::string car_state_topic_;
-  std::string log_path_topic_;
   std::string pathlimits_topic_;
   std::string approaching_goal_topic_;
   double max_data_age_ = 0.5;  // 数据过期阈值 (秒)
@@ -68,6 +64,8 @@ private:
   double min_speed_ = 1.0;
   double curvature_epsilon_ = 1e-3;
   ros::Time latest_sync_time_;
+  planning_core::SkidpadPhase last_phase_{planning_core::SkidpadPhase::ENTRY};
+  bool phase_initialized_{false};
   std::mutex data_mutex_;
 };
 

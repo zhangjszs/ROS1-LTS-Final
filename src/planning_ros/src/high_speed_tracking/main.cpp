@@ -29,10 +29,16 @@
 #include "utils/Time.hpp"
 #include "utils/PerfStats.hpp"
 bool wasLoopClosed = false;
+bool fullPathPublishedOnce = false;
+int finishGraceCount = 0;
+int finishGraceFrames = 300;
+bool waitFullBeforeStop = true;
+bool enableLoopFallbackByLapCounter = true;
+int loopFallbackMinLaps = 1;
+bool loopFallbackWasActive = false;
 
 // Publishers are initialized here
-ros::Publisher pubPartial; // 部分路径
-ros::Publisher pubFull;    // 完整路径
+ros::Publisher pubPathlimits; // 统一路径输出（partial/full 均发布到此话题）
 ros::Publisher stopPub;    // 停止发布
 
 WayComputer *wayComputer; // 使用wayComputer指针变量来访问WayComputer对象的成员函数和成员变量。
@@ -167,17 +173,6 @@ void callback_ccat(const autodrive_msgs::HUAT_ConeMap::ConstPtr &data)
   ros::WallTime total_start = ros::WallTime::now();
   size_t bytes_pub = 0;
 
-  if (finish())
-  {
-    autodrive_msgs::HUAT_Stop msg;
-    msg.stop = true;
-    stopPub.publish(msg);
-    bytes_pub += ros::serialization::serializationLength(msg);
-    std::cout << "完成" << std::endl;
-    ros::shutdown();
-    return;
-  }
-
 
 
 
@@ -218,6 +213,8 @@ void callback_ccat(const autodrive_msgs::HUAT_ConeMap::ConstPtr &data)
   wayComputer->update(triangles, data->header.stamp);
   ros::WallDuration way_dur = ros::WallTime::now() - way_start;
 
+  const bool finish_reached = finish();
+
   if (visualization) {
     visualization->setTimestamp(data->header.stamp);
     visualization->visualize(wayComputer->lastFilteredTriangulation());
@@ -226,7 +223,23 @@ void callback_ccat(const autodrive_msgs::HUAT_ConeMap::ConstPtr &data)
   }
 
   // 发布循环和将轨迹限制写入文件
-  if (wayComputer->isLoopClosed())
+  const bool loop_closed_raw = wayComputer->isLoopClosed();
+  const bool loop_closed_fallback =
+      enableLoopFallbackByLapCounter && (interTimes >= std::max(1, loopFallbackMinLaps));
+  const bool loop_fallback_active_now = (!loop_closed_raw && loop_closed_fallback);
+  if (loop_fallback_active_now && !loopFallbackWasActive)
+  {
+    ROS_WARN("[high_speed_tracking] Loop-closure fallback activated by lap counter (interTimes=%d, threshold=%d).",
+             interTimes, std::max(1, loopFallbackMinLaps));
+  }
+  else if (!loop_fallback_active_now && loopFallbackWasActive)
+  {
+    ROS_INFO("[high_speed_tracking] Loop-closure fallback cleared.");
+  }
+  loopFallbackWasActive = loop_fallback_active_now;
+  const bool loop_closed_for_publish = loop_closed_raw || loop_closed_fallback;
+
+  if (loop_closed_for_publish)
   {
     if (!wasLoopClosed)
     {
@@ -237,8 +250,10 @@ void callback_ccat(const autodrive_msgs::HUAT_ConeMap::ConstPtr &data)
     {
       doWayFullMsg(full_msg);
     }
-    pubFull.publish(full_msg);
+    pubPathlimits.publish(full_msg);
     bytes_pub += ros::serialization::serializationLength(full_msg);
+    fullPathPublishedOnce = true;
+    finishGraceCount = 0;
     wasLoopClosed = true;
     if (params->main.debug_save_way_files)
     {
@@ -263,10 +278,33 @@ void callback_ccat(const autodrive_msgs::HUAT_ConeMap::ConstPtr &data)
     {
       doWayMsg(partial_msg);
     }
-    pubPartial.publish(partial_msg);
+    pubPathlimits.publish(partial_msg);
     bytes_pub += ros::serialization::serializationLength(partial_msg);
     wasLoopClosed = false;
   }
+
+  if (finish_reached)
+  {
+    if (waitFullBeforeStop && !fullPathPublishedOnce && finishGraceCount < std::max(0, finishGraceFrames))
+    {
+      ++finishGraceCount;
+      ROS_WARN_THROTTLE(1.0,
+                        "[high_speed_tracking] Finish reached but full path has not been published yet. "
+                        "Delaying stop (%d/%d).",
+                        finishGraceCount, finishGraceFrames);
+    }
+    else
+    {
+      autodrive_msgs::HUAT_Stop msg;
+      msg.stop = true;
+      stopPub.publish(msg);
+      bytes_pub += ros::serialization::serializationLength(msg);
+      std::cout << "完成" << std::endl;
+      ros::shutdown();
+      return;
+    }
+  }
+
   ros::WallDuration total_dur = ros::WallTime::now() - total_start;
   PerfSample sample;
   sample.t_delaunay_ms = delaunay_dur.toSec() * 1000.0;
@@ -291,6 +329,10 @@ int main(int argc, char **argv)
   bool perf_enabled = true;
   int perf_window = 300;
   int perf_log_every = 30;
+  pnh.param("wait_full_before_stop", waitFullBeforeStop, true);
+  pnh.param("finish_grace_frames", finishGraceFrames, 300);
+  pnh.param("enable_loop_fallback_by_lap_counter", enableLoopFallbackByLapCounter, true);
+  pnh.param("loop_fallback_min_laps", loopFallbackMinLaps, 1);
   pnh.param("perf_stats_enable", perf_enabled, true);
   pnh.param("perf_stats_window", perf_window, 300);
   pnh.param("perf_stats_log_every", perf_log_every, 30);
@@ -309,8 +351,9 @@ int main(int argc, char **argv)
   ros::Subscriber subCones = nh->subscribe(params->main.input_cones_topic, 1, callback_ccat);
   ros::Subscriber subPose = nh->subscribe(params->main.input_pose_topic, 1, &WayComputer::stateCallback, wayComputer);
 
-  pubPartial = nh->advertise<autodrive_msgs::HUAT_PathLimits>(params->main.output_partial_topic, 1);
-  pubFull = nh->advertise<autodrive_msgs::HUAT_PathLimits>(params->main.output_full_topic, 1);
+  std::string pathlimits_topic;
+  pnh.param<std::string>("output_pathlimits_topic", pathlimits_topic, "planning/high_speed_tracking/pathlimits");
+  pubPathlimits = nh->advertise<autodrive_msgs::HUAT_PathLimits>(pathlimits_topic, 1);
   stopPub = nh->advertise<autodrive_msgs::HUAT_Stop>(params->main.stop_topic, 1);
   ros::spin();
 }

@@ -9,13 +9,13 @@ namespace planning_core
 LineDetectionCore::LineDetectionCore(const LineDetectionParams &params)
   : params_(params)
 {
-  finish_line_x_ = params_.max_path_distance;
+  finish_line_x_ = params_.accel_distance;
 }
 
 void LineDetectionCore::SetParams(const LineDetectionParams &params)
 {
   params_ = params;
-  finish_line_x_ = params_.max_path_distance;
+  finish_line_x_ = params_.accel_distance;
 }
 
 void LineDetectionCore::UpdateCones(const std::vector<ConePoint> &cones)
@@ -47,6 +47,42 @@ std::vector<ConePoint> LineDetectionCore::FilterCones(const std::vector<ConePoin
   }
 
   return filtered;
+}
+
+std::vector<Pose> LineDetectionCore::GenerateFallbackPathFromSparseCones(const std::vector<ConePoint> &cones) const
+{
+  if (cones.empty() && !fallback_center_valid_)
+  {
+    return {};
+  }
+
+  if (!cones.empty())
+  {
+    double min_y = cones.front().y;
+    double max_y = cones.front().y;
+    for (const ConePoint &cone : cones)
+    {
+      min_y = std::min(min_y, cone.y);
+      max_y = std::max(max_y, cone.y);
+    }
+
+    double estimate = 0.5 * (min_y + max_y);
+    if (fallback_center_valid_)
+    {
+      // Low-pass to avoid sudden centerline jumps on sparse cones.
+      fallback_center_y_ = 0.7 * fallback_center_y_ + 0.3 * estimate;
+    }
+    else
+    {
+      fallback_center_y_ = estimate;
+      fallback_center_valid_ = true;
+    }
+  }
+
+  HoughLine fallback_center;
+  fallback_center.rho = fallback_center_y_;
+  fallback_center.theta = 0.0;
+  return GeneratePath(fallback_center);
 }
 
 void LineDetectionCore::InitializeAccumulator(int num_rho, int num_theta)
@@ -190,11 +226,14 @@ std::vector<Pose> LineDetectionCore::GeneratePath(const HoughLine &center_line) 
   bool is_horizontal = (std::abs(center_line.theta) < params_.theta_tolerance ||
                         std::abs(center_line.theta - M_PI) < params_.theta_tolerance);
 
+  const double accel_plus_brake = std::max(0.0, params_.accel_distance) + std::max(0.0, params_.brake_distance);
+  const double path_end = std::max(params_.path_start_x, std::max(params_.max_path_distance, accel_plus_brake));
+
   if (is_horizontal)
   {
     double y_offset = center_line.rho;
 
-    for (double x = params_.path_start_x; x <= params_.max_path_distance; x += params_.path_interval)
+    for (double x = params_.path_start_x; x <= path_end; x += params_.path_interval)
     {
       Pose pose;
       pose.x = x;
@@ -209,7 +248,7 @@ std::vector<Pose> LineDetectionCore::GeneratePath(const HoughLine &center_line) 
     if (std::abs(sin_theta) < 1e-6)
     {
       double y_offset = center_line.rho;
-      for (double x = params_.path_start_x; x <= params_.max_path_distance; x += params_.path_interval)
+      for (double x = params_.path_start_x; x <= path_end; x += params_.path_interval)
       {
         Pose pose;
         pose.x = x;
@@ -220,7 +259,7 @@ std::vector<Pose> LineDetectionCore::GeneratePath(const HoughLine &center_line) 
     }
     else
     {
-      for (double x = params_.path_start_x; x <= params_.max_path_distance; x += params_.path_interval)
+      for (double x = params_.path_start_x; x <= path_end; x += params_.path_interval)
       {
         Pose pose;
         pose.x = x;
@@ -282,22 +321,38 @@ void LineDetectionCore::RunAlgorithm()
     if (CheckFinishLine(vehicle_state_.x, finish_line_x_))
     {
       finished_ = true;
+      return;
     }
-
-    return;
-  }
-
-  if (cone_positions_.size() < 4)
-  {
-    last_error_ = "Insufficient cones: " + std::to_string(cone_positions_.size()) + " (need 4)";
-    return;
   }
 
   std::vector<ConePoint> filtered_cones = FilterCones(cone_positions_);
 
+  if (filtered_cones.size() < static_cast<size_t>(std::max(1, params_.min_valid_cones)))
+  {
+    if (first_detection_done_ && params_.hold_on_sparse_cones && !planned_path_.empty())
+    {
+      return;
+    }
+    last_error_ = "Insufficient cones after filtering: " + std::to_string(filtered_cones.size()) +
+                  " (need " + std::to_string(std::max(1, params_.min_valid_cones)) + ")";
+    return;
+  }
+
   if (filtered_cones.size() < 4)
   {
-    last_error_ = "Insufficient cones after filtering: " + std::to_string(filtered_cones.size()) + " (need 4)";
+    std::vector<Pose> fallback_path = GenerateFallbackPathFromSparseCones(filtered_cones);
+    if (fallback_path.empty())
+    {
+      if (first_detection_done_ && params_.hold_on_sparse_cones && !planned_path_.empty())
+      {
+        return;
+      }
+      last_error_ = "Sparse cones fallback failed.";
+      return;
+    }
+
+    planned_path_ = ConvertToWorldCoordinates(fallback_path);
+    first_detection_done_ = true;
     return;
   }
 
@@ -313,11 +368,24 @@ void LineDetectionCore::RunAlgorithm()
 
   if (left_line.votes == 0 || right_line.votes == 0)
   {
-    last_error_ = "Failed to select valid boundary lines";
+    if (first_detection_done_ && params_.hold_on_sparse_cones && !planned_path_.empty())
+    {
+      return;
+    }
+    std::vector<Pose> fallback_path = GenerateFallbackPathFromSparseCones(filtered_cones);
+    if (fallback_path.empty())
+    {
+      last_error_ = "Failed to select valid boundary lines";
+      return;
+    }
+    planned_path_ = ConvertToWorldCoordinates(fallback_path);
+    first_detection_done_ = true;
     return;
   }
 
   center_line_ = CalculateCenterLine(left_line, right_line);
+  fallback_center_y_ = center_line_.rho;
+  fallback_center_valid_ = true;
 
   std::vector<Pose> path_points = GeneratePath(center_line_);
 

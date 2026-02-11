@@ -128,18 +128,12 @@ private:
     sub_pose_ = nh_.subscribe("/Carstate", 10, &ControlNode::PoseCallback, this);
     sub_last_ = nh_.subscribe("/skidpad_detection_node/approaching_goal", 100, &ControlNode::LastCallback, this);
 
-    if (mode_ == 2)
+    if (mode_ != 1 && mode_ != 5)
     {
-      sub_pathlimits_ = nh_.subscribe("/line_detection/pathlimits", 100, &ControlNode::PathLimitsCallback, this);
-    }
-    else if (mode_ == 3)
-    {
-      sub_pathlimits_ = nh_.subscribe("/skidpad_detection_node/pathlimits", 100, &ControlNode::PathLimitsCallback, this);
-    }
-    else if (mode_ != 1)
-    {
-      sub_high_path_ = nh_.subscribe("/AS/P/pathlimits/partial", 100, &ControlNode::HighPathCallback, this);
-      sub_high_path_full_ = nh_.subscribe("/AS/P/pathlimits/full", 100, &ControlNode::HighPathCallback, this);
+      std::string pathlimits_topic;
+      pnh_.param<std::string>("pathlimits_topic", pathlimits_topic, "planning/pathlimits");
+      sub_pathlimits_ = nh_.subscribe(pathlimits_topic, 100, &ControlNode::PathLimitsCallback, this);
+      ROS_INFO("[control] Subscribed to pathlimits: %s", pathlimits_topic.c_str());
     }
   }
 
@@ -162,11 +156,6 @@ private:
       controller_->UpdateCarState(state);
     }
     pose_ready_ = true;
-  }
-
-  void HighPathCallback(const autodrive_msgs::HUAT_PathLimits::ConstPtr &msgs)
-  {
-    PathLimitsCallback(msgs);
   }
 
   void PathLimitsCallback(const autodrive_msgs::HUAT_PathLimits::ConstPtr &msgs)
@@ -246,8 +235,6 @@ private:
   ros::NodeHandle nh_;
   ros::NodeHandle pnh_;
 
-  ros::Subscriber sub_high_path_;
-  ros::Subscriber sub_high_path_full_;
   ros::Subscriber sub_pathlimits_;
   ros::Subscriber sub_pose_;
   ros::Subscriber sub_last_;

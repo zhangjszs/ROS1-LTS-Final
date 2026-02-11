@@ -36,16 +36,26 @@ cones:
   # Maximum lateral (Y-axis) distance for cone filtering (meters)
   max_lateral_distance: 10.0
 
+  # Minimum valid cones for sparse fallback
+  min_valid_count: 2
+
+  # Hold last valid path when cones are temporarily sparse
+  hold_on_sparse_cones: true
+
 # Path Generation Parameters
 path:
   # Interval between path points (meters)
   interval: 0.1
 
-  # Maximum path distance for the straight track (meters)
-  max_distance: 75.0
+  # Total path distance for acceleration + braking (meters)
+  max_distance: 175.0
 
   # Starting X position for path generation (meters)
   start_x: 1.0
+
+  # ACC segment lengths (meters)
+  accel_distance: 75.0
+  brake_distance: 100.0
 
 # Vehicle Parameters
 vehicle:
@@ -79,9 +89,13 @@ topics:
 
 # Speed profile for PathLimits (P1)
 speed:
+  # SAFE speed cap (m/s)
   speed_cap: 20.0
   max_lateral_acc: 6.5
   max_accel: 3.0
   max_brake: 4.0
   min_speed: 1.0
   curvature_epsilon: 0.001
+  accel_zone_length: 75.0
+  brake_zone_length: 100.0
+  timing_start_offset: 0.3

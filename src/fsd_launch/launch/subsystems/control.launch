@@ -12,6 +12,14 @@
     <arg name="vehicle" default="A13" doc="车辆型谱ID"/>
     <arg name="vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/control.yaml"/>
     <arg name="vehicle_local_config" default="" doc="本地覆盖参数文件（*.local.yaml）"/>
+    <arg name="planner" default="" doc="规划器类型（从上层传入，用于 topic 映射）"/>
+    <!-- 统一 PathLimits 话题：按 planner/mode 映射 -->
+    <arg name="pathlimits_topic" default="$(eval
+        'planning/pathlimits' if arg('planner') == 'unified' else
+        'planning/line_detection/pathlimits' if arg('mode') == 'accel' else
+        'planning/skidpad/pathlimits' if arg('mode') == 'skidpad' else
+        'planning/high_speed_tracking/pathlimits'
+    )" doc="控制层统一 PathLimits 输入话题"/>
 
     <!-- 控制参数加载顺序：base -> mode -> mission -> vehicle -> vehicle.local -->
     <rosparam command="load" file="$(arg control_base_config)"/>
@@ -24,5 +32,6 @@
         <arg name="mode_profile" value="$(arg mode)"/>
         <arg name="control_mode" value="$(arg control_mode)"/>
         <arg name="skip_param_load" value="$(arg skip_param_load)"/>
+        <arg name="pathlimits_topic" value="$(arg pathlimits_topic)"/>
     </include>
 </launch>

@@ -19,6 +19,28 @@ circle:
   radius: 9.125           # 八字圆弧半径 (m)
   car_length: 1.87         # 车身长度 (m)
   path_interval: 0.05      # 路径点间隔 (m)
+  center_distance_nominal: 18.25
+  center_distance_tolerance: 6.0
+
+fit:
+  ransac_iterations: 120
+  inlier_threshold: 0.35
+  min_inliers: 4
+  radius_min: 5.0
+  radius_max: 20.0
+
+phase:
+  min_dwell_frames: 5
+  entry_switch_dist: 1.2
+  crossover_switch_dist: 1.5
+  exit_switch_dist: 2.0
+
+phase_speed:
+  entry: 6.0
+  warmup: 7.0
+  timed: 8.0
+  crossover: 6.5
+  exit: 5.0
 
 passthrough:
   x_min: 0.1               # PassThrough X轴最小值 (m)

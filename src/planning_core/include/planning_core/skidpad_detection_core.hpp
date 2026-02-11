@@ -33,12 +33,45 @@ struct SkidpadParams
   double circle_radius{9.125};
   double car_length{1.87};
   double path_interval{0.05};
+  double center_distance_nominal{18.25};
+  double center_distance_tolerance{6.0};
+
+  // Circle fitting
+  int fit_ransac_iterations{120};
+  double fit_inlier_threshold{0.35};
+  int fit_min_inliers{4};
+  double fit_radius_min{5.0};
+  double fit_radius_max{20.0};
+
+  // Phase machine
+  int phase_min_dwell_frames{5};
+  double phase_entry_switch_dist{1.2};
+  double phase_crossover_switch_dist{1.5};
+  double phase_exit_switch_dist{2.0};
+
+  // Phase-aware speed caps
+  double speed_entry{6.0};
+  double speed_warmup{7.0};
+  double speed_timed{8.0};
+  double speed_crossover{6.5};
+  double speed_exit{5.0};
 
   // PassThrough 滤波器限制
   double passthrough_x_min{0.1};
   double passthrough_x_max{15.0};
   double passthrough_y_min{-3.0};
   double passthrough_y_max{3.0};
+};
+
+enum class SkidpadPhase
+{
+  ENTRY = 0,
+  RIGHT_WARMUP = 1,
+  RIGHT_TIMED = 2,
+  CROSSOVER = 3,
+  LEFT_WARMUP = 4,
+  LEFT_TIMED = 5,
+  EXIT = 6
 };
 
 struct Trajectory
@@ -82,13 +115,55 @@ public:
   void ClearPathUpdated() { path_updated_ = false; }
   const std::vector<Pose> &GetPath() const { return path_output_; }
   bool IsApproachingGoal() const { return approaching_goal_; }
+  SkidpadPhase GetPhase() const { return phase_; }
+  double GetRecommendedSpeedCap() const;
+  std::string GetPhaseName() const;
 
 private:
+  struct CircleModel
+  {
+    Eigen::Vector2d center{0.0, 0.0};
+    double radius{0.0};
+    int inliers{0};
+    bool valid{false};
+  };
+
+  struct GeometryModel
+  {
+    CircleModel right;
+    CircleModel left;
+    bool valid{false};
+  };
+
   void PassThrough(pcl::PointCloud<pcl::PointXYZ>::Ptr &in_ptr);
-  bool ChangePathFlag(double current_x, double current_y, double TargetX_, double TargetY_, double DistanceThreshold_);
-  void ChangeLeavePathFlag(double current_x, double current_y, double TargetX_, double TargetY_, double LeaveDistanceThreshold_);
-  void UpdateApproaching(double current_x, double current_y, double FinTargetX_, double FInTargetY_, double stopdistance_);
-  std::vector<Pose> TransformPath(const std::vector<Pose> &path) const;
+  bool EstimateGeometry(GeometryModel *geometry);
+  bool FitCircleRansac(const std::vector<Eigen::Vector2d> &points, CircleModel *model) const;
+  static bool CircleFromThreePoints(const Eigen::Vector2d &a,
+                                    const Eigen::Vector2d &b,
+                                    const Eigen::Vector2d &c,
+                                    Eigen::Vector2d *center,
+                                    double *radius);
+  void UpdatePhaseMachine();
+  void TransitionTo(SkidpadPhase next_phase);
+  void UpdateCircleProgress(const Eigen::Vector2d &center,
+                            double *prev_angle,
+                            bool *angle_initialized,
+                            double *accumulated_angle,
+                            int *lap_count);
+  void UpdateApproaching();
+  std::vector<Pose> BuildPhasePath() const;
+  std::vector<Pose> BuildFallbackPath() const;
+  void AppendLine(const Eigen::Vector2d &a,
+                  const Eigen::Vector2d &b,
+                  std::vector<Pose> *path) const;
+  void AppendArc(const Eigen::Vector2d &center,
+                 double radius,
+                 double start_angle,
+                 double delta_angle,
+                 std::vector<Pose> *path) const;
+  static double NormalizeAngle(double angle);
+  Eigen::Vector2d LocalToWorld(const Eigen::Vector2d &local) const;
+  Eigen::Vector2d CurrentWorldPosition() const;
 
   SkidpadParams params_{};
   Trajectory current_pose_{};
@@ -97,34 +172,20 @@ private:
   bool approaching_goal_{false};
 
   pcl::PointCloud<pcl::PointXYZ>::Ptr skidpad_msg_ptr_;
-  std::set<pcl::PointXYZ, PointComparator> orderCloud_{};
-  std::set<pcl::PointXYZ, PointComparator> orderCloud_real_{};
-  pcl::PointXYZ pc_trans_{};
+  std::vector<Eigen::Vector2d> cones_local_{};
+  GeometryModel geometry_{};
 
-  int inverse_flag_{1};
-  int modeFlag_{0};
-  double circle2lidar_{15.0};
-  double at2_angle_mid_{0.0};
-  double prev_at2_angle_mid_{0.0};
-  double targetX_{16.0};
-  double targetY_{-1.0};
-  double FinTargetX_{40.0};
-  double FInTargetY_{0.0};
-  double distanceThreshold_{0.5};
-  double LeavedistanceThreshold_{1.0};
-  double stopdistance_{5.0};
-  bool at2_angle_calced_{false};
-  bool find_four_bucket_{false};
-  bool matchFlag_{true};
-  bool changFlag_{false};
-  bool leaveFlag_{false};
-  bool haschanged_{true};
-  bool skipIteration_{false};
-  double mid_x_fir_{0.0};
-  double mid_y_fir_{0.0};
-  double mid_x_sec_{0.0};
-  double mid_y_sec_{0.0};
-  double initial_angle_{0.0};  // 首次计算的角度基准
+  SkidpadPhase phase_{SkidpadPhase::ENTRY};
+  int phase_dwell_frames_{0};
+
+  int right_laps_{0};
+  int left_laps_{0};
+  double right_accum_angle_{0.0};
+  double left_accum_angle_{0.0};
+  double prev_right_angle_{0.0};
+  double prev_left_angle_{0.0};
+  bool right_angle_initialized_{false};
+  bool left_angle_initialized_{false};
 };
 
 } // namespace planning_core

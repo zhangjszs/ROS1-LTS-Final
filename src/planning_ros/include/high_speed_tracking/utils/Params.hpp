@@ -24,7 +24,7 @@ class Params {
  public:
   Params(ros::NodeHandle *const nh);
   struct Main {
-    std::string input_cones_topic, input_pose_topic, output_full_topic, output_partial_topic,stop_topic;
+    std::string input_cones_topic, input_pose_topic, stop_topic;
     std::string markers_full_topic, markers_partial_topic;
     std::string package_path;
     bool shutdown_on_loop_closure;
@@ -61,9 +61,33 @@ class Params {
       double max_brake;
       double min_speed;
       double curvature_epsilon;
+      int mode_transition_frames;
+      double curvature_limit;
+      double curvature_warn_limit_scale;
+      bool curvature_smoothing_enable;
+      int curvature_smoothing_max_iters;
+      double curvature_smoothing_alpha;
+      double curvature_warn_ratio;
+      int curvature_warn_min_points;
+      int min_publish_path_size;
+      int short_path_stable_relax_points;
+      bool hold_last_valid_path;
+      int hold_last_valid_max_frames;
       int loop_close_debounce_frames;
       int loop_open_debounce_frames;
+      bool loop_allow_reopen;
       int mode_min_hold_frames;
+      bool search_adaptive_enable;
+      int search_adaptive_trigger_frames;
+      int search_adaptive_step_frames;
+      int search_adaptive_max_level;
+      int search_adaptive_bootstrap_level;
+      double search_adaptive_radius_step;
+      double search_adaptive_heuristic_step;
+      double search_adaptive_radius_max;
+      double search_adaptive_heuristic_max;
+      bool search_adaptive_retry_on_short;
+      bool loop_diag_enable;
     } speed;
   } wayComputer;
   struct Visualization {

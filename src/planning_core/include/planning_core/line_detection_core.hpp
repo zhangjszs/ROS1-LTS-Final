@@ -58,6 +58,10 @@ struct LineDetectionParams
   double min_rho_diff{2.0};
   double max_rho_diff{20.0};
   double path_start_x{1.0};
+  double accel_distance{75.0};
+  double brake_distance{100.0};
+  int min_valid_cones{2};
+  bool hold_on_sparse_cones{true};
   int max_lines_to_check{10};
 };
 
@@ -80,6 +84,7 @@ public:
 
 private:
   std::vector<ConePoint> FilterCones(const std::vector<ConePoint> &cones) const;
+  std::vector<Pose> GenerateFallbackPathFromSparseCones(const std::vector<ConePoint> &cones) const;
   std::vector<HoughLine> HoughTransform(const std::vector<ConePoint> &cones);
   std::pair<HoughLine, HoughLine> SelectBoundaryLines(const std::vector<HoughLine> &lines) const;
   HoughLine CalculateCenterLine(const HoughLine &left_line, const HoughLine &right_line) const;
@@ -96,6 +101,8 @@ private:
   bool finished_{false};
   VehicleState vehicle_state_{};
   std::vector<Pose> planned_path_{};
+  mutable double fallback_center_y_{0.0};
+  mutable bool fallback_center_valid_{false};
 
   std::vector<std::vector<int>> hough_accumulator_;
   int cached_num_rho_{0};

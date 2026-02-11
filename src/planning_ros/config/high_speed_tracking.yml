@@ -1,8 +1,7 @@
 # I/O Topics
 input_cones_topic:              "localization/cone_map"                 #用于接收锥筒
 input_pose_topic:               "localization/car_state"                #用于接受车身位姿消息
-output_full_topic:              "planning/high_speed_tracking/pathlimits/full"    #在路径回环之后发布全部路径用的
-output_partial_topic:           "planning/high_speed_tracking/pathlimits/partial" #在没有回环的时候发布部分路径用的
+output_pathlimits_topic:        "planning/high_speed_tracking/pathlimits"          #统一路径输出话题（partial/full 均发布到此话题）
 stop_topic:                     "planning/high_speed_tracking/stop"     #发布车辆停止信号
 
 # Visualization data
@@ -13,6 +12,10 @@ viz_topic:                     "planning/high_speed_tracking/viz"               
 
 # stop
 number_of_stopped_turns:        1       # int    [-]   赛车停止的圈数（需要完成的圈数）
+wait_full_before_stop:          true    # bool   [-]   触发完成圈数后，若尚未发布 full 路径则先延迟停车
+finish_grace_frames:            300     # int    [frame] 延迟停车最大帧数（等待 partial->full 切换）
+enable_loop_fallback_by_lap_counter: true # bool [-]   几何回环未触发时，按圈计数触发 full 发布兜底
+loop_fallback_min_laps:         2       # int    [lap]  延后兜底触发，优先让原始几何回环先接管 full 切换
 debug_save_way_files:           false   # bool   [-]   调试开关：是否把路径写入testData与loops文件（默认关闭）
 
 # path
@@ -48,7 +51,7 @@ max_treeSearch_time:            0.12    # float  [s]   树搜索所能花费的�
 
 # Loop Closure                  #这个应该不用怎么碰,关于圈数和关闭节点是用的另外的判定方式
 shutdown_on_loop_closure:       false   # bool   [-]   路线闭环之后是否关闭节点
-max_dist_loop_closure:          1.0     # double [m]   用于表示首尾中间点之间的最大距离,只有小于此距离才会被判定回环
+max_dist_loop_closure:          2.3     # double [m]   回环判定首尾距离阈值（基于 rosbag 标定，兼顾鲁棒与误触发）
 max_angle_diff_loop_closure:    0.65    # double [rad] 用于确定闭环中首尾中间点之间的最大角度差
 
 # Speed Profile (P1)
@@ -59,9 +62,33 @@ max_accel:                      2.5     # double [m/s^2] 前向积分加速度�
 max_brake:                      4.0     # double [m/s^2] 后向积分制动上限（正值）
 min_speed:                      1.0     # double [m/s] 最低巡航速度，避免低速抖动
 curvature_epsilon:              0.001   # double [1/m] 曲率限速分母下限
-loop_close_debounce_frames:     5       # int    [frame] 回环成立防抖帧数，连续满足后切到 FAST_LAP
+mode_transition_frames:         40      # int    [frame] SAFE_LAP/FAST_LAP 速度上限渐进过渡帧数
+curvature_limit:                0.222   # double [1/m] AUT 几何曲率参考上限（R>=4.5m）
+curvature_warn_limit_scale:     1.08    # double [-]   告警/质量判定容差倍率（仅用于告警统计，不改变速度约束的曲率值）
+curvature_smoothing_enable:     true    # bool   [-]   对输出路径做轻量曲率平滑
+curvature_smoothing_max_iters:  4       # int    [iter] 曲率平滑最大迭代次数
+curvature_smoothing_alpha:      0.25    # double [-]   每次将超限点拉向邻点中点的比例
+curvature_warn_ratio:           0.12    # double [-]   超限点比例达到该阈值才告警
+curvature_warn_min_points:      8       # int    [num] 超限点最小数量门槛
+min_publish_path_size:          12      # int    [num] 可发布路径最小点数，低于该值视为短路径
+short_path_stable_relax_points: 3       # int    [num] 已有稳定路径时，短路径阈值放宽点数（减少持有回退触发）
+hold_last_valid_path:           true    # bool   [-]   短路径时保留上次有效路径
+hold_last_valid_max_frames:     25      # int    [frame] 最多连续保留帧数
+loop_close_debounce_frames:     1       # int    [frame] 回环成立防抖帧数，几何回环一旦成立立即切到 FAST_LAP
 loop_open_debounce_frames:      15      # int    [frame] 回环失效防抖帧数，连续失效后回退到 SAFE_LAP
+loop_allow_reopen:              false   # bool   [-]   默认锁存 FAST_LAP，不因短时回环抖动回退 SAFE（降低 full 发布抖动）
 mode_min_hold_frames:           30      # int    [frame] 模式切换后的最短驻留帧数，避免来回抖动
+search_adaptive_enable:         true    # bool   [-]   启用短路径自适应搜索（放宽 search_radius / max_next_heuristic）
+search_adaptive_trigger_frames: 1       # int    [frame] 连续短路径达到该帧数后开始放宽搜索参数
+search_adaptive_step_frames:    1       # int    [frame] 每累计该帧数，放宽等级 +1
+search_adaptive_max_level:      8       # int    [-]   放宽等级上限
+search_adaptive_bootstrap_level: 4      # int    [-]   在尚无稳定路径时使用的基础放宽等级
+search_adaptive_radius_step:    3.0     # double [m]   每级额外增加的搜索半径
+search_adaptive_heuristic_step: 1.0     # double [-]   每级额外增加的启发值阈值
+search_adaptive_radius_max:     40.0    # double [m]   搜索半径放宽上限
+search_adaptive_heuristic_max:  14.0    # double [-]   启发值阈值放宽上限
+search_adaptive_retry_on_short: true    # bool   [-]   当帧短路径时立即用更宽参数重算一次
+loop_diag_enable:               false   # bool   [-]   打印几何回环诊断（way_size/首尾距/尾点到历史最小距）
 
 # Replan flag
 vital_num_midpoints:            10      # int    [num] 没搞清楚,建议没问题就别动.number of midpoints that are considered "vital" from the car's position on. This is taken into account when computing the (inner) replan flag.

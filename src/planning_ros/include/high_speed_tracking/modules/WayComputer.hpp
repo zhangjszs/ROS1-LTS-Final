@@ -51,6 +51,11 @@ class WayComputer {
    * 上一次迭代的路径计算结果。它也是一个类型为 `Way` 的对象，用于存储上一次迭代计算得到的路径信息。
    */
   Way way_, lastWay_;
+  Way lastStableWay_;
+  bool hasStableWay_ = false;
+  int holdFramesRemaining_ = 0;
+  int shortPathStreak_ = 0;
+  int adaptiveSearchLevel_ = 0;
 
   /**
    * @brief This Way object had to be created to solve the non-stop loop
@@ -80,6 +85,7 @@ class WayComputer {
     FAST_LAP = 1
   };
   LapMode lapMode_ = LapMode::MAP_BUILD_SAFE;
+  double modeSpeedBlend_ = 0.0;
   int loopCloseDebounceCount_ = 0;
   int loopOpenDebounceCount_ = 0;
   int modeHoldFrames_ = 0;

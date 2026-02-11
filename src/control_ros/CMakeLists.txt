@@ -8,7 +8,6 @@ find_package(catkin REQUIRED COMPONENTS
   control_core
   eigen_conversions
   geometry_msgs
-  nav_msgs
   roscpp
   roslib
   std_msgs
@@ -17,7 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 catkin_package(
   INCLUDE_DIRS include
-  CATKIN_DEPENDS autodrive_msgs control_core eigen_conversions geometry_msgs nav_msgs roscpp roslib std_msgs tf
+  CATKIN_DEPENDS autodrive_msgs control_core eigen_conversions geometry_msgs roscpp roslib std_msgs tf
 )
 
 include_directories(
@@ -30,13 +29,5 @@ add_executable(control_node
 )
 
 target_link_libraries(control_node
-  ${catkin_LIBRARIES}
-)
-
-add_executable(pp_car_node
-  nodes/pp_car_node.cpp
-)
-
-target_link_libraries(pp_car_node
   ${catkin_LIBRARIES}
 )

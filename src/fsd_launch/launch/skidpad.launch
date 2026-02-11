@@ -21,6 +21,7 @@
     <arg name="localization_vehicle_local_config" default=""/>
     <arg name="control_vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/control.yaml"/>
     <arg name="control_vehicle_local_config" default=""/>
+    <arg name="planner" default="unified" doc="规划器: skidpad(旧) | unified(新统一管线)"/>
 
     <!-- ========== Simulation Time ========== -->
     <param name="/use_sim_time" value="$(arg simulation)"/>
@@ -43,12 +44,14 @@
     </include>
 
     <include file="$(find fsd_launch)/launch/subsystems/planning.launch">
-        <arg name="planner" value="skidpad"/>
+        <arg name="planner" value="$(arg planner)"/>
+        <arg name="mission" value="skidpad"/>
     </include>
 
     <include file="$(find fsd_launch)/launch/subsystems/control.launch">
         <arg name="mode" value="skidpad"/>
         <arg name="control_mode" value="3"/>
+        <arg name="planner" value="$(arg planner)"/>
         <arg name="vehicle" value="$(arg vehicle)"/>
         <arg name="vehicle_config" value="$(arg control_vehicle_config)"/>
         <arg name="vehicle_local_config" value="$(arg control_vehicle_local_config)"/>
