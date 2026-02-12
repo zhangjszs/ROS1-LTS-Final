@@ -21,6 +21,7 @@
     <!-- 工具依赖 -->
     <exec_depend>rosbag</exec_depend>
     <exec_depend>rviz</exec_depend>
+    <exec_depend>diagnostic_aggregator</exec_depend>
 
     <export></export>
 </package>

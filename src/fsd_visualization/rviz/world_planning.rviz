@@ -194,8 +194,12 @@ Visualization Manager:
           Marker Topic: /fsd/viz/path
           Name: Path
           Namespaces:
-            path_partial_center: true
-            path_partial_points: true
+            path_full_center: false
+            path_full_points: false
+            path_partial_center: false
+            path_partial_points: false
+            path_unified_center: true
+            path_unified_points: true
           Queue Size: 100
           Value: true
         - Class: rviz/MarkerArray

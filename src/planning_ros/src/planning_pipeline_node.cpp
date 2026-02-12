@@ -11,6 +11,8 @@
 #include <iostream>
 #include <sstream>
 
+#include "planning_ros/contract_utils.hpp"
+
 namespace planning_ros
 {
 
@@ -21,6 +23,23 @@ namespace planning_ros
 PlanningPipelineNode::PlanningPipelineNode(ros::NodeHandle &nh, const std::string &mission)
   : mission_(mission)
 {
+  ros::NodeHandle pnh("~");
+  pnh.param("diagnostics_rate_hz", diagnostics_rate_hz_, 1.0);
+  pnh.param<std::string>("diagnostics_topic", diagnostics_topic_, "planning/diagnostics");
+  pnh.param("publish_global_diagnostics", publish_global_diagnostics_, true);
+  pnh.param<std::string>("global_diagnostics_topic", global_diagnostics_topic_, "/diagnostics");
+  pnh.param("enable_internal_viz_side_channel", enable_internal_viz_side_channel_, false);
+  if (diagnostics_rate_hz_ <= 0.0)
+  {
+    diagnostics_rate_hz_ = 1.0;
+  }
+
+  diag_pub_local_ = nh.advertise<diagnostic_msgs::DiagnosticArray>(diagnostics_topic_, 1, true);
+  if (publish_global_diagnostics_)
+  {
+    diag_pub_global_ = nh.advertise<diagnostic_msgs::DiagnosticArray>(global_diagnostics_topic_, 1);
+  }
+
   if (mission_ == "line" || mission_ == "acceleration")
   {
     InitLine(nh);
@@ -35,6 +54,7 @@ PlanningPipelineNode::PlanningPipelineNode(ros::NodeHandle &nh, const std::strin
     InitHighSpeed(nh);
   }
   ROS_INFO("[PlanningPipeline] Initialized with mission='%s'", mission_.c_str());
+  PublishEntryHealth(ros::Time::now(), true);
 }
 
 // ---------------------------------------------------------------------------
@@ -82,8 +102,17 @@ void PlanningPipelineNode::InitHighSpeed(ros::NodeHandle &nh)
   hs_params_ = std::make_unique<Params>(&nh);
   hs_way_computer_ = std::make_unique<WayComputer>(hs_params_->wayComputer);
 
-  hs_viz_ = &Visualization::getInstance();
-  hs_viz_->init(&nh, hs_params_->visualization);
+  if (enable_internal_viz_side_channel_)
+  {
+    hs_viz_ = &Visualization::getInstance();
+    hs_viz_->init(&nh, hs_params_->visualization);
+    ROS_WARN("[planning_pipeline/high_speed] Internal visualization side-channel enabled for compatibility.");
+  }
+  else
+  {
+    hs_viz_ = nullptr;
+    ROS_INFO("[planning_pipeline/high_speed] Internal visualization side-channel disabled (decoupled mode).");
+  }
 
   debug_save_way_files_ = hs_params_->main.debug_save_way_files;
   if (debug_save_way_files_)
@@ -107,8 +136,92 @@ void PlanningPipelineNode::InitHighSpeed(ros::NodeHandle &nh)
 // SpinOnce
 // ---------------------------------------------------------------------------
 
+void PlanningPipelineNode::PublishDiagnostics(const diagnostic_msgs::DiagnosticArray &diag_arr)
+{
+  diag_pub_local_.publish(diag_arr);
+  if (publish_global_diagnostics_)
+  {
+    diag_pub_global_.publish(diag_arr);
+  }
+}
+
+void PlanningPipelineNode::PublishEntryHealth(const ros::Time &stamp, bool force)
+{
+  const ros::Time now = ros::Time::now();
+  if (!force && last_entry_diag_pub_.isValid())
+  {
+    const double min_interval = 1.0 / diagnostics_rate_hz_;
+    if ((now - last_entry_diag_pub_).toSec() < min_interval)
+    {
+      return;
+    }
+  }
+  last_entry_diag_pub_ = now;
+
+  diagnostic_msgs::DiagnosticArray diag_arr;
+  diag_arr.header.stamp = stamp.isZero() ? now : stamp;
+
+  diagnostic_msgs::DiagnosticStatus ds;
+  ds.name = "planning_entry_health";
+  ds.hardware_id = "planning_ros/planning_pipeline";
+  ds.level = diagnostic_msgs::DiagnosticStatus::OK;
+  ds.message = "OK";
+
+  auto kv = [](const std::string &k, const std::string &v) {
+    diagnostic_msgs::KeyValue pair;
+    pair.key = k;
+    pair.value = v;
+    return pair;
+  };
+
+  ds.values.push_back(kv("mission", mission_));
+
+  if (mission_ == "line" || mission_ == "acceleration")
+  {
+    ds.values.push_back(kv("backend", "line_detection"));
+    ds.values.push_back(kv("local_tf_valid", "n/a"));
+    ds.values.push_back(kv("lap_mode", "n/a"));
+    ds.values.push_back(kv("internal_viz_side_channel", "false"));
+  }
+  else if (mission_ == "skidpad")
+  {
+    ds.values.push_back(kv("backend", "skidpad_detection"));
+    ds.values.push_back(kv("local_tf_valid", "n/a"));
+    ds.values.push_back(kv("lap_mode", "n/a"));
+    ds.values.push_back(kv("internal_viz_side_channel", "false"));
+  }
+  else
+  {
+    const bool local_tf_valid = hs_way_computer_ && hs_way_computer_->isLocalTfValid();
+    if (!local_tf_valid)
+    {
+      ds.level = diagnostic_msgs::DiagnosticStatus::WARN;
+      ds.message = "WAITING_CARSTATE";
+    }
+
+    std::string lap_mode = "MAP_BUILD_SAFE";
+    if (hs_way_computer_ && hs_way_computer_->lapMode() == WayComputer::LapMode::FAST_LAP)
+    {
+      lap_mode = "FAST_LAP";
+    }
+
+    ds.values.push_back(kv("backend", "high_speed_tracking"));
+    ds.values.push_back(kv("local_tf_valid", local_tf_valid ? "true" : "false"));
+    ds.values.push_back(kv("lap_mode", lap_mode));
+    ds.values.push_back(kv("loop_closed", (hs_way_computer_ && hs_way_computer_->isLoopClosed()) ? "true" : "false"));
+    ds.values.push_back(kv("loop_fallback_active", loopFallbackWasActive_ ? "true" : "false"));
+    ds.values.push_back(kv("inter_times", std::to_string(interTimes_)));
+    ds.values.push_back(kv("internal_viz_side_channel", enable_internal_viz_side_channel_ ? "true" : "false"));
+  }
+
+  diag_arr.status.push_back(ds);
+  PublishDiagnostics(diag_arr);
+}
+
 bool PlanningPipelineNode::SpinOnce()
 {
+  PublishEntryHealth(ros::Time::now(), false);
+
   if (mission_ == "line" || mission_ == "acceleration")
   {
     line_node_->RunOnce();
@@ -130,13 +243,17 @@ bool PlanningPipelineNode::SpinOnce()
 void PlanningPipelineNode::HighSpeedConeCallback(
     const autodrive_msgs::HUAT_ConeMap::ConstPtr &data)
 {
+  const ros::Time diag_stamp = contract::NormalizeInputStamp(data->header.stamp);
+
   if (!hs_params_ || !hs_way_computer_ || !hs_way_computer_->isLocalTfValid())
   {
+    PublishEntryHealth(diag_stamp, false);
     ROS_WARN("[planning_pipeline/high_speed] CarState not received or wayComputer invalid.");
     return;
   }
   if (data->cone.empty())
   {
+    PublishEntryHealth(diag_stamp, false);
     ROS_WARN("[planning_pipeline/high_speed] Empty cone set.");
     return;
   }
@@ -149,7 +266,7 @@ void PlanningPipelineNode::HighSpeedConeCallback(
   nodes.reserve(data->cone.size());
   for (const autodrive_msgs::HUAT_Cone &c : data->cone)
   {
-    if (static_cast<double>(c.confidence) / 1000.0 >= hs_params_->main.min_cone_confidence)
+    if (contract::DecodeConeConfidenceScore(c.confidence) >= hs_params_->main.min_cone_confidence)
     {
       nodes.emplace_back(c);
     }
@@ -174,14 +291,14 @@ void PlanningPipelineNode::HighSpeedConeCallback(
 
   // Way computation
   ros::WallTime way_start = ros::WallTime::now();
-  hs_way_computer_->update(triangles, data->header.stamp);
+  hs_way_computer_->update(triangles, diag_stamp);
   ros::WallDuration way_dur = ros::WallTime::now() - way_start;
 
   const bool finish_reached = HighSpeedFinishCheck();
 
   if (hs_viz_)
   {
-    hs_viz_->setTimestamp(data->header.stamp);
+    hs_viz_->setTimestamp(diag_stamp);
     hs_viz_->visualize(hs_way_computer_->lastFilteredTriangulation());
     hs_viz_->visualize(hs_way_computer_->lastFilteredEdges());
     hs_viz_->visualize(hs_way_computer_->wayForVisualization());
@@ -243,6 +360,35 @@ void PlanningPipelineNode::HighSpeedConeCallback(
     bytes_pub += ros::serialization::serializationLength(partial_msg);
     wasLoopClosed_ = false;
   }
+
+  // Publish planning diagnostics
+  {
+    diagnostic_msgs::DiagnosticArray diag_arr;
+    diag_arr.header.stamp = ros::Time::now();
+
+    diagnostic_msgs::DiagnosticStatus ds;
+    ds.name = "planning/high_speed";
+    ds.hardware_id = "planning";
+    ds.level = diagnostic_msgs::DiagnosticStatus::OK;
+
+    const char* mode_str = loop_closed_for_publish ? "FAST_LAP" : "MAP_BUILD_SAFE";
+    ds.message = mode_str;
+
+    auto kv = [](const std::string &k, const std::string &v) {
+      diagnostic_msgs::KeyValue pair;
+      pair.key = k;
+      pair.value = v;
+      return pair;
+    };
+    ds.values.push_back(kv("lap_mode", mode_str));
+    ds.values.push_back(kv("loop_closed", loop_closed_raw ? "true" : "false"));
+    ds.values.push_back(kv("loop_fallback_active", loop_fallback_active_now ? "true" : "false"));
+    ds.values.push_back(kv("inter_times", std::to_string(interTimes_)));
+
+    diag_arr.status.push_back(ds);
+    PublishDiagnostics(diag_arr);
+  }
+  PublishEntryHealth(diag_stamp, false);
 
   // Finish handling
   if (finish_reached)

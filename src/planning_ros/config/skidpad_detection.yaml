@@ -5,6 +5,9 @@ topics:
   log_path: "planning/skidpad/log_path"
   pathlimits: "planning/skidpad/pathlimits"
   approaching_goal: "planning/skidpad/approaching_goal"
+frames:
+  expected_cone: "velodyne"
+  output: "world"
 length:
   circle2lidar: 15.5
   stopdistance: 5.0

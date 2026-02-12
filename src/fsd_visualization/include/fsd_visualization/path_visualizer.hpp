@@ -13,6 +13,7 @@ public:
     PathVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh);
     
 private:
+    void pathLimitsUnifiedCallback(const autodrive_msgs::HUAT_PathLimits::ConstPtr& msg);
     void pathLimitsPartialCallback(const autodrive_msgs::HUAT_PathLimits::ConstPtr& msg);
     void pathLimitsFullCallback(const autodrive_msgs::HUAT_PathLimits::ConstPtr& msg);
     void navPathCallback(const nav_msgs::Path::ConstPtr& msg);
@@ -25,6 +26,7 @@ private:
     visualization_msgs::MarkerArray createBoundaryMarkers(
         const autodrive_msgs::HUAT_PathLimits& msg);
     
+    ros::Subscriber sub_path_unified_;
     ros::Subscriber sub_path_partial_;
     ros::Subscriber sub_path_full_;
     ros::Subscriber sub_nav_path_;
@@ -32,11 +34,13 @@ private:
     ros::Publisher pub_path_markers_;
     ros::Publisher pub_boundary_markers_;
     
+    std::string unified_path_topic_;
     std::string partial_path_topic_;
     std::string full_path_topic_;
     std::string nav_path_topic_;
     std::string markers_topic_;
     std::string boundaries_topic_;
+    bool enable_legacy_partial_full_;
 
     std::string frame_id_;
     double path_width_;

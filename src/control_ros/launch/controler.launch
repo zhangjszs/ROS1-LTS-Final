@@ -5,11 +5,27 @@
   <arg name="control_mode" default="-1" doc="控制算法模式ID；-1表示不显式下发，沿用旧逻辑"/>
   <arg name="skip_param_load" default="false" doc="是否跳过本launch内参数加载（由上层统一加载时置true）"/>
   <arg name="pathlimits_topic" default="planning/pathlimits" doc="统一 PathLimits 输入话题"/>
+  <arg name="enable_file_mode_fallback" default="false" doc="是否允许从文件回退读取控制模式"/>
+  <arg name="mode_file_path" default="$(env HOME)/autoStartGkj/command" doc="兼容模式回退文件路径"/>
+  <arg name="enable_external_stop_file" default="false" doc="是否启用文件外部停车兼容链路"/>
+  <arg name="external_stop_file_path" default="$(env HOME)/autoStartGkj/command" doc="文件外部停车路径"/>
+  <arg name="diagnostics_rate_hz" default="1.0" doc="control/diagnostics 发布频率"/>
+  <arg name="diagnostics_topic" default="control/diagnostics" doc="控制入口诊断本地话题"/>
+  <arg name="publish_global_diagnostics" default="true" doc="是否发布到统一 /diagnostics"/>
+  <arg name="global_diagnostics_topic" default="/diagnostics" doc="统一诊断总线话题"/>
   <rosparam unless="$(arg skip_param_load)" command="load" file="$(find control_ros)/config/param.yaml" />
   <rosparam unless="$(arg skip_param_load)" command="load" file="$(find control_ros)/config/control_$(arg mode_profile).yaml" />
   <node name="control" pkg="control_ros" type="control_node" output="screen">
     <param if="$(eval int(arg('control_mode')) >= 0)" name="mode" value="$(arg control_mode)" />
     <param name="pathlimits_topic" value="$(arg pathlimits_topic)" />
+    <param name="enable_file_mode_fallback" value="$(arg enable_file_mode_fallback)" />
+    <param name="mode_file_path" value="$(arg mode_file_path)" />
+    <param name="enable_external_stop_file" value="$(arg enable_external_stop_file)" />
+    <param name="external_stop_file_path" value="$(arg external_stop_file_path)" />
+    <param name="diagnostics_rate_hz" value="$(arg diagnostics_rate_hz)" />
+    <param name="diagnostics_topic" value="$(arg diagnostics_topic)" />
+    <param name="publish_global_diagnostics" value="$(arg publish_global_diagnostics)" />
+    <param name="global_diagnostics_topic" value="$(arg global_diagnostics_topic)" />
     <!-- Remap legacy topic names to new unified names -->
     <remap from="/Carstate" to="localization/car_state"/>
     <remap from="/skidpad_detection_node/approaching_goal" to="planning/skidpad/approaching_goal"/>

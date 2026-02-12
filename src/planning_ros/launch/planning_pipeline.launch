@@ -4,10 +4,20 @@
 -->
 <launch>
   <arg name="mission" default="high_speed" doc="任务类型: line, acceleration, skidpad, high_speed, trackdrive, autocross"/>
+  <arg name="diagnostics_topic" default="planning/diagnostics"/>
+  <arg name="publish_global_diagnostics" default="true"/>
+  <arg name="global_diagnostics_topic" default="/diagnostics"/>
+  <arg name="diagnostics_rate_hz" default="1.0"/>
+  <arg name="enable_internal_viz_side_channel" default="false"/>
 
   <node pkg="planning_ros" type="planning_pipeline_node" name="planning_pipeline" output="screen">
     <param name="mission" value="$(arg mission)"/>
     <param name="output_pathlimits_topic" value="planning/pathlimits"/>
+    <param name="diagnostics_topic" value="$(arg diagnostics_topic)"/>
+    <param name="publish_global_diagnostics" value="$(arg publish_global_diagnostics)"/>
+    <param name="global_diagnostics_topic" value="$(arg global_diagnostics_topic)"/>
+    <param name="diagnostics_rate_hz" value="$(arg diagnostics_rate_hz)"/>
+    <param name="enable_internal_viz_side_channel" value="$(arg enable_internal_viz_side_channel)"/>
 
     <!-- 按 mission 加载对应 config 到节点私有命名空间 -->
     <rosparam if="$(eval arg('mission') in ('line', 'acceleration'))"

@@ -67,6 +67,19 @@ LocationNode::LocationNode(ros::NodeHandle &nh)
   // Status diagnostics publisher
   LoadParam(pnh_, nh_, "topics/fg_status", status_topic_, std::string("localization/fg_status"));
   status_pub_ = nh_.advertise<std_msgs::String>(status_topic_, 10);
+  LoadParam(pnh_, nh_, "diagnostics_topic", diagnostics_topic_, std::string("localization/diagnostics"));
+  LoadParam(pnh_, nh_, "publish_global_diagnostics", publish_global_diagnostics_, true);
+  LoadParam(pnh_, nh_, "global_diagnostics_topic", global_diagnostics_topic_, std::string("/diagnostics"));
+  LoadParam(pnh_, nh_, "diagnostics_rate_hz", diagnostics_rate_hz_, 1.0);
+  if (diagnostics_rate_hz_ <= 0.0)
+  {
+    diagnostics_rate_hz_ = 1.0;
+  }
+  diag_pub_local_ = nh_.advertise<diagnostic_msgs::DiagnosticArray>(diagnostics_topic_, 10, true);
+  if (publish_global_diagnostics_)
+  {
+    diag_pub_global_ = nh_.advertise<diagnostic_msgs::DiagnosticArray>(global_diagnostics_topic_, 10);
+  }
 
   // Initialize factor graph backend if configured
   if (backend_ == "factor_graph")
@@ -87,6 +100,7 @@ LocationNode::LocationNode(ros::NodeHandle &nh)
     perf_stats_.Configure("localization", perf_enabled_, perf_window_, perf_log_every_);
   }
 
+  publishEntryHealth("startup", ros::Time::now(), true);
 }
 
 void LocationNode::loadParameters()
@@ -395,6 +409,55 @@ void LocationNode::publishState(const localization_core::CarState &state, const 
   has_last_state_ = true;
 }
 
+void LocationNode::publishDiagnostics(const diagnostic_msgs::DiagnosticArray &diag_arr)
+{
+  diag_pub_local_.publish(diag_arr);
+  if (publish_global_diagnostics_)
+  {
+    diag_pub_global_.publish(diag_arr);
+  }
+}
+
+void LocationNode::publishEntryHealth(const std::string &source, const ros::Time &stamp, bool force)
+{
+  const ros::Time now = ros::Time::now();
+  if (!force && last_entry_diag_pub_.isValid())
+  {
+    const double min_interval = 1.0 / diagnostics_rate_hz_;
+    if ((now - last_entry_diag_pub_).toSec() < min_interval)
+    {
+      return;
+    }
+  }
+  last_entry_diag_pub_ = now;
+
+  diagnostic_msgs::DiagnosticArray diag_arr;
+  diag_arr.header.stamp = stamp.isZero() ? now : stamp;
+
+  diagnostic_msgs::DiagnosticStatus ds;
+  ds.name = "localization_entry_health";
+  ds.hardware_id = "localization_ros/location_node";
+  ds.level = mapper_.has_carstate() ? diagnostic_msgs::DiagnosticStatus::OK
+                                    : diagnostic_msgs::DiagnosticStatus::WARN;
+  ds.message = mapper_.has_carstate() ? "OK" : "WAITING_CARSTATE";
+
+  auto kv = [](const std::string &k, const std::string &v) {
+    diagnostic_msgs::KeyValue pair;
+    pair.key = k;
+    pair.value = v;
+    return pair;
+  };
+  ds.values.push_back(kv("source", source));
+  ds.values.push_back(kv("backend", backend_));
+  ds.values.push_back(kv("has_carstate", mapper_.has_carstate() ? "true" : "false"));
+  ds.values.push_back(kv("use_external_carstate", use_external_carstate_ ? "true" : "false"));
+  ds.values.push_back(kv("world_frame", world_frame_));
+  ds.values.push_back(kv("base_link_frame", base_link_frame_));
+
+  diag_arr.status.push_back(ds);
+  publishDiagnostics(diag_arr);
+}
+
 void LocationNode::imuCallback(const autodrive_msgs::HUAT_InsP2::ConstPtr &msg)
 {
   localization_core::Asensing core_msg = ToCore(*msg);
@@ -415,6 +478,13 @@ void LocationNode::imuCallback(const autodrive_msgs::HUAT_InsP2::ConstPtr &msg)
   {
     const ros::Time stamp = msg->header.stamp.isZero() ? ros::Time::now() : msg->header.stamp;
     publishState(state, stamp, true);
+
+    // Log Heading_init once after first successful INS update
+    if (!heading_init_logged_ && mapper_.has_carstate())
+    {
+      ROS_INFO("[localization] Heading_init (standard_azimuth) = %.4f deg", mapper_.standard_azimuth());
+      heading_init_logged_ = true;
+    }
   }
 
   // Shadow-mode factor graph feeding
@@ -422,6 +492,8 @@ void LocationNode::imuCallback(const autodrive_msgs::HUAT_InsP2::ConstPtr &msg)
   {
     feedFactorGraph(*msg);
   }
+
+  publishEntryHealth("imu", msg->header.stamp);
 }
 
 void LocationNode::carstateCallback(const autodrive_msgs::HUAT_CarState::ConstPtr &msg)
@@ -430,12 +502,14 @@ void LocationNode::carstateCallback(const autodrive_msgs::HUAT_CarState::ConstPt
   const ros::Time stamp = msg->header.stamp.isZero() ? ros::Time::now() : msg->header.stamp;
   const bool publish_carstate = carstate_out_topic_ != carstate_in_topic_;
   publishState(mapper_.car_state(), stamp, publish_carstate);
+  publishEntryHealth("carstate", stamp);
 }
 
 void LocationNode::coneCallback(const autodrive_msgs::HUAT_ConeDetections::ConstPtr &msg)
 {
   if (!mapper_.has_carstate())
   {
+    publishEntryHealth("cone_waiting_carstate", msg->header.stamp);
     ROS_WARN_THROTTLE(5.0, "[location] INS data not updated yet, skipping cone update");
     return;
   }
@@ -484,6 +558,8 @@ void LocationNode::coneCallback(const autodrive_msgs::HUAT_ConeDetections::Const
   {
     feedFactorGraphCones(*msg);
   }
+
+  publishEntryHealth("cone", stamp);
 }
 
 localization_core::Asensing LocationNode::ToCore(const autodrive_msgs::HUAT_InsP2 &msg)
@@ -714,6 +790,41 @@ void LocationNode::feedFactorGraph(const autodrive_msgs::HUAT_InsP2 &msg)
                       " kf=" + std::to_string(fg_optimizer_->NumKeyframes()) +
                       " lm=" + std::to_string(fg_optimizer_->GetLandmarks().size());
     status_pub_.publish(status_msg);
+
+    // Publish structured diagnostics
+    {
+      diagnostic_msgs::DiagnosticArray diag_arr;
+      diag_arr.header.stamp = ros::Time::now();
+
+      diagnostic_msgs::DiagnosticStatus ds;
+      ds.name = "localization/factor_graph";
+      ds.hardware_id = "localization";
+
+      if (anomaly_state == localization_core::AnomalyState::TRACKING)
+        ds.level = diagnostic_msgs::DiagnosticStatus::OK;
+      else if (anomaly_state == localization_core::AnomalyState::DEGRADED)
+        ds.level = diagnostic_msgs::DiagnosticStatus::WARN;
+      else
+        ds.level = diagnostic_msgs::DiagnosticStatus::ERROR;
+
+      ds.message = state_name;
+
+      auto kv = [](const std::string &k, const std::string &v) {
+        diagnostic_msgs::KeyValue pair;
+        pair.key = k;
+        pair.value = v;
+        return pair;
+      };
+      ds.values.push_back(kv("anomaly_state", state_name));
+      ds.values.push_back(kv("chi2_normalized", std::to_string(fg_optimizer_->GetChi2Normalized())));
+      ds.values.push_back(kv("cone_match_ratio", std::to_string(fg_optimizer_->GetConeMatchRatio())));
+      ds.values.push_back(kv("num_keyframes", std::to_string(fg_optimizer_->NumKeyframes())));
+      ds.values.push_back(kv("num_landmarks", std::to_string(fg_optimizer_->GetLandmarks().size())));
+      ds.values.push_back(kv("opt_time_ms", std::to_string(fg_optimizer_->LastOptTimeMs())));
+
+      diag_arr.status.push_back(ds);
+      publishDiagnostics(diag_arr);
+    }
 
     // Collect performance sample
     {

@@ -18,6 +18,7 @@ class LocationMapper {
 
   bool has_carstate() const { std::lock_guard<std::mutex> lk(state_mutex_); return has_carstate_; }
   CarState car_state() const { std::lock_guard<std::mutex> lk(state_mutex_); return car_state_; }
+  double standard_azimuth() const { std::lock_guard<std::mutex> lk(state_mutex_); return standard_azimuth_; }
 
   bool UpdateFromIns(const Asensing &imu, CarState *state_out);
   void UpdateFromCarState(const CarState &state);
@@ -36,7 +37,7 @@ class LocationMapper {
 
   bool passesGeometryFilter(double lx, double ly) const;
 
-  void interpolateMissingCones(ConeMap *map_out) const;
+  void interpolateMissingCones(ConeMap *map_out);
 
   LocationParams params_;
   std::string data_root_;

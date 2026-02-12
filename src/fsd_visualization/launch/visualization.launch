@@ -10,6 +10,7 @@
     <arg name="trail_length" default="200"/>
     <arg name="use_mesh" default="true"/>
     <arg name="cone_mesh_type" default="gazebo"/>
+    <arg name="enable_legacy_partial_full" default="false"/>
 
     <node name="fsd_viz_node" pkg="fsd_visualization" type="fsd_viz_node" output="screen">
         <param name="enable_cones" value="$(arg enable_cones)"/>
@@ -21,6 +22,7 @@
         <param name="trail_length" value="$(arg trail_length)"/>
         <param name="use_mesh" value="$(arg use_mesh)"/>
         <param name="cone_mesh_type" value="$(arg cone_mesh_type)"/>
+        <param name="compat/enable_legacy_partial_full" value="$(arg enable_legacy_partial_full)"/>
     </node>
     <node pkg="rosbag" type="play" name="rosbag_play" output="screen" args="$(arg bag)" if="$(eval arg('bag') != '')" />
 </launch>

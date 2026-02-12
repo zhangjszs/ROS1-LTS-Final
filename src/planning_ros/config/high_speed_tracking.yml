@@ -1,11 +1,11 @@
 # I/O Topics
 input_cones_topic:              "localization/cone_map"                 #用于接收锥筒
 input_pose_topic:               "localization/car_state"                #用于接受车身位姿消息
-output_pathlimits_topic:        "planning/high_speed_tracking/pathlimits"          #统一路径输出话题（partial/full 均发布到此话题）
+output_pathlimits_topic:        "planning/pathlimits"          #主链路统一路径输出话题（Planning -> Control 单一真值）
 stop_topic:                     "planning/high_speed_tracking/stop"     #发布车辆停止信号
 
 # Visualization data
-publish_viz_data:              true    # bool   [-]   whether or not to publish visualization data.
+publish_viz_data:              false   # bool   [-]   兼容侧通道：内部可视化数据发布（默认关闭，主链路已解耦）
 viz_topic:                     "planning/high_speed_tracking/viz"                   # visualization data output
 
 ## Params

@@ -56,6 +56,8 @@ private:
   std::string car_state_topic_;
   std::string pathlimits_topic_;
   std::string approaching_goal_topic_;
+  std::string expected_cone_frame_;
+  std::string output_frame_;
   double max_data_age_ = 0.5;  // 数据过期阈值 (秒)
   double speed_cap_ = 8.0;
   double max_lateral_acc_ = 6.5;

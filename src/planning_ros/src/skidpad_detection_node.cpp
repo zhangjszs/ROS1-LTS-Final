@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "planning_core/speed_profile.hpp"
+#include "planning_ros/contract_utils.hpp"
 
 namespace planning_ros
 {
@@ -122,6 +123,8 @@ void SkidpadDetectionNode::LoadParameters()
   {
     ROS_WARN_STREAM("Did not load topics/approaching_goal. Standard value is: " << approaching_goal_topic_);
   }
+  pnh_.param<std::string>("frames/expected_cone", expected_cone_frame_, "velodyne");
+  pnh_.param<std::string>("frames/output", output_frame_, "world");
 
   pnh_.param("speed/speed_cap", speed_cap_, 8.0);
   pnh_.param("speed/max_lateral_acc", max_lateral_acc_, 6.5);
@@ -135,13 +138,20 @@ void SkidpadDetectionNode::SyncCallback(const ConeMsg::ConstPtr &cone_msg,
                                          const StateMsg::ConstPtr &car_state)
 {
   std::lock_guard<std::mutex> lock(data_mutex_);
-  latest_sync_time_ = cone_msg->header.stamp;
+  latest_sync_time_ = std::max(cone_msg->header.stamp, car_state->header.stamp);
 
   // 时间戳验证
   double time_diff = std::abs((cone_msg->header.stamp - car_state->header.stamp).toSec());
   if (time_diff > max_data_age_)
   {
     ROS_WARN_THROTTLE(1.0, "[Skidpad] Large time diff between cone and state: %.3fms", time_diff * 1000.0);
+  }
+  if (!cone_msg->header.frame_id.empty() &&
+      cone_msg->header.frame_id != expected_cone_frame_ &&
+      cone_msg->header.frame_id != "velodyne")
+  {
+    ROS_WARN_THROTTLE(1.0, "[Skidpad] Unexpected cone frame_id: %s (expected %s or velodyne)",
+                      cone_msg->header.frame_id.c_str(), expected_cone_frame_.c_str());
   }
 
   // 处理锥桶数据
@@ -211,9 +221,6 @@ void SkidpadDetectionNode::FillPathDynamics(autodrive_msgs::HUAT_PathLimits &msg
 void SkidpadDetectionNode::PublishPathLimits(const std::vector<planning_core::Pose> &path_points)
 {
   autodrive_msgs::HUAT_PathLimits msg;
-  msg.header.stamp = latest_sync_time_;
-  msg.header.frame_id = "world";
-  msg.stamp = latest_sync_time_;
   msg.replan = true;
   msg.path.reserve(path_points.size());
 
@@ -226,10 +233,11 @@ void SkidpadDetectionNode::PublishPathLimits(const std::vector<planning_core::Po
     msg.path.push_back(p);
   }
 
-  msg.tracklimits.stamp = msg.stamp;
   msg.tracklimits.replan = msg.replan;
 
   FillPathDynamics(msg);
+  contract::EnforcePathDynamicsShape(msg);
+  contract::FinalizePathLimitsMessage(msg, latest_sync_time_, output_frame_);
   pathlimits_pub_.publish(msg);
 }
 

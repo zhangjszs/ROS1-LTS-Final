@@ -1,4 +1,5 @@
 #include <localization_core/location_mapper.hpp>
+#include <localization_core/confidence_utils.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -572,7 +573,7 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
       int obs = (i < point_obs_counts_.size()) ? point_obs_counts_[i] : 1;
       double obs_bonus = std::min(0.2, 0.05 * (obs - 1));
       conf = std::min(1.0, std::max(0.0, conf + obs_bonus));
-      cone_msg.confidence = static_cast<std::uint32_t>(conf * 1000.0);
+      cone_msg.confidence = confidence::EncodeScaled(conf);
     }
     map_out->cones.push_back(cone_msg);
   }
@@ -686,7 +687,7 @@ bool LocationMapper::passesGeometryFilter(double lx, double ly) const
   return true;
 }
 
-void LocationMapper::interpolateMissingCones(ConeMap *map_out) const
+void LocationMapper::interpolateMissingCones(ConeMap *map_out)
 {
   if (!map_out || map_out->cones.size() < 2)
   {
@@ -739,8 +740,8 @@ void LocationMapper::interpolateMissingCones(ConeMap *map_out) const
       vc.position_global.y = c1.position_global.y + t * (c2.position_global.y - c1.position_global.y);
       vc.position_global.z = (c1.position_global.z + c2.position_global.z) * 0.5;
 
-      vc.id = 0;  // 虚拟锥，ID=0
-      vc.confidence = static_cast<std::uint32_t>(cfg.min_confidence_for_interpolation * 1000.0);
+      vc.id = static_cast<std::uint32_t>(getNewId());  // 虚拟锥使用会话内唯一ID（禁止ID=0）
+      vc.confidence = confidence::EncodeScaled(cfg.min_confidence_for_interpolation);
       vc.type = kConeNone;
       interpolated.push_back(vc);
     }

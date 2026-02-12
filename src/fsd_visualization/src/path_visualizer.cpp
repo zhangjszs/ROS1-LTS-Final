@@ -7,6 +7,8 @@ PathVisualizer::PathVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh) {
     pnh.param<std::string>("frame_id", frame_id_, FRAME_GLOBAL);
     pnh.param<double>("path_width", path_width_, PATH_WIDTH);
     pnh.param<double>("point_size", point_size_, PATH_POINT_SIZE);
+    pnh.param<bool>("compat/enable_legacy_partial_full", enable_legacy_partial_full_, false);
+    pnh.param<std::string>("topics/pathlimits", unified_path_topic_, "planning/pathlimits");
     pnh.param<std::string>("topics/path_partial", partial_path_topic_, "planning/high_speed_tracking/pathlimits/partial");
     pnh.param<std::string>("topics/path_full", full_path_topic_, "planning/high_speed_tracking/pathlimits/full");
     pnh.param<std::string>("topics/nav_path", nav_path_topic_, "planning/line_detection/path");
@@ -14,10 +16,15 @@ PathVisualizer::PathVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh) {
     pnh.param<std::string>("topics/boundaries", boundaries_topic_, "fsd/viz/boundaries");
     
     // 订阅
-    sub_path_partial_ = nh.subscribe(partial_path_topic_, 1,
-        &PathVisualizer::pathLimitsPartialCallback, this);
-    sub_path_full_ = nh.subscribe(full_path_topic_, 1,
-        &PathVisualizer::pathLimitsFullCallback, this);
+    sub_path_unified_ = nh.subscribe(unified_path_topic_, 1,
+        &PathVisualizer::pathLimitsUnifiedCallback, this);
+    if (enable_legacy_partial_full_) {
+        sub_path_partial_ = nh.subscribe(partial_path_topic_, 1,
+            &PathVisualizer::pathLimitsPartialCallback, this);
+        sub_path_full_ = nh.subscribe(full_path_topic_, 1,
+            &PathVisualizer::pathLimitsFullCallback, this);
+        ROS_WARN("[PathVisualizer] Legacy partial/full compatibility mode enabled.");
+    }
     sub_nav_path_ = nh.subscribe(nav_path_topic_, 1,
         &PathVisualizer::navPathCallback, this);
     
@@ -27,6 +34,16 @@ PathVisualizer::PathVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh) {
     pub_boundary_markers_ = nh.advertise<visualization_msgs::MarkerArray>(boundaries_topic_, 1, true);
     
     ROS_INFO("[PathVisualizer] Initialized");
+}
+
+void PathVisualizer::pathLimitsUnifiedCallback(
+    const autodrive_msgs::HUAT_PathLimits::ConstPtr& msg) {
+
+    auto markers = createPathMarkers(*msg, "path_unified", PATH_CENTER);
+    auto boundary_markers = createBoundaryMarkers(*msg);
+
+    pub_path_markers_.publish(markers);
+    pub_boundary_markers_.publish(boundary_markers);
 }
 
 void PathVisualizer::pathLimitsPartialCallback(

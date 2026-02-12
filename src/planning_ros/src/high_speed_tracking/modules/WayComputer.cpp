@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "planning_core/speed_profile.hpp"
+#include "planning_ros/contract_utils.hpp"
 
 namespace {
 double pointDistance(const geometry_msgs::Point &a, const geometry_msgs::Point &b) {
@@ -1237,7 +1238,7 @@ Tracklimits WayComputer::getTracklimits() const {
 
 autodrive_msgs::HUAT_PathLimits WayComputer::getPathLimits() const  {
   autodrive_msgs::HUAT_PathLimits res;
-  res.stamp = this->lastStamp_;
+  planning_ros::contract::FinalizePathLimitsMessage(res, this->lastStamp_, "world");
 
   // res.replan indicates if the Way is different from last iteration's
   // 判断当前的way_是否与上一次迭代的lastWay_不同，如果不同则将res的replan成员变量设置为true，否则设置为false。
@@ -1252,7 +1253,6 @@ autodrive_msgs::HUAT_PathLimits WayComputer::getPathLimits() const  {
 
   // Fill Tracklimits
   Tracklimits tracklimits = this->wayToPublish_.getTracklimits();
-  res.tracklimits.stamp = res.stamp;
   res.tracklimits.left.reserve(tracklimits.first.size());
   for (const Node &n : tracklimits.first) {
     res.tracklimits.left.push_back(n.cone());
@@ -1265,6 +1265,7 @@ autodrive_msgs::HUAT_PathLimits WayComputer::getPathLimits() const  {
   // have varied from last iteration
   res.tracklimits.replan = this->way_.quinEhLobjetiuDeLaSevaDiresio(this->lastWay_);
   this->fillPathDynamics(res);
+  planning_ros::contract::EnforcePathDynamicsShape(res);
   return res;
 }
 
@@ -1281,7 +1282,7 @@ autodrive_msgs::HUAT_PathLimits WayComputer::getPathLimits() const  {
 */
 autodrive_msgs::HUAT_PathLimits WayComputer::getPathLimitsGlobal(int x)  {
   autodrive_msgs::HUAT_PathLimits res;
-  res.stamp = this->currentStamp_;
+  planning_ros::contract::FinalizePathLimitsMessage(res, this->currentStamp_, "world");
   std::vector<Point> path;
   Point nextPoint;
   // res.replan indicates if the Way is different from last iteration's// res.replan指示方法是否与上次迭代不同
@@ -1343,7 +1344,6 @@ autodrive_msgs::HUAT_PathLimits WayComputer::getPathLimitsGlobal(int x)  {
 
   // Fill Tracklimits
   Tracklimits tracklimits = this->wayToPublish_.getTracklimits();
-  res.tracklimits.stamp = res.stamp;
   res.tracklimits.left.reserve(tracklimits.first.size());
   for (const Node &n : tracklimits.first) {
     res.tracklimits.left.push_back(n.cone());
@@ -1356,6 +1356,7 @@ autodrive_msgs::HUAT_PathLimits WayComputer::getPathLimitsGlobal(int x)  {
   // have varied from last iteration
   res.tracklimits.replan = this->way_.quinEhLobjetiuDeLaSevaDiresio(this->lastWay_);
   this->fillPathDynamics(res);
+  planning_ros::contract::EnforcePathDynamicsShape(res);
   return res;
 }
 

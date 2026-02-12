@@ -87,6 +87,10 @@ topics:
   # Finish signal output topic
   finish: "planning/line_detection/finish_signal"
 
+frames:
+  expected_cone: "velodyne"
+  output: "world"
+
 # Speed profile for PathLimits (P1)
 speed:
   # SAFE speed cap (m/s)

@@ -34,6 +34,14 @@
  * It takes the Delaunay set and the car position to do so.
  */
 class WayComputer {
+ public:
+  enum class LapMode {
+    MAP_BUILD_SAFE = 0,
+    FAST_LAP = 1
+  };
+
+  LapMode lapMode() const { return lapMode_; }
+
  private:
   /**
    * @brief All parameters related to the WayComputer class.
@@ -80,10 +88,6 @@ class WayComputer {
   bool isLoopClosed_ = false;
   bool loopClosedRaw_ = false;
 
-  enum class LapMode {
-    MAP_BUILD_SAFE = 0,
-    FAST_LAP = 1
-  };
   LapMode lapMode_ = LapMode::MAP_BUILD_SAFE;
   double modeSpeedBlend_ = 0.0;
   int loopCloseDebounceCount_ = 0;

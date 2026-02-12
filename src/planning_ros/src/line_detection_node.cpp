@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "planning_core/speed_profile.hpp"
+#include "planning_ros/contract_utils.hpp"
 
 namespace
 {
@@ -74,7 +75,7 @@ void LineDetectionNode::LoadParameters()
   pnh_.param<std::string>("topics/pathlimits", pathlimits_topic_, "planning/line_detection/pathlimits");
   pnh_.param<std::string>("topics/finish", finish_topic_, "planning/line_detection/finish_signal");
 
-  pnh_.param<std::string>("frames/expected_cone", expected_cone_frame_, "base_link");
+  pnh_.param<std::string>("frames/expected_cone", expected_cone_frame_, "velodyne");
   pnh_.param<std::string>("frames/output", output_frame_, "world");
 
   pnh_.param("speed/speed_cap", speed_cap_, 20.0);
@@ -252,9 +253,6 @@ void LineDetectionNode::FillPathDynamics(autodrive_msgs::HUAT_PathLimits &msg) c
 void LineDetectionNode::PublishPathLimits(const std::vector<planning_core::Pose> &path_points)
 {
   autodrive_msgs::HUAT_PathLimits msg;
-  msg.header.stamp = latest_sync_time_;
-  msg.header.frame_id = output_frame_;
-  msg.stamp = latest_sync_time_;
   msg.replan = true;
   msg.path.reserve(path_points.size());
 
@@ -267,10 +265,11 @@ void LineDetectionNode::PublishPathLimits(const std::vector<planning_core::Pose>
     msg.path.push_back(p);
   }
 
-  msg.tracklimits.stamp = msg.stamp;
   msg.tracklimits.replan = msg.replan;
 
   FillPathDynamics(msg);
+  contract::EnforcePathDynamicsShape(msg);
+  contract::FinalizePathLimitsMessage(msg, latest_sync_time_, output_frame_);
   pathlimits_pub_.publish(msg);
 }
 

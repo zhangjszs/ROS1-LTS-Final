@@ -7,6 +7,7 @@
 #include <autodrive_msgs/HUAT_ConeMap.h>
 #include <autodrive_msgs/HUAT_PathLimits.h>
 #include <autodrive_msgs/HUAT_Stop.h>
+#include <diagnostic_msgs/DiagnosticArray.h>
 #include <ros/ros.h>
 
 #include "planning_ros/line_detection_node.hpp"
@@ -46,6 +47,8 @@ private:
   // --- High-speed specific ---
   void HighSpeedConeCallback(const autodrive_msgs::HUAT_ConeMap::ConstPtr &data);
   bool HighSpeedFinishCheck();
+  void PublishDiagnostics(const diagnostic_msgs::DiagnosticArray &diag_arr);
+  void PublishEntryHealth(const ros::Time &stamp, bool force = false);
 
   std::string mission_;
 
@@ -61,6 +64,8 @@ private:
 
   ros::Publisher pathlimits_pub_;
   ros::Publisher hs_stop_pub_;
+  ros::Publisher diag_pub_local_;
+  ros::Publisher diag_pub_global_;
   ros::Subscriber hs_cone_sub_;
   ros::Subscriber hs_pose_sub_;
 
@@ -80,6 +85,12 @@ private:
   bool perf_enabled_ = true;
   int perf_window_ = 300;
   int perf_log_every_ = 30;
+  bool enable_internal_viz_side_channel_ = false;
+  std::string diagnostics_topic_ = "planning/diagnostics";
+  bool publish_global_diagnostics_ = true;
+  std::string global_diagnostics_topic_ = "/diagnostics";
+  double diagnostics_rate_hz_ = 1.0;
+  ros::Time last_entry_diag_pub_;
 
   // Debug file helpers
   bool debug_save_way_files_ = false;

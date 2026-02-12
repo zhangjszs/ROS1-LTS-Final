@@ -12,6 +12,7 @@
   <depend>roscpp</depend>
   <depend>autodrive_msgs</depend>
   <depend>control_core</depend>
+  <depend>diagnostic_msgs</depend>
   <depend>eigen_conversions</depend>
   <depend>geometry_msgs</depend>
   <depend>std_msgs</depend>

@@ -303,6 +303,12 @@ All launch files have been updated to reference new config names:
 - `fsd_launch/launch/tools/debug_perception_location.launch`
 - `fsd_launch/launch/tools/rviz.launch`
 
+### Path Topic Contract (A1)
+- Default path visualization now uses unified topic `planning/pathlimits` only.
+- Legacy `.../pathlimits/partial|full` is compatibility mode and disabled by default.
+- To enable compatibility mode temporarily:
+  - `roslaunch fsd_visualization visualization.launch enable_legacy_partial_full:=true`
+
 ---
 
 ## Changelog

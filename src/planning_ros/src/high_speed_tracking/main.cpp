@@ -28,6 +28,7 @@
 #include "modules/WayComputer.hpp"
 #include "utils/Time.hpp"
 #include "utils/PerfStats.hpp"
+#include "planning_ros/contract_utils.hpp"
 bool wasLoopClosed = false;
 bool fullPathPublishedOnce = false;
 int finishGraceCount = 0;
@@ -172,6 +173,7 @@ void callback_ccat(const autodrive_msgs::HUAT_ConeMap::ConstPtr &data)
 
   ros::WallTime total_start = ros::WallTime::now();
   size_t bytes_pub = 0;
+  const ros::Time input_stamp = planning_ros::contract::NormalizeInputStamp(data->header.stamp);
 
 
 
@@ -183,8 +185,7 @@ void callback_ccat(const autodrive_msgs::HUAT_ConeMap::ConstPtr &data)
   nodes.reserve(data->cone.size());
   for (const autodrive_msgs::HUAT_Cone &c : data->cone)
   {
-    // confidence is scaled 0–1000 in the message; decode to [0.0, 1.0] for comparison
-    if (static_cast<double>(c.confidence) / 1000.0 >= params->main.min_cone_confidence)
+    if (planning_ros::contract::DecodeConeConfidenceScore(c.confidence) >= params->main.min_cone_confidence)
     {
       nodes.emplace_back(c);
     }
@@ -210,13 +211,13 @@ void callback_ccat(const autodrive_msgs::HUAT_ConeMap::ConstPtr &data)
 
   // 把三角剖分结果传入路径规划模块
   ros::WallTime way_start = ros::WallTime::now();
-  wayComputer->update(triangles, data->header.stamp);
+  wayComputer->update(triangles, input_stamp);
   ros::WallDuration way_dur = ros::WallTime::now() - way_start;
 
   const bool finish_reached = finish();
 
   if (visualization) {
-    visualization->setTimestamp(data->header.stamp);
+    visualization->setTimestamp(input_stamp);
     visualization->visualize(wayComputer->lastFilteredTriangulation());
     visualization->visualize(wayComputer->lastFilteredEdges());
     visualization->visualize(wayComputer->wayForVisualization());
@@ -352,7 +353,7 @@ int main(int argc, char **argv)
   ros::Subscriber subPose = nh->subscribe(params->main.input_pose_topic, 1, &WayComputer::stateCallback, wayComputer);
 
   std::string pathlimits_topic;
-  pnh.param<std::string>("output_pathlimits_topic", pathlimits_topic, "planning/high_speed_tracking/pathlimits");
+  pnh.param<std::string>("output_pathlimits_topic", pathlimits_topic, "planning/pathlimits");
   pubPathlimits = nh->advertise<autodrive_msgs::HUAT_PathLimits>(pathlimits_topic, 1);
   stopPub = nh->advertise<autodrive_msgs::HUAT_Stop>(params->main.stop_topic, 1);
   ros::spin();

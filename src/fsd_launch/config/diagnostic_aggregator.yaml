@@ -1,0 +1,18 @@
+analyzers:
+  control_entry:
+    type: diagnostic_aggregator/GenericAnalyzer
+    path: ControlEntry
+    startswith:
+      - control_entry_health
+  localization_entry:
+    type: diagnostic_aggregator/GenericAnalyzer
+    path: LocalizationEntry
+    startswith:
+      - localization_entry_health
+      - localization/factor_graph
+  planning_entry:
+    type: diagnostic_aggregator/GenericAnalyzer
+    path: PlanningEntry
+    startswith:
+      - planning_entry_health
+      - planning/high_speed

@@ -8,10 +8,20 @@
 <launch>
     <arg name="mission" default="high_speed" doc="Mission type: high_speed, line, skidpad"/>
     <arg name="planner" default="unified" doc="planner type: unified | none (none for EBS test)"/>
+    <arg name="diagnostics_topic" default="planning/diagnostics" doc="规划入口诊断本地话题"/>
+    <arg name="publish_global_diagnostics" default="true" doc="规划是否发布到统一 /diagnostics"/>
+    <arg name="global_diagnostics_topic" default="/diagnostics" doc="规划统一诊断总线话题"/>
+    <arg name="diagnostics_rate_hz" default="1.0" doc="规划入口诊断发布频率"/>
+    <arg name="enable_internal_viz_side_channel" default="false" doc="规划内部可视化侧通道（兼容链路，默认关闭）"/>
 
     <!-- Unified Planning Pipeline -->
     <include if="$(eval arg('planner') == 'unified')" file="$(find planning_ros)/launch/planning_pipeline.launch">
         <arg name="mission" value="$(arg mission)"/>
+        <arg name="diagnostics_topic" value="$(arg diagnostics_topic)"/>
+        <arg name="publish_global_diagnostics" value="$(arg publish_global_diagnostics)"/>
+        <arg name="global_diagnostics_topic" value="$(arg global_diagnostics_topic)"/>
+        <arg name="diagnostics_rate_hz" value="$(arg diagnostics_rate_hz)"/>
+        <arg name="enable_internal_viz_side_channel" value="$(arg enable_internal_viz_side_channel)"/>
     </include>
 
     <!-- None: for EBS test without planning -->
