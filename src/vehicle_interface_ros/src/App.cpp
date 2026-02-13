@@ -5,8 +5,8 @@ Application::Application(int argc, char **argv)
 {
     start();
 
-    vehicleThread = new boost::thread(boost::bind(&Application::processPendingDatagramsVehicle, this));
-    insThread = new boost::thread(boost::bind(&Application::processPendingDatagramsIns, this));
+    vehicleThread = std::make_unique<boost::thread>(boost::bind(&Application::processPendingDatagramsVehicle, this));
+    insThread = std::make_unique<boost::thread>(boost::bind(&Application::processPendingDatagramsIns, this));
 
     userNode.setVehicleCallBack(std::bind(&Application::vehicleSendUdp, this));
 
@@ -20,26 +20,25 @@ Application::~Application()
     insUdpSocket->shutdownSocket();
     vehicleThread->join();
     insThread->join();
-    delete vehicleThread;
-    delete insThread;
-    delete vehicleUdpSocket;
-    delete insUdpSocket;
 }
 
 void Application::start(void) {
 
-    vehiclePort = 2040;
-    insPort = 12340;
+    // Read ports from ROS parameter server; fall back to hardcoded defaults.
+    ros::NodeHandle pnh("~");
+    int vp = 2040, ip = 12340;
+    pnh.param("vehicle_port", vp, 2040);
+    pnh.param("ins_port", ip, 12340);
+    vehiclePort = static_cast<uint16_t>(vp);
+    insPort = static_cast<uint16_t>(ip);
 
-    vehicleUdpSocket= new UDPSocket(vehiclePort);
-    insUdpSocket = new UDPSocket(insPort);
+    vehicleUdpSocket = std::make_unique<UDPSocket>(vehiclePort);
+    insUdpSocket = std::make_unique<UDPSocket>(insPort);
 }
 
 void Application::processPendingDatagramsVehicle( void){
     int iLen;
     uint8_t vehicle_buf[1024];
-
-    // std::cout << "vehicle Thread"<< std::endl;
 
     while(is_running){
         iLen = vehicleUdpSocket->recvFrom(vehicle_buf, VEHICLE_INFO_LENGHT, vehicleUrl, vehiclePort);
@@ -49,7 +48,6 @@ void Application::processPendingDatagramsVehicle( void){
         {
             memcpy(vehicle_rx_msg,vehicle_buf,VEHICLE_INFO_LENGHT);
 			userNode.publishVehicle((void*) vehicle_rx_msg);
-			// std::cout << ".";
         }
     }
 }
@@ -58,12 +56,9 @@ void Application::processPendingDatagramsIns( void) {
     int iLen;
     uint8_t ins_buf[1024];
 
-    // std::cout << "ins Thread"<< std::endl;
-
     while (is_running) {
         iLen = insUdpSocket->recvFrom(ins_buf, INS_INFO_LENGTH, insUrl, insPort);
         if (iLen < 0) break;
-        // std::cout<<"iLen:"<<iLen<<" "<<INS_INFO_LENGTH<<std::endl;
         if ((iLen == INS_INFO_LENGTH) &&(userNode.getReady())) {
             memcpy(ins_rx_msg, ins_buf, INS_INFO_LENGTH);
 			userNode.publishIns((void*) ins_rx_msg);
@@ -74,7 +69,5 @@ void Application::processPendingDatagramsIns( void) {
 void Application::vehicleSendUdp(){
     uint8_t msgLength;
     msgLength = userNode.getVehicleUdpMessage((void*)vehicle_tx_cmd_msg);
-    // std::cout <<"sending"<<std::endl;
     vehicleUdpSocket->sendTo((void*)vehicle_tx_cmd_msg, msgLength, vehicleUrl, vehiclePort);
 }
-

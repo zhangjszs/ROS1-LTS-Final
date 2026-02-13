@@ -47,8 +47,8 @@ ConeVisualizer::ConeVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh)
     pnh.param<bool>("publish_detection_markers", publish_detection_markers_, true);
     pnh.param<float>("min_alpha", min_alpha_, 0.3f);
     pnh.param<std::string>("cone_mesh_type", cone_mesh_type_, "gazebo");
-    pnh.param<std::string>("topics/cone_detections", cone_detections_topic_, "perception/lidar_cluster/detections");
-    pnh.param<std::string>("topics/cone_map", cone_map_topic_, "localization/cone_map");
+    pnh.param<std::string>("topics/cone_detections", cone_detections_topic_, autodrive_msgs::topic_contract::kConeDetections);
+    pnh.param<std::string>("topics/cone_map", cone_map_topic_, autodrive_msgs::topic_contract::kConeMap);
     pnh.param<std::string>("topics/markers", markers_topic_, "fsd/viz/cones");
     
     // 订阅

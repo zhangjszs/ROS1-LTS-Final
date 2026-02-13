@@ -4,6 +4,7 @@
 #include <ros/serialization.h>
 #include <sys/stat.h>
 
+#include <autodrive_msgs/topic_contract.hpp>
 #include <cerrno>
 #include <cmath>
 #include <cstring>
@@ -25,19 +26,21 @@ PlanningPipelineNode::PlanningPipelineNode(ros::NodeHandle &nh, const std::strin
 {
   ros::NodeHandle pnh("~");
   pnh.param("diagnostics_rate_hz", diagnostics_rate_hz_, 1.0);
-  pnh.param<std::string>("diagnostics_topic", diagnostics_topic_, "planning/diagnostics");
-  pnh.param("publish_global_diagnostics", publish_global_diagnostics_, true);
-  pnh.param<std::string>("global_diagnostics_topic", global_diagnostics_topic_, "/diagnostics");
   pnh.param("enable_internal_viz_side_channel", enable_internal_viz_side_channel_, false);
-  if (diagnostics_rate_hz_ <= 0.0)
   {
-    diagnostics_rate_hz_ = 1.0;
-  }
-
-  diag_pub_local_ = nh.advertise<diagnostic_msgs::DiagnosticArray>(diagnostics_topic_, 1, true);
-  if (publish_global_diagnostics_)
-  {
-    diag_pub_global_ = nh.advertise<diagnostic_msgs::DiagnosticArray>(global_diagnostics_topic_, 1);
+    std::string diag_topic, global_diag_topic;
+    bool pub_global = true;
+    pnh.param<std::string>("diagnostics_topic", diag_topic,
+                           std::string(autodrive_msgs::topic_contract::kPlanningDiagnostics));
+    pnh.param("publish_global_diagnostics", pub_global, true);
+    pnh.param<std::string>("global_diagnostics_topic", global_diag_topic,
+                           std::string(autodrive_msgs::topic_contract::kDiagnosticsGlobal));
+    autodrive_msgs::DiagnosticsHelper::Config dcfg;
+    dcfg.local_topic = diag_topic;
+    dcfg.global_topic = global_diag_topic;
+    dcfg.publish_global = pub_global;
+    dcfg.rate_hz = diagnostics_rate_hz_;
+    diag_helper_.Init(nh, dcfg);
   }
 
   if (mission_ == "line" || mission_ == "acceleration")
@@ -63,22 +66,31 @@ PlanningPipelineNode::PlanningPipelineNode(ros::NodeHandle &nh, const std::strin
 
 void PlanningPipelineNode::InitLine(ros::NodeHandle &nh)
 {
-  // Override topic names to publish to unified topic
+  // Contract topics are provided by launch; read back for traceability only.
   ros::NodeHandle pnh("~");
   std::string output_topic;
-  pnh.param<std::string>("output_pathlimits_topic", output_topic, "planning/pathlimits");
-  pnh.setParam("topics/pathlimits", output_topic);
+  std::string car_state_topic;
+  pnh.param<std::string>("output_pathlimits_topic", output_topic, autodrive_msgs::topic_contract::kPathLimits);
+  pnh.param<std::string>("input_car_state_topic", car_state_topic, autodrive_msgs::topic_contract::kCarState);
+  ROS_INFO("[PlanningPipeline/line] topics: car_state=%s, pathlimits=%s",
+           car_state_topic.c_str(), output_topic.c_str());
   
   line_node_ = std::make_unique<LineDetectionNode>(nh);
 }
 
 void PlanningPipelineNode::InitSkidpad(ros::NodeHandle &nh)
 {
-  // Override topic names to publish to unified topic
+  // Contract topics are provided by launch; read back for traceability only.
   ros::NodeHandle pnh("~");
   std::string output_topic;
-  pnh.param<std::string>("output_pathlimits_topic", output_topic, "planning/pathlimits");
-  pnh.setParam("topics/pathlimits", output_topic);
+  std::string car_state_topic;
+  std::string approaching_goal_topic;
+  pnh.param<std::string>("output_pathlimits_topic", output_topic, autodrive_msgs::topic_contract::kPathLimits);
+  pnh.param<std::string>("input_car_state_topic", car_state_topic, autodrive_msgs::topic_contract::kCarState);
+  pnh.param<std::string>("output_approaching_goal_topic", approaching_goal_topic,
+                         autodrive_msgs::topic_contract::kApproachingGoal);
+  ROS_INFO("[PlanningPipeline/skidpad] topics: car_state=%s, pathlimits=%s, approaching_goal=%s",
+           car_state_topic.c_str(), output_topic.c_str(), approaching_goal_topic.c_str());
   
   skidpad_node_ = std::make_unique<SkidpadDetectionNode>(nh);
 }
@@ -86,6 +98,9 @@ void PlanningPipelineNode::InitSkidpad(ros::NodeHandle &nh)
 void PlanningPipelineNode::InitHighSpeed(ros::NodeHandle &nh)
 {
   ros::NodeHandle pnh("~");
+  std::string car_state_topic;
+  pnh.param<std::string>("input_car_state_topic", car_state_topic, autodrive_msgs::topic_contract::kCarState);
+  ROS_INFO("[PlanningPipeline/high_speed] input_pose_topic=%s", car_state_topic.c_str());
 
   pnh.param("wait_full_before_stop", waitFullBeforeStop_, true);
   pnh.param("finish_grace_frames", finishGraceFrames_, 300);
@@ -127,7 +142,7 @@ void PlanningPipelineNode::InitHighSpeed(ros::NodeHandle &nh)
 
   std::string pathlimits_topic;
   pnh.param<std::string>("output_pathlimits_topic", pathlimits_topic,
-                          "planning/pathlimits");
+                         autodrive_msgs::topic_contract::kPathLimits);
   pathlimits_pub_ = nh.advertise<autodrive_msgs::HUAT_PathLimits>(pathlimits_topic, 1);
   hs_stop_pub_ = nh.advertise<autodrive_msgs::HUAT_Stop>(hs_params_->main.stop_topic, 1);
 }
@@ -138,65 +153,40 @@ void PlanningPipelineNode::InitHighSpeed(ros::NodeHandle &nh)
 
 void PlanningPipelineNode::PublishDiagnostics(const diagnostic_msgs::DiagnosticArray &diag_arr)
 {
-  diag_pub_local_.publish(diag_arr);
-  if (publish_global_diagnostics_)
-  {
-    diag_pub_global_.publish(diag_arr);
-  }
+  diag_helper_.Publish(diag_arr);
 }
 
 void PlanningPipelineNode::PublishEntryHealth(const ros::Time &stamp, bool force)
 {
-  const ros::Time now = ros::Time::now();
-  if (!force && last_entry_diag_pub_.isValid())
-  {
-    const double min_interval = 1.0 / diagnostics_rate_hz_;
-    if ((now - last_entry_diag_pub_).toSec() < min_interval)
-    {
-      return;
-    }
-  }
-  last_entry_diag_pub_ = now;
+  using DH = autodrive_msgs::DiagnosticsHelper;
 
-  diagnostic_msgs::DiagnosticArray diag_arr;
-  diag_arr.header.stamp = stamp.isZero() ? now : stamp;
+  uint8_t level = diagnostic_msgs::DiagnosticStatus::OK;
+  std::string message = "OK";
 
-  diagnostic_msgs::DiagnosticStatus ds;
-  ds.name = "planning_entry_health";
-  ds.hardware_id = "planning_ros/planning_pipeline";
-  ds.level = diagnostic_msgs::DiagnosticStatus::OK;
-  ds.message = "OK";
-
-  auto kv = [](const std::string &k, const std::string &v) {
-    diagnostic_msgs::KeyValue pair;
-    pair.key = k;
-    pair.value = v;
-    return pair;
-  };
-
-  ds.values.push_back(kv("mission", mission_));
+  std::vector<diagnostic_msgs::KeyValue> kvs;
+  kvs.push_back(DH::KV("mission", mission_));
 
   if (mission_ == "line" || mission_ == "acceleration")
   {
-    ds.values.push_back(kv("backend", "line_detection"));
-    ds.values.push_back(kv("local_tf_valid", "n/a"));
-    ds.values.push_back(kv("lap_mode", "n/a"));
-    ds.values.push_back(kv("internal_viz_side_channel", "false"));
+    kvs.push_back(DH::KV("backend", "line_detection"));
+    kvs.push_back(DH::KV("local_tf_valid", "n/a"));
+    kvs.push_back(DH::KV("lap_mode", "n/a"));
+    kvs.push_back(DH::KV("internal_viz_side_channel", "false"));
   }
   else if (mission_ == "skidpad")
   {
-    ds.values.push_back(kv("backend", "skidpad_detection"));
-    ds.values.push_back(kv("local_tf_valid", "n/a"));
-    ds.values.push_back(kv("lap_mode", "n/a"));
-    ds.values.push_back(kv("internal_viz_side_channel", "false"));
+    kvs.push_back(DH::KV("backend", "skidpad_detection"));
+    kvs.push_back(DH::KV("local_tf_valid", "n/a"));
+    kvs.push_back(DH::KV("lap_mode", "n/a"));
+    kvs.push_back(DH::KV("internal_viz_side_channel", "false"));
   }
   else
   {
     const bool local_tf_valid = hs_way_computer_ && hs_way_computer_->isLocalTfValid();
     if (!local_tf_valid)
     {
-      ds.level = diagnostic_msgs::DiagnosticStatus::WARN;
-      ds.message = "WAITING_CARSTATE";
+      level = diagnostic_msgs::DiagnosticStatus::WARN;
+      message = "WAITING_CARSTATE";
     }
 
     std::string lap_mode = "MAP_BUILD_SAFE";
@@ -205,17 +195,17 @@ void PlanningPipelineNode::PublishEntryHealth(const ros::Time &stamp, bool force
       lap_mode = "FAST_LAP";
     }
 
-    ds.values.push_back(kv("backend", "high_speed_tracking"));
-    ds.values.push_back(kv("local_tf_valid", local_tf_valid ? "true" : "false"));
-    ds.values.push_back(kv("lap_mode", lap_mode));
-    ds.values.push_back(kv("loop_closed", (hs_way_computer_ && hs_way_computer_->isLoopClosed()) ? "true" : "false"));
-    ds.values.push_back(kv("loop_fallback_active", loopFallbackWasActive_ ? "true" : "false"));
-    ds.values.push_back(kv("inter_times", std::to_string(interTimes_)));
-    ds.values.push_back(kv("internal_viz_side_channel", enable_internal_viz_side_channel_ ? "true" : "false"));
+    kvs.push_back(DH::KV("backend", "high_speed_tracking"));
+    kvs.push_back(DH::KV("local_tf_valid", local_tf_valid ? "true" : "false"));
+    kvs.push_back(DH::KV("lap_mode", lap_mode));
+    kvs.push_back(DH::KV("loop_closed", (hs_way_computer_ && hs_way_computer_->isLoopClosed()) ? "true" : "false"));
+    kvs.push_back(DH::KV("loop_fallback_active", loopFallbackWasActive_ ? "true" : "false"));
+    kvs.push_back(DH::KV("inter_times", std::to_string(interTimes_)));
+    kvs.push_back(DH::KV("internal_viz_side_channel", enable_internal_viz_side_channel_ ? "true" : "false"));
   }
 
-  diag_arr.status.push_back(ds);
-  PublishDiagnostics(diag_arr);
+  diag_helper_.PublishStatus("planning_entry_health", "planning_ros/planning_pipeline",
+                             level, message, kvs, stamp, force);
 }
 
 bool PlanningPipelineNode::SpinOnce()

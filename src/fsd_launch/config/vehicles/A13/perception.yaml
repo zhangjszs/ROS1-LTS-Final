@@ -19,6 +19,24 @@
 # IMU & Distortion Compensation
 # ==========================
 imu:
+  # 总开关：启用畸变补偿
+  enable: true
+
+  # IMU话题
+  topic: "/pbox_pub/Ins"
+
+  # 畸变补偿参数
+  distortion:
+    scan_period: 0.1           # Velodyne扫描周期 (秒)
+    mode: "velocity_accel"     # velocity_only | velocity_accel | full_6dof | preintegration
+    point_time_source: "auto"  # auto | point_time | angle
+    ref_time: "scan_end"       # scan_start | scan_middle | scan_end
+
+    # 调试开关
+    debug:
+      enable: true               # 终端输出调试日志
+      publish_debug_info: true   # 发布 distortion_debug 话题
+
   sensor:
     extrinsics:
       # 是否启用IMU-LiDAR外参

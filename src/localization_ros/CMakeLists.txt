@@ -56,3 +56,14 @@ target_link_libraries(state_estimator_node
   ${catkin_LIBRARIES}
   localization_core
 )
+
+if(CATKIN_ENABLE_TESTING)
+  catkin_add_gtest(localization_ros_perf_stats_test
+    test/test_localization_perf_stats.cpp
+  )
+  if(TARGET localization_ros_perf_stats_test)
+    target_link_libraries(localization_ros_perf_stats_test
+      ${catkin_LIBRARIES}
+    )
+  endif()
+endif()

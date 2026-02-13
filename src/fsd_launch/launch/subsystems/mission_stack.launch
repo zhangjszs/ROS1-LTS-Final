@@ -1,0 +1,95 @@
+<!--
+  Mission stack composition for standard real/sim missions.
+  This launch centralizes subsystem wiring to reduce cross-file duplication.
+-->
+<launch>
+    <arg name="simulation" default="false"/>
+
+    <arg name="perception_mode" default="track"/>
+    <arg name="localization_mode" default="track"/>
+    <arg name="planner" default="unified"/>
+    <arg name="planning_mission" default="high_speed"/>
+    <arg name="control_mode_profile" default="track"/>
+    <arg name="control_mode" default="4"/>
+    <arg name="enable_perception" default="true"/>
+    <arg name="enable_localization" default="true"/>
+    <arg name="enable_planning" default="true"/>
+    <arg name="enable_control" default="true"/>
+
+    <arg name="vehicle" default="A13"/>
+    <arg name="perception_vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/perception.yaml"/>
+    <arg name="perception_vehicle_local_config" default=""/>
+    <arg name="localization_vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/localization.yaml"/>
+    <arg name="localization_vehicle_local_config" default=""/>
+    <arg name="control_vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/control.yaml"/>
+    <arg name="control_vehicle_local_config" default=""/>
+
+    <arg name="perception_mission_config" default=""/>
+    <arg name="localization_mission_config" default=""/>
+    <arg name="control_mission_config" default=""/>
+
+    <arg name="cmd_topic" default="vehicle/cmd"/>
+    <arg name="carstate_topic" default="localization/car_state"/>
+    <arg name="pathlimits_topic" default="planning/pathlimits"/>
+    <arg name="approaching_goal_topic" default="planning/skidpad/approaching_goal"/>
+
+    <arg name="publish_legacy_cmd_topic" default="false"/>
+    <arg name="subscribe_legacy_topics" default="false"/>
+    <arg name="subscribe_legacy_cmd_topic" default="false"/>
+    <arg name="legacy_cmd_topic" default="vehcileCMDMsg"/>
+    <arg name="legacy_carstate_topic" default="/Carstate"/>
+    <arg name="legacy_approaching_goal_topic" default="/skidpad_detection_node/approaching_goal"/>
+
+    <include if="$(arg enable_perception)" file="$(find fsd_launch)/launch/subsystems/perception.launch">
+        <arg name="launch_rviz" value="false"/>
+        <arg name="mode" value="$(arg perception_mode)"/>
+        <arg name="carstate_topic" value="$(arg carstate_topic)"/>
+        <arg name="mission_config" value="$(arg perception_mission_config)"/>
+        <arg name="vehicle" value="$(arg vehicle)"/>
+        <arg name="vehicle_config" value="$(arg perception_vehicle_config)"/>
+        <arg name="vehicle_local_config" value="$(arg perception_vehicle_local_config)"/>
+    </include>
+
+    <include if="$(arg enable_localization)" file="$(find fsd_launch)/launch/subsystems/localization.launch">
+        <arg name="mode" value="$(arg localization_mode)"/>
+        <arg name="carstate_topic" value="$(arg carstate_topic)"/>
+        <arg name="mission_config" value="$(arg localization_mission_config)"/>
+        <arg name="vehicle" value="$(arg vehicle)"/>
+        <arg name="vehicle_config" value="$(arg localization_vehicle_config)"/>
+        <arg name="vehicle_local_config" value="$(arg localization_vehicle_local_config)"/>
+    </include>
+
+    <include if="$(arg enable_planning)" file="$(find fsd_launch)/launch/subsystems/planning.launch">
+        <arg name="planner" value="$(arg planner)"/>
+        <arg name="mission" value="$(arg planning_mission)"/>
+        <arg name="output_pathlimits_topic" value="$(arg pathlimits_topic)"/>
+        <arg name="input_car_state_topic" value="$(arg carstate_topic)"/>
+        <arg name="output_approaching_goal_topic" value="$(arg approaching_goal_topic)"/>
+    </include>
+
+    <group if="$(arg enable_control)">
+        <include file="$(find fsd_launch)/launch/subsystems/control.launch">
+            <arg name="mode" value="$(arg control_mode_profile)"/>
+            <arg name="control_mode" value="$(arg control_mode)"/>
+            <arg name="cmd_topic" value="$(arg cmd_topic)"/>
+            <arg name="pathlimits_topic" value="$(arg pathlimits_topic)"/>
+            <arg name="carstate_topic" value="$(arg carstate_topic)"/>
+            <arg name="approaching_goal_topic" value="$(arg approaching_goal_topic)"/>
+            <arg name="publish_legacy_cmd_topic" value="$(arg publish_legacy_cmd_topic)"/>
+            <arg name="legacy_cmd_topic" value="$(arg legacy_cmd_topic)"/>
+            <arg name="subscribe_legacy_topics" value="$(arg subscribe_legacy_topics)"/>
+            <arg name="legacy_carstate_topic" value="$(arg legacy_carstate_topic)"/>
+            <arg name="legacy_approaching_goal_topic" value="$(arg legacy_approaching_goal_topic)"/>
+            <arg name="mission_config" value="$(arg control_mission_config)"/>
+            <arg name="vehicle" value="$(arg vehicle)"/>
+            <arg name="vehicle_config" value="$(arg control_vehicle_config)"/>
+            <arg name="vehicle_local_config" value="$(arg control_vehicle_local_config)"/>
+        </include>
+
+        <include unless="$(arg simulation)" file="$(find fsd_launch)/launch/subsystems/vehicle.launch">
+            <arg name="cmd_topic" value="$(arg cmd_topic)"/>
+            <arg name="subscribe_legacy_cmd_topic" value="$(arg subscribe_legacy_cmd_topic)"/>
+            <arg name="legacy_cmd_topic" value="$(arg legacy_cmd_topic)"/>
+        </include>
+    </group>
+</launch>

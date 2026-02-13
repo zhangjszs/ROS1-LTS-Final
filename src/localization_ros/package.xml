@@ -48,6 +48,9 @@
   <exec_depend>localization_core</exec_depend>
   <exec_depend>diagnostic_msgs</exec_depend>
 
+  <test_depend>rostest</test_depend>
+  <test_depend>gtest</test_depend>
+
   <export>
   </export>
 </package>

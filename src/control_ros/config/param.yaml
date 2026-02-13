@@ -7,8 +7,9 @@
 #   3) vehicle overlay - 车辆特定参数
 #
 # 【控制系统架构】
-#   Input: 规划路径 (/path_global) + 车辆状态 (/Carstate)
-#   Output: 控制指令 (/vehcileCMDMsg) - 注意拼写错误是历史遗留
+#   Input: 规划路径 (planning/pathlimits) + 车辆状态 (localization/car_state)
+#   Output: 控制指令 (vehicle/cmd)
+#   Compatibility: legacy话题可按需开启（publish_legacy_cmd_topic / subscribe_legacy_topics）
 #   Controller: Pure Pursuit + PID + 滑移角补偿
 #
 # 【控制器类型】
@@ -178,6 +179,7 @@ st:
 #    - 增大 angle_kd (0.0→0.1)
 #
 # 【观测命令】
-#   rostopic echo /vehcileCMDMsg | grep delta
-#   rostopic echo /Carstate | grep yaw
+#   rostopic echo /vehicle/cmd | grep delta
+#   rostopic echo /localization/car_state | grep yaw
+#   # legacy兼容链路（默认关闭）：/vehcileCMDMsg、/Carstate
 #   # 对比期望转向角和实际航向变化

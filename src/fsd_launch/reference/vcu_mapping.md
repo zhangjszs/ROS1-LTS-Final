@@ -22,12 +22,17 @@ Reference:
 
 | Direction | Topic | Message |
 |---|---|---|
-| Control -> VCU bridge | `vehcileCMDMsg` | `autodrive_msgs/HUAT_VehicleCmd` |
+| Control -> VCU bridge | `vehicle/cmd` (canonical) | `autodrive_msgs/HUAT_VehicleCmd` |
 | VCU -> racing number writer | `vehicleStatusMsg` (default) | `autodrive_msgs/HUAT_VehicleStatus` |
 
 Reference:
 - `src/control_ros/src/control_node.cpp`
 - `src/vehicle_racing_num_ros/src/vehicle_racing_num_node.cpp`
+
+Compatibility notes:
+- Legacy command topic alias `vehcileCMDMsg` is optional and disabled by default.
+- Enable in control side with `publish_legacy_cmd_topic:=true`.
+- Enable in vehicle interface side with `subscribe_legacy_cmd_topic:=true` (if required by legacy bridge).
 
 ## 3) Message Field Map (Current)
 

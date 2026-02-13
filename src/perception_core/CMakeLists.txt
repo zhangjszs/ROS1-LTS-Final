@@ -39,7 +39,6 @@ add_library(${PROJECT_NAME}
   src/ground_segmentation_fgs.cpp
   src/fast_ground_segmentation.cpp
   src/patchworkpp.cpp
-  src/distortion_adjust.cpp
   src/distortion_adjust_v2.cpp
   src/utility.cpp
   src/cluster_feature_extractor.cpp

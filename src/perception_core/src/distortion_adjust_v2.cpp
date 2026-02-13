@@ -14,7 +14,6 @@ void DistortionAdjustV2::AddImuData(const ImuState& imu) {
     if (!imu_buffer_.empty() && imu.timestamp < imu_buffer_.back().timestamp) {
         // 时间戳回退，清空缓冲区（可能是rosbag重放）
         imu_buffer_.clear();
-        preint_cache_.clear();
     }
 
     imu_buffer_.push_back(imu);
@@ -202,17 +201,14 @@ bool DistortionAdjustV2::InterpolateImu(double timestamp, ImuState& out) const {
                            alpha * after->angular_velocity;
     out.acceleration = (1.0 - alpha) * before->acceleration +
                        alpha * after->acceleration;
-    out.roll = (1.0 - alpha) * before->roll + alpha * after->roll;
-    out.pitch = (1.0 - alpha) * before->pitch + alpha * after->pitch;
-
-    // 航向角需要特殊处理（角度环绕）
-    double yaw_diff = after->yaw - before->yaw;
-    if (yaw_diff > 180.0) yaw_diff -= 360.0;
-    if (yaw_diff < -180.0) yaw_diff += 360.0;
-    out.yaw = before->yaw + alpha * yaw_diff;
-
     // 四元数球面线性插值 (SLERP)
     out.orientation = before->orientation.slerp(alpha, after->orientation);
+
+    // 从SLERP后的四元数反算欧拉角，保证与四元数一致
+    Eigen::Vector3d euler = out.orientation.toRotationMatrix().eulerAngles(2, 1, 0);  // ZYX: yaw, pitch, roll
+    out.yaw = euler[0] * 180.0 / M_PI;
+    out.pitch = euler[1] * 180.0 / M_PI;
+    out.roll = euler[2] * 180.0 / M_PI;
 
     return true;
 }
@@ -253,6 +249,10 @@ bool DistortionAdjustV2::Preintegrate(double t_start, double t_end,
         Eigen::Vector3d acc = ApplyExtrinsics(interp_state.acceleration);
         Eigen::Vector3d gyro = ApplyExtrinsics(interp_state.angular_velocity);
 
+        // 去除重力分量
+        Eigen::Vector3d gravity(0.0, 0.0, config_.gravity);
+        acc -= gravity;
+
         result.delta_v = acc * dt;
         result.delta_p = 0.5 * acc * dt * dt;
 
@@ -272,10 +272,13 @@ bool DistortionAdjustV2::Preintegrate(double t_start, double t_end,
     Eigen::Vector3d last_acc = Eigen::Vector3d::Zero();
     Eigen::Vector3d last_gyro = Eigen::Vector3d::Zero();
 
+    // 重力向量（FRD坐标系）
+    Eigen::Vector3d gravity(0.0, 0.0, config_.gravity);
+
     // 获取起始时刻的IMU状态
     ImuState start_state;
     if (InterpolateImu(t_start, start_state)) {
-        last_acc = ApplyExtrinsics(start_state.acceleration);
+        last_acc = ApplyExtrinsics(start_state.acceleration) - gravity;
         last_gyro = ApplyExtrinsics(start_state.angular_velocity);
     }
 
@@ -285,7 +288,7 @@ bool DistortionAdjustV2::Preintegrate(double t_start, double t_end,
 
         if (dt < 1e-9) continue;
 
-        Eigen::Vector3d curr_acc = ApplyExtrinsics(imu->acceleration);
+        Eigen::Vector3d curr_acc = ApplyExtrinsics(imu->acceleration) - gravity;
         Eigen::Vector3d curr_gyro = ApplyExtrinsics(imu->angular_velocity);
 
         // 中点值
@@ -317,7 +320,7 @@ bool DistortionAdjustV2::Preintegrate(double t_start, double t_end,
         ImuState end_state;
         if (InterpolateImu(t_end, end_state)) {
             double dt = t_end - last_t;
-            Eigen::Vector3d curr_acc = ApplyExtrinsics(end_state.acceleration);
+            Eigen::Vector3d curr_acc = ApplyExtrinsics(end_state.acceleration) - gravity;
             Eigen::Vector3d curr_gyro = ApplyExtrinsics(end_state.angular_velocity);
 
             Eigen::Vector3d mid_acc = 0.5 * (last_acc + curr_acc);
@@ -350,13 +353,14 @@ double DistortionAdjustV2::ComputePointTimeFromAngle(float x, float y) const {
     }
 
     // Velodyne扫描方向
+    // 俯视角顺时针旋转 -> 在右手坐标系中azimuth递减 -> 时间与azimuth反相关
     double time;
     if (config_.clockwise_scan) {
-        // 顺时针扫描：方位角增大 -> 时间增大
-        time = azimuth / (2.0 * M_PI) * config_.scan_period;
-    } else {
-        // 逆时针扫描：方位角减小 -> 时间增大
+        // 顺时针扫描：azimuth递减 -> 时间增大
         time = (2.0 * M_PI - azimuth) / (2.0 * M_PI) * config_.scan_period;
+    } else {
+        // 逆时针扫描：azimuth递增 -> 时间增大
+        time = azimuth / (2.0 * M_PI) * config_.scan_period;
     }
 
     return time;
@@ -367,9 +371,13 @@ void DistortionAdjustV2::CompensatePointSimple(PointType& point, double dt,
     Eigen::Vector3d p(point.x, point.y, point.z);
 
     // 应用外参变换到速度和加速度
-    Eigen::Vector3d velocity = ApplyExtrinsics(ref_state.velocity);
-    Eigen::Vector3d acceleration = ApplyExtrinsics(ref_state.acceleration);
     Eigen::Vector3d angular_velocity = ApplyExtrinsics(ref_state.angular_velocity);
+    Eigen::Vector3d velocity = ApplyExtrinsicsVelocity(ref_state.velocity, ref_state.angular_velocity);
+    Eigen::Vector3d acceleration = ApplyExtrinsics(ref_state.acceleration);
+
+    // 去除重力分量（FRD坐标系，重力沿Z轴正方向）
+    Eigen::Vector3d gravity(0.0, 0.0, config_.gravity);
+    Eigen::Vector3d accel_no_gravity = acceleration - gravity;
 
     // 计算位移补偿
     Eigen::Vector3d displacement;
@@ -377,7 +385,7 @@ void DistortionAdjustV2::CompensatePointSimple(PointType& point, double dt,
     switch (config_.mode) {
         case DistortionConfigV2::Mode::VELOCITY_ACCEL:
             // s = v*t + 0.5*a*t^2
-            displacement = velocity * dt + 0.5 * acceleration * dt * dt;
+            displacement = velocity * dt + 0.5 * accel_no_gravity * dt * dt;
             break;
 
         case DistortionConfigV2::Mode::FULL_6DOF: {
@@ -391,12 +399,17 @@ void DistortionAdjustV2::CompensatePointSimple(PointType& point, double dt,
                 rotation = aa.toRotationMatrix();
             }
 
-            // 旋转点到参考时刻
-            p = rotation.transpose() * p;
-
             // 2. 平移补偿
-            displacement = velocity * dt + 0.5 * acceleration * dt * dt;
-            break;
+            displacement = velocity * dt + 0.5 * accel_no_gravity * dt * dt;
+
+            // 刚体变换: p_ref = R_inv * (p_point - t)
+            p = rotation.transpose() * (p - displacement);
+
+            // displacement已在上面应用，跳过后续的 p -= displacement
+            point.x = static_cast<float>(p.x());
+            point.y = static_cast<float>(p.y());
+            point.z = static_cast<float>(p.z());
+            return;
         }
 
         case DistortionConfigV2::Mode::VELOCITY_ONLY:
@@ -446,6 +459,19 @@ void DistortionAdjustV2::CompensatePointPreintegration(PointType& point,
 Eigen::Vector3d DistortionAdjustV2::ApplyExtrinsics(const Eigen::Vector3d& v_imu) const {
     if (config_.extrinsics.enable) {
         return config_.extrinsics.transformVector(v_imu);
+    }
+    return v_imu;
+}
+
+Eigen::Vector3d DistortionAdjustV2::ApplyExtrinsicsVelocity(
+    const Eigen::Vector3d& v_imu,
+    const Eigen::Vector3d& omega_imu) const {
+    if (config_.extrinsics.enable) {
+        Eigen::Vector3d v_lidar = config_.extrinsics.transformVector(v_imu);
+        // 杠杆臂补偿: v_lidar += omega_lidar × t_imu_to_lidar
+        Eigen::Vector3d omega_lidar = config_.extrinsics.transformVector(omega_imu);
+        v_lidar += omega_lidar.cross(config_.extrinsics.translation);
+        return v_lidar;
     }
     return v_imu;
 }

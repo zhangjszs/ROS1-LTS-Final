@@ -6,6 +6,7 @@
 #include <string>
 
 #include <autodrive_msgs/HUAT_PathLimits.h>
+#include <autodrive_msgs/topic_contract.hpp>
 #include <ros/ros.h>
 
 namespace planning_ros {
@@ -16,17 +17,18 @@ inline ros::Time NormalizeInputStamp(const ros::Time &stamp)
   return stamp.isZero() ? ros::Time::now() : stamp;
 }
 
-inline std::string NormalizeFrameId(const std::string &frame_id, const std::string &fallback = "world")
+inline std::string NormalizeFrameId(const std::string &frame_id,
+                                    const std::string &fallback = autodrive_msgs::frame_contract::kWorld)
 {
   return frame_id.empty() ? fallback : frame_id;
 }
 
 inline void FinalizePathLimitsMessage(autodrive_msgs::HUAT_PathLimits &msg,
                                       const ros::Time &input_stamp,
-                                      const std::string &frame_id = "world")
+                                      const std::string &frame_id = autodrive_msgs::frame_contract::kWorld)
 {
   msg.header.stamp = NormalizeInputStamp(input_stamp);
-  msg.header.frame_id = NormalizeFrameId(frame_id, "world");
+  msg.header.frame_id = NormalizeFrameId(frame_id, autodrive_msgs::frame_contract::kWorld);
   msg.stamp = ros::Time::now();
   msg.tracklimits.stamp = msg.stamp;
 }

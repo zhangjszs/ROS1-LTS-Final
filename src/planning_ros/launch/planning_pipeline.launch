@@ -4,6 +4,9 @@
 -->
 <launch>
   <arg name="mission" default="high_speed" doc="任务类型: line, acceleration, skidpad, high_speed, trackdrive, autocross"/>
+  <arg name="output_pathlimits_topic" default="planning/pathlimits"/>
+  <arg name="input_car_state_topic" default="localization/car_state"/>
+  <arg name="output_approaching_goal_topic" default="planning/skidpad/approaching_goal"/>
   <arg name="diagnostics_topic" default="planning/diagnostics"/>
   <arg name="publish_global_diagnostics" default="true"/>
   <arg name="global_diagnostics_topic" default="/diagnostics"/>
@@ -12,7 +15,13 @@
 
   <node pkg="planning_ros" type="planning_pipeline_node" name="planning_pipeline" output="screen">
     <param name="mission" value="$(arg mission)"/>
-    <param name="output_pathlimits_topic" value="planning/pathlimits"/>
+    <param name="output_pathlimits_topic" value="$(arg output_pathlimits_topic)"/>
+    <param name="input_car_state_topic" value="$(arg input_car_state_topic)"/>
+    <param name="output_approaching_goal_topic" value="$(arg output_approaching_goal_topic)"/>
+    <param name="input_pose_topic" value="$(arg input_car_state_topic)"/>
+    <param name="topics/car_state" value="$(arg input_car_state_topic)"/>
+    <param name="topics/pathlimits" value="$(arg output_pathlimits_topic)"/>
+    <param name="topics/approaching_goal" value="$(arg output_approaching_goal_topic)"/>
     <param name="diagnostics_topic" value="$(arg diagnostics_topic)"/>
     <param name="publish_global_diagnostics" value="$(arg publish_global_diagnostics)"/>
     <param name="global_diagnostics_topic" value="$(arg global_diagnostics_topic)"/>

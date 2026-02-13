@@ -1,5 +1,6 @@
 #include <ros/ros.h>
 #include <autodrive_msgs/HUAT_VehicleStatus.h>
+#include <autodrive_msgs/topic_contract.hpp>
 
 #include "vehicle_racing_num_core/racing_num_writer.hpp"
 
@@ -9,7 +10,7 @@ public:
   RacingNumWriterNode(ros::NodeHandle &nh, ros::NodeHandle &pnh)
   {
     pnh.param<std::string>("output_file", output_file_, vehicle_racing_num_core::DefaultOutputPath());
-    pnh.param<std::string>("topic", topic_, "vehicleStatusMsg");
+    pnh.param<std::string>("topic", topic_, autodrive_msgs::topic_contract::kVehicleStatus);
     pnh.param("queue_size", queue_size_, 1);
     pnh.param("exit_on_nonzero", exit_on_nonzero_, true);
 

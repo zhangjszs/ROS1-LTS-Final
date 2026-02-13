@@ -11,6 +11,7 @@
 #include <autodrive_msgs/HUAT_TrackLimits.h>
 #include <autodrive_msgs/HUAT_ConeMap.h>
 #include "autodrive_msgs/HUAT_Stop.h"
+#include <autodrive_msgs/topic_contract.hpp>
 #include <ros/package.h>
 #include <ros/ros.h>
 #include <ros/serialization.h>
@@ -353,7 +354,8 @@ int main(int argc, char **argv)
   ros::Subscriber subPose = nh->subscribe(params->main.input_pose_topic, 1, &WayComputer::stateCallback, wayComputer);
 
   std::string pathlimits_topic;
-  pnh.param<std::string>("output_pathlimits_topic", pathlimits_topic, "planning/pathlimits");
+  pnh.param<std::string>("output_pathlimits_topic", pathlimits_topic,
+                         autodrive_msgs::topic_contract::kPathLimits);
   pubPathlimits = nh->advertise<autodrive_msgs::HUAT_PathLimits>(pathlimits_topic, 1);
   stopPub = nh->advertise<autodrive_msgs::HUAT_Stop>(params->main.stop_topic, 1);
   ros::spin();

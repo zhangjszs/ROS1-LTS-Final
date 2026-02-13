@@ -13,10 +13,21 @@
 #include <autodrive_msgs/HUAT_SimState.h>
 #include <autodrive_msgs/HUAT_ConeMap.h>
 #include <autodrive_msgs/HUAT_VehicleCmd.h>
+#include <autodrive_msgs/topic_contract.hpp>
 
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
 #include <mutex>
 
 using namespace simulation_core;
+
+namespace {
+std::uint32_t EncodeConfidenceScaled(double confidence_score) {
+    const double clamped = std::max(0.0, std::min(1.0, confidence_score));
+    return static_cast<std::uint32_t>(std::lround(clamped * 1000.0));
+}
+}  // namespace
 
 class SimulationNode {
 public:
@@ -47,6 +58,8 @@ public:
 
         ROS_INFO("[SimulationNode] Initialized with track: %s (%zu cones)",
                  track_.name.c_str(), track_.cones.size());
+        ROS_INFO("[SimulationNode] Frames: world=%s, base_link=%s",
+                 world_frame_.c_str(), base_link_frame_.c_str());
     }
 
     void run() {
@@ -88,6 +101,9 @@ private:
         // Simulation rate
         pnh_.param<int>("sim_rate", sim_rate_, 100);
         pnh_.param<bool>("publish_tf", publish_tf_, true);
+        pnh_.param<std::string>("frames/world", world_frame_, autodrive_msgs::frame_contract::kWorld);
+        pnh_.param<std::string>("frames/base_link", base_link_frame_,
+                                autodrive_msgs::frame_contract::kBaseLink);
 
         // Track file
         std::string track_file;
@@ -174,7 +190,7 @@ private:
 
         autodrive_msgs::HUAT_CarState msg;
         msg.header.stamp = ros::Time::now();
-        msg.header.frame_id = "velodyne";
+        msg.header.frame_id = world_frame_;
 
         msg.car_state.x = state.vehicle.x;
         msg.car_state.y = state.vehicle.y;
@@ -206,7 +222,7 @@ private:
 
         autodrive_msgs::HUAT_SimState msg;
         msg.header.stamp = ros::Time::now();
-        msg.header.frame_id = "velodyne";
+        msg.header.frame_id = world_frame_;
 
         msg.pose.x = state.vehicle.x;
         msg.pose.y = state.vehicle.y;
@@ -227,7 +243,7 @@ private:
     void publishConeMap(const std::vector<ConeObservation>& observations) {
         autodrive_msgs::HUAT_ConeMap msg;
         msg.header.stamp = ros::Time::now();
-        msg.header.frame_id = "velodyne";
+        msg.header.frame_id = world_frame_;
 
         const auto& state = dynamics_.state();
         double cos_yaw = std::cos(state.vehicle.yaw);
@@ -237,7 +253,7 @@ private:
         for (const auto& obs : observations) {
             autodrive_msgs::HUAT_Cone cone;
             cone.header.stamp = msg.header.stamp;
-            cone.header.frame_id = "velodyne";
+            cone.header.frame_id = world_frame_;
 
             // Position in base_link frame
             cone.position_baseLink.x = obs.x;
@@ -250,7 +266,7 @@ private:
             cone.position_global.z = 0.0;
 
             cone.id = id++;
-            cone.confidence = static_cast<uint32_t>(obs.confidence * 100);
+            cone.confidence = EncodeConfidenceScaled(obs.confidence);
             cone.type = static_cast<uint32_t>(obs.color);
 
             msg.cone.push_back(cone);
@@ -264,8 +280,8 @@ private:
 
         geometry_msgs::TransformStamped tf;
         tf.header.stamp = ros::Time::now();
-        tf.header.frame_id = "world";
-        tf.child_frame_id = "velodyne";
+        tf.header.frame_id = world_frame_;
+        tf.child_frame_id = base_link_frame_;
 
         tf.transform.translation.x = state.vehicle.x;
         tf.transform.translation.y = state.vehicle.y;
@@ -291,7 +307,7 @@ private:
         int id = 0;
         for (const auto& cone : track_.cones) {
             visualization_msgs::Marker marker;
-            marker.header.frame_id = "world";
+            marker.header.frame_id = world_frame_;
             marker.header.stamp = ros::Time::now();
             marker.ns = "track_cones";
             marker.id = id++;
@@ -371,6 +387,8 @@ private:
     SensorParams sensor_params_;
     int sim_rate_;
     bool publish_tf_;
+    std::string world_frame_;
+    std::string base_link_frame_;
 
     // Control input
     ControlInput current_input_;

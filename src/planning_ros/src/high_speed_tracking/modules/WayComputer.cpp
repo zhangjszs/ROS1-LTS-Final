@@ -1238,7 +1238,7 @@ Tracklimits WayComputer::getTracklimits() const {
 
 autodrive_msgs::HUAT_PathLimits WayComputer::getPathLimits() const  {
   autodrive_msgs::HUAT_PathLimits res;
-  planning_ros::contract::FinalizePathLimitsMessage(res, this->lastStamp_, "world");
+  planning_ros::contract::FinalizePathLimitsMessage(res, this->lastStamp_, autodrive_msgs::frame_contract::kWorld);
 
   // res.replan indicates if the Way is different from last iteration's
   // 判断当前的way_是否与上一次迭代的lastWay_不同，如果不同则将res的replan成员变量设置为true，否则设置为false。
@@ -1282,7 +1282,7 @@ autodrive_msgs::HUAT_PathLimits WayComputer::getPathLimits() const  {
 */
 autodrive_msgs::HUAT_PathLimits WayComputer::getPathLimitsGlobal(int x)  {
   autodrive_msgs::HUAT_PathLimits res;
-  planning_ros::contract::FinalizePathLimitsMessage(res, this->currentStamp_, "world");
+  planning_ros::contract::FinalizePathLimitsMessage(res, this->currentStamp_, autodrive_msgs::frame_contract::kWorld);
   std::vector<Point> path;
   Point nextPoint;
   // res.replan indicates if the Way is different from last iteration's// res.replan指示方法是否与上次迭代不同

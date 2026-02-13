@@ -19,6 +19,14 @@
     <arg name="mode_file_path" default="$(env HOME)/autoStartGkj/command" doc="控制模式文件路径（兼容链路）"/>
     <arg name="enable_external_stop_file" default="false" doc="文件外部停车开关（兼容链路）"/>
     <arg name="external_stop_file_path" default="$(env HOME)/autoStartGkj/command" doc="文件外部停车路径（兼容链路）"/>
+    <arg name="carstate_topic" default="localization/car_state" doc="控制输入车体状态话题（canonical）"/>
+    <arg name="approaching_goal_topic" default="planning/skidpad/approaching_goal" doc="控制输入八字接近终点话题（canonical）"/>
+    <arg name="cmd_topic" default="vehicle/cmd" doc="控制输出命令话题（canonical）"/>
+    <arg name="publish_legacy_cmd_topic" default="false" doc="是否同时发布 legacy 控制命令话题"/>
+    <arg name="legacy_cmd_topic" default="vehcileCMDMsg" doc="legacy 控制命令话题"/>
+    <arg name="subscribe_legacy_topics" default="false" doc="是否同时订阅 legacy 输入话题"/>
+    <arg name="legacy_carstate_topic" default="/Carstate" doc="legacy 车体状态话题"/>
+    <arg name="legacy_approaching_goal_topic" default="/skidpad_detection_node/approaching_goal" doc="legacy 八字接近终点话题"/>
     <arg name="diagnostics_rate_hz" default="1.0" doc="control/diagnostics 发布频率"/>
     <arg name="diagnostics_topic" default="control/diagnostics" doc="控制入口诊断本地话题"/>
     <arg name="publish_global_diagnostics" default="true" doc="是否发布到统一 /diagnostics"/>
@@ -41,6 +49,14 @@
         <arg name="control_mode" value="$(arg control_mode)"/>
         <arg name="skip_param_load" value="$(arg skip_param_load)"/>
         <arg name="pathlimits_topic" value="$(arg pathlimits_topic)"/>
+        <arg name="carstate_topic" value="$(arg carstate_topic)"/>
+        <arg name="approaching_goal_topic" value="$(arg approaching_goal_topic)"/>
+        <arg name="cmd_topic" value="$(arg cmd_topic)"/>
+        <arg name="publish_legacy_cmd_topic" value="$(arg publish_legacy_cmd_topic)"/>
+        <arg name="legacy_cmd_topic" value="$(arg legacy_cmd_topic)"/>
+        <arg name="subscribe_legacy_topics" value="$(arg subscribe_legacy_topics)"/>
+        <arg name="legacy_carstate_topic" value="$(arg legacy_carstate_topic)"/>
+        <arg name="legacy_approaching_goal_topic" value="$(arg legacy_approaching_goal_topic)"/>
         <arg name="enable_file_mode_fallback" value="$(arg enable_file_mode_fallback)"/>
         <arg name="mode_file_path" value="$(arg mode_file_path)"/>
         <arg name="enable_external_stop_file" value="$(arg enable_external_stop_file)"/>

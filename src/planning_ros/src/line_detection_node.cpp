@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <autodrive_msgs/topic_contract.hpp>
 #include <geometry_msgs/Point32.h>
 #include <vector>
 
@@ -70,13 +71,13 @@ void LineDetectionNode::LoadParameters()
 
   pnh_.param("finish/threshold", params_.finish_line_threshold, 2.0);
 
-  pnh_.param<std::string>("topics/cone", cone_topic_, "perception/lidar_cluster/detections");
-  pnh_.param<std::string>("topics/car_state", car_state_topic_, "localization/car_state");
+  pnh_.param<std::string>("topics/cone", cone_topic_, autodrive_msgs::topic_contract::kConeDetections);
+  pnh_.param<std::string>("topics/car_state", car_state_topic_, autodrive_msgs::topic_contract::kCarState);
   pnh_.param<std::string>("topics/pathlimits", pathlimits_topic_, "planning/line_detection/pathlimits");
   pnh_.param<std::string>("topics/finish", finish_topic_, "planning/line_detection/finish_signal");
 
-  pnh_.param<std::string>("frames/expected_cone", expected_cone_frame_, "velodyne");
-  pnh_.param<std::string>("frames/output", output_frame_, "world");
+  pnh_.param<std::string>("frames/expected_cone", expected_cone_frame_, autodrive_msgs::frame_contract::kVelodyne);
+  pnh_.param<std::string>("frames/output", output_frame_, autodrive_msgs::frame_contract::kWorld);
 
   pnh_.param("speed/speed_cap", speed_cap_, 20.0);
   pnh_.param("speed/max_lateral_acc", max_lateral_acc_, 6.5);
@@ -121,7 +122,7 @@ void LineDetectionNode::SyncCallback(const ConeMsg::ConstPtr &cone_msg,
   // 处理锥桶数据
   if (!cone_msg->header.frame_id.empty() &&
       cone_msg->header.frame_id != expected_cone_frame_ &&
-      cone_msg->header.frame_id != "velodyne")
+      cone_msg->header.frame_id != autodrive_msgs::frame_contract::kVelodyne)
   {
     ROS_ERROR_THROTTLE(1.0, "[LineDetection] Unexpected cone frame: %s (expected: %s)",
                        cone_msg->header.frame_id.c_str(), expected_cone_frame_.c_str());

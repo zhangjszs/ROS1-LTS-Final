@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <autodrive_msgs/topic_contract.hpp>
 #include <geometry_msgs/Point32.h>
 #include <vector>
 
@@ -107,11 +108,13 @@ void SkidpadDetectionNode::LoadParameters()
   pnh_.param("passthrough/y_min", params_.passthrough_y_min, -3.0);
   pnh_.param("passthrough/y_max", params_.passthrough_y_max, 3.0);
 
-  if (!pnh_.param<std::string>("topics/cone", cone_topic_, "perception/lidar_cluster/detections"))
+  if (!pnh_.param<std::string>("topics/cone", cone_topic_,
+                               std::string(autodrive_msgs::topic_contract::kConeDetections)))
   {
     ROS_WARN_STREAM("Did not load topics/cone. Standard value is: " << cone_topic_);
   }
-  if (!pnh_.param<std::string>("topics/car_state", car_state_topic_, "localization/car_state"))
+  if (!pnh_.param<std::string>("topics/car_state", car_state_topic_,
+                               autodrive_msgs::topic_contract::kCarState))
   {
     ROS_WARN_STREAM("Did not load topics/car_state. Standard value is: " << car_state_topic_);
   }
@@ -119,12 +122,13 @@ void SkidpadDetectionNode::LoadParameters()
   {
     ROS_WARN_STREAM("Did not load topics/pathlimits. Standard value is: " << pathlimits_topic_);
   }
-  if (!pnh_.param<std::string>("topics/approaching_goal", approaching_goal_topic_, "planning/skidpad/approaching_goal"))
+  if (!pnh_.param<std::string>("topics/approaching_goal", approaching_goal_topic_,
+                               autodrive_msgs::topic_contract::kApproachingGoal))
   {
     ROS_WARN_STREAM("Did not load topics/approaching_goal. Standard value is: " << approaching_goal_topic_);
   }
-  pnh_.param<std::string>("frames/expected_cone", expected_cone_frame_, "velodyne");
-  pnh_.param<std::string>("frames/output", output_frame_, "world");
+  pnh_.param<std::string>("frames/expected_cone", expected_cone_frame_, autodrive_msgs::frame_contract::kVelodyne);
+  pnh_.param<std::string>("frames/output", output_frame_, autodrive_msgs::frame_contract::kWorld);
 
   pnh_.param("speed/speed_cap", speed_cap_, 8.0);
   pnh_.param("speed/max_lateral_acc", max_lateral_acc_, 6.5);
@@ -148,7 +152,7 @@ void SkidpadDetectionNode::SyncCallback(const ConeMsg::ConstPtr &cone_msg,
   }
   if (!cone_msg->header.frame_id.empty() &&
       cone_msg->header.frame_id != expected_cone_frame_ &&
-      cone_msg->header.frame_id != "velodyne")
+      cone_msg->header.frame_id != autodrive_msgs::frame_contract::kVelodyne)
   {
     ROS_WARN_THROTTLE(1.0, "[Skidpad] Unexpected cone frame_id: %s (expected %s or velodyne)",
                       cone_msg->header.frame_id.c_str(), expected_cone_frame_.c_str());

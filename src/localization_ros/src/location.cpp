@@ -7,23 +7,13 @@
 #include <geometry_msgs/TransformStamped.h>
 #include <std_msgs/String.h>
 #include <ros/package.h>
+#include <autodrive_msgs/topic_contract.hpp>
+#include <autodrive_msgs/param_utils.hpp>
 
 namespace localization_ros {
 
 namespace {
-template <typename T>
-bool LoadParam(ros::NodeHandle &pnh, ros::NodeHandle &nh, const std::string &key, T &out, const T &default_value)
-{
-  if (pnh.param(key, out, default_value))
-  {
-    return true;
-  }
-  if (nh.param(key, out, default_value))
-  {
-    return true;
-  }
-  return false;
-}
+using autodrive_msgs::LoadParam;
 
 geometry_msgs::Quaternion YawToQuaternion(double yaw)
 {
@@ -65,20 +55,23 @@ LocationNode::LocationNode(ros::NodeHandle &nh)
   odom_pub_ = nh_.advertise<nav_msgs::Odometry>(odom_topic_, 10);
 
   // Status diagnostics publisher
-  LoadParam(pnh_, nh_, "topics/fg_status", status_topic_, std::string("localization/fg_status"));
+  LoadParam(pnh_, nh_, "topics/fg_status", status_topic_, std::string(autodrive_msgs::topic_contract::kLocalizationFgStatus));
   status_pub_ = nh_.advertise<std_msgs::String>(status_topic_, 10);
-  LoadParam(pnh_, nh_, "diagnostics_topic", diagnostics_topic_, std::string("localization/diagnostics"));
-  LoadParam(pnh_, nh_, "publish_global_diagnostics", publish_global_diagnostics_, true);
-  LoadParam(pnh_, nh_, "global_diagnostics_topic", global_diagnostics_topic_, std::string("/diagnostics"));
-  LoadParam(pnh_, nh_, "diagnostics_rate_hz", diagnostics_rate_hz_, 1.0);
-  if (diagnostics_rate_hz_ <= 0.0)
   {
-    diagnostics_rate_hz_ = 1.0;
-  }
-  diag_pub_local_ = nh_.advertise<diagnostic_msgs::DiagnosticArray>(diagnostics_topic_, 10, true);
-  if (publish_global_diagnostics_)
-  {
-    diag_pub_global_ = nh_.advertise<diagnostic_msgs::DiagnosticArray>(global_diagnostics_topic_, 10);
+    std::string diag_topic, global_diag_topic;
+    bool pub_global = true;
+    LoadParam(pnh_, nh_, "diagnostics_topic", diag_topic, std::string(autodrive_msgs::topic_contract::kLocalizationDiagnostics));
+    LoadParam(pnh_, nh_, "publish_global_diagnostics", pub_global, true);
+    LoadParam(pnh_, nh_, "global_diagnostics_topic", global_diag_topic, std::string(autodrive_msgs::topic_contract::kDiagnosticsGlobal));
+    LoadParam(pnh_, nh_, "diagnostics_rate_hz", diagnostics_rate_hz_, 1.0);
+    autodrive_msgs::DiagnosticsHelper::Config dcfg;
+    dcfg.local_topic = diag_topic;
+    dcfg.global_topic = global_diag_topic;
+    dcfg.publish_global = pub_global;
+    dcfg.rate_hz = diagnostics_rate_hz_;
+    dcfg.queue_size = 10;
+    dcfg.latch_local = true;
+    diag_helper_.Init(nh_, dcfg);
   }
 
   // Initialize factor graph backend if configured
@@ -138,19 +131,21 @@ void LocationNode::loadParameters()
   {
     ROS_WARN_STREAM("Did not load topics/ins. Standard value is: " << ins_topic_);
   }
-  if (!LoadParam(pnh_, nh_, "topics/car_state_in", carstate_in_topic_, std::string("localization/car_state")))
+  if (!LoadParam(pnh_, nh_, "topics/car_state_in", carstate_in_topic_,
+                 std::string(autodrive_msgs::topic_contract::kCarState)))
   {
     ROS_WARN_STREAM("Did not load topics/car_state_in. Standard value is: " << carstate_in_topic_);
   }
-  if (!LoadParam(pnh_, nh_, "topics/cone", cone_topic_, std::string("perception/lidar_cluster/detections")))
+  if (!LoadParam(pnh_, nh_, "topics/cone", cone_topic_, std::string(autodrive_msgs::topic_contract::kConeDetections)))
   {
     ROS_WARN_STREAM("Did not load topics/cone. Standard value is: " << cone_topic_);
   }
-  if (!LoadParam(pnh_, nh_, "topics/car_state_out", carstate_out_topic_, std::string("localization/car_state")))
+  if (!LoadParam(pnh_, nh_, "topics/car_state_out", carstate_out_topic_,
+                 std::string(autodrive_msgs::topic_contract::kCarState)))
   {
     ROS_WARN_STREAM("Did not load topics/car_state_out. Standard value is: " << carstate_out_topic_);
   }
-  if (!LoadParam(pnh_, nh_, "topics/cone_map", cone_map_topic_, std::string("localization/cone_map")))
+  if (!LoadParam(pnh_, nh_, "topics/cone_map", cone_map_topic_, std::string(autodrive_msgs::topic_contract::kConeMap)))
   {
     ROS_WARN_STREAM("Did not load topics/cone_map. Standard value is: " << cone_map_topic_);
   }
@@ -166,11 +161,13 @@ void LocationNode::loadParameters()
   {
     ROS_WARN_STREAM("Did not load topics/odom. Standard value is: " << odom_topic_);
   }
-  if (!LoadParam(pnh_, nh_, "frames/world", world_frame_, std::string("world")))
+  if (!LoadParam(pnh_, nh_, "frames/world", world_frame_,
+                 std::string(autodrive_msgs::frame_contract::kWorld)))
   {
     ROS_WARN_STREAM("Did not load frames/world. Standard value is: " << world_frame_);
   }
-  if (!LoadParam(pnh_, nh_, "frames/base_link", base_link_frame_, std::string("base_link")))
+  if (!LoadParam(pnh_, nh_, "frames/base_link", base_link_frame_,
+                 std::string(autodrive_msgs::frame_contract::kBaseLink)))
   {
     ROS_WARN_STREAM("Did not load frames/base_link. Standard value is: " << base_link_frame_);
   }
@@ -411,51 +408,26 @@ void LocationNode::publishState(const localization_core::CarState &state, const 
 
 void LocationNode::publishDiagnostics(const diagnostic_msgs::DiagnosticArray &diag_arr)
 {
-  diag_pub_local_.publish(diag_arr);
-  if (publish_global_diagnostics_)
-  {
-    diag_pub_global_.publish(diag_arr);
-  }
+  diag_helper_.Publish(diag_arr);
 }
 
 void LocationNode::publishEntryHealth(const std::string &source, const ros::Time &stamp, bool force)
 {
-  const ros::Time now = ros::Time::now();
-  if (!force && last_entry_diag_pub_.isValid())
-  {
-    const double min_interval = 1.0 / diagnostics_rate_hz_;
-    if ((now - last_entry_diag_pub_).toSec() < min_interval)
-    {
-      return;
-    }
-  }
-  last_entry_diag_pub_ = now;
+  using KV = autodrive_msgs::DiagnosticsHelper;
+  const uint8_t level = mapper_.has_carstate() ? diagnostic_msgs::DiagnosticStatus::OK
+                                               : diagnostic_msgs::DiagnosticStatus::WARN;
+  const std::string message = mapper_.has_carstate() ? "OK" : "WAITING_CARSTATE";
 
-  diagnostic_msgs::DiagnosticArray diag_arr;
-  diag_arr.header.stamp = stamp.isZero() ? now : stamp;
+  std::vector<diagnostic_msgs::KeyValue> kvs;
+  kvs.push_back(KV::KV("source", source));
+  kvs.push_back(KV::KV("backend", backend_));
+  kvs.push_back(KV::KV("has_carstate", mapper_.has_carstate() ? "true" : "false"));
+  kvs.push_back(KV::KV("use_external_carstate", use_external_carstate_ ? "true" : "false"));
+  kvs.push_back(KV::KV("world_frame", world_frame_));
+  kvs.push_back(KV::KV("base_link_frame", base_link_frame_));
 
-  diagnostic_msgs::DiagnosticStatus ds;
-  ds.name = "localization_entry_health";
-  ds.hardware_id = "localization_ros/location_node";
-  ds.level = mapper_.has_carstate() ? diagnostic_msgs::DiagnosticStatus::OK
-                                    : diagnostic_msgs::DiagnosticStatus::WARN;
-  ds.message = mapper_.has_carstate() ? "OK" : "WAITING_CARSTATE";
-
-  auto kv = [](const std::string &k, const std::string &v) {
-    diagnostic_msgs::KeyValue pair;
-    pair.key = k;
-    pair.value = v;
-    return pair;
-  };
-  ds.values.push_back(kv("source", source));
-  ds.values.push_back(kv("backend", backend_));
-  ds.values.push_back(kv("has_carstate", mapper_.has_carstate() ? "true" : "false"));
-  ds.values.push_back(kv("use_external_carstate", use_external_carstate_ ? "true" : "false"));
-  ds.values.push_back(kv("world_frame", world_frame_));
-  ds.values.push_back(kv("base_link_frame", base_link_frame_));
-
-  diag_arr.status.push_back(ds);
-  publishDiagnostics(diag_arr);
+  diag_helper_.PublishStatus("localization_entry_health", "localization_ros/location_node",
+                             level, message, kvs, stamp, force);
 }
 
 void LocationNode::imuCallback(const autodrive_msgs::HUAT_InsP2::ConstPtr &msg)

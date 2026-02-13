@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <string>
+#include <autodrive_msgs/topic_contract.hpp>
 
 namespace fsd_viz {
 
@@ -59,8 +60,8 @@ constexpr float WHEEL_WIDTH       = 0.15f;
 constexpr float TRAIL_WIDTH       = 0.05f;  // 轨迹线宽
 
 // ============ Frame ID ============
-const std::string FRAME_GLOBAL  = "world";    // 全局坐标系（ENU）
-const std::string FRAME_VEHICLE = "velodyne"; // 车辆坐标系（雷达）
+const std::string FRAME_GLOBAL  = autodrive_msgs::frame_contract::kWorld;    // 全局坐标系（ENU）
+const std::string FRAME_VEHICLE = autodrive_msgs::frame_contract::kVelodyne; // 车辆坐标系（雷达）
 
 // ============ 锥桶类型 ============
 // 与 HUAT_ConeDetections.color_types / HUAT_Cone.type 对齐:

@@ -21,41 +21,49 @@
     <arg name="localization_vehicle_local_config" default=""/>
     <arg name="control_vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/control.yaml"/>
     <arg name="control_vehicle_local_config" default=""/>
+    <arg name="cmd_topic" default="vehicle/cmd" doc="统一控制命令话题（Control输出/Vehicle消费）"/>
+    <arg name="carstate_topic" default="localization/car_state" doc="统一车辆状态话题（Localization输出/Planning+Control输入）"/>
+    <arg name="pathlimits_topic" default="planning/pathlimits" doc="统一路径话题（Planning输出/Control输入）"/>
+    <arg name="approaching_goal_topic" default="planning/skidpad/approaching_goal" doc="统一八字接近终点话题（Planning输出/Control输入）"/>
+    <arg name="publish_legacy_cmd_topic" default="false" doc="兼容开关：控制层是否同时发布 legacy cmd 话题"/>
+    <arg name="subscribe_legacy_topics" default="false" doc="兼容开关：控制层是否同时订阅 legacy 输入话题"/>
+    <arg name="subscribe_legacy_cmd_topic" default="false" doc="兼容开关：车辆接口是否订阅 legacy cmd 话题"/>
+    <arg name="legacy_cmd_topic" default="vehcileCMDMsg" doc="legacy 控制命令话题"/>
+    <arg name="legacy_carstate_topic" default="/Carstate" doc="legacy 车辆状态话题"/>
+    <arg name="legacy_approaching_goal_topic" default="/skidpad_detection_node/approaching_goal" doc="legacy 接近终点话题"/>
 
     <!-- ========== Simulation Time ========== -->
     <param name="/use_sim_time" value="$(arg simulation)"/>
     <rosparam command="load" file="$(arg fleet_config)" ns="vehicle_fleet"/>
 
     <!-- ========== Subsystems ========== -->
-    <include file="$(find fsd_launch)/launch/subsystems/perception.launch">
-        <arg name="launch_rviz" value="false"/>
-        <arg name="mode" value="accel"/>
-        <arg name="vehicle" value="$(arg vehicle)"/>
-        <arg name="vehicle_config" value="$(arg perception_vehicle_config)"/>
-        <arg name="vehicle_local_config" value="$(arg perception_vehicle_local_config)"/>
-    </include>
-
-    <include file="$(find fsd_launch)/launch/subsystems/localization.launch">
-        <arg name="mode" value="accel"/>
-        <arg name="vehicle" value="$(arg vehicle)"/>
-        <arg name="vehicle_config" value="$(arg localization_vehicle_config)"/>
-        <arg name="vehicle_local_config" value="$(arg localization_vehicle_local_config)"/>
-    </include>
-
-    <include file="$(find fsd_launch)/launch/subsystems/planning.launch">
-        <arg name="mission" value="acceleration"/>
-    </include>
-
-    <include file="$(find fsd_launch)/launch/subsystems/control.launch">
-        <arg name="mode" value="accel"/>
+    <include file="$(find fsd_launch)/launch/subsystems/mission_stack.launch">
+        <arg name="simulation" value="$(arg simulation)"/>
+        <arg name="perception_mode" value="accel"/>
+        <arg name="localization_mode" value="accel"/>
+        <arg name="planner" value="unified"/>
+        <arg name="planning_mission" value="acceleration"/>
+        <arg name="control_mode_profile" value="accel"/>
         <arg name="control_mode" value="2"/>
+        <arg name="enable_control" value="true"/>
         <arg name="vehicle" value="$(arg vehicle)"/>
-        <arg name="vehicle_config" value="$(arg control_vehicle_config)"/>
-        <arg name="vehicle_local_config" value="$(arg control_vehicle_local_config)"/>
+        <arg name="perception_vehicle_config" value="$(arg perception_vehicle_config)"/>
+        <arg name="perception_vehicle_local_config" value="$(arg perception_vehicle_local_config)"/>
+        <arg name="localization_vehicle_config" value="$(arg localization_vehicle_config)"/>
+        <arg name="localization_vehicle_local_config" value="$(arg localization_vehicle_local_config)"/>
+        <arg name="control_vehicle_config" value="$(arg control_vehicle_config)"/>
+        <arg name="control_vehicle_local_config" value="$(arg control_vehicle_local_config)"/>
+        <arg name="cmd_topic" value="$(arg cmd_topic)"/>
+        <arg name="carstate_topic" value="$(arg carstate_topic)"/>
+        <arg name="pathlimits_topic" value="$(arg pathlimits_topic)"/>
+        <arg name="approaching_goal_topic" value="$(arg approaching_goal_topic)"/>
+        <arg name="publish_legacy_cmd_topic" value="$(arg publish_legacy_cmd_topic)"/>
+        <arg name="subscribe_legacy_topics" value="$(arg subscribe_legacy_topics)"/>
+        <arg name="subscribe_legacy_cmd_topic" value="$(arg subscribe_legacy_cmd_topic)"/>
+        <arg name="legacy_cmd_topic" value="$(arg legacy_cmd_topic)"/>
+        <arg name="legacy_carstate_topic" value="$(arg legacy_carstate_topic)"/>
+        <arg name="legacy_approaching_goal_topic" value="$(arg legacy_approaching_goal_topic)"/>
     </include>
-
-    <!-- Vehicle Interface (非仿真模式) -->
-    <include unless="$(arg simulation)" file="$(find fsd_launch)/launch/subsystems/vehicle.launch"/>
 
     <!-- ========== Tools ========== -->
     <!-- Rosbag Player (仿真模式) -->

@@ -129,16 +129,26 @@ void DistortionCompensatorV2::imuCallback(const autodrive_msgs::HUAT_InsP2::Cons
     lidar_distortion::ImuState imu;
     imu.timestamp = msg->header.stamp.toSec();
 
-    // 速度转换：NED导航系 -> 车体FRD系
+    // 速度转换：NED导航系 -> 车体FRD系（完整ZYX旋转）
     double heading_rad = msg->Heading * M_PI / 180.0;
-    double vn = msg->Vn;
-    double ve = msg->Ve;
-    double vd = msg->Vd;
+    double pitch_rad = msg->Pitch * M_PI / 180.0;
+    double roll_rad = msg->Roll * M_PI / 180.0;
 
-    // 旋转到车体坐标系
-    imu.velocity.x() = std::cos(heading_rad) * vn + std::sin(heading_rad) * ve;  // 前向
-    imu.velocity.y() = -std::sin(heading_rad) * vn + std::cos(heading_rad) * ve; // 右向
-    imu.velocity.z() = vd;  // 下向
+    Eigen::Matrix3d R_ned2body;
+    double ch = std::cos(heading_rad), sh = std::sin(heading_rad);
+    double cp = std::cos(pitch_rad),   sp = std::sin(pitch_rad);
+    double cr = std::cos(roll_rad),    sr = std::sin(roll_rad);
+
+    // ZYX欧拉角旋转矩阵 (Heading-Pitch-Roll)
+    R_ned2body <<
+        ch*cp,                  sh*cp,                 -sp,
+        ch*sp*sr - sh*cr,       sh*sp*sr + ch*cr,       cp*sr,
+        ch*sp*cr + sh*sr,       sh*sp*cr - ch*sr,       cp*cr;
+
+    Eigen::Vector3d v_ned(msg->Vn, msg->Ve, msg->Vd);
+    Eigen::Vector3d v_body = R_ned2body * v_ned;
+
+    imu.velocity = v_body;
 
     // 角速度（已经是FRD车体系）
     imu.angular_velocity.x() = msg->gyro_x;
@@ -210,10 +220,26 @@ bool DistortionCompensatorV2::CompensateFromMsg(const sensor_msgs::PointCloud2& 
         return true;
     }
 
-    // 检测是否有time字段
+    // 根据配置决定是否使用点云time字段
     bool has_time = HasTimeField(msg);
+    bool use_time_field = false;
 
-    if (has_time) {
+    if (config_.point_time_source == "point_time") {
+        // 用户明确要求使用time字段
+        if (has_time) {
+            use_time_field = true;
+        } else {
+            ROS_WARN_THROTTLE(5.0, "point_time_source='point_time' but cloud has no time field, falling back to angle");
+        }
+    } else if (config_.point_time_source == "angle") {
+        // 用户明确要求使用角度计算
+        use_time_field = false;
+    } else {
+        // auto: 有time字段就用
+        use_time_field = has_time;
+    }
+
+    if (use_time_field) {
         // 使用带time字段的点云
         pcl::PointCloud<lidar_distortion::PointXYZIRT>::Ptr cloud_with_time(
             new pcl::PointCloud<lidar_distortion::PointXYZIRT>);
@@ -241,7 +267,7 @@ bool DistortionCompensatorV2::CompensateFromMsg(const sensor_msgs::PointCloud2& 
         return compensator_.CompensateWithTime<lidar_distortion::PointXYZIRT>(
             cloud_with_time, cloud, msg.header.stamp.toSec());
     } else {
-        // 标准PointXYZI点云
+        // 标准PointXYZI点云，使用角度计算时间
         cloud.reset(new pcl::PointCloud<PointType>);
         pcl::fromROSMsg(msg, *cloud);
         return Compensate(cloud, msg.header.stamp.toSec());

@@ -19,13 +19,19 @@ Launch 文件位置：
 
 | 参数名 | 默认值 | 作用 | 备注 |
 |---|---|---|---|
+| bag | "" | rosbag 路径 | 非空时会在 launch 内启动 `rosbag play --clock` |
 | launch_rviz | true | 是否启动 RViz | 只影响 RViz 节点 |
-| rviz_config | $(find fsd_visualization)/rviz/lidar_cluster.rviz | RViz 配置文件路径 | 需要有效 rviz 文件 |
+| rviz_config | $(find fsd_visualization)/rviz/ego_perception.rviz | RViz 配置文件路径 | 需要有效 rviz 文件 |
 | ns | /perception/lidar_cluster | 命名空间 | 影响所有话题与参数前缀 |
 | input_topic | /velodyne_points | 输入点云话题 | 写入 `topics/input` |
+| carstate_topic | localization/car_state | 输入车辆状态话题 | 写入 `topics/car_state_in/out` |
+| mode | track | 感知模式 | `track`/`accel`/`skidpad` |
+| mission_config | "" | 任务级覆盖参数文件 | 可选 |
+| extra_config | "" | 车辆级覆盖参数文件 | 可选 |
+| extra_local_config | "" | 本地覆盖参数文件 | 可选 |
 
 说明：
-- `bag` 参数当前未被使用，传入不会生效。如需在 launch 内播放 rosbag，需要新增 `rosbag play` 节点。
+- `bag` 非空时会自动播放 rosbag 并发布 `/clock`，用于仿真时间。
 - 命名空间由 `ns` 控制，例如最终话题为 `/perception/lidar_cluster/points/no_ground`。
 
 ### 参数加载与匹配规则（rosparam）
@@ -105,7 +111,7 @@ Launch 会按顺序加载：
 
 ## Todo
 
-- [x] 理解 `/config/lidar_cluster.yaml` 中参数含义及用途
+- [x] 理解 `/config/lidar_base.yaml` 中参数含义及用途
 
 - [x] 尝试添加各点云簇置信度
 

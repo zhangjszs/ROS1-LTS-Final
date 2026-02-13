@@ -2,6 +2,12 @@
   <arg name="track" default="fsg"/>
   <arg name="sim_rate" default="100"/>
   <arg name="publish_tf" default="true"/>
+  <arg name="cmd_topic" default="vehicle/cmd"/>
+  <arg name="car_state_topic" default="localization/car_state"/>
+  <arg name="cone_map_topic" default="localization/cone_map"/>
+  <arg name="sim_state_topic" default="simulation/state"/>
+  <arg name="world_frame" default="world"/>
+  <arg name="base_link_frame" default="base_link"/>
 
   <!-- Load vehicle parameters -->
   <rosparam file="$(find simulation_ros)/config/vehicle.yaml" command="load" ns="simulation"/>
@@ -14,11 +20,13 @@
     <param name="track_file" value="$(find simulation_ros)/config/tracks/$(arg track).yaml"/>
     <param name="sim_rate" value="$(arg sim_rate)"/>
     <param name="publish_tf" value="$(arg publish_tf)"/>
+    <param name="frames/world" value="$(arg world_frame)"/>
+    <param name="frames/base_link" value="$(arg base_link_frame)"/>
 
     <!-- Topic remapping -->
-    <remap from="~cmd" to="/vehcileCMDMsg"/>
-    <remap from="~car_state" to="/Carstate"/>
-    <remap from="~cone_map" to="/coneMap"/>
-    <remap from="~sim_state" to="/simulation/state"/>
+    <remap from="~cmd" to="$(arg cmd_topic)"/>
+    <remap from="~car_state" to="$(arg car_state_topic)"/>
+    <remap from="~cone_map" to="$(arg cone_map_topic)"/>
+    <remap from="~sim_state" to="$(arg sim_state_topic)"/>
   </node>
 </launch>

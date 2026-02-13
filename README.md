@@ -9,9 +9,13 @@ src/
 ├── autodrive_msgs/          # 统一消息定义
 ├── fsd_launch/              # 统一启动配置
 │   └── launch/
-│       ├── missions/        # 任务模式: trackdrive, skidpad, acceleration, autocross
-│       ├── subsystems/      # 子系统: perception, planning, control, localization
-│       └── tools/           # 工具: rviz, rosbag_play, debug
+│       ├── trackdrive.launch    # 任务入口: 高速循迹
+│       ├── skidpad.launch       # 任务入口: 八字绕环
+│       ├── acceleration.launch  # 任务入口: 直线加速
+│       ├── autocross.launch     # 任务入口: 综合赛道
+│       ├── subsystems/          # 子系统: perception, planning, control, localization
+│       ├── tools/               # 工具: rviz, rosbag_play, debug
+│       └── simulation/          # 全仿真启动
 ├── fsd_visualization/       # 统一可视化节点
 ├── perception_core/         # 感知算法核心 (无 ROS 依赖)
 ├── perception_ros/          # 感知 ROS 包装层
@@ -58,13 +62,13 @@ catkin run_tests <package_name>
 **仿真模式（rosbag 回放）:**
 ```bash
 # 基础仿真
-roslaunch fsd_launch missions/trackdrive.launch simulation:=true bag:=/path/to/bag.bag
+roslaunch fsd_launch trackdrive.launch simulation:=true bag:=/path/to/bag.bag
 
 # 循环播放
-roslaunch fsd_launch missions/trackdrive.launch simulation:=true bag:=/path/to/bag.bag loop:=true
+roslaunch fsd_launch trackdrive.launch simulation:=true bag:=/path/to/bag.bag loop:=true
 
 # 自定义播放速率
-roslaunch fsd_launch missions/trackdrive.launch simulation:=true bag:=/path/to/bag.bag rate:=0.5
+roslaunch fsd_launch trackdrive.launch simulation:=true bag:=/path/to/bag.bag rate:=0.5
 ```
 
 **实车模式:**
@@ -75,31 +79,31 @@ bash autoStartGkj/start.sh
 ### RViz 可视化模式
 ```bash
 # 双窗口模式 (默认)
-roslaunch fsd_launch missions/trackdrive.launch simulation:=true bag:=/path/to/bag.bag rviz_mode:=dual
+roslaunch fsd_launch trackdrive.launch simulation:=true bag:=/path/to/bag.bag rviz_mode:=dual
 
 # 仅点云
-roslaunch fsd_launch missions/trackdrive.launch simulation:=true bag:=/path/to/bag.bag rviz_mode:=pointcloud
+roslaunch fsd_launch trackdrive.launch simulation:=true bag:=/path/to/bag.bag rviz_mode:=pointcloud
 
 # 仅全局俯视图
-roslaunch fsd_launch missions/trackdrive.launch simulation:=true bag:=/path/to/bag.bag rviz_mode:=global
+roslaunch fsd_launch trackdrive.launch simulation:=true bag:=/path/to/bag.bag rviz_mode:=global
 ```
 
 ## 任务模式
 
 | 任务 | 启动命令 | 说明 |
 |------|----------|------|
-| TrackDrive | `roslaunch fsd_launch missions/trackdrive.launch` | 高速循迹 |
-| Skidpad | `roslaunch fsd_launch missions/skidpad.launch` | 8字绕环 |
-| Acceleration | `roslaunch fsd_launch missions/acceleration.launch` | 直线加速 |
-| Autocross | `roslaunch fsd_launch missions/autocross.launch` | 综合赛道 |
+| TrackDrive | `roslaunch fsd_launch trackdrive.launch` | 高速循迹 |
+| Skidpad | `roslaunch fsd_launch skidpad.launch` | 8字绕环 |
+| Acceleration | `roslaunch fsd_launch acceleration.launch` | 直线加速 |
+| Autocross | `roslaunch fsd_launch autocross.launch` | 综合赛道 |
 
 ## Launch 配置总览（fsd_launch）
 
-### missions（任务级）
-- `src/fsd_launch/launch/missions/trackdrive.launch`
-- `src/fsd_launch/launch/missions/skidpad.launch`
-- `src/fsd_launch/launch/missions/autocross.launch`
-- `src/fsd_launch/launch/missions/acceleration.launch`
+### entrypoints（任务入口）
+- `src/fsd_launch/launch/trackdrive.launch`
+- `src/fsd_launch/launch/skidpad.launch`
+- `src/fsd_launch/launch/autocross.launch`
+- `src/fsd_launch/launch/acceleration.launch`
 
 ### subsystems（子系统级）
 - `src/fsd_launch/launch/subsystems/perception.launch`
@@ -114,21 +118,21 @@ roslaunch fsd_launch missions/trackdrive.launch simulation:=true bag:=/path/to/b
 - `src/fsd_launch/launch/tools/debug.launch`
 - `src/fsd_launch/launch/tools/topic_bridge.launch`
 
-> 说明：当前 `trackdrive.launch` 实际位于 `missions/` 子目录，推荐使用  
-> `roslaunch fsd_launch missions/trackdrive.launch ...`
+> 说明：任务入口位于 `src/fsd_launch/launch/` 根目录，直接使用  
+> `roslaunch fsd_launch trackdrive.launch ...`
 
 ## TrackDrive 启动参数说明
 
 示例（仿真 + 回放 + 双窗口 RViz + 循环）：
 ```bash
-roslaunch fsd_launch missions/trackdrive.launch \
+roslaunch fsd_launch trackdrive.launch \
   simulation:=true \
   bag:=/home/kerwin/rosbag/22910_2.bag \
   rviz_mode:=dual \
   loop:=true
 ```
 
-参数说明（来自 `missions/trackdrive.launch`）：
+参数说明（来自 `trackdrive.launch`）：
 
 | 参数 | 默认值 | 作用 |
 |------|--------|------|
@@ -145,11 +149,13 @@ roslaunch fsd_launch missions/trackdrive.launch \
 | 话题 | 类型 | 描述 |
 |------|------|------|
 | `/velodyne_points` | PointCloud2 | 原始点云 |
-| `/coneMap` | HUAT_map | 锥桶地图 |
-| `/Carstate` | HUAT_Carstate | 车辆状态 |
-| `/path_global` | nav_msgs/Path | 全局路径 |
-| `/vehcileCMDMsg` | vehicle_cmd | 控制指令 |
+| `/perception/lidar_cluster/detections` | `autodrive_msgs/HUAT_ConeDetections` | 感知锥桶检测输出 |
+| `/localization/car_state` | `autodrive_msgs/HUAT_CarState` | 统一车辆状态 |
+| `/planning/pathlimits` | `autodrive_msgs/HUAT_PathLimits` | 规划输出路径约束 |
+| `/vehicle/cmd` | `autodrive_msgs/HUAT_VehicleCmd` | 统一控制指令 |
 | `/fsd/viz/*` | Marker/MarkerArray | 可视化标记 |
+
+> 兼容链路仍可选 legacy 话题（默认关闭）：`/Carstate`、`/vehcileCMDMsg`。
 
 ## 技术规范
 
@@ -186,7 +192,7 @@ roslaunch fsd_launch tools/debug.launch mission:=trackdrive bag:=/path/to/bag.ba
 
 # 检查话题
 rostopic list
-rostopic echo /coneMap
+rostopic echo /perception/lidar_cluster/detections
 rostopic hz /velodyne_points
 
 # 检查坐标变换

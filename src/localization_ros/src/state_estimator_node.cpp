@@ -3,6 +3,7 @@
 #include <ros/ros.h>
 #include <autodrive_msgs/HUAT_InsP2.h>
 #include <autodrive_msgs/HUAT_CarState.h>
+#include <autodrive_msgs/topic_contract.hpp>
 
 class StateEstimatorNode
 {
@@ -14,8 +15,8 @@ public:
         estimator_(params_)
   {
     pnh_.param<std::string>("topics/ins", imu_topic_, "sensors/ins");
-    pnh_.param<std::string>("topics/car_state", carstate_topic_, "localization/car_state");
-    pnh_.param<std::string>("frames/world", world_frame_, "world");
+    pnh_.param<std::string>("topics/car_state", carstate_topic_, autodrive_msgs::topic_contract::kCarState);
+    pnh_.param<std::string>("frames/world", world_frame_, autodrive_msgs::frame_contract::kWorld);
 
     imu_sub_ = nh_.subscribe(imu_topic_, 50, &StateEstimatorNode::ImuCallback, this);
     carstate_pub_ = nh_.advertise<autodrive_msgs::HUAT_CarState>(carstate_topic_, 10);

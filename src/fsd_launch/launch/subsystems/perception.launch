@@ -4,6 +4,7 @@
 -->
 <launch>
     <arg name="input_topic" default="/velodyne_points"/>
+    <arg name="carstate_topic" default="localization/car_state" doc="感知输入车辆状态话题（canonical）"/>
     <arg name="lidar_cluster_ns" default="perception/lidar_cluster"/>
     <arg name="launch_rviz" default="false"/>
     <arg name="mode" default="track" doc="赛道模式: accel | skidpad | track"/>
@@ -16,6 +17,7 @@
     <include file="$(find perception_ros)/launch/lidar_cluster.launch">
         <arg name="ns" value="$(arg lidar_cluster_ns)"/>
         <arg name="input_topic" value="$(arg input_topic)"/>
+        <arg name="carstate_topic" value="$(arg carstate_topic)"/>
         <arg name="launch_rviz" value="$(arg launch_rviz)"/>
         <arg name="mode" value="$(arg mode)"/>
         <arg name="mission_config" value="$(arg mission_config)"/>

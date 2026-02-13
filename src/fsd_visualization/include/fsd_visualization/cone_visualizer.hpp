@@ -4,6 +4,7 @@
 #include <visualization_msgs/MarkerArray.h>
 #include <autodrive_msgs/HUAT_ConeDetections.h>
 #include <autodrive_msgs/HUAT_ConeMap.h>
+#include <autodrive_msgs/topic_contract.hpp>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 #include "fsd_visualization/viz_config.hpp"

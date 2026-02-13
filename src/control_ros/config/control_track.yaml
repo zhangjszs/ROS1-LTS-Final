@@ -69,6 +69,7 @@ pp:
 #
 # 【观测信号】
 #   # 检查控制指令平滑度
-#   rostopic echo /vehcileCMDMsg | grep delta
+#   rostopic echo /vehicle/cmd | grep delta
 #   # 检查跟踪误差
 #   # RViz中对比实际路径和规划路径
+#   # legacy兼容链路（默认关闭）：/vehcileCMDMsg

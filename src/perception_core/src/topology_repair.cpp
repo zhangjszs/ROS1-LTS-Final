@@ -174,15 +174,21 @@ std::vector<TopologyCone> TopologyRepair::repair(
             double spacing = std::sqrt(dx * dx + dy * dy);
 
             if (spacing > config_.max_same_side_spacing) {
-                // Insert interpolated cone at midpoint
-                TopologyCone interp;
-                interp.x = (local[i0].x + local[i1].x) / 2.0;
-                interp.y = (local[i0].y + local[i1].y) / 2.0;
-                interp.z = (local[i0].z + local[i1].z) / 2.0;
-                interp.confidence = config_.interpolated_confidence;
-                interp.is_interpolated = true;
-                interp.original_index = -1;
-                result.push_back(interp);
+                // 计算需要插入的锥桶数量
+                int n_insert = static_cast<int>(std::round(spacing / config_.max_same_side_spacing)) - 1;
+                if (n_insert < 1) n_insert = 1;
+
+                for (int j = 1; j <= n_insert; ++j) {
+                    double t = static_cast<double>(j) / (n_insert + 1);
+                    TopologyCone interp;
+                    interp.x = local[i0].x + t * dx;
+                    interp.y = local[i0].y + t * dy;
+                    interp.z = local[i0].z + t * (local[i1].z - local[i0].z);
+                    interp.confidence = config_.interpolated_confidence;
+                    interp.is_interpolated = true;
+                    interp.original_index = -1;
+                    result.push_back(interp);
+                }
             }
         }
     };

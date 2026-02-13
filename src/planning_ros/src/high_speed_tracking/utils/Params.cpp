@@ -9,6 +9,7 @@
  */
 
 #include "utils/Params.hpp"
+#include <autodrive_msgs/topic_contract.hpp>
 
 /* ----------------------------- Private Methods ---------------------------- */
 
@@ -19,8 +20,10 @@ Params::Params(ros::NodeHandle *const nh) {
   ros::NodeHandle pnh("~");
   // Main
   main.package_path = ros::package::getPath("planning_ros");
-  pnh.param<std::string>("input_cones_topic", main.input_cones_topic, "localization/cone_map");
-  pnh.param<std::string>("input_pose_topic", main.input_pose_topic, "localization/car_state");
+  pnh.param<std::string>("input_cones_topic", main.input_cones_topic,
+                         std::string(autodrive_msgs::topic_contract::kConeMap));
+  pnh.param<std::string>("input_pose_topic", main.input_pose_topic,
+                         autodrive_msgs::topic_contract::kCarState);
   pnh.param<std::string>("stop_topic", main.stop_topic, "planning/high_speed_tracking/stop");
   pnh.param<bool>("shutdown_on_loop_closure", main.shutdown_on_loop_closure, true);
   pnh.param<bool>("debug_save_way_files", main.debug_save_way_files, false);

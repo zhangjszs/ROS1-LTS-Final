@@ -2,8 +2,21 @@
   <!-- Full simulation launch file -->
   <arg name="track" default="fsg"/>
   <arg name="mode" default="track" doc="赛道模式: accel | skidpad | track"/>
-  <arg name="planner" default="high_speed" doc="规划器: high_speed | line | skidpad | none"/>
+  <arg name="planner" default="unified" doc="规划管线模式: unified | none（兼容：可直接传 mission 值）"/>
+  <arg name="mission" default="high_speed" doc="规划任务: high_speed | line | skidpad | acceleration | trackdrive | autocross"/>
+  <!-- 兼容旧语义：planner:=high_speed|line|skidpad|... 时自动映射为 unified + 对应 mission -->
+  <arg name="resolved_planner" default="$(eval 'none' if arg('planner') == 'none' else 'unified')"/>
+  <arg name="resolved_mission" default="$(eval arg('planner') if arg('planner') in ['high_speed', 'line', 'skidpad', 'acceleration', 'trackdrive', 'autocross'] else arg('mission'))"/>
   <arg name="control_mode" default="4" doc="控制模式ID"/>
+  <arg name="cmd_topic" default="vehicle/cmd" doc="统一控制命令话题（Control输出/Simulation消费）"/>
+  <arg name="carstate_topic" default="localization/car_state" doc="统一车辆状态话题（Simulation输出/Planning+Control输入）"/>
+  <arg name="pathlimits_topic" default="planning/pathlimits" doc="统一路径话题（Planning输出/Control输入）"/>
+  <arg name="approaching_goal_topic" default="planning/skidpad/approaching_goal" doc="统一八字接近终点话题（Planning输出/Control输入）"/>
+  <arg name="publish_legacy_cmd_topic" default="false" doc="兼容开关：控制层是否同时发布 legacy cmd 话题"/>
+  <arg name="subscribe_legacy_topics" default="false" doc="兼容开关：控制层是否同时订阅 legacy 输入话题"/>
+  <arg name="legacy_cmd_topic" default="vehcileCMDMsg" doc="legacy 控制命令话题"/>
+  <arg name="legacy_carstate_topic" default="/Carstate" doc="legacy 车辆状态话题"/>
+  <arg name="legacy_approaching_goal_topic" default="/skidpad_detection_node/approaching_goal" doc="legacy 接近终点话题"/>
   <arg name="rviz_mode" default="dual"/>
   <arg name="rviz_config" default="high_speed"/>
   <arg name="sim_rate" default="100"/>
@@ -24,30 +37,39 @@
     <arg name="track" value="$(arg track)"/>
     <arg name="sim_rate" value="$(arg sim_rate)"/>
     <arg name="publish_tf" value="true"/>
+    <arg name="cmd_topic" value="$(arg cmd_topic)"/>
+    <arg name="car_state_topic" value="$(arg carstate_topic)"/>
   </include>
 
-  <!-- Perception subsystem -->
-  <include file="$(find fsd_launch)/launch/subsystems/perception.launch">
-    <arg name="mode" value="$(arg mode)"/>
-    <arg name="mission_config" value="$(arg perception_mission_config)"/>
-    <arg name="vehicle" value="$(arg vehicle)"/>
-    <arg name="vehicle_config" value="$(arg perception_vehicle_config)"/>
-    <arg name="vehicle_local_config" value="$(arg perception_vehicle_local_config)"/>
-  </include>
-
-  <!-- Planning subsystem -->
-  <include file="$(find fsd_launch)/launch/subsystems/planning.launch">
-    <arg name="planner" value="$(arg planner)"/>
-  </include>
-
-  <!-- Control subsystem -->
-  <include file="$(find fsd_launch)/launch/subsystems/control.launch">
-    <arg name="mode" value="$(arg mode)"/>
+  <!-- Mission stack (localization disabled; car_state comes from simulation core) -->
+  <include file="$(find fsd_launch)/launch/subsystems/mission_stack.launch">
+    <arg name="simulation" value="true"/>
+    <arg name="perception_mode" value="$(arg mode)"/>
+    <arg name="localization_mode" value="$(arg mode)"/>
+    <arg name="planner" value="$(arg resolved_planner)"/>
+    <arg name="planning_mission" value="$(arg resolved_mission)"/>
+    <arg name="control_mode_profile" value="$(arg mode)"/>
     <arg name="control_mode" value="$(arg control_mode)"/>
-    <arg name="mission_config" value="$(arg control_mission_config)"/>
+    <arg name="enable_perception" value="true"/>
+    <arg name="enable_localization" value="false"/>
+    <arg name="enable_planning" value="true"/>
+    <arg name="enable_control" value="true"/>
     <arg name="vehicle" value="$(arg vehicle)"/>
-    <arg name="vehicle_config" value="$(arg control_vehicle_config)"/>
-    <arg name="vehicle_local_config" value="$(arg control_vehicle_local_config)"/>
+    <arg name="perception_vehicle_config" value="$(arg perception_vehicle_config)"/>
+    <arg name="perception_vehicle_local_config" value="$(arg perception_vehicle_local_config)"/>
+    <arg name="control_vehicle_config" value="$(arg control_vehicle_config)"/>
+    <arg name="control_vehicle_local_config" value="$(arg control_vehicle_local_config)"/>
+    <arg name="perception_mission_config" value="$(arg perception_mission_config)"/>
+    <arg name="control_mission_config" value="$(arg control_mission_config)"/>
+    <arg name="cmd_topic" value="$(arg cmd_topic)"/>
+    <arg name="carstate_topic" value="$(arg carstate_topic)"/>
+    <arg name="pathlimits_topic" value="$(arg pathlimits_topic)"/>
+    <arg name="approaching_goal_topic" value="$(arg approaching_goal_topic)"/>
+    <arg name="publish_legacy_cmd_topic" value="$(arg publish_legacy_cmd_topic)"/>
+    <arg name="subscribe_legacy_topics" value="$(arg subscribe_legacy_topics)"/>
+    <arg name="legacy_cmd_topic" value="$(arg legacy_cmd_topic)"/>
+    <arg name="legacy_carstate_topic" value="$(arg legacy_carstate_topic)"/>
+    <arg name="legacy_approaching_goal_topic" value="$(arg legacy_approaching_goal_topic)"/>
   </include>
 
   <!-- Visualization -->

@@ -5,6 +5,7 @@
 <launch>
     <arg name="use_eskf" default="false" doc="使用 ESKF 滤波器"/>
     <arg name="mode" default="track" doc="赛道模式: accel | skidpad | track"/>
+    <arg name="carstate_topic" default="localization/car_state" doc="定位输出车辆状态话题（canonical）"/>
     <arg name="mission_config" default="" doc="任务级参数覆盖文件（mission overlay）"/>
     <arg name="vehicle" default="A13" doc="车辆型谱ID"/>
     <arg name="vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/localization.yaml"/>
@@ -24,6 +25,7 @@
         <remap from="sensors/ins" to="/pbox_pub/Ins"/>
         <include unless="$(arg use_eskf)" file="$(find localization_ros)/launch/location.launch">
             <arg name="mode" value="$(arg mode)"/>
+            <arg name="carstate_topic" value="$(arg carstate_topic)"/>
             <arg name="extra_config" value="$(arg mission_config)"/>
             <arg name="bag" value=""/>
             <arg name="diagnostics_topic" value="$(arg diagnostics_topic)"/>
@@ -36,6 +38,7 @@
     <!-- Location ESKF (可选) -->
     <include if="$(arg use_eskf)" file="$(find localization_ros)/launch/location_eskf.launch">
         <arg name="mode" value="$(arg mode)"/>
+        <arg name="carstate_topic" value="$(arg carstate_topic)"/>
         <arg name="extra_config" value="$(arg mission_config)"/>
         <arg name="bag" value=""/>
     </include>

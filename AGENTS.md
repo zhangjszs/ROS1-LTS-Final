@@ -25,7 +25,7 @@ catkin_test_results build
 Useful variants:
 - `catkin build <package_name>`: build one package.
 - `catkin run_tests <package_name>`: run one package’s tests.
-- `roslaunch fsd_launch missions/trackdrive.launch simulation:=true bag:=/path/to.bag`: local mission replay.
+- `roslaunch fsd_launch trackdrive.launch simulation:=true bag:=/path/to.bag`: local mission replay.
 
 ## Coding Style & Naming Conventions
 Target standard is C++17. Formatting is defined in `.clang-format` (Google-based): 2-space indent, 100-column limit, attached braces, left-aligned pointers/references.

@@ -65,7 +65,7 @@ ROS packages:
 - `vehicle_racing_num_ros/` - Race number ROS interface
 
 Infrastructure:
-- `autodrive_msgs/` - Custom message definitions (HUAT_map, HUAT_Carstate, vehicle_cmd)
+- `autodrive_msgs/` - Custom message definitions (`HUAT_ConeDetections`, `HUAT_CarState`, `HUAT_PathLimits`, `HUAT_VehicleCmd`)
 - `fsd_launch/` - Unified launch file organization
 - `fsd_visualization/` - Visualization nodes and RViz configs
 - `ins/` - INS message compatibility bridge
@@ -76,11 +76,12 @@ Launch files are organized hierarchically in `fsd_launch/`:
 
 ```
 fsd_launch/launch/
-├── missions/          # Mission-level (user entry points)
-│   ├── trackdrive.launch
-│   ├── skidpad.launch
-│   ├── acceleration.launch
-│   └── autocross.launch
+├── trackdrive.launch   # Mission-level (user entry point)
+├── skidpad.launch
+├── acceleration.launch
+├── autocross.launch
+├── ebs_test.launch
+├── simulation/
 ├── subsystems/        # Subsystem-level (internal)
 │   ├── perception.launch
 │   ├── localization.launch
@@ -100,18 +101,18 @@ fsd_launch/launch/
 
 ```bash
 # Basic simulation
-roslaunch fsd_launch missions/trackdrive.launch simulation:=true bag:=/path/to/bag.bag
+roslaunch fsd_launch trackdrive.launch simulation:=true bag:=/path/to/bag.bag
 
 # With loop playback
-roslaunch fsd_launch missions/trackdrive.launch simulation:=true bag:=/path/to/bag.bag loop:=true
+roslaunch fsd_launch trackdrive.launch simulation:=true bag:=/path/to/bag.bag loop:=true
 
 # Different RViz modes
-roslaunch fsd_launch missions/trackdrive.launch simulation:=true bag:=/path/to/bag.bag rviz_mode:=dual
-roslaunch fsd_launch missions/trackdrive.launch simulation:=true bag:=/path/to/bag.bag rviz_mode:=pointcloud
-roslaunch fsd_launch missions/trackdrive.launch simulation:=true bag:=/path/to/bag.bag rviz_mode:=global
+roslaunch fsd_launch trackdrive.launch simulation:=true bag:=/path/to/bag.bag rviz_mode:=dual
+roslaunch fsd_launch trackdrive.launch simulation:=true bag:=/path/to/bag.bag rviz_mode:=pointcloud
+roslaunch fsd_launch trackdrive.launch simulation:=true bag:=/path/to/bag.bag rviz_mode:=global
 
 # Custom playback rate
-roslaunch fsd_launch missions/trackdrive.launch simulation:=true bag:=/path/to/bag.bag rate:=0.5
+roslaunch fsd_launch trackdrive.launch simulation:=true bag:=/path/to/bag.bag rate:=0.5
 ```
 
 ### Real Vehicle Mode
@@ -133,23 +134,23 @@ State control: Write '2025' to `autoStartGkj/command` to trigger trackdrive laun
 
 | Mission | Launch Command | Description |
 |---------|---------------|-------------|
-| TrackDrive | `roslaunch fsd_launch missions/trackdrive.launch` | High-speed lap tracking |
-| Skidpad | `roslaunch fsd_launch missions/skidpad.launch` | Figure-8 maneuver |
-| Acceleration | `roslaunch fsd_launch missions/acceleration.launch` | Straight-line acceleration |
-| Autocross | `roslaunch fsd_launch missions/autocross.launch` | Complex track navigation |
+| TrackDrive | `roslaunch fsd_launch trackdrive.launch` | High-speed lap tracking |
+| Skidpad | `roslaunch fsd_launch skidpad.launch` | Figure-8 maneuver |
+| Acceleration | `roslaunch fsd_launch acceleration.launch` | Straight-line acceleration |
+| Autocross | `roslaunch fsd_launch autocross.launch` | Complex track navigation |
 
 ## Key Topics and Messages
 
 ### Custom Messages (autodrive_msgs)
 
-- `/coneMap` - `autodrive_msgs/HUAT_map` - Detected cone positions
-- `/Carstate` - `autodrive_msgs/HUAT_Carstate` - Vehicle state (position, velocity, heading)
-- `/vehcileCMDMsg` - `autodrive_msgs/vehicle_cmd` - Control commands (note: typo in topic name is intentional)
+- `/perception/lidar_cluster/detections` - `autodrive_msgs/HUAT_ConeDetections` - Cone detections
+- `/localization/car_state` - `autodrive_msgs/HUAT_CarState` - Vehicle state
+- `/planning/pathlimits` - `autodrive_msgs/HUAT_PathLimits` - Planning output path limits
+- `/vehicle/cmd` - `autodrive_msgs/HUAT_VehicleCmd` - Control commands
 
 ### Standard Messages
 
 - `/velodyne_points` - `sensor_msgs/PointCloud2` - Raw LiDAR point cloud
-- `/path_global` - `nav_msgs/Path` - Global planned path
 - `/fsd/viz/*` - `visualization_msgs/Marker` - Visualization markers for RViz
 
 ## Coordinate Frames
@@ -257,7 +258,7 @@ PID parameters for steering control:
 3. Make changes to core logic first
 4. Update ROS wrapper if interface changes
 5. Run tests: `catkin run_tests <package_name>`
-6. Test with rosbag: `roslaunch fsd_launch missions/trackdrive.launch simulation:=true bag:=...`
+6. Test with rosbag: `roslaunch fsd_launch trackdrive.launch simulation:=true bag:=...`
 
 ### Debugging
 
@@ -267,7 +268,7 @@ roslaunch fsd_launch tools/debug.launch mission:=trackdrive bag:=/path/to/bag.ba
 
 # Check topics
 rostopic list
-rostopic echo /coneMap
+rostopic echo /perception/lidar_cluster/detections
 rostopic hz /velodyne_points
 
 # Check transforms
@@ -279,9 +280,10 @@ roslaunch fsd_launch tools/rviz.launch rviz_mode:=dual
 
 ## Important Notes
 
-### Topic Name Typo
+### Legacy Topic Compatibility
 
-The control command topic is `/vehcileCMDMsg` (note "vehcile" typo). This is intentional for compatibility with existing vehicle interface.
+Canonical command topic is `/vehicle/cmd`.  
+Legacy topics (`/vehcileCMDMsg`, `/Carstate`) are optional compatibility paths and disabled by default.
 
 ### Startup Script Dependencies
 
@@ -293,11 +295,14 @@ The control command topic is `/vehcileCMDMsg` (note "vehcile" typo). This is int
 ### Configuration Files
 
 Each package maintains its own config files:
-- `perception_ros/config/lidar_cluster.yaml`
+- `perception_ros/config/lidar_base.yaml`
+- `perception_ros/config/lidar_track.yaml`
+- `perception_ros/config/lidar_accel.yaml`
+- `perception_ros/config/lidar_skidpad.yaml`
 - `planning_ros/config/line_detection.yaml`
 - `planning_ros/config/skidpad_detection.yaml`
-- `planning_ros/config/high_speed_tracking.yaml`
-- `control_ros/config/controllers.yaml`
+- `planning_ros/config/high_speed_tracking.yml`
+- `control_ros/config/param.yaml`
 - `localization_ros/config/location.yaml`
 - `localization_ros/config/state_estimator.yaml`
 
@@ -371,6 +376,6 @@ rosdep install --from-paths src --ignore-src -r -y
 ### Runtime Issues
 
 - Ensure all sensor drivers are running before launching main system
-- Check that rosbag contains required topics: `/velodyne_points`, `/Carstate`
+- Check that rosbag contains required topics: `/velodyne_points`, `/pbox_pub/Ins`
 - Verify coordinate frame transforms are published correctly
 - Check parameter files are loaded (use `rosparam list`)

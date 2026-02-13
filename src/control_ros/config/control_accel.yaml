@@ -79,6 +79,7 @@ pp:
 #
 # 【观测信号】
 #   # 监控高速时的转向指令
-#   rostopic echo /vehcileCMDMsg | grep delta
+#   rostopic echo /vehicle/cmd | grep delta
 #   # 检查车辆是否直线行驶
-#   rostopic echo /Carstate | grep yaw
+#   rostopic echo /localization/car_state | grep yaw
+#   # legacy兼容链路（默认关闭）：/vehcileCMDMsg、/Carstate

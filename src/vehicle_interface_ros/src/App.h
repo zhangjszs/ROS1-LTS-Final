@@ -11,6 +11,7 @@
 #include <cstring>
 #include <cstdlib>            // For atoi()
 #include <pthread.h>          // For POSIX threads
+#include <memory>
 #include <boost/thread/thread.hpp>
 #include <arpa/inet.h>
 
@@ -35,11 +36,11 @@ private:
 
 private:
     UserNode userNode;
-    boost::thread *insThread;
-    boost::thread *vehicleThread;
+    std::unique_ptr<boost::thread> insThread;
+    std::unique_ptr<boost::thread> vehicleThread;
 
-    UDPSocket *insUdpSocket;
-    UDPSocket *vehicleUdpSocket;
+    std::unique_ptr<UDPSocket> insUdpSocket;
+    std::unique_ptr<UDPSocket> vehicleUdpSocket;
 
     string insUrl = "127.0.0.1";
     string vehicleUrl = "192.168.1.240";

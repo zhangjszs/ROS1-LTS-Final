@@ -1,14 +1,18 @@
 <launch>
   <arg name="bag" default="" />
   <arg name="mode" default="track" doc="赛道模式: accel | skidpad | track"/>
+  <arg name="carstate_topic" default="localization/car_state" doc="定位输出车辆状态话题（canonical）" />
   <arg name="extra_config" default="" />
   <node pkg="localization_ros" type="state_estimator_node" name="state_estimator_node" output="screen">
     <rosparam command="load" file="$(find localization_ros)/config/state_estimator.yaml" />
+    <param name="topics/car_state" value="$(arg carstate_topic)" />
   </node>
 
   <node pkg="localization_ros" type="location_node" name="location_node" output="screen">
     <rosparam command="load" file="$(find localization_ros)/config/location.yaml" />
     <rosparam if="$(eval arg('extra_config') != '')" command="load" file="$(arg extra_config)" />
+    <param name="topics/car_state_in" value="$(arg carstate_topic)" />
+    <param name="topics/car_state_out" value="$(arg carstate_topic)" />
     <param name="map/mode" value="$(arg mode)"/>
     <param name="use_external_carstate" value="true" />
   </node>

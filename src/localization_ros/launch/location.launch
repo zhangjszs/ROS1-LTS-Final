@@ -1,6 +1,7 @@
 <launch>
   <arg name="bag" default="" />
   <arg name="mode" default="track" doc="赛道模式: accel | skidpad | track"/>
+  <arg name="carstate_topic" default="localization/car_state" doc="定位输出车辆状态话题（canonical）" />
   <arg name="extra_config" default="" />
   <arg name="diagnostics_topic" default="localization/diagnostics" />
   <arg name="publish_global_diagnostics" default="true" />
@@ -13,6 +14,8 @@
     <rosparam command="load" file="$(find localization_ros)/config/location_common.yaml" />
     <rosparam command="load" file="$(find localization_ros)/config/location_$(arg mode).yaml" />
     <rosparam if="$(eval arg('extra_config') != '')" command="load" file="$(arg extra_config)" />
+    <param name="topics/car_state_in" value="$(arg carstate_topic)" />
+    <param name="topics/car_state_out" value="$(arg carstate_topic)" />
     <param name="diagnostics_topic" value="$(arg diagnostics_topic)" />
     <param name="publish_global_diagnostics" value="$(arg publish_global_diagnostics)" />
     <param name="global_diagnostics_topic" value="$(arg global_diagnostics_topic)" />

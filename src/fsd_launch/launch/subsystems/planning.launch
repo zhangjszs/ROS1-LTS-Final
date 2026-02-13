@@ -8,6 +8,9 @@
 <launch>
     <arg name="mission" default="high_speed" doc="Mission type: high_speed, line, skidpad"/>
     <arg name="planner" default="unified" doc="planner type: unified | none (none for EBS test)"/>
+    <arg name="output_pathlimits_topic" default="planning/pathlimits" doc="规划输出 PathLimits 话题（canonical）"/>
+    <arg name="input_car_state_topic" default="localization/car_state" doc="规划输入车辆状态话题（canonical）"/>
+    <arg name="output_approaching_goal_topic" default="planning/skidpad/approaching_goal" doc="八字模式接近终点输出话题（canonical）"/>
     <arg name="diagnostics_topic" default="planning/diagnostics" doc="规划入口诊断本地话题"/>
     <arg name="publish_global_diagnostics" default="true" doc="规划是否发布到统一 /diagnostics"/>
     <arg name="global_diagnostics_topic" default="/diagnostics" doc="规划统一诊断总线话题"/>
@@ -17,6 +20,9 @@
     <!-- Unified Planning Pipeline -->
     <include if="$(eval arg('planner') == 'unified')" file="$(find planning_ros)/launch/planning_pipeline.launch">
         <arg name="mission" value="$(arg mission)"/>
+        <arg name="output_pathlimits_topic" value="$(arg output_pathlimits_topic)"/>
+        <arg name="input_car_state_topic" value="$(arg input_car_state_topic)"/>
+        <arg name="output_approaching_goal_topic" value="$(arg output_approaching_goal_topic)"/>
         <arg name="diagnostics_topic" value="$(arg diagnostics_topic)"/>
         <arg name="publish_global_diagnostics" value="$(arg publish_global_diagnostics)"/>
         <arg name="global_diagnostics_topic" value="$(arg global_diagnostics_topic)"/>

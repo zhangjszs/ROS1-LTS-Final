@@ -9,6 +9,8 @@
 #include <autodrive_msgs/HUAT_Stop.h>
 #include <diagnostic_msgs/DiagnosticArray.h>
 #include <ros/ros.h>
+#include <autodrive_msgs/topic_contract.hpp>
+#include <autodrive_msgs/diagnostics_helper.hpp>
 
 #include "planning_ros/line_detection_node.hpp"
 #include "planning_ros/skidpad_detection_node.hpp"
@@ -64,8 +66,7 @@ private:
 
   ros::Publisher pathlimits_pub_;
   ros::Publisher hs_stop_pub_;
-  ros::Publisher diag_pub_local_;
-  ros::Publisher diag_pub_global_;
+  autodrive_msgs::DiagnosticsHelper diag_helper_;
   ros::Subscriber hs_cone_sub_;
   ros::Subscriber hs_pose_sub_;
 
@@ -86,11 +87,7 @@ private:
   int perf_window_ = 300;
   int perf_log_every_ = 30;
   bool enable_internal_viz_side_channel_ = false;
-  std::string diagnostics_topic_ = "planning/diagnostics";
-  bool publish_global_diagnostics_ = true;
-  std::string global_diagnostics_topic_ = "/diagnostics";
   double diagnostics_rate_hz_ = 1.0;
-  ros::Time last_entry_diag_pub_;
 
   // Debug file helpers
   bool debug_save_way_files_ = false;

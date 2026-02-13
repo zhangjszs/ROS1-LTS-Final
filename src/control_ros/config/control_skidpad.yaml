@@ -83,9 +83,10 @@ st:
 #
 # 【观测信号】
 #   # 监控滑移角补偿效果
-#   rostopic echo /vehcileCMDMsg | grep delta
+#   rostopic echo /vehicle/cmd | grep delta
 #   # 对比实际航向和路径切线方向
 #   # RViz中观察是否沿圆环行驶
+#   # legacy兼容链路（默认关闭）：/vehcileCMDMsg
 #
 # 【相关配置文件】
 #   - skidpad_detection.yaml: 圆环几何参数

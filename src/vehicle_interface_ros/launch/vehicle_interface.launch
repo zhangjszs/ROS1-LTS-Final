@@ -1,5 +1,16 @@
 <launch>
   <arg name="bag" default="" />
-  <node pkg="vehicle_interface_ros" type="vehicle_interface_node" name="vehicle_interface" output="screen"/>
+  <arg name="cmd_topic" default="vehicle/cmd" />
+  <arg name="subscribe_legacy_cmd_topic" default="false" />
+  <arg name="legacy_cmd_topic" default="vehcileCMDMsg" />
+  <arg name="vehicle_port" default="2040" />
+  <arg name="ins_port" default="12340" />
+  <node pkg="vehicle_interface_ros" type="vehicle_interface_node" name="vehicle_interface" output="screen">
+    <param name="cmd_topic" value="$(arg cmd_topic)" />
+    <param name="subscribe_legacy_cmd_topic" value="$(arg subscribe_legacy_cmd_topic)" />
+    <param name="legacy_cmd_topic" value="$(arg legacy_cmd_topic)" />
+    <param name="vehicle_port" value="$(arg vehicle_port)" />
+    <param name="ins_port" value="$(arg ins_port)" />
+  </node>
   <node pkg="rosbag" type="play" name="rosbag_play" output="screen" args="$(arg bag)" if="$(eval arg('bag') != '')" />
 </launch>

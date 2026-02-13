@@ -4,6 +4,7 @@
     <arg name="rviz_config" default="$(find fsd_visualization)/rviz/ego_perception.rviz" />
     <arg name="ns" default="/perception/lidar_cluster" />
     <arg name="input_topic" default="/velodyne_points" />
+    <arg name="carstate_topic" default="localization/car_state" />
     <arg name="mode" default="track" doc="赛道模式: accel | skidpad | track"/>
     <arg name="mission_config" default="" doc="任务级参数覆盖文件（mission overlay）"/>
     <arg name="extra_config" default="" doc="额外参数覆盖文件（vehicle overlay）"/>
@@ -22,6 +23,8 @@
             <rosparam if="$(eval arg('extra_config') != '')" command="load" file="$(arg extra_config)" />
             <rosparam if="$(eval arg('extra_local_config') != '')" command="load" file="$(arg extra_local_config)" />
             <param name="topics/input" value="$(arg input_topic)" />
+            <param name="topics/car_state_in" value="$(arg carstate_topic)" />
+            <param name="topics/car_state_out" value="$(arg carstate_topic)" />
         </node>
     </group>
 

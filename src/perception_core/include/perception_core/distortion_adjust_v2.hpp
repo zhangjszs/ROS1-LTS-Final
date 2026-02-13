@@ -149,6 +149,9 @@ struct DistortionConfigV2 {
     // Velodyne扫描方向
     bool clockwise_scan = true;  // true=顺时针（从上往下看）
 
+    // 重力加速度 [m/s²]，FRD坐标系下向下为正
+    double gravity = 9.7883105;
+
     // 调试选项
     bool debug_output = false;
 };
@@ -257,19 +260,22 @@ private:
                                         double ref_time, const ImuState& ref_state);
 
     /**
-     * @brief 应用外参变换
+     * @brief 应用外参变换（向量旋转，适用于角速度、加速度）
      */
     Eigen::Vector3d ApplyExtrinsics(const Eigen::Vector3d& v_imu) const;
+
+    /**
+     * @brief 应用外参变换到速度（含杠杆臂补偿）
+     * v_lidar = R * v_imu + omega_lidar × t_imu_to_lidar
+     */
+    Eigen::Vector3d ApplyExtrinsicsVelocity(const Eigen::Vector3d& v_imu,
+                                             const Eigen::Vector3d& omega_imu) const;
 
     DistortionConfigV2 config_;
     std::deque<ImuState> imu_buffer_;
     static constexpr size_t kMaxImuBufferSize = 1000;
 
     DebugInfo debug_info_;
-
-    // 缓存的预积分结果（用于优化）
-    mutable std::vector<ImuPreintegration> preint_cache_;
-    mutable double preint_cache_start_time_ = 0.0;
 };
 
 // ============== 模板实现 ==============
@@ -283,6 +289,21 @@ bool DistortionAdjustV2::CompensateWithTime(
     if (!cloud || cloud->empty()) {
         debug_info_.error_msg = "Empty input cloud";
         return false;
+    }
+
+    // pt.time 语义校验：检查首个点的time字段范围
+    {
+        float t0 = cloud->points[0].time;
+        if (t0 > 1e6) {
+            // time字段看起来是绝对时间戳，不是相对偏移
+            debug_info_.error_msg = "pt.time appears to be absolute timestamp, expected relative offset [0, scan_period]";
+            return false;
+        }
+        if (t0 < -config_.scan_period * 1.5) {
+            // time字段为较大负值，可能是相对scan结束的偏移
+            debug_info_.error_msg = "pt.time is negative, driver may use scan-end-relative convention";
+            return false;
+        }
     }
 
     // 计算参考时刻

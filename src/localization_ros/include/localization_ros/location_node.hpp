@@ -22,6 +22,8 @@
 #include <localization_core/factor_graph_optimizer.hpp>
 #include <localization_core/types.hpp>
 #include <localization_ros/localization_perf_stats.hpp>
+#include <autodrive_msgs/topic_contract.hpp>
+#include <autodrive_msgs/diagnostics_helper.hpp>
 
 namespace localization_ros {
 
@@ -57,8 +59,7 @@ class LocationNode {
   ros::Publisher pose_pub_;
   ros::Publisher odom_pub_;
   ros::Publisher status_pub_;
-  ros::Publisher diag_pub_local_;
-  ros::Publisher diag_pub_global_;
+  autodrive_msgs::DiagnosticsHelper diag_helper_;
   tf2_ros::TransformBroadcaster tf_broadcaster_;
 
   bool use_external_carstate_ = false;
@@ -73,11 +74,7 @@ class LocationNode {
   std::string world_frame_;
   std::string base_link_frame_;
   std::string status_topic_;
-  std::string diagnostics_topic_ = "localization/diagnostics";
-  bool publish_global_diagnostics_ = true;
-  std::string global_diagnostics_topic_ = "/diagnostics";
   double diagnostics_rate_hz_ = 1.0;
-  ros::Time last_entry_diag_pub_;
 
   bool has_last_state_ = false;
   localization_core::CarState last_state_;
