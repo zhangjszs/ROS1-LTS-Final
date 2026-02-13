@@ -16,9 +16,6 @@ protected:
   int ComputePedal() override;
   int ComputeBrake() override;
   int ComputeStatus() override;
-
-private:
-  int GetTargetIndex();
 };
 
 } // namespace control_core

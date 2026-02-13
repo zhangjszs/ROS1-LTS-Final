@@ -36,6 +36,10 @@ struct ControlParams
   double steering_delta_max{0.5};
   double car_length{1.55};
 
+  // Steering conversion parameters (magic numbers extracted)
+  double steering_ratio{3.73};
+  int steering_offset{110};
+
   // FSSIM风格车辆参数
   double cg_to_front{0.77};     // 重心到前轴距离 [m]
   double cg_to_rear{0.78};      // 重心到后轴距离 [m]

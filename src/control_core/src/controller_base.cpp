@@ -1,5 +1,7 @@
 #include "control_core/controller_base.hpp"
 
+#include <limits>
+
 namespace control_core
 {
 
@@ -12,6 +14,9 @@ void ControllerBase::SetParams(const ControlParams &params)
   angle_kl_ = params.angle_kl;
   steering_delta_max_ = params.steering_delta_max;
   car_length_ = params.car_length;
+
+  steering_ratio_ = params.steering_ratio;
+  steering_offset_ = params.steering_offset;
 
   // FSSIM风格参数
   cg_to_front_ = params.cg_to_front;
@@ -65,6 +70,40 @@ void ControllerBase::Tick()
 double ControllerBase::distance_square(double x1, double y1, double x2, double y2) const
 {
   return std::pow(x1 - x2, 2) + std::pow(y1 - y2, 2);
+}
+
+int ControllerBase::GetTargetIndex()
+{
+  double min_distance = std::numeric_limits<double>::max();
+  double diff_distance = 0;
+  double tem_distance;
+  int index = 0;
+  int min = 0;
+
+  lookhead_ = computeAdaptiveLookahead();
+
+  for (min = index = 0; index < static_cast<int>(path_coordinate_.size()); index++)
+  {
+    double tmp_distance = distance_square(car_x_, car_y_, path_coordinate_[index].x, path_coordinate_[index].y);
+    if (tmp_distance < min_distance)
+    {
+      min_distance = tmp_distance;
+      min = index;
+    }
+  }
+
+  for (index = min + 1, diff_distance = 0.0; index < static_cast<int>(path_coordinate_.size()); index++)
+  {
+    tem_distance = std::sqrt(distance_square(path_coordinate_[index - 1].x, path_coordinate_[index - 1].y,
+                                             path_coordinate_[index].x, path_coordinate_[index].y));
+    diff_distance += tem_distance;
+    if (diff_distance + tem_distance > lookhead_)
+      break;
+  }
+  if (std::abs(lookhead_ - diff_distance - tem_distance) < std::abs(lookhead_ - diff_distance))
+    return index;
+  else
+    return index - 1;
 }
 
 double ControllerBase::angle_range(double alpha) const
@@ -147,6 +186,60 @@ double ControllerBase::computeAdaptiveLookahead() const
   else if (lookahead > max_lookahead_)
     lookahead = max_lookahead_;
   return lookahead;
+}
+
+int ControllerBase::ComputeSteeringWithLookahead(int target_index)
+{
+  if (target_index >= static_cast<int>(path_coordinate_.size()) - 1 && finish_signal_)
+  {
+    RequestStop();
+    return steering_offset_;
+  }
+
+  double dx = path_coordinate_[target_index].x - car_x_;
+  double dy = path_coordinate_[target_index].y - car_y_;
+  double goalX = std::cos(car_theta_) * dx + std::sin(car_theta_) * dy;
+  double goalY = -std::sin(car_theta_) * dx + std::cos(car_theta_) * dy;
+
+  double alpha = std::atan2(goalY, goalX);
+  alpha = angle_range(alpha);
+
+  double delta = std::atan2(2 * car_length_ * std::sin(alpha) / lookhead_, 1.0);
+
+  delta = compensateSlipAngle(delta);
+
+  delta = angle_pid(delta);
+
+  return static_cast<int>(delta / M_PI * 180 * steering_ratio_) + steering_offset_;
+}
+
+int ControllerBase::ComputeDefaultPedal()
+{
+  double target = 4.0;
+  double error = target - car_veloc_;
+  double accel;
+  veloc_integra_ += error;
+  accel = 0.5 * error + 0.1 * veloc_integra_;
+
+  if (car_veloc_ > 2)
+    accel = 5;
+
+  if (accel > 30)
+    accel = 5;
+
+  if (car_veloc_ <= 0.3)
+    accel = 5;
+  return static_cast<int>(accel);
+}
+
+int ControllerBase::ComputeDefaultBrake()
+{
+  return 0;
+}
+
+int ControllerBase::ComputeDefaultStatus()
+{
+  return 2;
 }
 
 } // namespace control_core

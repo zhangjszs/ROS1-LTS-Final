@@ -30,6 +30,7 @@ protected:
   virtual int ComputeBrake() = 0;
   virtual int ComputeStatus() = 0;
 
+  int GetTargetIndex();
   double distance_square(double x1, double y1, double x2, double y2) const;
   double angle_range(double alpha) const;
   double angle_pid(double delta);
@@ -55,6 +56,28 @@ protected:
    * @return 前视距离 [m]
    */
   double computeAdaptiveLookahead() const;
+
+  /**
+   * @brief 使用前视点计算转向角
+   * @param target_index 目标路径点索引
+   * @return 转向角值（已转换为车辆转向指令）
+   */
+  int ComputeSteeringWithLookahead(int target_index);
+
+  /**
+   * @brief 默认油门计算（可被子类覆盖）
+   */
+  virtual int ComputeDefaultPedal();
+
+  /**
+   * @brief 默认刹车计算（可被子类覆盖）
+   */
+  virtual int ComputeDefaultBrake();
+
+  /**
+   * @brief 默认状态计算（可被子类覆盖）
+   */
+  virtual int ComputeDefaultStatus();
 
   void RequestStop();
 
@@ -87,6 +110,10 @@ protected:
   double slip_gain_{0.5};
   double min_lookahead_{2.0};
   double max_lookahead_{10.0};
+
+  // Steering conversion parameters
+  double steering_ratio_{3.73};
+  int steering_offset_{110};
 
   double angle_integra_{0.0};
   double veloc_integra_{0.0};

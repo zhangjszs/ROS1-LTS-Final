@@ -13,39 +13,20 @@
     <arg name="loop" default="false" doc="rosbag 是否循环播放"/>
     <arg name="launch_rviz" default="true" doc="启动 RViz"/>
     <arg name="launch_viz" default="true" doc="启动可视化节点"/>
-    <arg name="rviz_mode" default="main" doc="RViz模式: main(综合), global(全局), pointcloud(点云), dual(双窗口)"/>
+    <arg name="rviz_mode" default="main" doc="RViz模式: main/global/pointcloud/dual"/>
     <arg name="vehicle" default="A13" doc="车辆型谱ID"/>
-    <arg name="fleet_config" default="$(find fsd_launch)/config/vehicle_fleet.yaml" doc="车辆型谱清单"/>
-    <arg name="perception_vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/perception.yaml"/>
-    <arg name="perception_vehicle_local_config" default=""/>
-    <arg name="localization_vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/localization.yaml"/>
-    <arg name="localization_vehicle_local_config" default=""/>
-    <arg name="control_vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/control.yaml"/>
-    <arg name="control_vehicle_local_config" default=""/>
-    <arg name="cmd_topic" default="vehicle/cmd" doc="统一控制命令话题（Control输出/Vehicle消费）"/>
-    <arg name="carstate_topic" default="localization/car_state" doc="统一车辆状态话题（Localization输出/Planning+Control输入）"/>
-    <arg name="pathlimits_topic" default="planning/pathlimits" doc="统一路径话题（Planning输出/Control输入）"/>
-    <arg name="approaching_goal_topic" default="planning/skidpad/approaching_goal" doc="统一八字接近终点话题（Planning输出/Control输入）"/>
-    <arg name="publish_legacy_cmd_topic" default="false" doc="兼容开关：控制层是否同时发布 legacy cmd 话题"/>
-    <arg name="subscribe_legacy_topics" default="false" doc="兼容开关：控制层是否同时订阅 legacy 输入话题"/>
-    <arg name="subscribe_legacy_cmd_topic" default="false" doc="兼容开关：车辆接口是否订阅 legacy cmd 话题"/>
-    <arg name="legacy_cmd_topic" default="vehcileCMDMsg" doc="legacy 控制命令话题"/>
-    <arg name="legacy_carstate_topic" default="/Carstate" doc="legacy 车辆状态话题"/>
-    <arg name="legacy_approaching_goal_topic" default="/skidpad_detection_node/approaching_goal" doc="legacy 接近终点话题"/>
-    <arg name="publish_base_to_velodyne_tf" default="true" doc="发布 base_link->velodyne 静态TF"/>
-    <arg name="velodyne_x" default="0.0" doc="velodyne 相对 base_link 的 x"/>
-    <arg name="velodyne_y" default="0.0" doc="velodyne 相对 base_link 的 y"/>
-    <arg name="velodyne_z" default="0.0" doc="velodyne 相对 base_link 的 z"/>
-    <arg name="velodyne_roll" default="0.0" doc="velodyne 相对 base_link 的 roll"/>
-    <arg name="velodyne_pitch" default="0.0" doc="velodyne 相对 base_link 的 pitch"/>
-    <arg name="velodyne_yaw" default="0.0" doc="velodyne 相对 base_link 的 yaw"/>
+    <arg name="perception_mode" default="track" doc="感知模式: accel/skidpad/track"/>
+    <arg name="localization_mode" default="track" doc="定位模式: accel/skidpad/track"/>
+    <arg name="planning_mission" default="high_speed" doc="规划任务: high_speed/line/skidpad/acceleration"/>
+    <arg name="control_mode" default="4" doc="控制模式: 1(accel)/2(line)/3(skidpad)/4(track)"/>
 
     <!-- ========== Simulation Time ========== -->
     <param name="/use_sim_time" value="$(arg simulation)"/>
-    <rosparam command="load" file="$(arg fleet_config)" ns="vehicle_fleet"/>
 
-    <!-- ========== 参数校验 ========== -->
-    <!-- 仿真模式必须指定bag路径 -->
+    <!-- Vehicle fleet config -->
+    <rosparam command="load" file="$(find fsd_launch)/config/vehicle_fleet.yaml" ns="vehicle_fleet"/>
+
+    <!-- ========== Simulation bag validation ========== -->
     <group if="$(arg simulation)">
         <group unless="$(eval bag != '')">
             <node pkg="rospy" type="message" name="error_check" output="screen" args="错误：仿真模式必须指定bag文件路径！使用参数 bag:=/path/to/bag.bag"/>
@@ -53,48 +34,44 @@
     </group>
 
     <!-- ========== Subsystems ========== -->
-    <include file="$(find fsd_launch)/launch/subsystems/mission_stack.launch">
-        <arg name="simulation" value="$(arg simulation)"/>
-        <arg name="perception_mode" value="track"/>
-        <arg name="localization_mode" value="track"/>
-        <arg name="planner" value="unified"/>
-        <arg name="planning_mission" value="high_speed"/>
-        <arg name="control_mode_profile" value="track"/>
-        <arg name="control_mode" value="4"/>
-        <arg name="enable_control" value="true"/>
+    <!-- Perception -->
+    <include file="$(find fsd_launch)/launch/subsystems/perception.launch">
+        <arg name="mode" value="$(arg perception_mode)"/>
         <arg name="vehicle" value="$(arg vehicle)"/>
-        <arg name="perception_vehicle_config" value="$(arg perception_vehicle_config)"/>
-        <arg name="perception_vehicle_local_config" value="$(arg perception_vehicle_local_config)"/>
-        <arg name="localization_vehicle_config" value="$(arg localization_vehicle_config)"/>
-        <arg name="localization_vehicle_local_config" value="$(arg localization_vehicle_local_config)"/>
-        <arg name="control_vehicle_config" value="$(arg control_vehicle_config)"/>
-        <arg name="control_vehicle_local_config" value="$(arg control_vehicle_local_config)"/>
-        <arg name="cmd_topic" value="$(arg cmd_topic)"/>
-        <arg name="carstate_topic" value="$(arg carstate_topic)"/>
-        <arg name="pathlimits_topic" value="$(arg pathlimits_topic)"/>
-        <arg name="approaching_goal_topic" value="$(arg approaching_goal_topic)"/>
-        <arg name="publish_legacy_cmd_topic" value="$(arg publish_legacy_cmd_topic)"/>
-        <arg name="subscribe_legacy_topics" value="$(arg subscribe_legacy_topics)"/>
-        <arg name="subscribe_legacy_cmd_topic" value="$(arg subscribe_legacy_cmd_topic)"/>
-        <arg name="legacy_cmd_topic" value="$(arg legacy_cmd_topic)"/>
-        <arg name="legacy_carstate_topic" value="$(arg legacy_carstate_topic)"/>
-        <arg name="legacy_approaching_goal_topic" value="$(arg legacy_approaching_goal_topic)"/>
     </include>
 
-    <!-- ========== Tools ========== -->
-    <!-- Static TF: base_link -> velodyne -->
-    <node if="$(arg publish_base_to_velodyne_tf)"
-          pkg="tf2_ros"
-          type="static_transform_publisher"
-          name="base_link_to_velodyne"
-          args="$(arg velodyne_x) $(arg velodyne_y) $(arg velodyne_z) $(arg velodyne_roll) $(arg velodyne_pitch) $(arg velodyne_yaw) base_link velodyne"/>
+    <!-- Localization -->
+    <include file="$(find fsd_launch)/launch/subsystems/localization.launch">
+        <arg name="mode" value="$(arg localization_mode)"/>
+        <arg name="vehicle" value="$(arg vehicle)"/>
+    </include>
 
+    <!-- Planning -->
+    <include file="$(find fsd_launch)/launch/subsystems/planning.launch">
+        <arg name="mission" value="$(arg planning_mission)"/>
+    </include>
+
+    <!-- Control -->
+    <include file="$(find fsd_launch)/launch/subsystems/control.launch">
+        <arg name="mode" value="$(arg localization_mode)"/>
+        <arg name="control_mode" value="$(arg control_mode)"/>
+        <arg name="vehicle" value="$(arg vehicle)"/>
+    </include>
+
+    <!-- Vehicle (实车模式) -->
+    <include unless="$(arg simulation)" file="$(find fsd_launch)/launch/subsystems/vehicle.launch"/>
+
+    <!-- ========== Tools ========== -->
     <!-- Rosbag Player (仿真模式) -->
     <include if="$(arg simulation)" file="$(find fsd_launch)/launch/tools/rosbag_play.launch">
         <arg name="bag" value="$(arg bag)"/>
         <arg name="rate" value="$(arg rate)"/>
         <arg name="loop" value="$(arg loop)"/>
     </include>
+
+    <!-- Static TF: base_link -> velodyne -->
+    <node pkg="tf2_ros" type="static_transform_publisher" name="base_link_to_velodyne"
+          args="0 0 0 0 0 0 base_link velodyne"/>
 
     <!-- FSD Visualization Node -->
     <include if="$(arg launch_viz)" file="$(find fsd_visualization)/launch/visualization.launch">
