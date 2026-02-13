@@ -1,36 +1,183 @@
+# ==========================================================
+# Control Base Config (控制基础配置文件)
+# ==========================================================
+# Load order:
+#   1) param.yaml (this file) - 基础参数
+#   2) control_<mode>.yaml - 模式特定覆盖
+#   3) vehicle overlay - 车辆特定参数
+#
+# 【控制系统架构】
+#   Input: 规划路径 (/path_global) + 车辆状态 (/Carstate)
+#   Output: 控制指令 (/vehcileCMDMsg) - 注意拼写错误是历史遗留
+#   Controller: Pure Pursuit + PID + 滑移角补偿
+#
+# 【控制器类型】
+#   - pp: Pure Pursuit (高速循迹/直线加速)
+#   - st: Special Track (八字绕环)
+# ==========================================================
+
+# ==========================
+# 车辆几何参数
+# ==========================
+# ⚠️ 这些参数必须与车辆实际尺寸一致！
 car_arg:
+  # 轴距
+  # 单位: m
+  # 影响: 车辆运动学模型、转弯半径计算
   length: 1.55
+  
+  # 前轴到车头的距离
+  # 单位: m
   front_axle: 0.5
+  
+  # 后轴到车尾的距离
+  # 单位: m
   rear_axle: 1.05
+  
+  # 最大转向角
+  # 单位: rad
+  # 限制前轮最大转角，防止机械损伤
   delta_max: 0.4
+  
+  # 最小转向角
+  # 单位: rad
+  # 消除转向死区
   delta_min: 0.0174
-  # FSSIM风格车辆参数
-  cg_to_front: 0.77    # 重心到前轴距离 [m]
-  cg_to_rear: 0.78     # 重心到后轴距离 [m]
-  mass: 190.0          # 车辆质量 [kg]
+  
+  # 重心到前轴距离
+  # 单位: m
+  # 影响: 滑移角计算、动力学模型
+  cg_to_front: 0.77
+  
+  # 重心到后轴距离
+  # 单位: m
+  # 影响: 滑移角计算、动力学模型
+  # 注意: cg_to_front + cg_to_rear = wheelbase (轴距)
+  cg_to_rear: 0.78
+  
+  # 车辆质量
+  # 单位: kg
+  # 影响: 惯性计算、动力学响应
+  mass: 190.0
 
-pp:  # Pure Pursuit 参数
+# ==========================
+# Pure Pursuit 控制器参数
+# ==========================
+# 用于高速循迹和直线加速
+pp:
+  # 速度反馈增益
+  # 影响: 速度对转向的影响
+  # 调大: 速度对转向修正更强
+  # 调小: 转向更稳定，不受速度影响
   angle_kv: 0.0
+  
+  # 前视距离增益
+  # 影响: Pure Pursuit的lookahead距离
+  # 调大: 更长lookahead（更平滑但可能cut corner）
+  # 调小: 更短lookahead（更精确但可能抖动）
   angle_kl: 2.5
+  
+  # PID - 比例增益
+  # 影响: 转向响应速度
+  # 调大: 响应更快（可能超调/震荡）
+  # 调小: 响应更慢（更平滑但延迟）
   angle_kp: 0.9
+  
+  # PID - 积分增益
+  # 影响: 消除稳态误差
+  # 调大: 更快消除误差（可能积分饱和）
+  # 调小: 更保守（稳态误差持续更久）
   angle_ki: 0.0
+  
+  # PID - 微分增益
+  # 影响: 抑制超调
+  # 调大: 抑制震荡（可能对噪声敏感）
+  # 调小: 更平滑（可能超调）
   angle_kd: 0.0
+  
+  # 最大转向角速度
+  # 单位: rad/s
+  # 限制方向盘转动速度，防止突变
   steering_delta_max: 0.5
-  # FSSIM风格滑移角补偿
+  
+  # ==========================
+  # 滑移角补偿（FSSIM风格）
+  # ==========================
+  # 高速时轮胎侧滑导致实际航向与车头方向不一致
+  # 需要补偿滑移角以提高跟踪精度
+  
+  # 启用滑移角补偿
   enable_slip_compensation: true
-  slip_gain: 0.5       # 滑移角补偿增益
-  min_lookahead: 2.0   # 最小前视距离 [m]
-  max_lookahead: 10.0  # 最大前视距离 [m]
+  
+  # 滑移角补偿增益
+  # 影响: 补偿强度
+  # 调大: 更强补偿（适合高速/弯道）
+  # 调小: 更弱补偿（适合低速/直线）
+  # 建议: TrackDrive 0.5, Skidpad 0.7, Accel 0.3
+  slip_gain: 0.5
+  
+  # 最小前视距离
+  # 单位: m
+  # 低速时的lookahead下限
+  min_lookahead: 2.0
+  
+  # 最大前视距离
+  # 单位: m
+  # 高速时的lookahead上限
+  # 影响: 高速稳定性
+  max_lookahead: 10.0
 
-st:  # Skidpad 参数
+# ==========================
+# Special Track (八字绕环) 控制器参数
+# ==========================
+# 八字绕环使用专门的控制器（不同参数集）
+st:
+  # PID参数（同pp）
   angle_kv: 0.5
   angle_kl: 2.5
   angle_kp: 0.9
   angle_ki: 0.0
   angle_kd: 0.0
   steering_delta_max: 0.5
-  # 八字绕环时滑移角补偿更重要
+  
+  # 滑移角补偿（八字绕环需要更强）
   enable_slip_compensation: true
-  slip_gain: 0.7       # 八字绕环需要更强的补偿
-  min_lookahead: 1.5   # 八字绕环需要更短的前视距离
+  
+  # 八字绕环时滑移角补偿更重要
+  # 原因：圆环运动产生大滑移角
+  slip_gain: 0.7
+  
+  # 八字绕环需要更短的前视距离
+  # 原因：需要更精确跟踪圆环路径
+  min_lookahead: 1.5
   max_lookahead: 5.0
+
+# ==========================
+# 【调参指南】
+# ==========================
+#
+# 1. 如车辆跟踪路径时抖动（oscillation）：
+#    - 减小 angle_kp (0.9→0.7)
+#    - 增大 max_lookahead (10→12)
+#    - 增大 steering_delta_max (0.5→0.6)
+#
+# 2. 如车辆cut corner（抄近路）：
+#    - 减小 max_lookahead (10→8)
+#    - 增大 angle_kp (0.9→1.0)
+#
+# 3. 如高速时滑移严重（车辆侧滑）：
+#    - 增大 slip_gain (0.5→0.6)
+#    - 检查 cg_to_front/cg_to_rear 是否准确
+#
+# 4. 如转向响应慢（lag大）：
+#    - 增大 angle_kp (0.9→1.1)
+#    - 减小 min_lookahead (2.0→1.5)
+#
+# 5. 如转向突变（不连续）：
+#    - 减小 steering_delta_max (0.5→0.4)
+#    - 增大 angle_kd (0.0→0.1)
+#
+# 【观测命令】
+#   rostopic echo /vehcileCMDMsg | grep delta
+#   rostopic echo /Carstate | grep yaw
+#   # 对比期望转向角和实际航向变化

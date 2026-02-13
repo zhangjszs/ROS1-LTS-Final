@@ -3,22 +3,56 @@
 # ==========================================================
 # 此文件仅保留八字绕环模式的特定覆盖参数。
 # 加载顺序：在 lidar_base.yaml 之后加载。
+#
+# 【赛事特点】
+#   - 近距离小场地(20m范围)
+#   - 锥桶密集且多层堆叠
+#   - 圆环几何，不适合直线赛道先验
+#   - ⚠️ 默认关闭tracker和topology（密集场景不适合）
+#
+# 【调参重点】
+#   1. 密集场景：严格的去重和聚类
+#   2. 圆环几何：使用arc插值和曲率
+#   3. 单帧质量：不依赖时序，要求单帧检测准确
+# ==========================================================
 
+# ==========================
 # 赛事模式选择
+# ==========================
 roi:
-  mode: skidpad                      # ROI模式：八字绕环
+  # 明确指定模式为八字绕环
+  # 影响：加载mode_presets中的skidpad参数组
+  mode: skidpad
 
 # 旧版兼容（部分旧分支仍读取 road_type）
-road_type: 1                         # 1 = 八字绕环
+# 应与roi.mode保持一致：1=skidpad, 2=accel, 3=track
+road_type: 1
 
-# 八字绕环特有行为，默认关闭时序/拓扑功能，调优后再逐步启用
+# ==========================
+# 模块开关覆盖
+# ==========================
 filters:
   obstacle_height:
-    enable: false                    # 关闭柱状障碍物滤波
+    # ❌ 关闭柱状障碍物滤波（场地小，无树墙）
+    # 八字场地通常只有锥桶，不需要过滤高物体
+    enable: false
+
 tracker:
-  enable: false                      # 关闭时序跟踪器
+  # ❌ 关闭时序跟踪器（密集场景匹配困难，容易错误关联）
+  # 原因：
+  #   1. 八字场景锥桶密集，数据关联容易错误
+  #   2. 圆环运动轨迹复杂，卡尔曼预测不准确
+  #   3. 单帧检测质量足够，不需要时序平滑
+  # 注意：如后期发现检测闪烁严重，可尝试启用
+  enable: false
+
 topology:
-  enable: false                      # 关闭拓扑修复
+  # ❌ 关闭拓扑修复（圆环几何不匹配直线赛道先验）
+  # 原因：
+  #   1. topology基于"直线赛道+等间距"假设
+  #   2. 八字是圆环几何，不适合直线先验
+  #   3. 可能错误地插值/删除圆环上的真实锥桶
+  enable: false
 
 # ==========================
 # Skidpad Geometry Robustness Overlay
@@ -28,56 +62,236 @@ topology:
 # 堆叠锥检测（八字场景锥桶密集且多层）
 stacked_cone_detection:
   vertical_layers:
-    layer_height: 0.15              # 更精细的分层（密集场景）
-    max_layers: 5                   # 更多层数
+    # ⭐ 更精细的分层（密集场景需要区分多层堆叠）
+    # 单位：m | 建议范围：0.12-0.20
+    # 调大：分层更粗，可能遗漏堆叠信息
+    # 调小：分层更细，计算量增加
+    layer_height: 0.15
+    
+    # 更多层数（应对复杂堆叠）
+    # 影响：最多检测几层堆叠
+    max_layers: 5
+  
   deduplication:
-    cluster_tolerance: 0.35         # 更严格的聚类（密集场景）
+    # ⭐ 更严格的聚类（密集场景需要精确去重）
+    # 单位：m | 建议范围：0.30-0.40
+    # 调大：更激进的去重（可能误删真实锥桶）
+    # 调小：保留更多检测（密集场景重复多）
+    cluster_tolerance: 0.35
+  
   near_range:
-    distance_threshold: 6.0         # 中等近距范围
-    stricter_xy_threshold: 0.2      # 非常严格的去重
+    # 中等近距范围
+    # 单位：m | 建议范围：5-8
+    distance_threshold: 6.0
+    
+    # ⭐ 非常严格的去重（密集场景避免重复）
+    # 单位：m | 建议范围：0.15-0.25
+    stricter_xy_threshold: 0.2
+    
+    # 增强去重开关
+    enhanced_dedup: true
+    
+    # 更小的层间分离度
+    # 单位：m
+    layer_separation: 0.12
 
 # 缺锥预测（八字场景需要圆环连续性）
 occlusion_handling:
   detection:
-    angle_gap_threshold: 25.0       # 大的角度间隙容忍（圆环几何）
+    # ⭐ 大的角度间隙容忍（圆环几何有自然间隙）
+    # 单位：度 | 建议范围：20-30
+    # 调大：更容易判断为遮挡（更激进的预测）
+    angle_gap_threshold: 25.0
+  
   missing_cone_prediction:
-    max_prediction_distance: 8.0    # 中等预测距离
-    prediction_confidence: 0.2      # 保守的预测置信度
-    max_consecutive_predictions: 4  # 更多的连续预测（圆环需要连续性）
+    # 中等预测距离（八字场地小）
+    # 单位：m | 建议范围：6-10
+    max_prediction_distance: 8.0
+    
+    # 保守的预测置信度
+    # 范围：0-1 | 建议：0.15-0.25
+    prediction_confidence: 0.2
+    
+    # 更多的连续预测（圆环需要连续性）
+    # 影响：允许多少帧连续预测不出现
+    max_consecutive_predictions: 4
+  
   geometric_interpolation:
-    method: arc                     # 使用圆弧插值（八字场景）
-    max_interpolation_gap: 6.0      # 中等插值间隙
-    use_track_curvature: true       # 使用曲率（重要）
-    curvature_estimate_window: 8    # 更大的曲率估计窗口
+    # ⭐ 使用圆弧插值（八字场景是圆环）
+    # 重要！八字赛道是两个相切的圆
+    # linear插值会走直线，穿过圆心（错误）
+    # arc插值沿圆弧，符合实际赛道形状
+    method: arc
+    
+    # 中等插值间隙
+    # 单位：m | 建议范围：5-8
+    max_interpolation_gap: 6.0
+    
+    # ⭐ 使用曲率（重要！八字是圆弧）
+    use_track_curvature: true
+    
+    # 更大的曲率估计窗口（圆环曲率稳定）
+    # 影响：用多少点估计曲率
+    curvature_estimate_window: 8
 
 # 短检测抑制（八字场景需要稳定的圆环检测）
 short_detection_suppression:
   single_frame:
-    min_detections_for_valid: 4     # 非常严格的帧数要求
-    min_confidence: 0.4             # 高置信度门槛
+    # ⭐ 非常严格的帧数要求（密集场景过滤噪声）
+    # 影响：单帧检测需要持续多少帧才有效
+    # 调大：更严格，过滤更多瞬态噪声
+    # 调小：更快响应（可能抖动）
+    min_detections_for_valid: 4
+    
+    # 高置信度门槛
+    # 范围：0-1 | 建议：0.35-0.45
+    min_confidence: 0.4
+  
+  spatial_continuity:
+    # 检查空间连续性
+    check_neighbor_detections: true
+    
+    # 邻居半径（单位：m）
+    # 密集场景应较小，避免跨圆环匹配
+    neighbor_radius: 2.5
+    
+    # 较高的最小邻居数（密集场景应有邻居）
+    min_neighbors: 2
+  
   temporal_continuity:
-    min_track_length: 5             # 很长的跟踪长度
-    max_gap_frames: 1               # 很小的间隙容忍
+    # ⭐ 很长的跟踪长度（确保稳定性）
+    # 影响：时序上需要连续多少帧
+    min_track_length: 5
+    
+    # ⭐ 很小的间隙容忍（密集场景连续性要求高）
+    max_gap_frames: 1
 
 # 几何一致性（八字场景需要完美的圆环几何）
 geometric_consistency:
   size_consistency:
-    max_height_variance: 0.1        # 非常严格的高度方差
-    max_area_variance: 0.03         # 非常严格的面积方差
+    # ⭐ 非常严格的高度方差（所有锥桶应一致）
+    # 单位：m | 建议范围：0.08-0.12
+    max_height_variance: 0.1
+    
+    # ⭐ 非常严格的面积方差
+    # 单位：m² | 建议范围：0.02-0.04
+    max_area_variance: 0.03
+  
   spatial_distribution:
-    check_spacing_uniformity: true  # 检查圆环间距均匀性
-    max_spacing_variance: 2.0       # 非常严格的间距方差
+    # 检查圆环间距均匀性
+    check_spacing_uniformity: true
+    
+    # ⭐ 非常严格的间距方差（圆环应均匀分布）
+    # 单位：m² | 建议范围：1.5-2.5
+    max_spacing_variance: 2.0
+    
+    # 检查局部密度
+    check_local_density: true
+    # 密集场景密度范围
+    expected_density_range: [20, 150]
+  
   angular_distribution:
-    check_bearing_variance: true    # 检查方位角变化（圆环特征）
-    max_bearing_variance: 30.0      # 允许圆环方位角变化
+    # 检查方位角变化（圆环特征）
+    check_bearing_variance: true
+    
+    # 允许圆环方位角变化
+    # 单位：度 | 建议范围：25-35
+    # 圆环上方位角自然变化
+    max_bearing_variance: 30.0
+    
+    check_elevation_variance: true
+    # 单位：度
+    max_elevation_variance: 5.0
 
 # 回环优化（八字场景的回环特殊）
 loop_closure_optimization:
   feature_stability:
-    min_feature_lifetime: 10        # 最长的特征寿命
-    reidentification_threshold: 0.8 # 最高的重识别门槛
+    # ⭐ 最长的特征寿命（八字回环频繁且重复）
+    # 影响：特征保留多少帧
+    min_feature_lifetime: 10
+    
+    # ⭐ 最高的重识别门槛（避免错误重识别）
+    # 范围：0-1 | 建议：0.75-0.85
+    reidentification_threshold: 0.8
+    
+    feature_reidentification: true
+  
+  observation_stability:
+    # 要求多帧观测
+    require_multi_frame_obs: true
+    
+    # 较多的观测帧数
+    # 影响：需要多少帧观测才确认
+    min_observation_frames: 4
+    
+    observation_consistency_check: true
+  
   geometric_verification:
-    check_relative_geometry: true   # 检查圆环相对几何
+    # ⭐ 检查圆环相对几何
+    check_relative_geometry: true
+    
     check_distance_consistency: true
-    distance_tolerance: 0.3         # 非常严格的距离容差
+    
+    # ⭐ 非常严格的距离容差（圆环几何精确）
+    # 单位：m | 建议范围：0.25-0.35
+    distance_tolerance: 0.3
+    
+    check_angle_consistency: true
+    # 角度容差（单位：度）
+    angle_tolerance: 8.0
 
+# ==========================
+# 【特别说明】
+# ==========================
+#
+# 1. 为什么关闭tracker?
+#    - 八字场景锥桶密集，数据关联容易错误
+#    - 圆环运动轨迹复杂，卡尔曼预测不准确
+#    - 单帧检测质量足够，不需要时序平滑
+#
+# 2. 为什么关闭topology?
+#    - topology基于"直线赛道+等间距"假设
+#    - 八字是圆环几何，不适合直线先验
+#    - 可能错误地插值/删除圆环上的真实锥桶
+#
+# 3. 为什么用arc插值?
+#    - 八字赛道是两个相切的圆
+#    - linear插值会走直线，穿过圆心（错误）
+#    - arc插值沿圆弧，符合实际赛道形状
+
+# ==========================
+# 【调参指南 - Skidpad模式】
+# ==========================
+#
+# 1. 如锥桶过度合并（相邻锥变成一个检测）：
+#    - 减小 base.yaml 中 cluster/cluster_tolerance (0.6→0.5)
+#    - 减小本文件 stacked_cone_detection/deduplication/cluster_tolerance (0.35→0.30)
+#
+# 2. 如堆叠锥桶去重不彻底（一个锥桶多次检测）：
+#    - 减小 base.yaml 中 dedup/radius (0.5→0.4)
+#    - 减小本文件 stacked_cone_detection/near_range/stricter_xy_threshold (0.2→0.18)
+#    - 启用 enhanced_dedup: true
+#
+# 3. 如圆环缺失检测（某段圆环看不到锥桶）：
+#    - 增大 occlusion_handling/missing_cone_prediction/max_prediction_distance (8→10)
+#    - 提高 geometric_interpolation/max_interpolation_gap (6→8)
+#    - 检查 confidence/min_confidence_near 是否过高
+#
+# 4. 如误检多（非锥桶物体被检测）：
+#    - 提高 short_detection_suppression/single_frame/min_confidence (0.4→0.45)
+#    - 提高 base.yaml 中 confidence/min_confidence_near (0.15→0.20)
+#    - 增大 geometric_consistency/spatial_distribution/max_spacing_variance
+#
+# 5. 如出现tracking错误（如启用tracker后出现）：
+#    - 减小 base.yaml 中 tracker/association_threshold (2.0→1.5)
+#    - 增大 tracker/confirm_frames (3→4)
+#    - 建议：密集场景最好不要启用tracker
+#
+# 6. 如回环时误识别（绕完一圈识别错锥桶）：
+#    - 提高 loop_closure_optimization/feature_stability/reidentification_threshold (0.8→0.85)
+#    - 增大 min_feature_lifetime (10→12)
+#
+# 【观测命令】
+#   rostopic echo /perception/lidar_cluster/detections | grep -E "(confidence|obj_dist)"
+#   rostopic hz /perception/lidar_cluster/detections
+#   rviz -d $(rospack find fsd_visualization)/rviz/ego_perception.rviz

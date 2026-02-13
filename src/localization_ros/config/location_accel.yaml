@@ -1,16 +1,114 @@
-# ===== 直线加速 (Acceleration) 定位参数 =====
+# ==========================================================
+# Acceleration Localization Overlay (直线加速定位参数)
+# ==========================================================
+# 加载顺序: 在 location.yaml 之后加载
+#
+# 【赛事特点】
+#   - 小场地，地图规模小（约60锥桶）
+#   - 直线场景，锥桶分布在窄Y范围内
+#   - 无需回环（单程）
+#   - 远处检测重要（提前规划加速）
+#
+# 【调参重点】
+#   1. 小地图：max_map_size = 60
+#   2. 严格合并：merge_distance = 1.5m（防止合并相邻道）
+#   3. 高入图门槛：min_confidence_to_add = 0.35（抑制远处噪声）
+# ==========================================================
 
 map:
-  mode: accel                        # 地图模式：直线加速
-  merge_distance: 1.5                # 锥桶合并距离阈值 (m)
-  max_map_size: 60                   # 地图最大锥桶数量
-  min_obs_to_keep: 2                 # 清理时保留的最小观测次数
-  local_cone_range: 30.0             # 输出局部锥桶的最大距离 (m)
-  min_confidence_to_add: 0.35        # 新锥桶入图最低置信度
-  min_confidence_to_merge: 0.15      # 合并已有锥桶的最低置信度
-  max_cone_height: 0.75              # 锥桶最大高度 (m)
-  max_cone_width: 0.5                # 锥桶最大宽度 (m)
-  min_cone_height: 0.03              # 锥桶最小高度 (m)
-  cone_y_max: 2.5                    # 锥桶Y轴最大偏移 (m)
-  expected_cone_spacing: 5.0         # 预期同侧锥桶间距 (m)
-  track_width: 3.0                   # 赛道宽度 (m)
+  # 明确指定地图模式
+  mode: accel
+  
+  # 锥桶合并距离阈值
+  # 单位: m
+  # ⭐ 直线加速使用较小的合并距离
+  # 原因：直线场景锥桶可能很密集，避免误合并相邻锥桶
+  # 建议范围: 1.2-2.0
+  merge_distance: 1.5
+  
+  # 地图最大锥桶数量
+  # ⭐ 直线加速场地小，锥桶数量少
+  # 约60个锥桶足够覆盖100m直线加速段
+  max_map_size: 60
+  
+  # 清理时保留的最小观测次数
+  # 影响：锥桶的持久性
+  # 加速场景车辆单向行驶，可以快速清理旧锥桶
+  min_obs_to_keep: 2
+  
+  # 输出局部锥桶的最大距离
+  # 单位: m
+  # 直线加速需要看到远处进行提前规划
+  # 但不宜过大（避免过多噪声）
+  local_cone_range: 30.0
+  
+  # ==========================
+  # 锥桶入图过滤
+  # ==========================
+  # ⭐ 新锥桶入图最低置信度
+  # 范围: 0-1
+  # 直线加速使用较高的入图门槛
+  # 原因：远处噪声多，需要严格过滤
+  min_confidence_to_add: 0.35
+  
+  # 合并已有锥桶的最低置信度
+  # 与入图门槛一致或略低
+  min_confidence_to_merge: 0.15
+  
+  # 锥桶尺寸约束
+  max_cone_height: 0.75    # 最大高度 (m)
+  max_cone_width: 0.5      # 最大宽度 (m)
+  min_cone_height: 0.03    # 最小高度 (m)
+  
+  # ⭐ 锥桶Y轴最大偏移
+  # 单位: m
+  # 直线加速场景，锥桶应在较窄的Y范围内
+  # 用于入图过滤，超出此范围的锥桶不入图
+  cone_y_max: 2.5
+  
+  # ⭐ 预期锥桶间距
+  # 单位: m
+  # 直线加速场景锥桶通常等间距布置
+  # 用于地图验证和插值
+  expected_cone_spacing: 5.0
+  
+  # 赛道宽度
+  # 单位: m
+  # 直线加速赛道通常较窄
+  track_width: 3.0
+
+# ==========================
+# 【调参指南 - Acceleration】
+# ==========================
+#
+# 1. 如相邻道锥桶被错误合并：
+#    - 减小 merge_distance (1.5→1.2)
+#    - 确保 merge_distance < 锥桶实际间距的一半
+#    - 检查 cone_y_max 是否合适
+#
+# 2. 如远处（100m）锥桶未进入地图：
+#    - 降低 min_confidence_to_add (0.35→0.30)
+#    - 检查 perception 模块远处检测的置信度
+#    - 确保 lidar_accel.yaml 中对应参数允许远处检测
+#
+# 3. 如地图中出现过多假阳性（噪声点）：
+#    - 提高 min_confidence_to_add (0.35→0.40)
+#    - 提高 min_obs_to_keep (2→3)
+#    - 减小 cone_y_max (2.5→2.0) 过滤偏离赛道的检测
+#
+# 4. 如地图容量不够（达到60上限）：
+#    - 增大 max_map_size (60→80)
+#    - 减小 min_obs_to_keep (2→1)
+#    - 注意：直线加速通常不需要超过100个锥桶
+#
+# 5. 如预期锥桶间距与实际不符：
+#    - 调整 expected_cone_spacing 匹配实际赛道设计
+#    - 此参数用于地图验证和缺锥插值
+#
+# 【观测命令】
+#   # 查看地图大小和锥桶分布
+#   rostopic echo /localization/cone_map | grep -E "(cone_count|track_width)"
+#   # 查看车辆位置和速度
+#   rostopic echo /localization/car_state | grep -E "(x|y|vx)"
+#   # RViz可视化检查地图质量
+#   rviz -d $(rospack find fsd_visualization)/rviz/world_planning.rviz

@@ -1,18 +1,131 @@
-# ===== 八字绕环 (Skidpad) 定位参数 =====
+# ==========================================================
+# Skidpad Localization Overlay (八字绕环定位参数)
+# ==========================================================
+# 加载顺序: 在 location.yaml 之后加载
+#
+# 【赛事特点】
+#   - 中等场地，地图规模约100锥桶
+#   - ⭐ 圆环几何（两个相切的圆）
+#   - 密集场景，需要精确去重
+#   - 频繁经过同一位置（回环）
+#
+# 【调参重点】
+#   1. 圆环验证：enable_circle_validation = true
+#   2. 适中合并：merge_distance = 2.0m
+#   3. 低入图门槛：min_confidence_to_add = 0.2（密集场景）
+# ==========================================================
 
 map:
-  mode: skidpad                      # 地图模式：八字绕环
-  merge_distance: 2.0                # 锥桶合并距离阈值 (m)
-  max_map_size: 100                  # 地图最大锥桶数量
-  min_obs_to_keep: 2                 # 清理时保留的最小观测次数
-  local_cone_range: 35.0             # 输出局部锥桶的最大距离 (m)
-  min_confidence_to_add: 0.2         # 新锥桶入图最低置信度
-  min_confidence_to_merge: 0.1       # 合并已有锥桶的最低置信度
-  max_cone_height: 0.75              # 锥桶最大高度 (m)
-  max_cone_width: 0.5                # 锥桶最大宽度 (m)
-  min_cone_height: 0.03              # 锥桶最小高度 (m)
-  track_width: 3.0                   # 赛道宽度 (m)
-  enable_circle_validation: true     # 启用圆形验证
-  circle_radius: 15.25               # 圆弧半径 (m)
-  circle_center_dist: 18.25          # 两圆心间距 (m)
-  circle_tolerance: 2.0              # 圆形验证容差 (m)
+  # 明确指定地图模式
+  mode: skidpad
+  
+  # 锥桶合并距离阈值
+  # 单位: m
+  # 八字绕环使用中等合并距离
+  # 密集场景需要精确控制，避免过度合并
+  merge_distance: 2.0
+  
+  # 地图最大锥桶数量
+  # 八字绕环场地中等规模
+  # 约100个锥桶足够覆盖两个圆环
+  max_map_size: 100
+  
+  # 清理时保留的最小观测次数
+  min_obs_to_keep: 2
+  
+  # 输出局部锥桶的最大距离
+  # 单位: m
+  # 八字绕环需要看到整个圆环
+  # 圆环直径约30m，35m范围足够覆盖
+  local_cone_range: 35.0
+  
+  # ==========================
+  # 锥桶入图过滤
+  # ==========================
+  # ⭐ 新锥桶入图最低置信度
+  # 范围: 0-1
+  # 八字绕环使用较低的入图门槛
+  # 原因：密集场景，需要充分利用每个检测
+  min_confidence_to_add: 0.2
+  
+  # ⭐ 合并已有锥桶的最低置信度
+  # 比入图门槛更低，允许低置信度更新位置
+  # 密集场景需要快速更新锥桶位置
+  min_confidence_to_merge: 0.1
+  
+  # 锥桶尺寸约束
+  max_cone_height: 0.75    # 最大高度 (m)
+  max_cone_width: 0.5      # 最大宽度 (m)
+  min_cone_height: 0.03    # 最小高度 (m)
+  
+  # 赛道宽度
+  # 单位: m
+  track_width: 3.0
+  
+  # ==========================
+  # ⭐ 八字绕环特殊参数
+  # ==========================
+  # 启用圆形验证
+  # 利用八字赛道的几何先验进行地图验证
+  enable_circle_validation: true
+  
+  # 圆弧半径
+  # 单位: m
+  # 标准八字绕环圆弧半径15.25m
+  # 此参数用于验证锥桶是否符合圆环几何
+  circle_radius: 15.25
+  
+  # 两圆心间距
+  # 单位: m
+  # 两个圆环的中心点距离
+  # 标准值18.25m
+  circle_center_dist: 18.25
+  
+  # 圆形验证容差
+  # 单位: m
+  # 锥桶位置偏离理论圆周的允许误差
+  # 调大：更宽松的验证（容忍定位误差）
+  # 调小：更严格的验证（可能剔除真锥桶）
+  circle_tolerance: 2.0
+
+# ==========================
+# 【调参指南 - Skidpad】
+# ==========================
+#
+# 1. 如圆环几何验证过于严格（剔除真锥桶）：
+#    - 增大 circle_tolerance (2.0→2.5)
+#    - 检查定位精度是否正常
+#    - 临时关闭 enable_circle_validation 测试
+#
+# 2. 如圆环几何验证过于宽松（保留假阳性）：
+#    - 减小 circle_tolerance (2.0→1.5)
+#    - 提高 min_confidence_to_add (0.2→0.25)
+#    - 检查锥桶检测是否准确
+#
+# 3. 如八字交叉点锥桶混乱（两个圆环交界处）：
+#    - 减小 merge_distance (2.0→1.8)
+#    - 提高 min_confidence_to_add (0.2→0.25)
+#    - 考虑在交叉点手动设置关键锥桶
+#
+# 4. 如地图中出现过多重复锥桶：
+#    - 检查 merge_distance 是否合适
+#    - 确保车辆绕环时定位精度
+#    - 检查 lidarToIMUDist 标定是否准确
+#
+# 5. 如圆弧半径或圆心距与实际不符：
+#    - 测量实际八字赛道的几何参数
+#    - 调整 circle_radius 和 circle_center_dist
+#    - 确保参数与实际赛道设计一致
+#
+# 【观测命令】
+#   # 查看地图大小和圆环验证状态
+#   rostopic echo /localization/cone_map | grep -E "(cone_count|circle_)"
+#   # 查看车辆位置和航向
+#   rostopic echo /localization/car_state | grep -E "(x|y|yaw)"
+#   # RViz可视化检查圆环形状
+#   rviz -d $(rospack find fsd_visualization)/rviz/world_planning.rviz
+#
+# 【注意事项】
+#   1. circle_radius 和 circle_center_dist 必须与官方赛道设计一致
+#   2. 八字绕环的圆环验证是地图质量的关键
+#   3. 密集场景建议配合 perception 的 skidpad 模式使用

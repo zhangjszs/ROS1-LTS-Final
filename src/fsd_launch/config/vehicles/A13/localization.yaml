@@ -1,9 +1,83 @@
-# Vehicle profile overlay for localization (global ns, consumed by location/state_estimator).
+# ==========================================================
+# Vehicle Profile Overlay for Localization
+# 车辆特定定位参数覆盖（A13车型）
+# ==========================================================
+# 加载顺序: 在 location.yaml 之后加载
+# 命名空间: 全局（与 location.yaml 同一层级）
+#
+# 【说明】
+# 此文件包含车辆特定的外参标定参数
+# 不同车型（A13, B21等）应有不同的此文件
+# ==========================================================
+
+# ==========================
+# 传感器安装参数（外参标定）
+# ==========================
+# ⚠️ 这些参数必须通过车辆标定获得！
+# 影响: 锥桶坐标变换、定位精度
+#
 length:
+  # 激光雷达到IMU的距离（X方向）
+  # 单位: m
+  # 测量方法:
+  #   1. 使用全站仪测量LiDAR和IMU的物理位置
+  #   2. 或者通过标定程序优化获得
+  # 
+  # 标定重要性:
+  #   - 误差1cm → 定位误差约1-2cm
+  #   - 必须精确到厘米级
+  #
+  # A13车型当前标定值: 1.87m
+  # 表示LiDAR在IMU前方1.87米
   lidarToIMUDist: 1.87
+  
+  # 前轴到IMU的距离（车辆几何参数）
+  # 单位: m
+  # 用于车辆运动学模型
+  # 影响: 低速运动学修正、轴距计算
   frontToIMUdistanceX: 0.0
   frontToIMUdistanceY: 0.0
   frontToIMUdistanceZ: 0.0
+  
+  # 后轴到IMU的距离
+  # 单位: m
   rearToIMUdistanceX: 0.0
   rearToIMUdistanceY: 0.0
   rearToIMUdistanceZ: 0.0
+
+# ==========================
+# 【标定指南】
+# ==========================
+#
+# 1. lidarToIMUDist 标定方法:
+#
+#    方法A: 物理测量
+#      - 使用全站仪或激光测距仪
+#      - 测量LiDAR安装平面到IMU中心的距离
+#      - 注意：沿车辆X轴方向（前进方向）
+#
+#    方法B: 自动标定（推荐）
+#      - 录制包含直线和转弯的bag
+#      - 运行标定程序: rosrun localization_ros calibrate_extrinsics
+#      - 程序会优化lidarToIMUDist使地图最清晰
+#
+# 2. 标定验证:
+#    - 标定后绕同一锥桶行驶多圈
+#    - 检查地图中该锥桶是否重合（不应有多个点）
+#    - RViz观察: /localization/global_map
+#
+# 3. 常见问题:
+#    - 标定值偏大: 地图滞后（锥桶在车辆后方）
+#    - 标定值偏小: 地图超前（锥桶在车辆前方）
+#    - 标定误差1cm → 定位误差累积
+#
+# 【标定命令】
+#   # 1. 录制标定bag（直线+转弯，约100m路程）
+#   rosbag record -O calibration /sensors/ins /perception/lidar_cluster/detections
+#   
+#   # 2. 运行标定程序
+#   rosrun localization_ros calibrate_extrinsics _bag:=calibration.bag
+#   
+#   # 3. 验证标定结果
+#   roslaunch fsd_launch missions/trackdrive.launch simulation:=true bag:=calibration.bag
+#   # RViz中观察地图是否清晰

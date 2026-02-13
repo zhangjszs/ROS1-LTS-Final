@@ -1,70 +1,284 @@
-inverse_flag: 1 #1 means inverse matrix else 0 means do not inverse ,inverse means car need turn right a little 
+# ==========================================================
+# Skidpad Detection Config (八字绕环检测配置)
+# ==========================================================
+# 组件: skidpad_detection_node
+# 功能: 检测八字绕环赛道，生成圆环路径
+#
+# 【算法流程】
+#   1. 接收锥桶检测 (LiDAR)
+#   2. RANSAC圆拟合 (检测两个圆环)
+#   3. 生成八字路径 (沿圆弧)
+#   4. 发布路径和速度限制
+#
+# 【坐标系说明】
+#   - 输入: velodyne (车体坐标系)
+#   - 输出: world (全局坐标系)
+#   - 圆心位置在world系下定义
+# ==========================================================
+
+# ==========================
+# 矩阵变换标志
+# ==========================
+# 是否需要对矩阵进行反转
+# 1: 需要反转 (车辆需要向右转一点)
+# 0: 不需要反转
+# 影响: 路径方向（顺时针/逆时针）
+inverse_flag: 1
+
+# ==========================
+# ROS Topics Configuration
+# ==========================
 topics:
+  # 输入: 锥桶检测
+  # 来源: perception/lidar_cluster
   cone: "perception/lidar_cluster/detections"
+  
+  # 输入: 车辆状态
+  # 来源: localization
   car_state: "localization/car_state"
+  
+  # 输出: 日志路径（调试用）
   log_path: "planning/skidpad/log_path"
+  
+  # 输出: 路径限制（左右边界）
   pathlimits: "planning/skidpad/pathlimits"
+  
+  # 输出: 接近终点标志
   approaching_goal: "planning/skidpad/approaching_goal"
+
+# ==========================
+# 坐标系配置
+# ==========================
 frames:
+  # 预期输入锥桶的坐标系
   expected_cone: "velodyne"
+  
+  # 输出路径的坐标系
   output: "world"
+
+# ==========================
+# 车辆几何参数
+# ==========================
 length:
+  # 圆心到激光雷达的距离
+  # 单位: m
+  # 用途: 坐标变换时补偿LiDAR位置
   circle2lidar: 15.5
+  
+  # 终点停止距离
+  # 单位: m
+  # 用途: 距离终点多远时开始减速
   stopdistance: 5.0
+  
+  # 目标点坐标（第一圈目标）
+  # 用途: 用于判断是否完成第一圈
   targetX: 16.0
   targetY: -1.0
+  
+  # 终点坐标（最终目标）
+  # 用途: 八字绕环的终点位置
   FinTargetX: 40.0
   FinTargetY: 0.0
+  
+  # 进入判断距离阈值
+  # 单位: m
+  # 用途: 以target为圆心，此值为半径，进入圈内认为到达目标
   distanceThreshold: 0.7
+  
+  # 离开判断距离阈值
+  # 单位: m
+  # 用途: 以target为圆心，此值为半径，离开圈内认为完成目标
+  # 注意: leavedistanceThreshold > distanceThreshold，形成环形区域
   leavedistanceThreshold: 1.0
 
+# ==========================
+# 圆环几何参数
+# ==========================
+# ⚠️ 必须与官方赛道设计一致！
 circle:
-  radius: 9.125           # 八字圆弧半径 (m)
-  car_length: 1.87         # 车身长度 (m)
-  path_interval: 0.05      # 路径点间隔 (m)
+  # 八字圆弧半径
+  # 单位: m
+  # 标准值: 9.125m
+  # 影响: 路径曲率、速度限制
+  radius: 9.125
+  
+  # 车身长度
+  # 单位: m
+  # 用途: 计算路径时考虑车辆尺寸
+  car_length: 1.87
+  
+  # 路径点间隔
+  # 单位: m
+  # 影响: 路径平滑度
+  # 调小: 更平滑但计算量↑
+  # 调大: 更稀疏但计算量↓
+  path_interval: 0.05
+  
+  # 两圆心标称距离
+  # 单位: m
+  # 标准值: 18.25m (2 × 9.125m)
   center_distance_nominal: 18.25
+  
+  # 两圆心距离容差
+  # 单位: m
+  # 用途: 圆心检测时允许的误差范围
   center_distance_tolerance: 6.0
 
+# ==========================
+# RANSAC圆拟合参数
+# ==========================
 fit:
+  # RANSAC迭代次数
+  # 影响: 拟合精度和计算量
+  # 调大: 更鲁棒但计算量↑
   ransac_iterations: 120
+  
+  # 内点距离阈值
+  # 单位: m
+  # 用途: 判断点是否属于圆的内点
+  # 调大: 更宽松（可能包含外点）
+  # 调小: 更严格（可能丢失内点）
   inlier_threshold: 0.35
+  
+  # 最少内点数
+  # 用途: 有效圆的最少点数
+  # 调大: 更严格（避免假阳性）
+  # 调小: 更宽松（可能检测错误）
   min_inliers: 4
+  
+  # 半径范围限制
+  # 单位: m
+  # 用途: 过滤不合理的圆检测
   radius_min: 5.0
   radius_max: 20.0
 
+# ==========================
+# 阶段切换参数
+# ==========================
+# 八字绕环分为多个阶段，每个阶段有切换条件
 phase:
+  # 最小停留帧数
+  # 用途: 防止阶段快速切换
   min_dwell_frames: 5
+  
+  # 进入阶段切换距离
+  # 单位: m
   entry_switch_dist: 1.2
+  
+  # 交叉点切换距离
+  # 单位: m
+  # 用途: 两个圆环交叉处的切换
   crossover_switch_dist: 1.5
+  
+  # 退出阶段切换距离
+  # 单位: m
   exit_switch_dist: 2.0
 
+# ==========================
+# 阶段速度设置
+# ==========================
+# 不同阶段的目标速度
 phase_speed:
+  # 进入阶段
+  # 低速进入，确保安全
   entry: 6.0
+  
+  # 热身阶段
+  # 逐渐加速
   warmup: 7.0
+  
+  # 计时阶段
+  # 最高速度
   timed: 8.0
+  
+  # 交叉点
+  # 减速通过交叉点
   crossover: 6.5
+  
+  # 退出阶段
+  # 减速退出
   exit: 5.0
 
+# ==========================
+# ROI过滤 (PassThrough)
+# ==========================
+# 只处理指定范围内的锥桶
 passthrough:
-  x_min: 0.1               # PassThrough X轴最小值 (m)
-  x_max: 15.0              # PassThrough X轴最大值 (m)
-  y_min: -3.0              # PassThrough Y轴最小值 (m)
-  y_max: 3.0               # PassThrough Y轴最大值 (m)
+  x_min: 0.1               # X轴最小值 (m)
+  x_max: 15.0              # X轴最大值 (m)
+  y_min: -3.0              # Y轴最小值 (m)
+  y_max: 3.0               # Y轴最大值 (m)
 
+# ==========================
+# 速度限制
+# ==========================
 speed:
+  # 速度上限
+  # 单位: m/s
   speed_cap: 8.0
+  
+  # 最大侧向加速度
+  # 单位: m/s²
+  # 影响: 圆环路径的最大速度
+  # 公式: v_max = sqrt(a_lat_max × r)
+  # 调大: 允许更高速度（需要更好抓地力）
+  # 调小: 更安全（但可能过慢）
   max_lateral_acc: 6.5
+  
+  # 最大加速度
+  # 单位: m/s²
   max_accel: 2.5
+  
+  # 最大减速度
+  # 单位: m/s²
   max_brake: 4.0
+  
+  # 最小速度
+  # 单位: m/s
+  # 防止车辆停止
   min_speed: 1.0
+  
+  # 曲率epsilon
+  # 用途: 数值稳定性
   curvature_epsilon: 0.001
 
-#参数可能代表车辆或系统中的某种物理距离或尺寸，具体是从圆心到激光雷达（Lidar）的距离。
-#: 这个键值对指定了一个名为 "inverse_flag" 的参数，其值为 "0"。
-#FinTargetX: 40.0: 这个表示终点的X坐标
-#FinTargetY: 0.0: 这个表示终点的Y坐标
-#inverse_flag: 1: 这个表示是否需要对矩阵进行反转
-#当该值为 "1" 时，表示需要对矩阵进行反转；当值为 "0" 时，表示不需要反转。这可能是用于控制某个算法或函数的行为
-#target是转换发布路径的那个点,distanceThreshold是判断距离 以target画个圆在以这个为半径 判断是否进入
-#leavedistanceThreshold是判断离开的距离 是一个圆环 distanceThreshold是进入圆环的距离 leavedistanceThreshold是离开圆环的距离
-#以上需要根据实际情况调整
+# ==========================
+# 【调参指南】
+# ==========================
+#
+# 1. 如圆环检测失败（RANSAC找不到圆）：
+#    - 降低 inlier_threshold (0.35→0.30)
+#    - 降低 min_inliers (4→3)
+#    - 检查 perception 模块是否输出足够锥桶
+#
+# 2. 如检测到错误的圆（假阳性）：
+#    - 提高 inlier_threshold (0.35→0.40)
+#    - 提高 min_inliers (4→5)
+#    - 收紧 radius_min/radius_max 范围
+#
+# 3. 如路径过于激进（车辆偏离圆环）：
+#    - 检查 circle/radius 是否与实际赛道一致
+#    - 降低 max_lateral_acc (6.5→6.0)
+#    - 降低 phase_speed/timed (8.0→7.5)
+#
+# 4. 如路径过于保守（车辆可以更快）：
+#    - 提高 max_lateral_acc (6.5→7.0)
+#    - 提高 phase_speed/timed (8.0→8.5)
+#    - 确保轮胎抓地力良好
+#
+# 5. 如阶段切换不及时：
+#    - 调整 phase/*_switch_dist 参数
+#    - 减小 min_dwell_frames (5→3)
+#
+# 【关键注意事项】
+#   - circle/radius 和 center_distance_nominal 必须与官方赛道一致
+#   - max_lateral_acc 是关键性能参数，需要在实际赛道上测试
+#   - 建议第一次测试使用保守值，逐步提升
+#
+# 【观测命令】
+#   # 检查圆环检测状态
+#   rostopic echo /planning/skidpad/pathlimits
+#   # 查看当前阶段
+#   rostopic echo /planning/skidpad/approaching_goal
+#   # RViz可视化路径
+#   rviz -d $(rospack find fsd_visualization)/rviz/world_planning.rviz

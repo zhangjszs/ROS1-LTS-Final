@@ -1,12 +1,88 @@
-# Vehicle profile overlay for perception (private ns of lidar_cluster_node).
-# Keep distortion compensation disabled for bag-based stage.
+# ==========================================================
+# Vehicle Profile: A13 Perception Overlay
+# A13车型感知参数覆盖
+# ==========================================================
+# 加载顺序: perception_ros/config/lidar_*.yaml → 本文件
+# 命名空间: lidar_cluster_node私有
+#
+# 【说明】
+# 此文件包含A13车型特定的感知参数
+# 主要是IMU-LiDAR外参标定
+#
+# 【重要】
+# 畸变补偿当前禁用（distortion/enable: false）
+# 原因: bag回放阶段不需要实时畸变补偿
+# 实车测试时可能需要启用
+# ==========================================================
+
+# ==========================
+# IMU & Distortion Compensation
+# ==========================
 imu:
   sensor:
     extrinsics:
+      # 是否启用IMU-LiDAR外参
+      # 当前禁用（false）
+      # 原因:
+      #   1. bag回放阶段不需要实时畸变补偿
+      #   2. 降低计算量
+      #   3. 避免标定误差引入噪声
+      # 如需启用: 设置为true，并填写下面的外参值
       enable: false
+      
+      # IMU-LiDAR外参（平移）
+      # 单位: m
+      # 含义: LiDAR相对于IMU的偏移
+      # 示例: LiDAR在IMU前方1.87m，则 tx=1.87
       tx: 0.0
       ty: 0.0
       tz: 0.0
+      
+      # IMU-LiDAR外参（旋转）
+      # 单位: 度
+      # 含义: LiDAR相对于IMU的旋转
       roll: 0.0
       pitch: 0.0
       yaw: 0.0
+
+# ==========================
+# 【外参标定指南】
+# ==========================
+#
+# 1. 标定方法:
+#    方法A: 物理测量
+#      - 使用全站仪或激光测距仪
+#      - 测量LiDAR和IMU的相对位置
+#      - 精度要求: 厘米级
+#
+#    方法B: 自动标定（推荐）
+#      - 录制包含直线和转弯的bag
+#      - 运行标定程序优化外参
+#      - 使地图中的锥桶最清晰
+#
+# 2. 标定验证:
+#    - 绕同一锥桶行驶多圈
+#    - 检查地图中该锥桶是否重合
+#    - RViz中观察 /localization/global_map
+#
+# 3. 标定误差影响:
+#    - 1cm误差 → 定位误差1-2cm
+#    - 必须精确到厘米级
+#
+# 【启用畸变补偿的条件】
+#   1. 实车高速测试（>10m/s）
+#   2. 完成精确的外参标定
+#   3. IMU数据质量良好
+#   4. 确认bag回放已完成验证
+#
+# 【启用步骤】
+#   1. 设置 enable: true
+#   2. 填写标定后的 tx, ty, tz, roll, pitch, yaw
+#   3. 同时启用 lidar_base.yaml 中的 imu/distortion/enable
+#   4. 进行低速测试验证
+#
+# 【观测命令】
+#   # 检查畸变补偿效果
+#   rostopic hz /perception/lidar_cluster/points/passthrough
+#   # RViz对比启用前后的点云质量
+#   rviz -d $(rospack find fsd_visualization)/rviz/ego_perception.rviz

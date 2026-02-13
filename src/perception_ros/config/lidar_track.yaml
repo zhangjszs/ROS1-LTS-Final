@@ -3,69 +3,215 @@
 # ==========================================================
 # 此文件仅保留高速循迹模式的特定覆盖参数。
 # 加载顺序：在 lidar_base.yaml 之后加载。
+#
+# 【赛事特点】
+#   - 远距离检测(50m+)
+#   - 高速场景噪声多，需要严格的置信度门槛
+#   - 启用tracker和topology保证稳定性
+#   - 频繁回环场景
+#
+# 【调参重点】
+#   1. 稳定性优先：启用tracker多帧确认
+#   2. 抑制噪声：严格的置信度门槛
+#   3. 连续性：拓扑修复填补缺失
+# ==========================================================
 
+# ==========================
 # 赛事模式选择
+# ==========================
 roi:
-  mode: track                        # ROI模式：高速循迹
+  # 明确指定模式为高速循迹
+  # 影响：加载mode_presets中的track参数组
+  mode: track
 
 # 旧版兼容（部分旧分支仍读取 road_type）
-road_type: 3                         # 3 = 高速循迹
+# 应与roi.mode保持一致：1=skidpad, 2=accel, 3=track
+road_type: 3
 
-# 显式声明以避免后续调整默认值时行为漂移
+# ==========================
+# 模块开关覆盖
+# ==========================
 filters:
   obstacle_height:
-    enable: true                     # 启用柱状障碍物滤波
+    # 启用柱状障碍物滤波（高速场景可能有树/障碍物）
+    enable: true
+
 tracker:
-  enable: true                       # 启用时序跟踪器
+  # ✅ 启用时序跟踪器（稳定性优先）
+  # 高速场景噪声多，需要多帧确认提高稳定性
+  # 关联阈值较大(2.0m)，容忍高速运动带来的帧间位移
+  enable: true
+
 topology:
-  enable: true                       # 启用拓扑修复
+  # ✅ 启用拓扑修复（保证赛道连续性）
+  # 高速场景需要稳定的赛道边界用于规划
+  enable: true
 
 # ==========================
 # TrackDrive Geometry Robustness Overlay
 # 高速循迹模式几何鲁棒性增强
 # ==========================
 
-# 堆叠锥检测（高速场景锥桶密集）
+# 堆叠锥检测（高速场景锥桶密集，堆叠风险高）
 stacked_cone_detection:
   vertical_layers:
-    layer_height: 0.2               # 更精细的分层（高速需要更高精度）
-    max_layers: 4                   # 更多层数（应对堆叠）
+    # 更精细的分层（高速需要更高精度定位）
+    # 单位：m | 建议范围：0.15-0.25
+    layer_height: 0.2
+    
+    # 更多层数（应对各种堆叠情况）
+    # 影响：最多检测几层堆叠
+    max_layers: 4
+  
   deduplication:
-    cluster_tolerance: 0.4          # 稍宽松的聚类（高速动态）
+    # 稍宽松的聚类（高速动态场景，锥桶位置变化快）
+    # 单位：m | 建议范围：0.35-0.50
+    # 调大：更激进的去重（避免重复检测导致规划抖动）
+    # 调小：保留更多检测（可能重复）
+    cluster_tolerance: 0.4
+  
   near_range:
-    distance_threshold: 8.0         # 扩大近距范围
-    stricter_xy_threshold: 0.3      # 高速需要更严格的去重
+    # 扩大近距范围（高速时近处锥桶快速通过）
+    # 单位：m | 建议范围：6-10
+    distance_threshold: 8.0
+    
+    # 高速需要更严格的去重（避免重复检测导致规划抖动）
+    # 单位：m | 建议范围：0.25-0.35
+    stricter_xy_threshold: 0.3
 
 # 缺锥预测（高速场景遮挡多）
 occlusion_handling:
   detection:
-    angle_gap_threshold: 20.0       # 更大的角度间隙容忍
+    # 更大的角度间隙容忍（高速遮挡多，需要更宽松的遮挡判断）
+    # 单位：度 | 建议范围：15-25
+    angle_gap_threshold: 20.0
+  
   missing_cone_prediction:
-    max_prediction_distance: 12.0   # 更长的预测距离
-    prediction_confidence: 0.2      # 稍低的预测置信度（保守）
-    max_consecutive_predictions: 3  # 更多连续预测
+    # 更长的预测距离（高速需要提前看到更多锥桶）
+    # 单位：m | 建议范围：10-15
+    max_prediction_distance: 12.0
+    
+    # 稍低的预测置信度（保守策略，避免假阳性）
+    # 范围：0-1 | 建议：0.15-0.25
+    prediction_confidence: 0.2
+    
+    # 更多连续预测（保证赛道连续性）
+    # 影响：允许多少帧连续预测不出现
+    max_consecutive_predictions: 3
 
 # 短检测抑制（高速场景噪声多）
 short_detection_suppression:
   single_frame:
-    min_detections_for_valid: 3     # 更严格的帧数要求
-    min_confidence: 0.35            # 更高的置信度门槛
+    # 更严格的帧数要求（过滤瞬态噪声）
+    # 影响：单帧检测需要持续多少帧才有效
+    # 调大：更严格，过滤更多瞬态噪声（延迟↑）
+    # 调小：更快响应（可能抖动）
+    min_detections_for_valid: 3
+    
+    # 更高的置信度门槛
+    # 范围：0-1 | 建议：0.3-0.4
+    min_confidence: 0.35
+  
   temporal_continuity:
-    min_track_length: 4             # 更长的跟踪长度
+    # 更长的跟踪长度（确保稳定性）
+    # 影响：时序上需要连续多少帧
+    min_track_length: 4
+    
+    # 较小的间隙容忍（高速场景连续性要求高）
+    max_gap_frames: 1
 
 # 几何一致性（高速场景稳定性优先）
 geometric_consistency:
   size_consistency:
-    max_height_variance: 0.12       # 更严格的高度方差
-    max_area_variance: 0.04         # 更严格的面积方差
+    # 更严格的高度方差（锥桶尺寸应一致）
+    # 单位：m | 建议范围：0.10-0.15
+    max_height_variance: 0.12
+    
+    # 更严格的面积方差
+    # 单位：m² | 建议范围：0.03-0.06
+    max_area_variance: 0.04
+  
   spatial_distribution:
-    max_spacing_variance: 3.0       # 更严格的间距方差
+    # 检查间距均匀性
+    check_spacing_uniformity: true
+    
+    # 更严格的间距方差
+    # 单位：m² | 建议范围：2.5-4.0
+    max_spacing_variance: 3.0
+  
+  angular_distribution:
+    # 检查方位角方差
+    check_bearing_variance: true
+    
+    # 高速场景允许一定方位角变化（弯道）
+    # 单位：度 | 建议范围：30-40
+    max_bearing_variance: 35.0
 
 # 回环优化（TrackDrive需要频繁回环）
 loop_closure_optimization:
   feature_stability:
-    min_feature_lifetime: 8         # 更长的特征寿命
-    reidentification_threshold: 0.75 # 更高的重识别门槛
+    # 更长的特征寿命（回环时重识别）
+    # 影响：特征保留多少帧
+    min_feature_lifetime: 8
+    
+    # 更高的重识别门槛（避免误识别）
+    # 范围：0-1 | 建议：0.70-0.80
+    reidentification_threshold: 0.75
+    
+    feature_reidentification: true
+  
   observation_stability:
-    min_observation_frames: 5       # 更多的观测帧数
+    # 更多的观测帧数（确保特征稳定）
+    # 影响：需要多少帧观测才确认
+    min_observation_frames: 5
+    
+    # 检查观测一致性
+    observation_consistency_check: true
+  
+  geometric_verification:
+    # 检查相对几何（回环时几何验证）
+    check_relative_geometry: true
+    
+    # 检查距离一致性
+    check_distance_consistency: true
+    
+    # 距离容差（单位：m）
+    # 调大：更宽松的验证（可能误接受）
+    # 调小：更严格（可能拒真）
+    distance_tolerance: 0.4
 
+# ==========================
+# 【调参指南 - TrackDrive模式】
+# ==========================
+#
+# 1. 如出现远处墙/树误检：
+#    - 增大 base.yaml 中 confidence/min_confidence_far (默认0.5，可试0.55-0.6)
+#    - 检查 base.yaml 中 adaptive_y/far_y_half 是否过大
+#    - 确认 filters/obstacle_height/enable = true
+#
+# 2. 如远处锥桶漏检：
+#    - 降低 base.yaml 中 confidence/min_confidence_far (0.5→0.45)
+#    - 检查 base.yaml 中 voxel/far_leaf 是否过大
+#    - 减小 cluster/cluster_tolerance 远端值
+#
+# 3. 如检测抖动大：
+#    - 增大本文件 tracker/confirm_frames (3→4)
+#    - 增大 short_detection_suppression/min_track_length (4→5)
+#    - 增大 short_detection_suppression/min_detections_for_valid (3→4)
+#
+# 4. 如相邻锥桶合并：
+#    - 减小 base.yaml 中 cluster/cluster_tolerance (相应距离段)
+#    - 减小本文件 stacked_cone_detection/deduplication/cluster_tolerance
+#
+# 5. 如过时检测残留：
+#    - 减小 base.yaml 中 tracker/delete_frames (5→3)
+#    - 减小 loop_closure_optimization/feature_stability/min_feature_lifetime
+#
+# 6. 如回环时误识别：
+#    - 提高 loop_closure_optimization/feature_stability/reidentification_threshold (0.75→0.80)
+#    - 增大 observation_stability/min_observation_frames (5→6)
+#
+# 【观测命令】
+#   rostopic echo /perception/lidar_cluster/detections | grep -E "(confidence|obj_dist)"
+#   rostopic hz /perception/lidar_cluster/detections
+#   rviz -d $(rospack find fsd_visualization)/rviz/ego_perception.rviz

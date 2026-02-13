@@ -3,22 +3,47 @@
 # ==========================================================
 # 此文件仅保留直线加速模式的特定覆盖参数。
 # 加载顺序：在 lidar_base.yaml 之后加载。
+#
+# 【赛事特点】
+#   - 超远距离检测(100m)
+#   - 窄Y范围（直线场景）
+#   - 稀疏场景，需要宽松的单帧检测门槛
+#   - 需要看远提前规划
+#
+# 【调参重点】
+#   1. 远处检测(100m)：调优 confidence/min_confidence_far
+#   2. 稀疏场景：放宽 short_detection_suppression 门槛
+#   3. 直线几何：关闭曲率，使用大插值间隙
+# ==========================================================
 
+# ==========================
 # 赛事模式选择
+# ==========================
 roi:
-  mode: accel                        # ROI模式：直线加速
+  # 明确指定模式为直线加速
+  # 影响：加载mode_presets中的accel参数组
+  mode: accel
 
 # 旧版兼容（部分旧分支仍读取 road_type）
-road_type: 2                         # 2 = 直线加速
+# 应与roi.mode保持一致：1=skidpad, 2=accel, 3=track
+road_type: 2
 
-# 显式声明以避免后续调整默认值时行为漂移
+# ==========================
+# 模块开关覆盖
+# ==========================
 filters:
   obstacle_height:
-    enable: true                     # 启用柱状障碍物滤波
+    # 启用柱状障碍物滤波（直线场景可能有路边障碍物）
+    enable: true
+
 tracker:
-  enable: true                       # 启用时序跟踪器
+  # ✅ 启用时序跟踪器（稳定性优先）
+  # 注意：直线场景检测稀疏，tracker可以帮助稳定
+  enable: true
+
 topology:
-  enable: true                       # 启用拓扑修复
+  # ✅ 启用拓扑修复（保证赛道连续性）
+  enable: true
 
 # ==========================
 # Acceleration Geometry Robustness Overlay
@@ -28,40 +53,151 @@ topology:
 # 堆叠锥检测（直线场景锥桶稀疏但可能有重叠）
 stacked_cone_detection:
   vertical_layers:
-    layer_height: 0.25              # 标准分层
+    # 标准分层高度
+    # 单位：m | 建议范围：0.15-0.30
+    # 调大：分层更粗，可能遗漏堆叠信息
+    # 调小：分层更细，计算量增加
+    layer_height: 0.25
+    
+    # 最大层数
+    # 影响：最多检测几层堆叠
     max_layers: 3
+  
   deduplication:
-    cluster_tolerance: 0.5          # 宽松聚类（稀疏场景）
+    # 聚类距离阈值（去重用）
+    # 单位：m | 建议范围：0.3-0.6
+    # 调大：更激进的去重（可能误删真实锥桶）
+    # 调小：保留更多检测（堆叠锥桶残留）
+    # 稀疏场景应宽松，避免过度去重
+    cluster_tolerance: 0.5
+  
   near_range:
-    distance_threshold: 10.0        # 更大的近距范围（远距离检测）
-    stricter_xy_threshold: 0.35     # 标准去重
+    # 近距处理距离阈值
+    # 单位：m | 建议范围：5-15
+    # 影响：多大范围内启用增强去重
+    # 直线加速场景设置较大，因为需要处理近处堆叠
+    distance_threshold: 10.0
+    
+    # XY平面去重阈值（近距）
+    # 单位：m | 建议范围：0.15-0.40
+    # 调大：更严格的去重
+    # 调小：保留更多检测
+    stricter_xy_threshold: 0.35
 
 # 缺锥预测（直线场景需要长距离预测）
 occlusion_handling:
   detection:
-    angle_gap_threshold: 12.0       # 较小的角度间隙（直线方向明确）
+    # 角度间隙阈值（判断遮挡）
+    # 单位：度 | 建议范围：10-25
+    # 调大：更容易判断为遮挡（更激进的预测）
+    # 调小：更保守，需要更大间隙才认为遮挡
+    # 直线场景方向明确，可以设置较小值
+    angle_gap_threshold: 12.0
+  
   missing_cone_prediction:
-    max_prediction_distance: 15.0   # 最长的预测距离（直线加速需要看远）
-    prediction_confidence: 0.3      # 较高的预测置信度
-    max_consecutive_predictions: 2  # 较少的连续预测（保守）
+    # ⭐ 最大预测距离
+    # 单位：m | 建议范围：8-20
+    # 影响：多远处还会预测缺失锥桶
+    # 直线加速需要看远，设置最大值
+    max_prediction_distance: 15.0
+    
+    # 预测锥桶的置信度
+    # 范围：0-1 | 建议：0.2-0.4
+    # 调大：更相信预测（可能引入假阳性）
+    # 调小：更保守（可能遗漏真锥桶）
+    prediction_confidence: 0.3
+    
+    # 最大连续预测帧数
+    # 影响：允许多少帧连续预测不出现
+    # 调大：允许更长缺失（连续性↑，假阳性↑）
+    # 调小：更保守（连续性↓）
+    max_consecutive_predictions: 2
+  
   geometric_interpolation:
-    max_interpolation_gap: 10.0     # 更大的插值间隙
-    use_track_curvature: false      # 直线场景不使用曲率
+    # ⭐ 最大插值间隙
+    # 单位：m | 建议范围：6-12
+    # 影响：多远距离可以插值填充
+    # 直线场景可以容忍更大间隙
+    max_interpolation_gap: 10.0
+    
+    # 是否使用赛道曲率
+    # 直线场景应关闭，因为直线没有曲率
+    use_track_curvature: false
 
 # 短检测抑制（直线场景应充分利用所有检测）
 short_detection_suppression:
   single_frame:
-    min_detections_for_valid: 2     # 较宽松（稀疏场景）
-    min_confidence: 0.25            # 较低的置信度门槛
+    # ⭐ 有效检测最小帧数
+    # 影响：单帧检测需要持续多少帧才有效
+    # 调大：更严格，过滤更多瞬态噪声
+    # 调小：更宽松，快速响应（但可能抖动）
+    # 稀疏场景应放宽（2帧），充分利用每个检测
+    min_detections_for_valid: 2
+    
+    # 单帧最小置信度
+    # 范围：0-1 | 建议：0.2-0.4
+    # 调大：更严格，低置信度被过滤
+    # 调小：更宽松，看到更多（可能噪声）
+    min_confidence: 0.25
+  
   temporal_continuity:
-    min_track_length: 2             # 较短的跟踪长度
+    # 最小跟踪长度（帧）
+    # 影响：时序上需要连续多少帧
+    # 调大：更稳定但延迟↑
+    # 调小：更快响应
+    min_track_length: 2
 
 # 几何一致性（直线场景主要检查对齐）
 geometric_consistency:
   spatial_distribution:
-    check_spacing_uniformity: true  # 重点检查间距均匀性
-    max_spacing_variance: 5.0       # 较宽松的间距方差（加速段间距变化大）
+    # 检查间距均匀性
+    check_spacing_uniformity: true
+    
+    # ⭐ 最大间距方差
+    # 单位：m² | 建议范围：3-6
+    # 影响：允许锥桶间距多大变化
+    # 直线加速段间距可能变化大，设置较宽松
+    max_spacing_variance: 5.0
+  
   angular_distribution:
-    check_bearing_variance: true    # 检查方位角
-    max_bearing_variance: 20.0      # 允许一定的方位角变化
+    # 检查方位角（判断是否在直线上）
+    check_bearing_variance: true
+    
+    # 最大方位角方差
+    # 单位：度 | 建议范围：15-30
+    # 影响：允许多大角度偏差
+    # 直线场景锥桶应对齐，但也不完全是0度（有微小偏差）
+    max_bearing_variance: 20.0
 
+# ==========================
+# 【调参指南 - Acceleration模式】
+# ==========================
+#
+# 1. 如100m处锥桶漏检：
+#    - 检查 base.yaml 中 roi/accel/x_max = 100m
+#    - 降低 base.yaml 中 confidence/min_confidence_far (0.55→0.50)
+#    - 减小 base.yaml 中 filters/distance_adaptive_voxel/far_leaf (0.03→0.02)
+#    - 减小本文件中 cluster/cluster_tolerance 远端值 (0.2→0.18)
+#
+# 2. 如远处误检多（墙/树被检测）：
+#    - 提高 base.yaml 中 confidence/min_confidence_far (0.55→0.60)
+#    - 检查 base.yaml 中 adaptive_y/far_y_half (当前1.8，可减至1.5)
+#    - 启用/调整 filters/obstacle_height 参数
+#
+# 3. 如近处锥桶漏检（加速起步段）：
+#    - 降低 base.yaml 中 confidence/min_confidence_near (0.25→0.20)
+#    - 检查 base.yaml 中 fgs/th_ground_near 是否过大
+#
+# 4. 如检测响应慢（起步时看不到锥桶）：
+#    - 减小本文件 short_detection_suppression/min_detections_for_valid (2→1)
+#    - 减小 base.yaml 中 tracker/confirm_frames (3→2)
+#
+# 5. 特别注意事项：
+#    - 直线场景 cluster_tolerance 远端值应更小（0.2）
+#    - 因为远处点云极度稀疏，需要更紧的聚类阈值
+#    - 如果远处锥桶分裂为多个检测，减小 cluster_tolerance
+#
+# 【观测命令】
+#   rostopic echo /perception/lidar_cluster/detections | grep -E "(confidence|obj_dist)"
+#   rostopic hz /perception/lidar_cluster/detections
+#   rviz -d $(rospack find fsd_visualization)/rviz/ego_perception.rviz

@@ -1,76 +1,122 @@
-# ===== 定位通用参数 =====
+# ==========================================================
+# Localization Common Config (定位通用配置文件)
+# ==========================================================
+# 加载顺序: 在 location.yaml 之前加载（可选）
+# 作用: 提供全局共享的默认参数
+# 注意: 此文件的参数会被 location.yaml 中的同名参数覆盖
+#
+# 【说明】
+# 此文件包含更详细的参数，特别是因子图相关的配置
+# 以及INS质量门控、几何鲁棒性增强等高级功能
+# ==========================================================
 
-# 是否使用外部车辆状态（而非内部估计）
+# ==========================
+# 车辆状态来源选择
+# ==========================
 use_external_carstate: false
 
-# ROS话题配置
+# ==========================
+# ROS Topics Configuration
+# ==========================
 topics:
-  ins: "sensors/ins"                           # INS惯导数据输入
-  car_state_in: "localization/car_state"       # 车辆状态输入
-  cone: "perception/lidar_cluster/detections"  # 锥桶检测结果输入
-  car_state_out: "localization/car_state"      # 车辆状态输出
-  cone_map: "localization/cone_map"            # 锥桶地图输出
-  global_map: "localization/global_map"        # 全局地图输出
-  pose: "localization/pose"                    # 位姿输出
-  odom: "localization/odom"                    # 里程计输出
+  ins: "sensors/ins"
+  car_state_in: "localization/car_state"
+  cone: "perception/lidar_cluster/detections"
+  car_state_out: "localization/car_state"
+  cone_map: "localization/cone_map"
+  global_map: "localization/global_map"
+  pose: "localization/pose"
+  odom: "localization/odom"
 
+# ==========================
 # 坐标系配置
+# ==========================
 frames:
-  world: "world"                     # 世界坐标系
-  base_link: "base_link"             # 车体坐标系
+  world: "world"
+  base_link: "base_link"
 
-# 传感器安装距离参数
+# ==========================
+# 传感器安装参数
+# ==========================
 length:
-  lidarToIMUDist: 1.87               # 激光雷达到IMU的距离 (m)
-  frontToIMUdistanceX: 0.0           # 前轴到IMU的X方向距离 (m)
-  frontToIMUdistanceY: 0.0           # 前轴到IMU的Y方向距离 (m)
-  frontToIMUdistanceZ: 0.0           # 前轴到IMU的Z方向距离 (m)
-  rearToIMUdistanceX: 0.0            # 后轴到IMU的X方向距离 (m)
-  rearToIMUdistanceY: 0.0            # 后轴到IMU的Y方向距离 (m)
-  rearToIMUdistanceZ: 0.0            # 后轴到IMU的Z方向距离 (m)
+  lidarToIMUDist: 1.87
+  frontToIMUdistanceX: 0.0
+  frontToIMUdistanceY: 0.0
+  frontToIMUdistanceZ: 0.0
+  rearToIMUdistanceX: 0.0
+  rearToIMUdistanceY: 0.0
+  rearToIMUdistanceZ: 0.0
 
-# 后端选择："mapper"（默认）或 "factor_graph"（影子模式）
+# ==========================
+# 后端选择
+# ==========================
 backend: mapper
 
-# INS信号质量过滤
+# ==========================
+# INS信号质量门控
+# ==========================
+# 当INS数据质量不满足要求时的处理策略
 ins_quality:
-  min_ins_status: 2                  # 最低INS状态等级
-  min_satellite_count: 8             # 最少卫星数量
-  max_diff_age: 30                   # 最大差分龄期，单位 0.1s（30 = 3.0 秒）
+  # 最低INS状态等级
+  # 影响：什么质量的INS数据才用于定位
+  # 调大：更严格，只使用高质量数据（可能漏帧）
+  # 调小：更宽松，使用更多数据（可能有噪声）
+  min_ins_status: 2
+  
+  # 最少卫星数量
+  # 影响：GNSS定位精度
+  # 建议：>= 8颗卫星才能保证良好精度
+  min_satellite_count: 8
+  
+  # 最大差分龄期
+  # 单位：0.1秒（30 = 3.0秒）
+  # 影响：差分校正数据的新鲜度
+  # 调大：容忍更老的差分数据（可能精度下降）
+  # 调小：要求更新鲜的差分数据（可能丢帧）
+  max_diff_age: 30
 
-# 因子图参数（仅在 backend=factor_graph 时使用）
+# ==========================
+# 因子图参数（实验性功能）
+# ==========================
+# ⚠️ 仅在 backend=factor_graph 时生效
+# 当前作为影子模式运行，用于与mapper后端对比
 fg:
-  keyframe_dist: 1.0                 # 关键帧距离阈值 (m)
-  keyframe_yaw: 0.1                  # 关键帧航向变化阈值 (rad)
-  keyframe_dt: 0.5                   # 关键帧时间阈值 (s)
-  run_extra_update: false            # 是否执行额外的iSAM更新（更精确但更慢）
-  sigma_imu_xy: 0.05                 # IMU位置噪声 (m/√s)
-  sigma_imu_theta: 0.01              # IMU航向噪声 (rad/√s)
-  sigma_gnss_good: 0.5              # GNSS噪声 - 良好质量 (m)
-  sigma_gnss_medium: 2.0             # GNSS噪声 - 中等质量 (m)
-  sigma_gnss_poor: 10.0              # GNSS噪声 - 较差质量 (m)
-  min_cone_confidence: 0.15          # 锥桶最低置信度，仅保留可靠观测
-  max_cone_factors_per_keyframe: 10  # 每关键帧最大锥桶因子数，防止图膨胀
-  # 颜色不匹配惩罚（等待相机颜色分类可用后启用）
-  color_mismatch_penalty: 0.0        # 颜色不匹配代价
-  merge_distance: 2.0                # 路标合并距离 (m)
-
-  # 颜色-拓扑软关联（等待相机颜色分类可用后启用）
-  w_maha: 1.0                        # 马氏距离权重
-  w_color: 0.0                       # 颜色权重（当前禁用）
-  w_topo: 0.0                        # 拓扑权重（当前禁用）
-  topo_penalty: 0.0                  # 拓扑惩罚
-  neighbor_radius: 8.0               # 邻域搜索半径 (m)
-  gate_threshold: 15.0               # 关联门限阈值
-
-  # 八字绕环圆形几何参数（由 map_mode 覆盖）
-  circle_radius: 15.25               # 圆弧半径 (m)
-  circle_center1_x: 0.0              # 圆心1 X坐标 (m)
-  circle_center1_y: -9.125           # 圆心1 Y坐标 (m)
-  circle_center2_x: 0.0              # 圆心2 X坐标 (m)
-  circle_center2_y: 9.125            # 圆心2 Y坐标 (m)
-  circle_sigma: 1.0                  # 圆形约束噪声 (m)
-
+  # 关键帧生成阈值
+  keyframe_dist: 1.0                 # 距离阈值 (m)
+  keyframe_yaw: 0.1                  # 航向变化阈值 (rad)
+  keyframe_dt: 0.5                   # 时间阈值 (s)
+  
+  run_extra_update: false
+  
+  # 噪声模型
+  sigma_imu_xy: 0.05
+  sigma_imu_theta: 0.01
+  sigma_gnss_good: 0.5
+  sigma_gnss_medium: 2.0
+  sigma_gnss_poor: 10.0
+  
+  # 锥桶观测
+  min_cone_confidence: 0.15
+  max_cone_factors_per_keyframe: 10
+  
+  # 数据关联
+  color_mismatch_penalty: 0.0
+  merge_distance: 2.0
+  w_maha: 1.0
+  w_color: 0.0
+  w_topo: 0.0
+  topo_penalty: 0.0
+  neighbor_radius: 8.0
+  gate_threshold: 15.0
+  
+  # 八字绕环圆形几何参数
+  circle_radius: 15.25
+  circle_center1_x: 0.0
+  circle_center1_y: -9.125
+  circle_center2_x: 0.0
+  circle_center2_y: 9.125
+  circle_sigma: 1.0
+  
   # 异常状态机参数
   anomaly:
     chi2_degrade: 15.0               # 卡方退化阈值
@@ -81,7 +127,7 @@ fg:
     no_cone_frames_max: 30           # 无锥桶最大帧数
     reloc_a_timeout: 3.0             # 重定位A阶段超时 (s)
     reloc_b_timeout: 5.0             # 重定位B阶段超时 (s)
-
+  
   # 重定位参数
   reloc:
     submap_radius: 15.0              # 子地图半径 (m)
@@ -97,7 +143,8 @@ fg:
     timeout: 5.0                     # 重定位超时 (s)
 
 # ==========================
-# GEOMETRY ROBUSTNESS ENHANCEMENT (非视觉模式锁定)
+# GEOMETRY ROBUSTNESS ENHANCEMENT
+# 几何鲁棒性增强配置（非视觉模式）
 # ==========================
 # Mode: NON-VISION / PURE GEOMETRY
 # w_color locked to 0.0, color features disabled
@@ -106,15 +153,15 @@ fg:
 vision_mode:
   enabled: false                    # 视觉模式总开关（锁定为false）
   w_color_locked: 0.0              # 颜色权重锁定为0
-  color_classification: NONE       # 颜色分类模式: NONE | CAMERA | FUSION
-  
+  color_classification: NONE       # 颜色分类模式
+
 # 几何降级策略（当视觉不可用时）
 geometry_fallback:
   enabled: true                     # 启用纯几何降级
   min_observations: 2               # 纯几何模式最小观测数
   use_geometric_features_only: true # 仅使用几何特征
-  
-# 堆叠锥去重增强（Stacked Cone Dedup）
+
+# 堆叠锥去重增强
 stacked_cone_dedup:
   enabled: true                     # 启用堆叠锥去重
   z_height_threshold: 0.3           # Z轴高度差阈值 (m)
@@ -124,7 +171,7 @@ stacked_cone_dedup:
   multi_layer_check: true           # 多层检测（处理堆叠）
   confidence_decay: 0.8             # 堆叠锥置信度衰减系数
 
-# 缺锥 Fallback（Missing Cone Fallback）
+# 缺锥 Fallback
 missing_cone_fallback:
   enabled: true                     # 启用缺锥补偿
   max_interpolation_distance: 8.0   # 最大插值距离 (m)
@@ -133,8 +180,8 @@ missing_cone_fallback:
   max_consecutive_missing: 3        # 最大连续缺失数
   use_track_direction: true         # 利用赛道方向预测
   history_frames: 5                 # 历史帧数用于预测
-  
-# 短路径抑制（Short Path Suppression）
+
+# 短路径抑制
 short_path_suppression:
   enabled: true                     # 启用短路径抑制
   min_path_length: 3.0              # 最小有效路径长度 (m)
@@ -142,8 +189,8 @@ short_path_suppression:
   velocity_based_threshold: true    # 基于速度的阈值
   min_velocity_factor: 0.3          # 低速时的路径长度因子
   reject_single_cone_paths: true    # 拒绝单锥路径
-  
-# 回环稳定性增强（Loop Closure Stability）
+
+# 回环稳定性增强
 loop_closure:
   stability:
     enabled: true                   # 启用回环稳定性检查
@@ -153,14 +200,12 @@ loop_closure:
     max_heading_drift: 0.3         # 最大航向漂移 (rad)
     use_geometric_verification: true # 使用几何验证
     min_inlier_ratio: 0.6          # 最小内点比率
-    
-  # 回环触发条件（保守策略）
+  
   trigger:
     min_travel_distance: 20.0      # 最小行驶距离 (m)
     min_time_elapsed: 10.0         # 最小时间间隔 (s)
     confidence_threshold: 0.7      # 置信度阈值
-    
-  # 几何一致性检查
+  
   geometric_check:
     check_relative_pose: true      # 检查相对位姿
     check_track_width: true        # 检查赛道宽度一致性
@@ -168,47 +213,57 @@ loop_closure:
     check_spacing_consistency: true # 检查间距一致性
     spacing_tolerance: 1.0         # 间距容差 (m)
 
-# 几何特征增强（Geometry Feature Boost）
+# 几何特征增强
 geometric_features:
   enabled: true                     # 启用几何特征增强
-  # 距离自适应权重
+  
   distance_weighting:
     near_distance: 5.0             # 近距离阈值 (m)
     far_distance: 30.0             # 远距离阈值 (m)
     near_weight: 1.5               # 近距离几何权重
     far_weight: 0.8                # 远距离几何权重
   
-  # 角度特征
   angle_features:
     use_bearing: true              # 使用方位角
     use_elevation: false           # 不使用俯仰角（2D定位）
     bearing_weight: 1.0            # 方位角权重
-    
-  # 距离特征
+  
   distance_features:
     use_euclidean: true            # 使用欧氏距离
     use_manhattan: false           # 不使用曼哈顿距离
     use_chebyshev: false           # 不使用切比雪夫距离
 
-# 数据关联鲁棒性（Data Association Robustness）
+# 数据关联鲁棒性
 data_association:
-  # 多假设跟踪
   multi_hypothesis:
     enabled: true                  # 启用多假设
     max_hypotheses: 3              # 最大假设数
     hypothesis_decay: 0.9          # 假设衰减因子
-    
-  # 门控策略
+  
   gating:
     method: adaptive               # 门控方法: fixed | adaptive | chi2
     base_threshold: 3.0            # 基础门限 (m)
     adaptive_factor: 1.5           # 自适应因子
     max_threshold: 8.0             # 最大门限 (m)
-    
-  # 最近邻改进
+  
   nearest_neighbor:
     use_mahalanobis: true          # 使用马氏距离
     use_euclidean_fallback: true   # 欧氏距离回退
     outlier_rejection: true        # 离群点剔除
     outlier_threshold: 5.0         # 离群点阈值 (m)
 
+# ==========================
+# 【调参说明】
+# ==========================
+#
+# 本文件包含高级参数，一般情况下不需要修改
+# 主要调整 location.yaml 和 location_<mode>.yaml 中的参数即可
+#
+# 如需启用 factor_graph 后端：
+#   1. 设置 backend: factor_graph
+#   2. 调整 fg/* 相关参数
+#   3. 注意：当前为实验性功能，建议与mapper并行运行对比
+#
+# 如需调整几何鲁棒性：
+#   - 修改 vision_mode/geometry_fallback 相关参数
+#   - 这些参数在纯LiDAR模式下自动生效

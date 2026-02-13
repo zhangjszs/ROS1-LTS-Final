@@ -1,14 +1,104 @@
-# ===== 高速循迹 (TrackDrive) 定位参数 =====
+# ==========================================================
+# TrackDrive Localization Overlay (高速循迹定位参数)
+# ==========================================================
+# 加载顺序: 在 location.yaml 之后加载
+#
+# 【赛事特点】
+#   - 大场地，地图规模500+锥桶
+#   - 频繁回环，需要处理回环一致性
+#   - 高速运动，地图更新频繁
+#   - 复杂的弯道和直线组合
+#
+# 【调参重点】
+#   1. 大地图管理：max_map_size = 500
+#   2. 标准合并距离：merge_distance = 2.5m
+#   3. 适中入图门槛：min_confidence_to_add = 0.3
+# ==========================================================
 
 map:
-  mode: track                        # 地图模式：高速循迹
-  merge_distance: 2.5                # 锥桶合并距离阈值 (m)
-  max_map_size: 500                  # 地图最大锥桶数量
-  min_obs_to_keep: 2                 # 清理时保留的最小观测次数
-  local_cone_range: 30.0             # 输出局部锥桶的最大距离 (m)
-  min_confidence_to_add: 0.3         # 新锥桶入图最低置信度
-  min_confidence_to_merge: 0.15      # 合并已有锥桶的最低置信度
-  max_cone_height: 0.75              # 锥桶最大高度 (m)
-  max_cone_width: 0.5                # 锥桶最大宽度 (m)
-  min_cone_height: 0.03              # 锥桶最小高度 (m)
-  track_width: 3.5                   # 赛道宽度 (m)
+  # 明确指定地图模式
+  # 影响：使用 mode_presets/track 中的参数
+  mode: track
+  
+  # 锥桶合并距离阈值
+  # 单位: m | 建议范围: 2.0-3.0
+  # 高速循迹使用标准合并距离
+  # 调大：更激进的合并（适合长直道）
+  # 调小：更保守的合并（适合多弯道）
+  merge_distance: 2.5
+  
+  # 地图最大锥桶数量
+  # TrackDrive场地大，需要更大的地图容量
+  # 影响：内存占用（约500锥桶 ≈ 10MB）
+  max_map_size: 500
+  
+  # 清理时保留的最小观测次数
+  # 影响：锥桶的持久性
+  # 高速场景车辆移动快，保持较低值以快速更新
+  min_obs_to_keep: 2
+  
+  # 输出局部锥桶的最大距离
+  # 单位: m
+  # 高速循迹需要适中范围：
+  #   - 太短：看不到远处弯道
+  #   - 太长：计算量增大
+  local_cone_range: 30.0
+  
+  # ==========================
+  # 锥桶入图过滤
+  # ==========================
+  # 新锥桶入图最低置信度
+  # 范围: 0-1
+  # 高速循迹平衡策略：不过于严格（避免漏检），也不过于宽松（避免噪声）
+  min_confidence_to_add: 0.3
+  
+  # 合并已有锥桶的最低置信度
+  # 允许低置信度检测更新已有锥桶位置
+  # 高速场景需要快速更新锥桶位置
+  min_confidence_to_merge: 0.15
+  
+  # 锥桶尺寸约束（与base一致）
+  max_cone_height: 0.75    # 最大高度 (m)
+  max_cone_width: 0.5      # 最大宽度 (m)
+  min_cone_height: 0.03    # 最小高度 (m)
+  
+  # 赛道宽度
+  # 单位: m
+  # TrackDrive赛道通常较宽
+  track_width: 3.5
+
+# ==========================
+# 【调参指南 - TrackDrive】
+# ==========================
+#
+# 1. 如地图增长过快（锥桶数迅速达到500）：
+#    - 检查感知模块是否输出过多假阳性
+#    - 提高 min_confidence_to_add (0.3→0.35)
+#    - 提高 min_obs_to_keep (2→3)
+#
+# 2. 如回环时地图不一致（同一位置锥桶位置偏差大）：
+#    - 启用 factor_graph 后端进行对比测试
+#    - 检查 INS 数据质量
+#    - 减小 merge_distance (2.5→2.0) 以提高精度
+#
+# 3. 如规划反馈远处锥桶位置不准确：
+#    - 检查 lidarToIMUDist 标定是否准确
+#    - 增大 local_cone_range (30→40) 查看更远
+#    - 确保 perception 模块的锥桶置信度正常
+#
+# 4. 如车辆经过大弯道后定位漂移：
+#    - 检查 INS 的航向精度
+#    - 增大 min_confidence_to_add 过滤低质量观测
+#    - 考虑使用 factor_graph 后端
+#
+# 5. 如地图清理过于频繁（频繁触发max_map_size）：
+#    - 增大 max_map_size (500→600)
+#    - 减小 min_obs_to_keep (2→1) 保留更多锥桶
+#    - 确保清理策略不是FIFO而是基于观测次数
+#
+# 【观测命令】
+#   rostopic echo /localization/cone_map | grep cone_count
+#   rostopic echo /localization/car_state | grep -E "(x|y|yaw)"
+#   rostopic hz /localization/cone_map
+#   # 检查地图大小随时间变化
+#   watch -n 1 'rostopic echo /localization/cone_map | grep cone_count'
