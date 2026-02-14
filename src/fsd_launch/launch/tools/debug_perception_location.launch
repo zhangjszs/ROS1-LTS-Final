@@ -29,7 +29,7 @@
     <!-- 1. Data Source (Rosbag) -->
     <!--
          注意：rosbag_play.launch 内部会启动 ins_bridge 节点，
-         它将 /INS/ASENSING_INS 转换为 /pbox_pub/Ins
+         它将 /INS/ASENSING_INS 转换为 sensors/ins (HUAT_InsP2)
     -->
     <include if="$(arg simulation)" file="$(find fsd_launch)/launch/tools/rosbag_play.launch">
         <arg name="bag" value="$(arg bag)"/>

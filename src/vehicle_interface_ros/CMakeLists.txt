@@ -38,3 +38,8 @@ target_link_libraries(vehicle_interface_node
   ${Boost_LIBRARIES}
   vehicle_interface_core
 )
+
+catkin_install_python(PROGRAMS
+  scripts/ins_bridge.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)

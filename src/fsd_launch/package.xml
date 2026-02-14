@@ -9,6 +9,7 @@
     <buildtool_depend>catkin</buildtool_depend>
 
     <exec_depend>roslaunch</exec_depend>
+    <exec_depend>rospy</exec_depend>
 
     <!-- 子系统依赖 -->
     <exec_depend>perception_ros</exec_depend>

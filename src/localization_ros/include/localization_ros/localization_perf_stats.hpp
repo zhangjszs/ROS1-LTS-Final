@@ -1,12 +1,6 @@
 #pragma once
 
-#include <iomanip>
-#include <sstream>
-#include <string>
-
-#include <ros/ros.h>
-
-#include <autodrive_msgs/perf_stats_skeleton.hpp>
+#include <fsd_common/perf_stats_base.hpp>
 
 namespace localization_ros {
 
@@ -22,9 +16,10 @@ struct LocPerfSample {
   double gnss_availability = 0.0;  // 1.0 if GNSS used this frame, 0.0 otherwise
 };
 
-class LocPerfStats {
+class LocPerfStats : public fsd_common::perf::PerfStatsBase<LocPerfSample> {
  public:
-  using MetricStats = autodrive_msgs::perf::MetricStats;
+  using Base = fsd_common::perf::PerfStatsBase<LocPerfSample>;
+  using MetricStats = fsd_common::perf::MetricStats;
 
   struct Snapshot {
     MetricStats t_opt_ms;
@@ -38,66 +33,34 @@ class LocPerfStats {
     MetricStats gnss_availability;
   };
 
-  LocPerfStats() = default;
-
-  void Configure(const std::string &name, bool enabled, size_t window_size, size_t log_every) {
-    window_.Configure(name, enabled, window_size, log_every);
-  }
-
-  void Add(const LocPerfSample &sample) {
-    if (window_.PushSample(sample)) {
-      LogStats();
-    }
+  LocPerfStats() {
+    SetDescriptors({
+        {"t_opt_ms", [](const LocPerfSample &s) { return s.t_opt_ms; }},
+        {"t_preint_ms", [](const LocPerfSample &s) { return s.t_preint_ms; }},
+        {"t_assoc_ms", [](const LocPerfSample &s) { return s.t_assoc_ms; }},
+        {"t_prune_ms", [](const LocPerfSample &s) { return s.t_prune_ms; }},
+        {"t_total_ms", [](const LocPerfSample &s) { return s.t_total_ms; }},
+        {"LM", [](const LocPerfSample &s) { return s.landmark_count; }},
+        {"chi2", [](const LocPerfSample &s) { return s.chi2_normalized; }},
+        {"match", [](const LocPerfSample &s) { return s.cone_match_ratio; }},
+        {"gnss", [](const LocPerfSample &s) { return s.gnss_availability; }},
+    });
   }
 
   Snapshot SnapshotStats() const {
+    auto snap_vec = Base::SnapshotStats();
     Snapshot snap;
-    snap.t_opt_ms = window_.ComputeStatsFor([](const LocPerfSample &s) { return s.t_opt_ms; });
-    snap.t_preint_ms = window_.ComputeStatsFor([](const LocPerfSample &s) { return s.t_preint_ms; });
-    snap.t_assoc_ms = window_.ComputeStatsFor([](const LocPerfSample &s) { return s.t_assoc_ms; });
-    snap.t_prune_ms = window_.ComputeStatsFor([](const LocPerfSample &s) { return s.t_prune_ms; });
-    snap.t_total_ms = window_.ComputeStatsFor([](const LocPerfSample &s) { return s.t_total_ms; });
-    snap.landmark_count = window_.ComputeStatsFor([](const LocPerfSample &s) { return s.landmark_count; });
-    snap.chi2_normalized = window_.ComputeStatsFor([](const LocPerfSample &s) { return s.chi2_normalized; });
-    snap.cone_match_ratio = window_.ComputeStatsFor([](const LocPerfSample &s) { return s.cone_match_ratio; });
-    snap.gnss_availability =
-        window_.ComputeStatsFor([](const LocPerfSample &s) { return s.gnss_availability; });
+    snap.t_opt_ms = snap_vec[0].second;
+    snap.t_preint_ms = snap_vec[1].second;
+    snap.t_assoc_ms = snap_vec[2].second;
+    snap.t_prune_ms = snap_vec[3].second;
+    snap.t_total_ms = snap_vec[4].second;
+    snap.landmark_count = snap_vec[5].second;
+    snap.chi2_normalized = snap_vec[6].second;
+    snap.cone_match_ratio = snap_vec[7].second;
+    snap.gnss_availability = snap_vec[8].second;
     return snap;
   }
-
- private:
-  static void AppendMetric(std::ostringstream &os, const char *name, const MetricStats &stats) {
-    os << name << "{mean=" << stats.mean << ",p50=" << stats.p50 << ",p95=" << stats.p95
-       << ",p99=" << stats.p99 << ",max=" << stats.max << "} ";
-  }
-
-  void LogStats() const {
-    std::ostringstream os;
-    os.setf(std::ios::fixed, std::ios::floatfield);
-    os << std::setprecision(3);
-    os << "[perf] node=" << window_.Name() << " window=" << window_.SampleCount() << " ";
-
-    AppendMetric(os, "t_opt_ms", window_.ComputeStatsFor([](const LocPerfSample &s) { return s.t_opt_ms; }));
-    AppendMetric(os, "t_preint_ms",
-                 window_.ComputeStatsFor([](const LocPerfSample &s) { return s.t_preint_ms; }));
-    AppendMetric(os, "t_assoc_ms",
-                 window_.ComputeStatsFor([](const LocPerfSample &s) { return s.t_assoc_ms; }));
-    AppendMetric(os, "t_prune_ms",
-                 window_.ComputeStatsFor([](const LocPerfSample &s) { return s.t_prune_ms; }));
-    AppendMetric(os, "t_total_ms",
-                 window_.ComputeStatsFor([](const LocPerfSample &s) { return s.t_total_ms; }));
-    AppendMetric(os, "LM", window_.ComputeStatsFor([](const LocPerfSample &s) { return s.landmark_count; }));
-    AppendMetric(os, "chi2",
-                 window_.ComputeStatsFor([](const LocPerfSample &s) { return s.chi2_normalized; }));
-    AppendMetric(os, "match",
-                 window_.ComputeStatsFor([](const LocPerfSample &s) { return s.cone_match_ratio; }));
-    AppendMetric(os, "gnss",
-                 window_.ComputeStatsFor([](const LocPerfSample &s) { return s.gnss_availability; }));
-
-    ROS_INFO_STREAM(os.str());
-  }
-
-  autodrive_msgs::perf::RollingStatsWindow<LocPerfSample> window_;
 };
 
 }  // namespace localization_ros

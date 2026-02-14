@@ -12,6 +12,7 @@
   <depend>autodrive_msgs</depend>
   <depend>fsd_common</depend>
   <depend>std_msgs</depend>
+  <exec_depend>rospy</exec_depend>
   <depend>vehicle_interface_core</depend>
 
   <export>

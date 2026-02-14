@@ -1,11 +1,6 @@
 #pragma once
 
-#include <iomanip>
-#include <sstream>
-
-#include <ros/ros.h>
-
-#include <autodrive_msgs/perf_stats_skeleton.hpp>
+#include <fsd_common/perf_stats_base.hpp>
 
 namespace perception_ros {
 
@@ -20,9 +15,10 @@ struct PerfSample {
   double bytes_pub = 0.0;
 };
 
-class PerfStats {
+class PerfStats : public fsd_common::perf::PerfStatsBase<PerfSample> {
  public:
-  using MetricStats = autodrive_msgs::perf::MetricStats;
+  using Base = fsd_common::perf::PerfStatsBase<PerfSample>;
+  using MetricStats = fsd_common::perf::MetricStats;
 
   struct Snapshot {
     MetricStats t_pass_ms;
@@ -35,56 +31,32 @@ class PerfStats {
     MetricStats bytes_pub;
   };
 
-  PerfStats() = default;
-
-  void Configure(const std::string &name, bool enabled, size_t window_size, size_t log_every) {
-    window_.Configure(name, enabled, window_size, log_every);
-  }
-
-  void Add(const PerfSample &sample) {
-    if (window_.PushSample(sample)) {
-      LogStats();
-    }
+  PerfStats() {
+    SetDescriptors({
+        {"t_pass_ms", [](const PerfSample &s) { return s.t_pass_ms; }},
+        {"t_ground_ms", [](const PerfSample &s) { return s.t_ground_ms; }},
+        {"t_cluster_ms", [](const PerfSample &s) { return s.t_cluster_ms; }},
+        {"t_total_ms", [](const PerfSample &s) { return s.t_total_ms; }},
+        {"N", [](const PerfSample &s) { return s.n_points; }},
+        {"K", [](const PerfSample &s) { return s.n_clusters; }},
+        {"D", [](const PerfSample &s) { return s.n_detections; }},
+        {"bytes", [](const PerfSample &s) { return s.bytes_pub; }},
+    });
   }
 
   Snapshot SnapshotStats() const {
+    auto snap_vec = Base::SnapshotStats();
     Snapshot snap;
-    snap.t_pass_ms = window_.ComputeStatsFor([](const PerfSample &s) { return s.t_pass_ms; });
-    snap.t_ground_ms = window_.ComputeStatsFor([](const PerfSample &s) { return s.t_ground_ms; });
-    snap.t_cluster_ms = window_.ComputeStatsFor([](const PerfSample &s) { return s.t_cluster_ms; });
-    snap.t_total_ms = window_.ComputeStatsFor([](const PerfSample &s) { return s.t_total_ms; });
-    snap.n_points = window_.ComputeStatsFor([](const PerfSample &s) { return s.n_points; });
-    snap.n_clusters = window_.ComputeStatsFor([](const PerfSample &s) { return s.n_clusters; });
-    snap.n_detections = window_.ComputeStatsFor([](const PerfSample &s) { return s.n_detections; });
-    snap.bytes_pub = window_.ComputeStatsFor([](const PerfSample &s) { return s.bytes_pub; });
+    snap.t_pass_ms = snap_vec[0].second;
+    snap.t_ground_ms = snap_vec[1].second;
+    snap.t_cluster_ms = snap_vec[2].second;
+    snap.t_total_ms = snap_vec[3].second;
+    snap.n_points = snap_vec[4].second;
+    snap.n_clusters = snap_vec[5].second;
+    snap.n_detections = snap_vec[6].second;
+    snap.bytes_pub = snap_vec[7].second;
     return snap;
   }
-
- private:
-  static void AppendMetric(std::ostringstream &os, const char *name, const MetricStats &stats) {
-    os << name << "{mean=" << stats.mean << ",p50=" << stats.p50 << ",p95=" << stats.p95
-       << ",p99=" << stats.p99 << ",max=" << stats.max << "} ";
-  }
-
-  void LogStats() const {
-    std::ostringstream os;
-    os.setf(std::ios::fixed, std::ios::floatfield);
-    os << std::setprecision(3);
-    os << "[perf] node=" << window_.Name() << " window=" << window_.SampleCount() << " ";
-
-    AppendMetric(os, "t_pass_ms", window_.ComputeStatsFor([](const PerfSample &s) { return s.t_pass_ms; }));
-    AppendMetric(os, "t_ground_ms", window_.ComputeStatsFor([](const PerfSample &s) { return s.t_ground_ms; }));
-    AppendMetric(os, "t_cluster_ms", window_.ComputeStatsFor([](const PerfSample &s) { return s.t_cluster_ms; }));
-    AppendMetric(os, "t_total_ms", window_.ComputeStatsFor([](const PerfSample &s) { return s.t_total_ms; }));
-    AppendMetric(os, "N", window_.ComputeStatsFor([](const PerfSample &s) { return s.n_points; }));
-    AppendMetric(os, "K", window_.ComputeStatsFor([](const PerfSample &s) { return s.n_clusters; }));
-    AppendMetric(os, "D", window_.ComputeStatsFor([](const PerfSample &s) { return s.n_detections; }));
-    AppendMetric(os, "bytes", window_.ComputeStatsFor([](const PerfSample &s) { return s.bytes_pub; }));
-
-    ROS_INFO_STREAM(os.str());
-  }
-
-  autodrive_msgs::perf::RollingStatsWindow<PerfSample> window_;
 };
 
 }  // namespace perception_ros

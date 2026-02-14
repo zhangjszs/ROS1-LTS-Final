@@ -1,5 +1,5 @@
 #!/bin/bash
 #interface.sh
 source $HOME/2025huat/devel/setup.bash
-rosrun ros_vehicle_interface ros_vehicle_interface
+rosrun vehicle_interface_ros vehicle_interface_node
 echo "Interface Start Successfully!!"
