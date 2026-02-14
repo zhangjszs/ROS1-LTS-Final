@@ -1,0 +1,32 @@
+# ==========================================================
+# Vehicle Geometry - 车辆几何参数统一真值源
+# ==========================================================
+# 所有子系统共享，由 mission_stack.launch 加载到全局命名空间
+# 各子系统通过各自的参数命名空间读取（兼容现有 C++ 代码）
+#
+# 修改此文件后，所有子系统自动生效，无需逐个修改
+# ==========================================================
+
+# Control 子系统 (car_arg/ 命名空间)
+car_arg:
+  length: 1.55        # 轴距 [m]
+  front_axle: 0.5     # 前轴到车头 [m]
+  rear_axle: 1.05     # 后轴到车尾 [m]
+  delta_max: 0.4      # 最大转向角 [rad]
+  delta_min: 0.0174   # 最小转向角 [rad]
+  cg_to_front: 0.77   # 重心到前轴 [m]
+  cg_to_rear: 0.78    # 重心到后轴 [m]
+  mass: 190.0          # 车辆质量 [kg]
+
+# Localization state_estimator (kinematic_correction/ 命名空间)
+kinematic_correction:
+  wheelbase: 1.55     # 轴距 [m]
+  cg_to_rear: 0.78    # 重心到后轴 [m] (统一自 0.775)
+
+# Simulation (vehicle/ 命名空间) — 共享几何参数
+# 注意: aero/tire 等仿真专用参数仍在 simulation_ros/config/vehicle.yaml
+vehicle:
+  mass: 190.0          # 车辆质量 [kg] (统一自 250.0)
+  wheelbase: 1.55     # 轴距 [m]
+  cg_to_front: 0.77   # 重心到前轴 [m] (统一自 0.775)
+  cg_to_rear: 0.78    # 重心到后轴 [m] (统一自 0.775)

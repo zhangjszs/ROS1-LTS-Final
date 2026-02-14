@@ -1,11 +1,9 @@
 # Vehicle parameters for simulation
+# 注意: mass, wheelbase, cg_to_front, cg_to_rear 已迁移至
+# fsd_launch/config/vehicles/A13/vehicle_geometry.yaml (统一真值源)
 vehicle:
-  mass: 250.0              # Total mass [kg]
-  wheelbase: 1.55          # Wheelbase [m]
   track_width: 1.2         # Track width [m]
   cg_height: 0.3           # CG height [m]
-  cg_to_front: 0.775       # CG to front axle [m]
-  cg_to_rear: 0.775        # CG to rear axle [m]
   inertia_z: 150.0         # Yaw moment of inertia [kg*m^2]
   wheel_radius: 0.23       # Wheel radius [m]
   wheel_inertia: 0.5       # Wheel rotational inertia [kg*m^2]

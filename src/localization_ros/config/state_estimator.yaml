@@ -126,7 +126,8 @@ kinematic_correction:
   
   # 重心到后轴距离
   # 单位: m
-  cg_to_rear: 0.775
+  # 注意: 统一真值源在 vehicle_geometry.yaml，此处为 fallback 默认值
+  cg_to_rear: 0.78
   
   # 混合速度阈值
   # 单位: m/s

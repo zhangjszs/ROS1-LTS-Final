@@ -1,6 +1,6 @@
 <!--
   Mission stack composition for standard real/sim missions.
-  This launch centralizes subsystem wiring to reduce cross-file duplication.
+  This launch centralizes subsystem wiring and tools to reduce cross-file duplication.
 -->
 <launch>
     <arg name="simulation" default="false"/>
@@ -40,6 +40,35 @@
     <arg name="legacy_carstate_topic" default="/Carstate"/>
     <arg name="legacy_approaching_goal_topic" default="/skidpad_detection_node/approaching_goal"/>
 
+    <!-- ========== Tools args ========== -->
+    <arg name="bag" default=""/>
+    <arg name="rate" default="1.0"/>
+    <arg name="loop" default="false"/>
+    <arg name="launch_rviz" default="true"/>
+    <arg name="launch_viz" default="true"/>
+    <arg name="rviz_mode" default="dual"/>
+    <arg name="rviz_config" default="high_speed"/>
+    <arg name="fleet_config" default="$(find fsd_launch)/config/vehicle_fleet.yaml"/>
+    <arg name="enable_static_tf" default="true"/>
+
+    <!-- ========== Global Config ========== -->
+    <param name="/use_sim_time" value="$(arg simulation)"/>
+    <rosparam command="load" file="$(arg fleet_config)" ns="vehicle_fleet"/>
+
+    <!-- Vehicle geometry: 统一真值源，在子系统之前加载 -->
+    <arg name="vehicle_geometry_config"
+         default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/vehicle_geometry.yaml"/>
+    <rosparam command="load" file="$(arg vehicle_geometry_config)"/>
+
+    <!-- ========== Simulation bag validation ========== -->
+    <group if="$(arg simulation)">
+        <group unless="$(eval bag != '')">
+            <node pkg="rospy" type="message" name="error_check" output="screen"
+                  args="错误：仿真模式必须指定bag文件路径！使用参数 bag:=/path/to/bag.bag"/>
+        </group>
+    </group>
+
+    <!-- ========== Subsystems ========== -->
     <include if="$(arg enable_perception)" file="$(find fsd_launch)/launch/subsystems/perception.launch">
         <arg name="launch_rviz" value="false"/>
         <arg name="mode" value="$(arg perception_mode)"/>
@@ -92,4 +121,29 @@
             <arg name="legacy_cmd_topic" value="$(arg legacy_cmd_topic)"/>
         </include>
     </group>
+    <!-- ========== Tools ========== -->
+    <!-- Rosbag Player (仿真模式) -->
+    <include if="$(arg simulation)" file="$(find fsd_launch)/launch/tools/rosbag_play.launch">
+        <arg name="bag" value="$(arg bag)"/>
+        <arg name="rate" value="$(arg rate)"/>
+        <arg name="loop" value="$(arg loop)"/>
+    </include>
+
+    <!-- Static TF: base_link -> velodyne -->
+    <node if="$(arg enable_static_tf)" pkg="tf2_ros" type="static_transform_publisher"
+          name="base_link_to_velodyne" args="0 0 0 0 0 0 base_link velodyne"/>
+
+    <!-- FSD Visualization Node -->
+    <include if="$(arg launch_viz)" file="$(find fsd_visualization)/launch/visualization.launch">
+        <arg name="frame_id" value="world"/>
+        <arg name="show_trail" value="true"/>
+        <arg name="use_mesh" value="false"/>
+    </include>
+
+    <!-- RViz -->
+    <include if="$(arg launch_rviz)" file="$(find fsd_launch)/launch/tools/rviz.launch">
+        <arg name="config" value="$(arg rviz_config)"/>
+        <arg name="enable_viz_node" value="false"/>
+        <arg name="mode" value="$(arg rviz_mode)"/>
+    </include>
 </launch>

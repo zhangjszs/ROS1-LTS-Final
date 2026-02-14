@@ -28,10 +28,10 @@
     <arg name="ebs_control_config" default="$(find fsd_launch)/config/missions/ebs/control.yaml" doc="EBS任务控制overlay"/>
     <arg name="enable_ebs_control" default="false" doc="是否启动控制节点（EBS 接口预留）"/>
     <arg name="control_mode" default="5" doc="EBS 预留控制模式ID"/>
-    <arg name="cmd_topic" default="vehicle/cmd" doc="统一控制命令话题（Control输出/Vehicle消费）"/>
-    <arg name="carstate_topic" default="localization/car_state" doc="统一车辆状态话题（Localization输出/Planning+Control输入）"/>
-    <arg name="pathlimits_topic" default="planning/pathlimits" doc="统一路径话题（Planning输出/Control输入）"/>
-    <arg name="approaching_goal_topic" default="planning/skidpad/approaching_goal" doc="统一八字接近终点话题（Planning输出/Control输入）"/>
+    <arg name="cmd_topic" default="vehicle/cmd" doc="统一控制命令话题"/>
+    <arg name="carstate_topic" default="localization/car_state" doc="统一车辆状态话题"/>
+    <arg name="pathlimits_topic" default="planning/pathlimits" doc="统一路径话题"/>
+    <arg name="approaching_goal_topic" default="planning/skidpad/approaching_goal" doc="统一八字接近终点话题"/>
     <arg name="publish_legacy_cmd_topic" default="false" doc="兼容开关：控制层是否同时发布 legacy cmd 话题"/>
     <arg name="subscribe_legacy_topics" default="false" doc="兼容开关：控制层是否同时订阅 legacy 输入话题"/>
     <arg name="subscribe_legacy_cmd_topic" default="false" doc="兼容开关：车辆接口是否订阅 legacy cmd 话题"/>
@@ -39,14 +39,18 @@
     <arg name="legacy_carstate_topic" default="/Carstate" doc="legacy 车辆状态话题"/>
     <arg name="legacy_approaching_goal_topic" default="/skidpad_detection_node/approaching_goal" doc="legacy 接近终点话题"/>
 
-    <!-- ========== Simulation Time ========== -->
-    <param name="/use_sim_time" value="$(arg simulation)"/>
-    <rosparam command="load" file="$(arg fleet_config)" ns="vehicle_fleet"/>
-
-    <!-- ========== Subsystems ========== -->
-    <!-- EBS测试阶段：沿用track参数，并通过mission overlay注入EBS配置 -->
+    <!-- ========== Subsystems + Tools (via mission_stack) ========== -->
     <include file="$(find fsd_launch)/launch/subsystems/mission_stack.launch">
         <arg name="simulation" value="$(arg simulation)"/>
+        <arg name="bag" value="$(arg bag)"/>
+        <arg name="rate" value="$(arg rate)"/>
+        <arg name="loop" value="$(arg loop)"/>
+        <arg name="launch_rviz" value="$(arg launch_rviz)"/>
+        <arg name="launch_viz" value="$(arg launch_viz)"/>
+        <arg name="rviz_mode" value="$(arg rviz_mode)"/>
+        <arg name="rviz_config" value="high_speed"/>
+        <arg name="fleet_config" value="$(arg fleet_config)"/>
+        <arg name="enable_static_tf" value="true"/>
         <arg name="perception_mode" value="track"/>
         <arg name="localization_mode" value="track"/>
         <arg name="planner" value="none"/>
@@ -74,26 +78,5 @@
         <arg name="legacy_cmd_topic" value="$(arg legacy_cmd_topic)"/>
         <arg name="legacy_carstate_topic" value="$(arg legacy_carstate_topic)"/>
         <arg name="legacy_approaching_goal_topic" value="$(arg legacy_approaching_goal_topic)"/>
-    </include>
-
-    <!-- ========== Tools ========== -->
-    <!-- Rosbag Player (仿真模式) -->
-    <include if="$(arg simulation)" file="$(find fsd_launch)/launch/tools/rosbag_play.launch">
-        <arg name="bag" value="$(arg bag)"/>
-        <arg name="rate" value="$(arg rate)"/>
-        <arg name="loop" value="$(arg loop)"/>
-    </include>
-
-    <!-- FSD Visualization Node -->
-    <include if="$(arg launch_viz)" file="$(find fsd_visualization)/launch/visualization.launch">
-        <arg name="frame_id" value="world"/>
-        <arg name="show_trail" value="true"/>
-    </include>
-
-    <!-- RViz -->
-    <include if="$(arg launch_rviz)" file="$(find fsd_launch)/launch/tools/rviz.launch">
-        <arg name="config" value="high_speed"/>
-        <arg name="enable_viz_node" value="false"/>
-        <arg name="mode" value="$(arg rviz_mode)"/>
     </include>
 </launch>
