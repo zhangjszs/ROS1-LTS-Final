@@ -4,6 +4,7 @@
  */
 
 #include <perception_ros/distortion_compensator_v2.hpp>
+#include <fsd_common/geometry_utils.hpp>
 #include <std_msgs/String.h>
 #include <sstream>
 
@@ -130,9 +131,9 @@ void DistortionCompensatorV2::imuCallback(const autodrive_msgs::HUAT_InsP2::Cons
     imu.timestamp = msg->header.stamp.toSec();
 
     // 速度转换：NED导航系 -> 车体FRD系（完整ZYX旋转）
-    double heading_rad = msg->Heading * M_PI / 180.0;
-    double pitch_rad = msg->Pitch * M_PI / 180.0;
-    double roll_rad = msg->Roll * M_PI / 180.0;
+    double heading_rad = fsd_common::DegToRad(msg->Heading);
+    double pitch_rad = fsd_common::DegToRad(msg->Pitch);
+    double roll_rad = fsd_common::DegToRad(msg->Roll);
 
     Eigen::Matrix3d R_ned2body;
     double ch = std::cos(heading_rad), sh = std::sin(heading_rad);

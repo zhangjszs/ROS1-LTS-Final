@@ -9,6 +9,7 @@
 #include <ros/package.h>
 #include <autodrive_msgs/topic_contract.hpp>
 #include <autodrive_msgs/param_utils.hpp>
+#include <fsd_common/geometry_utils.hpp>
 
 namespace localization_ros {
 
@@ -358,8 +359,7 @@ void LocationNode::publishState(const localization_core::CarState &state, const 
       const double dy = state.car_state.y - last_state_.car_state.y;
       const double yaw = state.car_state.theta;
       v_forward = (std::cos(yaw) * dx + std::sin(yaw) * dy) / dt;
-      const double dtheta = std::atan2(std::sin(state.car_state.theta - last_state_.car_state.theta),
-                                       std::cos(state.car_state.theta - last_state_.car_state.theta));
+      const double dtheta = fsd_common::AngleDiff(state.car_state.theta, last_state_.car_state.theta);
       yaw_rate = dtheta / dt;
     }
   }

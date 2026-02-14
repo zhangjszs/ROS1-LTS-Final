@@ -1,27 +1,20 @@
 #pragma once
 
-#include <algorithm>
-#include <cmath>
-#include <cstdint>
 #include <string>
 
 #include <autodrive_msgs/HUAT_PathLimits.h>
 #include <autodrive_msgs/topic_contract.hpp>
+#include <fsd_common/contract_utils.hpp>
 #include <ros/ros.h>
 
 namespace planning_ros {
 namespace contract {
 
-inline ros::Time NormalizeInputStamp(const ros::Time &stamp)
-{
-  return stamp.isZero() ? ros::Time::now() : stamp;
-}
-
-inline std::string NormalizeFrameId(const std::string &frame_id,
-                                    const std::string &fallback = autodrive_msgs::frame_contract::kWorld)
-{
-  return frame_id.empty() ? fallback : frame_id;
-}
+// Delegated to fsd_common::contract
+using fsd_common::contract::NormalizeInputStamp;
+using fsd_common::contract::NormalizeFrameId;
+using fsd_common::contract::DecodeConeConfidenceScore;
+using fsd_common::contract::EncodeConeConfidenceScaled;
 
 inline void FinalizePathLimitsMessage(autodrive_msgs::HUAT_PathLimits &msg,
                                       const ros::Time &input_stamp,
@@ -38,18 +31,6 @@ inline void EnforcePathDynamicsShape(autodrive_msgs::HUAT_PathLimits &msg)
   const size_t n = msg.path.size();
   msg.curvatures.resize(n, 0.0);
   msg.target_speeds.resize(n, 0.0);
-}
-
-inline double DecodeConeConfidenceScore(std::uint32_t confidence_scaled)
-{
-  const double score = static_cast<double>(confidence_scaled) / 1000.0;
-  return std::max(0.0, std::min(1.0, score));
-}
-
-inline std::uint32_t EncodeConeConfidenceScaled(double confidence_score)
-{
-  const double clamped = std::max(0.0, std::min(1.0, confidence_score));
-  return static_cast<std::uint32_t>(std::lround(clamped * 1000.0));
 }
 
 }  // namespace contract

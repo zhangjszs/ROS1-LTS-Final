@@ -62,7 +62,6 @@ add_library(${PROJECT_NAME}_high_speed
   src/high_speed_tracking/utils/Failsafe.cpp
   src/high_speed_tracking/utils/KDTree.cpp
   src/high_speed_tracking/utils/Params.cpp
-  src/high_speed_tracking/utils/Time.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}_high_speed

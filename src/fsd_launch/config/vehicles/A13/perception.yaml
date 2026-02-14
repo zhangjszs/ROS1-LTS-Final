@@ -22,8 +22,8 @@ imu:
   # 总开关：启用畸变补偿
   enable: true
 
-  # IMU话题
-  topic: "/pbox_pub/Ins"
+  # IMU话题（ins_bridge 输出到 /sensors/ins）
+  topic: "/sensors/ins"
 
   # 畸变补偿参数
   distortion:

@@ -27,7 +27,6 @@
 #include "modules/DelaunayTri.hpp"
 #include "modules/Visualization.hpp"
 #include "modules/WayComputer.hpp"
-#include "utils/Time.hpp"
 #include "utils/PerfStats.hpp"
 #include "planning_ros/contract_utils.hpp"
 bool wasLoopClosed = false;
@@ -179,8 +178,6 @@ void callback_ccat(const autodrive_msgs::HUAT_ConeMap::ConstPtr &data)
 
 
 
-  // Time::tick("computation");  // Start measuring time
-
   // 把锥筒坐标转为节点，并按置信度做最小过滤
   std::vector<Node> nodes;
   nodes.reserve(data->cone.size());
@@ -317,7 +314,6 @@ void callback_ccat(const autodrive_msgs::HUAT_ConeMap::ConstPtr &data)
   sample.n_edges = static_cast<double>(wayComputer->lastEdgeCount());
   sample.bytes_pub = static_cast<double>(bytes_pub);
   perf_stats.Add(sample);
-  // Time::tock("computation");  //结束测量时间
 }
 
 
