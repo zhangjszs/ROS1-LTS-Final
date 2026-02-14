@@ -20,9 +20,7 @@
     <rosparam if="$(eval arg('vehicle_local_config') != '')" command="load" file="$(arg vehicle_local_config)"/>
 
     <!-- Location KD-Tree -->
-    <!-- 将 location_node 期望的 sensors/ins 重映射到 ins_bridge 发布的 /pbox_pub/Ins -->
     <group>
-        <remap from="sensors/ins" to="/pbox_pub/Ins"/>
         <include unless="$(arg use_eskf)" file="$(find localization_ros)/launch/location.launch">
             <arg name="mode" value="$(arg mode)"/>
             <arg name="carstate_topic" value="$(arg carstate_topic)"/>

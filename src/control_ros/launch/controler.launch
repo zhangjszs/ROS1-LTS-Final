@@ -5,14 +5,9 @@
   <arg name="control_mode" default="-1" doc="控制算法模式ID；-1表示不显式下发，沿用旧逻辑"/>
   <arg name="skip_param_load" default="false" doc="是否跳过本launch内参数加载（由上层统一加载时置true）"/>
   <arg name="pathlimits_topic" default="planning/pathlimits" doc="统一 PathLimits 输入话题"/>
-  <arg name="carstate_topic" default="localization/car_state" doc="控制输入车体状态话题（canonical）"/>
-  <arg name="approaching_goal_topic" default="planning/skidpad/approaching_goal" doc="八字接近终点话题（canonical）"/>
-  <arg name="cmd_topic" default="vehicle/cmd" doc="控制输出命令话题（canonical）"/>
-  <arg name="publish_legacy_cmd_topic" default="false" doc="是否同时发布 legacy 控制命令话题"/>
-  <arg name="legacy_cmd_topic" default="vehcileCMDMsg" doc="legacy 控制命令话题"/>
-  <arg name="subscribe_legacy_topics" default="false" doc="是否同时订阅 legacy 输入话题"/>
-  <arg name="legacy_carstate_topic" default="/Carstate" doc="legacy 车体状态话题"/>
-  <arg name="legacy_approaching_goal_topic" default="/skidpad_detection_node/approaching_goal" doc="legacy 八字接近终点话题"/>
+  <arg name="carstate_topic" default="localization/car_state" doc="控制输入车体状态话题"/>
+  <arg name="approaching_goal_topic" default="planning/skidpad/approaching_goal" doc="八字接近终点话题"/>
+  <arg name="cmd_topic" default="vehicle/cmd" doc="控制输出命令话题"/>
   <arg name="enable_file_mode_fallback" default="false" doc="是否允许从文件回退读取控制模式"/>
   <arg name="mode_file_path" default="$(env HOME)/autoStartGkj/command" doc="兼容模式回退文件路径"/>
   <arg name="enable_external_stop_file" default="false" doc="是否启用文件外部停车兼容链路"/>
@@ -29,11 +24,6 @@
     <param name="carstate_topic" value="$(arg carstate_topic)" />
     <param name="approaching_goal_topic" value="$(arg approaching_goal_topic)" />
     <param name="cmd_topic" value="$(arg cmd_topic)" />
-    <param name="publish_legacy_cmd_topic" value="$(arg publish_legacy_cmd_topic)" />
-    <param name="legacy_cmd_topic" value="$(arg legacy_cmd_topic)" />
-    <param name="subscribe_legacy_topics" value="$(arg subscribe_legacy_topics)" />
-    <param name="legacy_carstate_topic" value="$(arg legacy_carstate_topic)" />
-    <param name="legacy_approaching_goal_topic" value="$(arg legacy_approaching_goal_topic)" />
     <param name="enable_file_mode_fallback" value="$(arg enable_file_mode_fallback)" />
     <param name="mode_file_path" value="$(arg mode_file_path)" />
     <param name="enable_external_stop_file" value="$(arg enable_external_stop_file)" />

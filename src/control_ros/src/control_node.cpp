@@ -13,6 +13,7 @@
 #include <autodrive_msgs/HUAT_VehicleCmd.h>
 #include <autodrive_msgs/topic_contract.hpp>
 #include <autodrive_msgs/diagnostics_helper.hpp>
+#include <fsd_common/control_mode.hpp>
 #include <diagnostic_msgs/DiagnosticArray.h>
 #include <std_msgs/Bool.h>
 
@@ -79,17 +80,9 @@ public:
     pnh_.param("enable_external_stop_file", enable_external_stop_file_, false);
     pnh_.param<std::string>("external_stop_file_path", external_stop_file_path_, DefaultCommandPath());
     pnh_.param<std::string>("cmd_topic", cmd_topic_, autodrive_msgs::topic_contract::kVehicleCmd);
-    pnh_.param("publish_legacy_cmd_topic", publish_legacy_cmd_topic_, false);
-    pnh_.param<std::string>("legacy_cmd_topic", legacy_cmd_topic_,
-                            autodrive_msgs::topic_contract::kVehicleCmdLegacy);
     pnh_.param<std::string>("carstate_topic", carstate_topic_, autodrive_msgs::topic_contract::kCarState);
     pnh_.param<std::string>("approaching_goal_topic", approaching_goal_topic_,
                             autodrive_msgs::topic_contract::kApproachingGoal);
-    pnh_.param("subscribe_legacy_topics", subscribe_legacy_topics_, false);
-    pnh_.param<std::string>("legacy_carstate_topic", legacy_carstate_topic_,
-                            autodrive_msgs::topic_contract::kCarStateLegacy);
-    pnh_.param<std::string>("legacy_approaching_goal_topic", legacy_approaching_goal_topic_,
-                            autodrive_msgs::topic_contract::kApproachingGoalLegacy);
     pnh_.param("diagnostics_rate_hz", diagnostics_rate_hz_, 1.0);
     {
       std::string diag_topic, global_diag_topic;
@@ -111,10 +104,6 @@ public:
       diagnostics_rate_hz_ = 1.0;
     }
 
-    if (publish_legacy_cmd_topic_ || subscribe_legacy_topics_)
-    {
-      ROS_WARN("[control][deprecated][target-removal:2026-06-30] Legacy topic compatibility is enabled.");
-    }
     if (enable_file_mode_fallback_ || enable_external_stop_file_)
     {
       ROS_WARN("[control][deprecated][target-removal:2026-09-30] File-based compatibility path is enabled.");
@@ -127,14 +116,7 @@ public:
     SetupSubscribers();
 
     pub_cmd_ = nh_.advertise<autodrive_msgs::HUAT_VehicleCmd>(cmd_topic_, 1000);
-    if (publish_legacy_cmd_topic_ && legacy_cmd_topic_ != cmd_topic_)
-    {
-      pub_cmd_legacy_ = nh_.advertise<autodrive_msgs::HUAT_VehicleCmd>(legacy_cmd_topic_, 1000);
-    }
-    ROS_INFO("[control] Command topic: %s (legacy alias: %s, enabled=%s)",
-             cmd_topic_.c_str(),
-             legacy_cmd_topic_.c_str(),
-             publish_legacy_cmd_topic_ ? "true" : "false");
+    ROS_INFO("[control] Command topic: %s", cmd_topic_.c_str());
 
     PublishDiagnostics(true);
   }
@@ -152,7 +134,7 @@ public:
       return;
     }
 
-    if (!path_ready_ && !(mode_ == 1 || mode_ == 5))
+    if (!path_ready_ && !(mode_ == fsd_common::ControlMode::kTest || mode_ == fsd_common::ControlMode::kEbs))
     {
       ROS_WARN("得不到有效的惯导路径信息");
       return;
@@ -194,11 +176,11 @@ public:
 private:
   void InitController()
   {
-    if (mode_ == 1)
+    if (mode_ == fsd_common::ControlMode::kTest)
       controller_ = std::make_unique<control_core::TestController>();
-    else if (mode_ == 2)
+    else if (mode_ == fsd_common::ControlMode::kLine)
       controller_ = std::make_unique<control_core::LineController>();
-    else if (mode_ == 3)
+    else if (mode_ == fsd_common::ControlMode::kSkidpad)
       controller_ = std::make_unique<control_core::SkipController>();
     else
       controller_ = std::make_unique<control_core::HighController>();
@@ -207,7 +189,7 @@ private:
   void LoadParams()
   {
     control_core::ControlParams params;
-    std::string ns = (mode_ == 3) ? "st" : "pp";
+    std::string ns = (mode_ == fsd_common::ControlMode::kSkidpad) ? "st" : "pp";
 
     nh_.param(ns + "/angle_kp", params.angle_kp, 1.0);
     nh_.param(ns + "/angle_ki", params.angle_ki, 0.0);
@@ -240,23 +222,7 @@ private:
     ROS_INFO("[control] Subscribed car state topic: %s", carstate_topic_.c_str());
     ROS_INFO("[control] Subscribed approaching-goal topic: %s", approaching_goal_topic_.c_str());
 
-    if (subscribe_legacy_topics_)
-    {
-      if (legacy_carstate_topic_ != carstate_topic_)
-      {
-        sub_pose_legacy_ = nh_.subscribe(legacy_carstate_topic_, 10, &ControlNode::PoseCallback, this);
-      }
-      if (legacy_approaching_goal_topic_ != approaching_goal_topic_)
-      {
-        sub_last_legacy_ =
-            nh_.subscribe(legacy_approaching_goal_topic_, 100, &ControlNode::LastCallback, this);
-      }
-      ROS_INFO("[control] Legacy topic compatibility enabled: carstate=%s, approaching_goal=%s",
-               legacy_carstate_topic_.c_str(),
-               legacy_approaching_goal_topic_.c_str());
-    }
-
-    if (mode_ != 1 && mode_ != 5)
+    if (mode_ != fsd_common::ControlMode::kTest && mode_ != fsd_common::ControlMode::kEbs)
     {
       std::string pathlimits_topic;
       pnh_.param<std::string>("pathlimits_topic", pathlimits_topic,
@@ -357,10 +323,6 @@ private:
   void PublishCommand(const autodrive_msgs::HUAT_VehicleCmd &cmd)
   {
     pub_cmd_.publish(cmd);
-    if (publish_legacy_cmd_topic_ && pub_cmd_legacy_)
-    {
-      pub_cmd_legacy_.publish(cmd);
-    }
   }
 
   void PublishDiagnostics(bool force)
@@ -400,11 +362,8 @@ private:
     kvs.push_back(DH::KV("external_stop_trigger_count", std::to_string(external_stop_trigger_count_)));
     kvs.push_back(DH::KV("simulation", simulation_ ? "true" : "false"));
     kvs.push_back(DH::KV("cmd_topic", cmd_topic_));
-    kvs.push_back(DH::KV("legacy_cmd_topic", legacy_cmd_topic_));
-    kvs.push_back(DH::KV("publish_legacy_cmd_topic", publish_legacy_cmd_topic_ ? "true" : "false"));
     kvs.push_back(DH::KV("carstate_topic", carstate_topic_));
     kvs.push_back(DH::KV("approaching_goal_topic", approaching_goal_topic_));
-    kvs.push_back(DH::KV("subscribe_legacy_topics", subscribe_legacy_topics_ ? "true" : "false"));
 
     diag_helper_.PublishStatus("control_entry_health", "control_ros/control_node",
                                level, message, kvs, ros::Time(0), force);
@@ -416,11 +375,8 @@ private:
 
   ros::Subscriber sub_pathlimits_;
   ros::Subscriber sub_pose_;
-  ros::Subscriber sub_pose_legacy_;
   ros::Subscriber sub_last_;
-  ros::Subscriber sub_last_legacy_;
   ros::Publisher pub_cmd_;
-  ros::Publisher pub_cmd_legacy_;
   autodrive_msgs::DiagnosticsHelper diag_helper_;
 
   std::unique_ptr<control_core::ControllerBase> controller_;
@@ -431,14 +387,9 @@ private:
   bool pose_ready_{false};
   bool finish_signal_{false};
   bool simulation_{false};
-  bool subscribe_legacy_topics_{false};
   std::string carstate_topic_{autodrive_msgs::topic_contract::kCarState};
   std::string approaching_goal_topic_{autodrive_msgs::topic_contract::kApproachingGoal};
-  std::string legacy_carstate_topic_{autodrive_msgs::topic_contract::kCarStateLegacy};
-  std::string legacy_approaching_goal_topic_{autodrive_msgs::topic_contract::kApproachingGoalLegacy};
   std::string cmd_topic_{autodrive_msgs::topic_contract::kVehicleCmd};
-  bool publish_legacy_cmd_topic_{false};
-  std::string legacy_cmd_topic_{autodrive_msgs::topic_contract::kVehicleCmdLegacy};
 
   std::string mode_source_{"none"};
   bool enable_file_mode_fallback_{false};

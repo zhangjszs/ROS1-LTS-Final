@@ -13,11 +13,12 @@ find_package(catkin REQUIRED COMPONENTS
   tf2
   tf2_ros
   autodrive_msgs
+  fsd_common
 )
 
 catkin_package(
   INCLUDE_DIRS include
-  CATKIN_DEPENDS roscpp std_msgs geometry_msgs visualization_msgs nav_msgs tf2 tf2_ros autodrive_msgs
+  CATKIN_DEPENDS roscpp std_msgs geometry_msgs visualization_msgs nav_msgs tf2 tf2_ros autodrive_msgs fsd_common
 )
 
 include_directories(

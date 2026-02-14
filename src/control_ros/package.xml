@@ -11,6 +11,7 @@
 
   <depend>roscpp</depend>
   <depend>autodrive_msgs</depend>
+  <depend>fsd_common</depend>
   <depend>control_core</depend>
   <depend>diagnostic_msgs</depend>
   <depend>eigen_conversions</depend>

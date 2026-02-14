@@ -1,18 +1,11 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>vehicle_racing_num_ros</name>
+  <name>fsd_common</name>
   <version>1.0.0</version>
-  <description>ROS node for racing number writer.</description>
-
+  <description>Shared utilities for FSD stack</description>
   <maintainer email="zhangjszs@foxmail.com">kerwin</maintainer>
   <license>BSD-3-Clause</license>
-
   <buildtool_depend>catkin</buildtool_depend>
   <depend>roscpp</depend>
-  <depend>autodrive_msgs</depend>
-  <depend>fsd_common</depend>
-  <depend>vehicle_racing_num_core</depend>
-
-  <export>
-  </export>
+  <depend>diagnostic_msgs</depend>
 </package>

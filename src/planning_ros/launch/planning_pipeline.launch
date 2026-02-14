@@ -12,6 +12,8 @@
   <arg name="global_diagnostics_topic" default="/diagnostics"/>
   <arg name="diagnostics_rate_hz" default="1.0"/>
   <arg name="enable_internal_viz_side_channel" default="false"/>
+  <arg name="vehicle_config" default="" doc="车辆型谱规划参数覆盖"/>
+  <arg name="vehicle_local_config" default="" doc="本地覆盖参数文件"/>
 
   <node pkg="planning_ros" type="planning_pipeline_node" name="planning_pipeline" output="screen">
     <param name="mission" value="$(arg mission)"/>
@@ -35,5 +37,7 @@
               command="load" file="$(find planning_ros)/config/skidpad_detection.yaml"/>
     <rosparam if="$(eval arg('mission') in ('high_speed', 'trackdrive', 'autocross'))"
               command="load" file="$(find planning_ros)/config/high_speed_tracking.yaml"/>
+    <rosparam if="$(eval arg('vehicle_config') != '')" command="load" file="$(arg vehicle_config)"/>
+    <rosparam if="$(eval arg('vehicle_local_config') != '')" command="load" file="$(arg vehicle_local_config)"/>
   </node>
 </launch>

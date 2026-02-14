@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2
   tf2_ros
   autodrive_msgs
+  fsd_common
   simulation_core
 )
 
@@ -28,6 +29,7 @@ catkin_package(
     tf2
     tf2_ros
     autodrive_msgs
+    fsd_common
     simulation_core
 )
 

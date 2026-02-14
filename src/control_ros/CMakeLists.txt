@@ -8,6 +8,7 @@ find_package(catkin REQUIRED COMPONENTS
   control_core
   diagnostic_msgs
   eigen_conversions
+  fsd_common
   geometry_msgs
   roscpp
   roslib
@@ -17,7 +18,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 catkin_package(
   INCLUDE_DIRS include
-  CATKIN_DEPENDS autodrive_msgs control_core diagnostic_msgs eigen_conversions geometry_msgs roscpp roslib std_msgs tf
+  CATKIN_DEPENDS autodrive_msgs control_core diagnostic_msgs eigen_conversions fsd_common geometry_msgs roscpp roslib std_msgs tf
 )
 
 include_directories(

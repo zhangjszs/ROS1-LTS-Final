@@ -6,6 +6,7 @@ add_compile_options(-std=c++17)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   autodrive_msgs
+  fsd_common
   std_msgs
   vehicle_interface_core
 )
@@ -14,7 +15,7 @@ find_package(Boost REQUIRED COMPONENTS system thread)
 
 catkin_package(
   INCLUDE_DIRS include
-  CATKIN_DEPENDS roscpp autodrive_msgs std_msgs vehicle_interface_core
+  CATKIN_DEPENDS roscpp autodrive_msgs fsd_common std_msgs vehicle_interface_core
 )
 
 include_directories(

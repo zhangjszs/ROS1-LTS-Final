@@ -10,6 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   geometry_msgs
   sensor_msgs
+  fsd_common
   )
 
 add_message_files(  # Tell catkin which custom message files to include
@@ -39,7 +40,7 @@ generate_messages(
 
 catkin_package(
   INCLUDE_DIRS include
-  CATKIN_DEPENDS message_runtime std_msgs geometry_msgs sensor_msgs # Needed to generate custom messages
+  CATKIN_DEPENDS message_runtime std_msgs geometry_msgs sensor_msgs fsd_common # Needed to generate custom messages
 )
 include_directories(
   include

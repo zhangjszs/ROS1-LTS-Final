@@ -51,25 +51,11 @@ void UserNode::init()
     ros_pub_vehicle_info = nh.advertise < autodrive_msgs::HUAT_VehicleStatus> (MSG_TOPIC_VEHICLE_STATUS, 1);
 
     std::string cmd_topic = MSG_TOPIC_VEHICLE_CMD;
-    bool subscribe_legacy_cmd_topic = false;
-    std::string legacy_cmd_topic = MSG_TOPIC_VEHICLE_CMD_LEGACY;
     pnh.param<std::string>("cmd_topic", cmd_topic, cmd_topic);
-    pnh.param("subscribe_legacy_cmd_topic", subscribe_legacy_cmd_topic, false);
-    pnh.param<std::string>("legacy_cmd_topic", legacy_cmd_topic, legacy_cmd_topic);
 
     ros_recv_vehicle_msg =   nh.subscribe <autodrive_msgs::HUAT_VehicleCmd> \
             (cmd_topic, 1, &UserNode::recv_msg_vehcileCMD_callack, this);
-    if (subscribe_legacy_cmd_topic && legacy_cmd_topic != cmd_topic)
-    {
-        ros_recv_vehicle_msg_legacy = nh.subscribe<autodrive_msgs::HUAT_VehicleCmd>(
-                legacy_cmd_topic, 1, &UserNode::recv_msg_vehcileCMD_callack, this);
-        ROS_WARN_STREAM("[vehicle_interface][deprecated][target-removal:2026-06-30] "
-                        "Legacy cmd topic subscription is enabled.");
-    }
-    ROS_INFO_STREAM("[vehicle_interface] cmd_topic=" << cmd_topic
-                    << ", legacy_cmd_topic=" << legacy_cmd_topic
-                    << ", subscribe_legacy_cmd_topic="
-                    << (subscribe_legacy_cmd_topic ? "true" : "false"));
+    ROS_INFO_STREAM("[vehicle_interface] cmd_topic=" << cmd_topic);
 
     p_vehicle_ros_thread = new boost::thread(boost::bind(&UserNode::run, this));
 

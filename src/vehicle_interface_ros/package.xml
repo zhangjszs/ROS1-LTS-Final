@@ -10,6 +10,7 @@
   <buildtool_depend>catkin</buildtool_depend>
   <depend>roscpp</depend>
   <depend>autodrive_msgs</depend>
+  <depend>fsd_common</depend>
   <depend>std_msgs</depend>
   <depend>vehicle_interface_core</depend>
 

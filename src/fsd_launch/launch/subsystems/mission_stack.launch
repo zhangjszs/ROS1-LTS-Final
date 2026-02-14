@@ -23,6 +23,8 @@
     <arg name="localization_vehicle_local_config" default=""/>
     <arg name="control_vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/control.yaml"/>
     <arg name="control_vehicle_local_config" default=""/>
+    <arg name="planning_vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/planning.yaml"/>
+    <arg name="planning_vehicle_local_config" default=""/>
 
     <arg name="perception_mission_config" default=""/>
     <arg name="localization_mission_config" default=""/>
@@ -32,13 +34,6 @@
     <arg name="carstate_topic" default="localization/car_state"/>
     <arg name="pathlimits_topic" default="planning/pathlimits"/>
     <arg name="approaching_goal_topic" default="planning/skidpad/approaching_goal"/>
-
-    <arg name="publish_legacy_cmd_topic" default="false"/>
-    <arg name="subscribe_legacy_topics" default="false"/>
-    <arg name="subscribe_legacy_cmd_topic" default="false"/>
-    <arg name="legacy_cmd_topic" default="vehcileCMDMsg"/>
-    <arg name="legacy_carstate_topic" default="/Carstate"/>
-    <arg name="legacy_approaching_goal_topic" default="/skidpad_detection_node/approaching_goal"/>
 
     <!-- ========== Tools args ========== -->
     <arg name="bag" default=""/>
@@ -94,6 +89,9 @@
         <arg name="output_pathlimits_topic" value="$(arg pathlimits_topic)"/>
         <arg name="input_car_state_topic" value="$(arg carstate_topic)"/>
         <arg name="output_approaching_goal_topic" value="$(arg approaching_goal_topic)"/>
+        <arg name="vehicle" value="$(arg vehicle)"/>
+        <arg name="vehicle_config" value="$(arg planning_vehicle_config)"/>
+        <arg name="vehicle_local_config" value="$(arg planning_vehicle_local_config)"/>
     </include>
 
     <group if="$(arg enable_control)">
@@ -104,11 +102,6 @@
             <arg name="pathlimits_topic" value="$(arg pathlimits_topic)"/>
             <arg name="carstate_topic" value="$(arg carstate_topic)"/>
             <arg name="approaching_goal_topic" value="$(arg approaching_goal_topic)"/>
-            <arg name="publish_legacy_cmd_topic" value="$(arg publish_legacy_cmd_topic)"/>
-            <arg name="legacy_cmd_topic" value="$(arg legacy_cmd_topic)"/>
-            <arg name="subscribe_legacy_topics" value="$(arg subscribe_legacy_topics)"/>
-            <arg name="legacy_carstate_topic" value="$(arg legacy_carstate_topic)"/>
-            <arg name="legacy_approaching_goal_topic" value="$(arg legacy_approaching_goal_topic)"/>
             <arg name="mission_config" value="$(arg control_mission_config)"/>
             <arg name="vehicle" value="$(arg vehicle)"/>
             <arg name="vehicle_config" value="$(arg control_vehicle_config)"/>
@@ -117,8 +110,6 @@
 
         <include unless="$(arg simulation)" file="$(find fsd_launch)/launch/subsystems/vehicle.launch">
             <arg name="cmd_topic" value="$(arg cmd_topic)"/>
-            <arg name="subscribe_legacy_cmd_topic" value="$(arg subscribe_legacy_cmd_topic)"/>
-            <arg name="legacy_cmd_topic" value="$(arg legacy_cmd_topic)"/>
         </include>
     </group>
     <!-- ========== Tools ========== -->

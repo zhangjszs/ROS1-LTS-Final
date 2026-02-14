@@ -3,13 +3,9 @@
   车辆接口子系统：CAN/UDP 通信
 -->
 <launch>
-    <arg name="cmd_topic" default="vehicle/cmd" doc="车辆接口订阅控制命令话题（canonical）"/>
-    <arg name="subscribe_legacy_cmd_topic" default="false" doc="是否订阅 legacy 控制命令话题"/>
-    <arg name="legacy_cmd_topic" default="vehcileCMDMsg" doc="legacy 控制命令话题"/>
+    <arg name="cmd_topic" default="vehicle/cmd" doc="车辆接口订阅控制命令话题"/>
     <!-- Vehicle Interface -->
     <include file="$(find vehicle_interface_ros)/launch/vehicle_interface.launch">
         <arg name="cmd_topic" value="$(arg cmd_topic)"/>
-        <arg name="subscribe_legacy_cmd_topic" value="$(arg subscribe_legacy_cmd_topic)"/>
-        <arg name="legacy_cmd_topic" value="$(arg legacy_cmd_topic)"/>
     </include>
 </launch>

@@ -23,7 +23,6 @@
 #define MSG_TOPIC_GLOBALPOSE               autodrive_msgs::topic_contract::kInsMsg
 #define MSG_TOPIC_VEHICLE_STATUS           autodrive_msgs::topic_contract::kVehicleStatus
 #define MSG_TOPIC_VEHICLE_CMD              autodrive_msgs::topic_contract::kVehicleCmd
-#define MSG_TOPIC_VEHICLE_CMD_LEGACY       autodrive_msgs::topic_contract::kVehicleCmdLegacy
 
 #define IMU_LEN                     100
 
@@ -173,7 +172,6 @@ private:
     ros::Publisher  ros_pub_vehicle_info;
 
     ros::Subscriber ros_recv_vehicle_msg;
-    ros::Subscriber ros_recv_vehicle_msg_legacy;
 
     uint8_t vehicle_tx_msg[VEHICLE_CMD_LENGHT];
 

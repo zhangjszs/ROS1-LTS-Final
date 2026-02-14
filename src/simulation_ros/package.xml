@@ -17,6 +17,7 @@
   <depend>tf2</depend>
   <depend>tf2_ros</depend>
   <depend>autodrive_msgs</depend>
+  <depend>fsd_common</depend>
   <depend>simulation_core</depend>
 
   <export>

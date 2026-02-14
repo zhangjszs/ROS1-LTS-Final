@@ -6,11 +6,12 @@ add_compile_options(-std=c++17)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   autodrive_msgs
+  fsd_common
   vehicle_racing_num_core
 )
 
 catkin_package(
-  CATKIN_DEPENDS roscpp autodrive_msgs vehicle_racing_num_core
+  CATKIN_DEPENDS roscpp autodrive_msgs fsd_common vehicle_racing_num_core
 )
 
 include_directories(

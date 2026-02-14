@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_conversions
   visualization_msgs
   autodrive_msgs
+  fsd_common
   perception_core
 )
 find_package(Threads REQUIRED)
@@ -22,7 +23,7 @@ find_package(PCL REQUIRED)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
-  CATKIN_DEPENDS roscpp sensor_msgs geometry_msgs nav_msgs nodelet pluginlib pcl_ros pcl_conversions visualization_msgs autodrive_msgs perception_core
+  CATKIN_DEPENDS roscpp sensor_msgs geometry_msgs nav_msgs nodelet pluginlib pcl_ros pcl_conversions visualization_msgs autodrive_msgs fsd_common perception_core
 )
 
 include_directories(

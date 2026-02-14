@@ -18,10 +18,10 @@ class InsBridge:
         self.G = 9.7883105  # 重力加速度 (m/s²), 来自 INS5711DAA 手册
         
         # 发布 HUAT_InsP2 格式
-        self.pub = rospy.Publisher('/pbox_pub/Ins', HUAT_InsP2, queue_size=10)
+        self.pub = rospy.Publisher('sensors/ins', HUAT_InsP2, queue_size=10)
         self.sub = rospy.Subscriber('/INS/ASENSING_INS', ASENSING, self.callback)
-        
-        rospy.loginfo("[InsBridge] Bridging /INS/ASENSING_INS -> /pbox_pub/Ins (HUAT_InsP2)")
+
+        rospy.loginfo("[InsBridge] Bridging /INS/ASENSING_INS -> sensors/ins (HUAT_InsP2)")
         rospy.loginfo("[InsBridge] Unit conversions: deg/s->rad/s, g->m/s²")
 
     def callback(self, msg):
