@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <cstdint>
+#include <unordered_set>
 
 #include <ros/ros.h>
 #include <std_msgs/String.h>
@@ -40,6 +41,8 @@ class LocationNode {
   void coneCallback(const autodrive_msgs::HUAT_ConeDetections::ConstPtr &msg);
   void publishDiagnostics(const diagnostic_msgs::DiagnosticArray &diag_arr);
   void publishEntryHealth(const std::string &source, const ros::Time &stamp, bool force = false);
+  void updateHeadingSanity(const autodrive_msgs::HUAT_InsP2 &msg, const ros::Time &stamp);
+  void updateConeMapLifecycleStats(const autodrive_msgs::HUAT_ConeMap &map_msg);
 
   static localization_core::Asensing ToCore(const autodrive_msgs::HUAT_InsP2 &msg);
   static localization_core::CarState ToCore(const autodrive_msgs::HUAT_CarState &msg);
@@ -155,6 +158,31 @@ class LocationNode {
   std::uint64_t tf_future_stamp_count_ = 0;
   std::uint64_t tf_stamp_regression_count_ = 0;
   std::uint64_t tf_gap_exceed_count_ = 0;
+
+  struct HeadingSanityConfig {
+    bool enabled = true;
+    double abs_max_deg = 360.0;
+    double max_step_deg = 45.0;
+    double max_rate_deg_per_sec = 180.0;
+    double max_heading_gyro_residual_rad_s = 0.35;
+  };
+  HeadingSanityConfig heading_sanity_cfg_;
+  bool has_last_heading_ = false;
+  double last_heading_deg_ = 0.0;
+  double last_heading_rate_rad_s_ = 0.0;
+  ros::Time last_heading_stamp_;
+  std::uint64_t heading_range_violation_count_ = 0;
+  std::uint64_t heading_jump_violation_count_ = 0;
+  std::uint64_t heading_rate_violation_count_ = 0;
+  std::uint64_t heading_gyro_mismatch_count_ = 0;
+
+  std::unordered_set<std::uint32_t> seen_cone_ids_;
+  std::uint32_t cone_max_id_seen_ = 0;
+  int cone_last_map_size_ = 0;
+  std::uint64_t cone_new_id_count_ = 0;
+  std::uint64_t cone_non_monotonic_new_id_count_ = 0;
+  std::uint64_t cone_zero_id_count_ = 0;
+  std::uint64_t cone_stale_publish_count_ = 0;
 
   // Heading init logging (Item 3)
   bool heading_init_logged_ = false;

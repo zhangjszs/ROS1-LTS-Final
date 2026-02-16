@@ -77,6 +77,16 @@ tf_monitor:
   max_gap_sec: 0.20          # 相邻发布最大时间间隔
 
 # ==========================
+# heading/yaw 单位自检（INS度 -> ROS弧度）
+# ==========================
+heading_sanity:
+  enabled: true
+  abs_max_deg: 360.0
+  max_step_deg: 45.0
+  max_rate_deg_per_sec: 180.0
+  max_heading_gyro_residual_rad_s: 0.35
+
+# ==========================
 # INS信号质量门控
 # ==========================
 # 当INS数据质量不满足要求时的处理策略

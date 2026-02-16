@@ -35,6 +35,21 @@ std::string ToFixed(double value, int precision = 3)
   oss << std::fixed << std::setprecision(precision) << value;
   return oss.str();
 }
+
+double NormalizeDeg360(double deg)
+{
+  while (deg < 0.0) deg += 360.0;
+  while (deg >= 360.0) deg -= 360.0;
+  return deg;
+}
+
+double ShortestDiffDeg(double current_deg, double prev_deg)
+{
+  double diff = NormalizeDeg360(current_deg) - NormalizeDeg360(prev_deg);
+  while (diff > 180.0) diff -= 360.0;
+  while (diff < -180.0) diff += 360.0;
+  return diff;
+}
 }  // namespace
 
 LocationNode::LocationNode(ros::NodeHandle &nh)
@@ -320,6 +335,19 @@ void LocationNode::loadParameters()
   tf_monitor_cfg_.max_future_sec = std::max(0.0, tf_monitor_cfg_.max_future_sec);
   tf_monitor_cfg_.max_gap_sec = std::max(0.0, tf_monitor_cfg_.max_gap_sec);
 
+  LoadParam(pnh_, nh_, "heading_sanity/enabled", heading_sanity_cfg_.enabled, true);
+  LoadParam(pnh_, nh_, "heading_sanity/abs_max_deg", heading_sanity_cfg_.abs_max_deg, 360.0);
+  LoadParam(pnh_, nh_, "heading_sanity/max_step_deg", heading_sanity_cfg_.max_step_deg, 45.0);
+  LoadParam(pnh_, nh_, "heading_sanity/max_rate_deg_per_sec",
+            heading_sanity_cfg_.max_rate_deg_per_sec, 180.0);
+  LoadParam(pnh_, nh_, "heading_sanity/max_heading_gyro_residual_rad_s",
+            heading_sanity_cfg_.max_heading_gyro_residual_rad_s, 0.35);
+  heading_sanity_cfg_.abs_max_deg = std::max(0.0, heading_sanity_cfg_.abs_max_deg);
+  heading_sanity_cfg_.max_step_deg = std::max(0.0, heading_sanity_cfg_.max_step_deg);
+  heading_sanity_cfg_.max_rate_deg_per_sec = std::max(0.0, heading_sanity_cfg_.max_rate_deg_per_sec);
+  heading_sanity_cfg_.max_heading_gyro_residual_rad_s =
+      std::max(0.0, heading_sanity_cfg_.max_heading_gyro_residual_rad_s);
+
   // Factor graph config
   if (backend_ == "factor_graph")
   {
@@ -530,6 +558,97 @@ std::string LocationNode::carStateQualityLabel() const
   return "POOR";
 }
 
+void LocationNode::updateHeadingSanity(const autodrive_msgs::HUAT_InsP2 &msg, const ros::Time &stamp)
+{
+  if (!heading_sanity_cfg_.enabled)
+  {
+    return;
+  }
+  if (!std::isfinite(msg.Heading))
+  {
+    ++heading_range_violation_count_;
+    ROS_WARN_THROTTLE(2.0, "[location] heading sanity: non-finite heading detected");
+    return;
+  }
+
+  const double heading_raw_deg = static_cast<double>(msg.Heading);
+  if (std::abs(heading_raw_deg) > heading_sanity_cfg_.abs_max_deg)
+  {
+    ++heading_range_violation_count_;
+    ROS_WARN_THROTTLE(2.0, "[location] heading sanity: heading out of range %.3f deg (limit %.3f)",
+                      heading_raw_deg, heading_sanity_cfg_.abs_max_deg);
+  }
+
+  const double heading_deg = NormalizeDeg360(heading_raw_deg);
+  if (has_last_heading_ && stamp > last_heading_stamp_)
+  {
+    const double dt = (stamp - last_heading_stamp_).toSec();
+    if (dt > 1e-3)
+    {
+      const double signed_step_deg = ShortestDiffDeg(heading_deg, last_heading_deg_);
+      const double step_deg = std::abs(signed_step_deg);
+      if (step_deg > heading_sanity_cfg_.max_step_deg)
+      {
+        ++heading_jump_violation_count_;
+        ROS_WARN_THROTTLE(2.0,
+                          "[location] heading sanity: step too large %.3f deg (limit %.3f)",
+                          step_deg, heading_sanity_cfg_.max_step_deg);
+      }
+
+      const double rate_deg_s = step_deg / dt;
+      if (rate_deg_s > heading_sanity_cfg_.max_rate_deg_per_sec)
+      {
+        ++heading_rate_violation_count_;
+        ROS_WARN_THROTTLE(2.0,
+                          "[location] heading sanity: rate too large %.3f deg/s (limit %.3f)",
+                          rate_deg_s, heading_sanity_cfg_.max_rate_deg_per_sec);
+      }
+
+      constexpr double kPi = 3.14159265358979323846;
+      const double heading_rate_rad_s = (signed_step_deg * kPi / 180.0) / dt;
+      last_heading_rate_rad_s_ = heading_rate_rad_s;
+      const double gyro_residual = std::abs(heading_rate_rad_s - static_cast<double>(msg.gyro_z));
+      if (gyro_residual > heading_sanity_cfg_.max_heading_gyro_residual_rad_s)
+      {
+        ++heading_gyro_mismatch_count_;
+        ROS_WARN_THROTTLE(
+            2.0,
+            "[location] heading sanity: heading/gyro mismatch %.3f rad/s (limit %.3f)",
+            gyro_residual, heading_sanity_cfg_.max_heading_gyro_residual_rad_s);
+      }
+    }
+  }
+
+  last_heading_deg_ = heading_deg;
+  last_heading_stamp_ = stamp;
+  has_last_heading_ = true;
+}
+
+void LocationNode::updateConeMapLifecycleStats(const autodrive_msgs::HUAT_ConeMap &map_msg)
+{
+  cone_last_map_size_ = static_cast<int>(map_msg.cone.size());
+  for (const auto &cone : map_msg.cone)
+  {
+    const std::uint32_t id = cone.id;
+    if (id == 0)
+    {
+      ++cone_zero_id_count_;
+      continue;
+    }
+    const bool is_new = seen_cone_ids_.insert(id).second;
+    if (!is_new)
+    {
+      continue;
+    }
+    ++cone_new_id_count_;
+    if (id <= cone_max_id_seen_)
+    {
+      ++cone_non_monotonic_new_id_count_;
+    }
+    cone_max_id_seen_ = std::max(cone_max_id_seen_, id);
+  }
+}
+
 void LocationNode::publishState(const localization_core::CarState &state, const ros::Time &stamp, bool publish_carstate)
 {
   const geometry_msgs::Quaternion orientation = YawToQuaternion(state.car_state.theta);
@@ -686,6 +805,20 @@ void LocationNode::publishEntryHealth(const std::string &source, const ros::Time
   kvs.push_back(KV::KV("tf_future_stamp_count", std::to_string(tf_future_stamp_count_)));
   kvs.push_back(KV::KV("tf_stamp_regression_count", std::to_string(tf_stamp_regression_count_)));
   kvs.push_back(KV::KV("tf_gap_exceed_count", std::to_string(tf_gap_exceed_count_)));
+  kvs.push_back(KV::KV("heading_sanity_enabled", heading_sanity_cfg_.enabled ? "true" : "false"));
+  kvs.push_back(KV::KV("heading_last_deg", ToFixed(last_heading_deg_, 3)));
+  kvs.push_back(KV::KV("heading_last_rate_rad_s", ToFixed(last_heading_rate_rad_s_, 3)));
+  kvs.push_back(KV::KV("heading_range_violation_count", std::to_string(heading_range_violation_count_)));
+  kvs.push_back(KV::KV("heading_step_violation_count", std::to_string(heading_jump_violation_count_)));
+  kvs.push_back(KV::KV("heading_rate_violation_count", std::to_string(heading_rate_violation_count_)));
+  kvs.push_back(KV::KV("heading_gyro_mismatch_count", std::to_string(heading_gyro_mismatch_count_)));
+  kvs.push_back(KV::KV("cone_last_map_size", std::to_string(cone_last_map_size_)));
+  kvs.push_back(KV::KV("cone_unique_id_seen", std::to_string(seen_cone_ids_.size())));
+  kvs.push_back(KV::KV("cone_new_id_count", std::to_string(cone_new_id_count_)));
+  kvs.push_back(KV::KV("cone_max_id_seen", std::to_string(cone_max_id_seen_)));
+  kvs.push_back(KV::KV("cone_non_monotonic_new_id_count", std::to_string(cone_non_monotonic_new_id_count_)));
+  kvs.push_back(KV::KV("cone_zero_id_count", std::to_string(cone_zero_id_count_)));
+  kvs.push_back(KV::KV("cone_stale_publish_count", std::to_string(cone_stale_publish_count_)));
 
   diag_helper_.PublishStatus("localization_entry_health", "localization_ros/location_node",
                              level, message, kvs, stamp, force);
@@ -693,11 +826,13 @@ void LocationNode::publishEntryHealth(const std::string &source, const ros::Time
 
 void LocationNode::imuCallback(const autodrive_msgs::HUAT_InsP2::ConstPtr &msg)
 {
+  const ros::Time stamp = msg->header.stamp.isZero() ? ros::Time::now() : msg->header.stamp;
+  updateHeadingSanity(*msg, stamp);
+
   localization_core::Asensing core_msg = ToCore(*msg);
 
   // 缓存 INS 状态用于时间戳插值
   {
-    const ros::Time stamp = msg->header.stamp.isZero() ? ros::Time::now() : msg->header.stamp;
     ins_buffer_.push_back({stamp, core_msg});
     while (ins_buffer_.size() > kInsBufferSize)
     {
@@ -709,7 +844,6 @@ void LocationNode::imuCallback(const autodrive_msgs::HUAT_InsP2::ConstPtr &msg)
 
   if (mapper_.UpdateFromIns(core_msg, &state))
   {
-    const ros::Time stamp = msg->header.stamp.isZero() ? ros::Time::now() : msg->header.stamp;
     publishState(state, stamp, true);
 
     // Log Heading_init once after first successful INS update
@@ -780,6 +914,7 @@ void LocationNode::coneCallback(const autodrive_msgs::HUAT_ConeDetections::Const
       stale_map.header.stamp = stamp;
       stale_map.header.frame_id = world_frame_;
       map_pub_.publish(stale_map);
+      ++cone_stale_publish_count_;
     }
     publishEntryHealth("cone_ins_only", stamp);
     return;
@@ -807,6 +942,7 @@ void LocationNode::coneCallback(const autodrive_msgs::HUAT_ConeDetections::Const
       stale_map.header.stamp = stamp;
       stale_map.header.frame_id = world_frame_;
       map_pub_.publish(stale_map);
+      ++cone_stale_publish_count_;
     }
     publishEntryHealth("cone_update_failed", stamp);
     return;
@@ -824,6 +960,7 @@ void LocationNode::coneCallback(const autodrive_msgs::HUAT_ConeDetections::Const
   ToRos(map, &out_map);
   out_map.header.stamp = stamp;
   out_map.header.frame_id = world_frame_;
+  updateConeMapLifecycleStats(out_map);
   map_pub_.publish(out_map);
   last_map_msg_ = out_map;
   has_last_map_msg_ = true;
