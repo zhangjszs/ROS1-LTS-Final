@@ -145,6 +145,49 @@ with open(current_path, "r", encoding="utf-8") as f:
 baseline_metrics = baseline.get("metrics", {})
 current_metrics = current.get("metrics", {})
 
+if baseline.get("baseline_ready", True) is False:
+    print("[RESULT] perception regression check FAILED")
+    print("[FAIL] baseline is not ready (baseline_ready=false); freeze baseline first")
+    print(f"[INFO] baseline: {baseline_path}")
+    sys.exit(1)
+
+required_metrics = [
+    "n_frames",
+    "mean_detections",
+    "std_detections",
+    "spike_rate",
+    "zero_frame_rate",
+    "mean_confidence",
+    "std_confidence",
+    "mean_distance_m",
+    "symmetry_ratio",
+    "mean_frame_interval_s",
+]
+
+def _missing_required(metric_map):
+    missing = []
+    for name in required_metrics:
+        value = metric_map.get(name)
+        if not isinstance(value, (int, float)):
+            missing.append(name)
+    return missing
+
+missing_baseline = _missing_required(baseline_metrics)
+if missing_baseline:
+    print("[RESULT] perception regression check FAILED")
+    print("[FAIL] baseline is missing required numeric metrics")
+    print(f"[INFO] missing baseline metrics: {', '.join(missing_baseline)}")
+    print(f"[INFO] baseline: {baseline_path}")
+    sys.exit(1)
+
+missing_current = _missing_required(current_metrics)
+if missing_current:
+    print("[RESULT] perception regression check FAILED")
+    print("[FAIL] current run is missing required numeric metrics")
+    print(f"[INFO] missing current metrics: {', '.join(missing_current)}")
+    print(f"[INFO] current: {current_path}")
+    sys.exit(1)
+
 lower_better_metrics = [
     "std_detections",
     "spike_rate",

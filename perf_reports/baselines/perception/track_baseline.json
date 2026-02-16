@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "mode": "track",
+  "baseline_ready": false,
+  "generated_at": "",
+  "source_bag": "",
+  "topic": "/perception/lidar_cluster/detections",
+  "metrics": {
+    "n_frames": null,
+    "mean_detections": null,
+    "std_detections": null,
+    "spike_rate": null,
+    "zero_frame_rate": null,
+    "mean_confidence": null,
+    "std_confidence": null,
+    "mean_distance_m": null,
+    "symmetry_ratio": null,
+    "mean_frame_interval_s": null
+  },
+  "notes": "Run scripts/freeze_perception_baseline.sh --mode track --bag <bag_file> --force"
+}

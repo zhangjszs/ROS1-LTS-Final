@@ -1035,6 +1035,7 @@ void LidarClusterRos::applyModePreset()
 
 void LidarClusterRos::pointCallback(const sensor_msgs::PointCloud2ConstPtr &msg)
 {
+  input_guard_frames_seen_.fetch_add(1, std::memory_order_relaxed);
   pcl::PointCloud<PointType>::Ptr cloud(new pcl::PointCloud<PointType>);
 
   // Apply distortion compensation V2 (自动检测time字段)
@@ -1053,12 +1054,14 @@ void LidarClusterRos::pointCallback(const sensor_msgs::PointCloud2ConstPtr &msg)
   {
     if (cloud->empty())
     {
+      input_guard_drop_empty_.fetch_add(1, std::memory_order_relaxed);
       ROS_WARN_THROTTLE(2.0, "Received empty point cloud, dropping frame");
       return;
     }
 
     if (cloud->size() > static_cast<size_t>(input_guard_max_points_))
     {
+      input_guard_drop_oversize_.fetch_add(1, std::memory_order_relaxed);
       ROS_WARN_THROTTLE(2.0,
                         "Point cloud too large (%zu > %d), dropping frame",
                         cloud->size(),
@@ -1079,6 +1082,8 @@ void LidarClusterRos::pointCallback(const sensor_msgs::PointCloud2ConstPtr &msg)
       const size_t invalid_count = before_size - cloud->points.size();
       if (invalid_count > 0)
       {
+        input_guard_filtered_frames_.fetch_add(1, std::memory_order_relaxed);
+        input_guard_filtered_points_total_.fetch_add(invalid_count, std::memory_order_relaxed);
         cloud->width = static_cast<uint32_t>(cloud->points.size());
         cloud->height = 1;
         cloud->is_dense = true;
@@ -1088,6 +1093,7 @@ void LidarClusterRos::pointCallback(const sensor_msgs::PointCloud2ConstPtr &msg)
       }
       if (cloud->empty())
       {
+        input_guard_drop_all_invalid_.fetch_add(1, std::memory_order_relaxed);
         ROS_WARN_THROTTLE(2.0, "Point cloud contains only invalid points, dropping frame");
         return;
       }
@@ -1471,7 +1477,7 @@ void LidarClusterRos::publishDiagnostics(const LidarClusterOutput &output,
   }
 
   std::vector<diagnostic_msgs::KeyValue> kvs;
-  kvs.reserve(26);
+  kvs.reserve(38);
   kvs.push_back(DH::KV("n_detections", std::to_string(n_published)));
   kvs.push_back(DH::KV("n_input_points", std::to_string(output.input_points)));
   kvs.push_back(DH::KV("n_clusters", std::to_string(output.total_clusters)));
@@ -1482,6 +1488,28 @@ void LidarClusterRos::publishDiagnostics(const LidarClusterOutput &output,
   kvs.push_back(DH::KV("health", messages[static_cast<int>(health_level_)]));
   kvs.push_back(DH::KV("consecutive_zero", std::to_string(consecutive_zero_detections_)));
   kvs.push_back(DH::KV("ground_method", config_.ground_method));
+  {
+    const uint64_t seen = input_guard_frames_seen_.load(std::memory_order_relaxed);
+    const uint64_t drop_empty = input_guard_drop_empty_.load(std::memory_order_relaxed);
+    const uint64_t drop_oversize = input_guard_drop_oversize_.load(std::memory_order_relaxed);
+    const uint64_t drop_all_invalid = input_guard_drop_all_invalid_.load(std::memory_order_relaxed);
+    const uint64_t filtered_frames = input_guard_filtered_frames_.load(std::memory_order_relaxed);
+    const uint64_t filtered_points = input_guard_filtered_points_total_.load(std::memory_order_relaxed);
+    const uint64_t drop_total = drop_empty + drop_oversize + drop_all_invalid;
+    const double drop_ratio = seen > 0 ? static_cast<double>(drop_total) / static_cast<double>(seen) : 0.0;
+
+    kvs.push_back(DH::KV("input_guard_enable", input_guard_enable_ ? "1" : "0"));
+    kvs.push_back(DH::KV("input_guard_max_points", std::to_string(input_guard_max_points_)));
+    kvs.push_back(DH::KV("input_guard_filter_invalid", input_guard_filter_invalid_points_ ? "1" : "0"));
+    kvs.push_back(DH::KV("input_guard_frames_seen", std::to_string(seen)));
+    kvs.push_back(DH::KV("input_guard_drop_empty", std::to_string(drop_empty)));
+    kvs.push_back(DH::KV("input_guard_drop_oversize", std::to_string(drop_oversize)));
+    kvs.push_back(DH::KV("input_guard_drop_all_invalid", std::to_string(drop_all_invalid)));
+    kvs.push_back(DH::KV("input_guard_drop_total", std::to_string(drop_total)));
+    kvs.push_back(DH::KV("input_guard_filtered_frames", std::to_string(filtered_frames)));
+    kvs.push_back(DH::KV("input_guard_filtered_points_total", std::to_string(filtered_points)));
+    kvs.push_back(DH::KV("input_guard_drop_ratio", std::to_string(drop_ratio)));
+  }
 
   // G9: Per-distance confidence segmentation
   {

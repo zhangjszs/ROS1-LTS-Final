@@ -1,6 +1,8 @@
 #pragma once
 
 #include <string>
+#include <cstdint>
+#include <atomic>
 #include <mutex>
 
 #include <ros/ros.h>
@@ -83,6 +85,12 @@ class LidarClusterRos {
   bool input_guard_enable_ = true;              // G4: 输入边界防御总开关
   int input_guard_max_points_ = 500000;         // G4: 点云最大允许点数
   bool input_guard_filter_invalid_points_ = true;  // G4: 过滤NaN/Inf点
+  std::atomic<uint64_t> input_guard_frames_seen_{0};
+  std::atomic<uint64_t> input_guard_drop_empty_{0};
+  std::atomic<uint64_t> input_guard_drop_oversize_{0};
+  std::atomic<uint64_t> input_guard_drop_all_invalid_{0};
+  std::atomic<uint64_t> input_guard_filtered_frames_{0};
+  std::atomic<uint64_t> input_guard_filtered_points_total_{0};
   bool force_fgs_fast_path_ = true;             // T30-2: 锁定FGS快路径
   bool ground_watchdog_enable_ = true;          // T30-2: 地面分割看门狗
   double ground_watchdog_warn_ms_ = 8.0;        // T30-2: t_ground_ms告警阈值
