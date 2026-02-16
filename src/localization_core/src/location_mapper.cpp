@@ -268,6 +268,13 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
   local_stats.map_frozen = map_frozen_;
   local_stats.map_size = static_cast<int>(cloud_->size());
 
+  if (!std::isfinite(car_state_.car_state.x) ||
+      !std::isfinite(car_state_.car_state.y) ||
+      !std::isfinite(car_state_.car_state.theta))
+  {
+    return false;
+  }
+
   auto push_outlier = [&local_stats](const Cone &cone) {
     if (local_stats.outlier_cones.size() < 200)
     {
@@ -314,6 +321,7 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
   };
 
   bool cloud_modified = false;
+  bool kdtree_needs_rebuild = false;
   first_cone_msg_ = !cloud_->empty();
   for (const auto &det : detections.detections)
   {
@@ -342,10 +350,23 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
     point.y = det_cone.position_global.y;
     point.z = det_cone.position_global.z;
 
+    const double det_conf = std::isfinite(det.confidence) ? det.confidence : 0.0;
+
     int nearest_idx = -1;
     float nearest_sq_dist = 0.0f;
+    if (!std::isfinite(point.x) || !std::isfinite(point.y) || !std::isfinite(point.z))
+    {
+      local_stats.geometry_reject_count++;
+      push_outlier(det_cone);
+      continue;
+    }
     if (!cloud_->empty())
     {
+      if (kdtree_needs_rebuild)
+      {
+        kdtree_.setInputCloud(cloud_);
+        kdtree_needs_rebuild = false;
+      }
       std::vector<int> idx(1);
       std::vector<float> sqdist(1);
       if (kdtree_.nearestKSearch(point, 1, idx, sqdist) > 0 &&
@@ -356,10 +377,15 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
       }
     }
 
-    const bool can_merge = (nearest_idx >= 0 && nearest_sq_dist <= merge_distance_sq);
+    const bool valid_nearest =
+        nearest_idx >= 0 &&
+        nearest_idx < static_cast<int>(cloud_->size()) &&
+        nearest_idx < static_cast<int>(point_ids_.size()) &&
+        nearest_idx < static_cast<int>(point_obs_counts_.size());
+    const bool can_merge = (valid_nearest && nearest_sq_dist <= merge_distance_sq);
     if (can_merge)
     {
-      if (det.confidence < params_.min_confidence_to_merge)
+      if (det_conf < params_.min_confidence_to_merge)
       {
         local_stats.conf_merge_reject_count++;
         push_outlier(det_cone);
@@ -389,7 +415,7 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
       }
       if (nearest_idx < static_cast<int>(point_confidences_.size()))
       {
-        point_confidences_[nearest_idx] = point_confidences_[nearest_idx] * w_old + det.confidence * w_new;
+        point_confidences_[nearest_idx] = point_confidences_[nearest_idx] * w_old + det_conf * w_new;
       }
 
       Cone merged_cone = det_cone;
@@ -415,7 +441,7 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
       continue;
     }
 
-    if (det.confidence < params_.min_confidence_to_add)
+    if (det_conf < params_.min_confidence_to_add)
     {
       local_stats.conf_add_reject_count++;
       push_outlier(det_cone);
@@ -434,7 +460,8 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
     point_ids_.push_back(id);
     point_obs_counts_.push_back(1);
     point_types_.push_back(normalizeConeType(det.color_type));
-    point_confidences_.push_back(det.confidence);
+    point_confidences_.push_back(det_conf);
+    kdtree_needs_rebuild = true;
     push_inlier(det_cone);
 
     ConeAssociationDebug assoc;
@@ -471,7 +498,11 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
     new_types.reserve(cloud_->points.size());
     new_confidences.reserve(cloud_->points.size());
 
-    for (size_t i = 0; i < cloud_->points.size() && i < point_obs_counts_.size(); ++i)
+    for (size_t i = 0;
+         i < cloud_->points.size() &&
+         i < point_obs_counts_.size() &&
+         i < point_ids_.size();
+         ++i)
     {
       if (point_obs_counts_[i] >= params_.min_obs_to_keep)
       {

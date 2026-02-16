@@ -25,7 +25,7 @@ map:
   # 高速循迹使用标准合并距离
   # 调大：更激进的合并（适合长直道）
   # 调小：更保守的合并（适合多弯道）
-  merge_distance: 2.5
+  merge_distance: 2.2
   
   # 地图最大锥桶数量
   # TrackDrive场地大，需要更大的地图容量
@@ -50,12 +50,12 @@ map:
   # 新锥桶入图最低置信度
   # 范围: 0-1
   # 高速循迹平衡策略：不过于严格（避免漏检），也不过于宽松（避免噪声）
-  min_confidence_to_add: 0.3
+  min_confidence_to_add: 0.35
   
   # 合并已有锥桶的最低置信度
   # 允许低置信度检测更新已有锥桶位置
   # 高速场景需要快速更新锥桶位置
-  min_confidence_to_merge: 0.15
+  min_confidence_to_merge: 0.18
   
   # 锥桶尺寸约束（与base一致）
   max_cone_height: 0.75    # 最大高度 (m)
