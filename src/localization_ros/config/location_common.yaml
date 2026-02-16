@@ -53,6 +53,30 @@ length:
 backend: mapper
 
 # ==========================
+# mapper 运行态保护（仅 backend=mapper 生效）
+# ==========================
+# 目标：当锥桶匹配连续失败时，降级为 INS-only，避免坏观测污染地图；
+#      在冷却后按探测帧尝试恢复，连续成功后回到 TRACKING。
+mapper_recovery:
+  enabled: true
+  fail_frames_to_degraded: 3
+  fail_frames_to_ins_only: 8
+  success_frames_to_tracking: 3
+  recovery_cooldown_frames: 20
+  recovery_probe_interval_frames: 3
+  min_local_cones_for_tracking: 3
+  min_match_ratio_for_tracking: 0.25
+  publish_stale_map_on_failure: true
+
+# ==========================
+# TF 时序监控
+# ==========================
+tf_monitor:
+  max_delay_sec: 0.10        # 允许的最大发布滞后（now - stamp）
+  max_future_sec: 0.02       # 允许的最大未来时间戳
+  max_gap_sec: 0.20          # 相邻发布最大时间间隔
+
+# ==========================
 # INS信号质量门控
 # ==========================
 # 当INS数据质量不满足要求时的处理策略

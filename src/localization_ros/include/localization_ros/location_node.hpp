@@ -3,6 +3,7 @@
 #include <deque>
 #include <memory>
 #include <string>
+#include <cstdint>
 
 #include <ros/ros.h>
 #include <std_msgs/String.h>
@@ -90,6 +91,11 @@ class LocationNode {
   double fg_start_time_ = -1.0;
   void feedFactorGraph(const autodrive_msgs::HUAT_InsP2 &msg);
   void feedFactorGraphCones(const autodrive_msgs::HUAT_ConeDetections &msg);
+  void updateMapperStateMachine(bool frame_good);
+  bool shouldProcessConeFusion();
+  int carStateQualityLevel() const;
+  std::string carStateQualityLabel() const;
+  static const char *mapperStateName(int state);
 
   // INS 状态环形缓冲区，用于检测-状态时间戳对齐
   struct StampedIns {
@@ -105,6 +111,50 @@ class LocationNode {
   bool perf_enabled_ = true;
   size_t perf_window_ = 300;
   size_t perf_log_every_ = 30;
+
+  struct MapperRecoveryConfig {
+    bool enabled = true;
+    int fail_frames_to_degraded = 3;
+    int fail_frames_to_ins_only = 8;
+    int success_frames_to_tracking = 3;
+    int recovery_cooldown_frames = 20;
+    int recovery_probe_interval_frames = 3;
+    int min_local_cones_for_tracking = 3;
+    double min_match_ratio_for_tracking = 0.25;
+    bool publish_stale_map_on_failure = true;
+  };
+  MapperRecoveryConfig mapper_recovery_cfg_;
+
+  enum class MapperRuntimeState : std::uint8_t {
+    TRACKING = 0,
+    DEGRADED = 1,
+    INS_ONLY = 2,
+  };
+  MapperRuntimeState mapper_state_ = MapperRuntimeState::TRACKING;
+  std::uint64_t mapper_drop_count_ = 0;
+  int mapper_consecutive_failures_ = 0;
+  int mapper_consecutive_successes_ = 0;
+  int mapper_ins_only_frames_ = 0;
+  bool last_cone_update_success_ = false;
+  bool last_cone_frame_good_ = false;
+  int last_input_cone_count_ = 0;
+  int last_local_cone_count_ = 0;
+  double last_cone_match_ratio_ = 0.0;
+  bool has_last_map_msg_ = false;
+  autodrive_msgs::HUAT_ConeMap last_map_msg_;
+
+  struct TfMonitorConfig {
+    double max_delay_sec = 0.10;
+    double max_future_sec = 0.02;
+    double max_gap_sec = 0.20;
+  };
+  TfMonitorConfig tf_monitor_cfg_;
+  double tf_last_lag_sec_ = 0.0;
+  double tf_max_lag_sec_ = 0.0;
+  std::uint64_t tf_delay_exceed_count_ = 0;
+  std::uint64_t tf_future_stamp_count_ = 0;
+  std::uint64_t tf_stamp_regression_count_ = 0;
+  std::uint64_t tf_gap_exceed_count_ = 0;
 
   // Heading init logging (Item 3)
   bool heading_init_logged_ = false;

@@ -207,6 +207,28 @@ map:
 backend: mapper
 
 # ==========================
+# mapper 运行态保护（仅 backend=mapper 生效）
+# ==========================
+mapper_recovery:
+  enabled: true
+  fail_frames_to_degraded: 3
+  fail_frames_to_ins_only: 8
+  success_frames_to_tracking: 3
+  recovery_cooldown_frames: 20
+  recovery_probe_interval_frames: 3
+  min_local_cones_for_tracking: 3
+  min_match_ratio_for_tracking: 0.25
+  publish_stale_map_on_failure: true
+
+# ==========================
+# TF 时序监控
+# ==========================
+tf_monitor:
+  max_delay_sec: 0.10
+  max_future_sec: 0.02
+  max_gap_sec: 0.20
+
+# ==========================
 # 因子图参数（仅在 backend=factor_graph 时使用）
 # ==========================
 # ⚠️ 实验性功能，当前作为影子模式运行

@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <iomanip>
+#include <sstream>
 
 #include <geometry_msgs/TransformStamped.h>
 #include <std_msgs/String.h>
@@ -25,6 +27,13 @@ geometry_msgs::Quaternion YawToQuaternion(double yaw)
   q.z = std::sin(half);
   q.w = std::cos(half);
   return q;
+}
+
+std::string ToFixed(double value, int precision = 3)
+{
+  std::ostringstream oss;
+  oss << std::fixed << std::setprecision(precision) << value;
+  return oss.str();
 }
 }  // namespace
 
@@ -274,6 +283,43 @@ void LocationNode::loadParameters()
   LoadParam(pnh_, nh_, "backend", backend_, std::string("mapper"));
   ROS_INFO_STREAM("Localization backend: " << backend_);
 
+  // Mapper runtime protection & recovery state machine (only for backend=mapper)
+  LoadParam(pnh_, nh_, "mapper_recovery/enabled", mapper_recovery_cfg_.enabled, true);
+  LoadParam(pnh_, nh_, "mapper_recovery/fail_frames_to_degraded",
+            mapper_recovery_cfg_.fail_frames_to_degraded, 3);
+  LoadParam(pnh_, nh_, "mapper_recovery/fail_frames_to_ins_only",
+            mapper_recovery_cfg_.fail_frames_to_ins_only, 8);
+  LoadParam(pnh_, nh_, "mapper_recovery/success_frames_to_tracking",
+            mapper_recovery_cfg_.success_frames_to_tracking, 3);
+  LoadParam(pnh_, nh_, "mapper_recovery/recovery_cooldown_frames",
+            mapper_recovery_cfg_.recovery_cooldown_frames, 20);
+  LoadParam(pnh_, nh_, "mapper_recovery/recovery_probe_interval_frames",
+            mapper_recovery_cfg_.recovery_probe_interval_frames, 3);
+  LoadParam(pnh_, nh_, "mapper_recovery/min_local_cones_for_tracking",
+            mapper_recovery_cfg_.min_local_cones_for_tracking, 3);
+  LoadParam(pnh_, nh_, "mapper_recovery/min_match_ratio_for_tracking",
+            mapper_recovery_cfg_.min_match_ratio_for_tracking, 0.25);
+  LoadParam(pnh_, nh_, "mapper_recovery/publish_stale_map_on_failure",
+            mapper_recovery_cfg_.publish_stale_map_on_failure, true);
+
+  mapper_recovery_cfg_.fail_frames_to_degraded = std::max(1, mapper_recovery_cfg_.fail_frames_to_degraded);
+  mapper_recovery_cfg_.fail_frames_to_ins_only =
+      std::max(mapper_recovery_cfg_.fail_frames_to_degraded + 1,
+               mapper_recovery_cfg_.fail_frames_to_ins_only);
+  mapper_recovery_cfg_.success_frames_to_tracking = std::max(1, mapper_recovery_cfg_.success_frames_to_tracking);
+  mapper_recovery_cfg_.recovery_cooldown_frames = std::max(0, mapper_recovery_cfg_.recovery_cooldown_frames);
+  mapper_recovery_cfg_.recovery_probe_interval_frames = std::max(1, mapper_recovery_cfg_.recovery_probe_interval_frames);
+  mapper_recovery_cfg_.min_local_cones_for_tracking = std::max(1, mapper_recovery_cfg_.min_local_cones_for_tracking);
+  mapper_recovery_cfg_.min_match_ratio_for_tracking =
+      std::max(0.0, std::min(1.0, mapper_recovery_cfg_.min_match_ratio_for_tracking));
+
+  LoadParam(pnh_, nh_, "tf_monitor/max_delay_sec", tf_monitor_cfg_.max_delay_sec, 0.10);
+  LoadParam(pnh_, nh_, "tf_monitor/max_future_sec", tf_monitor_cfg_.max_future_sec, 0.02);
+  LoadParam(pnh_, nh_, "tf_monitor/max_gap_sec", tf_monitor_cfg_.max_gap_sec, 0.20);
+  tf_monitor_cfg_.max_delay_sec = std::max(0.0, tf_monitor_cfg_.max_delay_sec);
+  tf_monitor_cfg_.max_future_sec = std::max(0.0, tf_monitor_cfg_.max_future_sec);
+  tf_monitor_cfg_.max_gap_sec = std::max(0.0, tf_monitor_cfg_.max_gap_sec);
+
   // Factor graph config
   if (backend_ == "factor_graph")
   {
@@ -339,11 +385,193 @@ void LocationNode::loadParameters()
   }
 }
 
+const char *LocationNode::mapperStateName(int state)
+{
+  switch (static_cast<MapperRuntimeState>(state))
+  {
+    case MapperRuntimeState::TRACKING:
+      return "TRACKING";
+    case MapperRuntimeState::DEGRADED:
+      return "DEGRADED";
+    case MapperRuntimeState::INS_ONLY:
+      return "INS_ONLY";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+bool LocationNode::shouldProcessConeFusion()
+{
+  if (backend_ != "mapper" || !mapper_recovery_cfg_.enabled)
+  {
+    return true;
+  }
+  if (mapper_state_ != MapperRuntimeState::INS_ONLY)
+  {
+    return true;
+  }
+
+  ++mapper_ins_only_frames_;
+  if (mapper_ins_only_frames_ <= mapper_recovery_cfg_.recovery_cooldown_frames)
+  {
+    return false;
+  }
+
+  const int probe_idx = mapper_ins_only_frames_ - mapper_recovery_cfg_.recovery_cooldown_frames;
+  return (probe_idx % mapper_recovery_cfg_.recovery_probe_interval_frames) == 0;
+}
+
+void LocationNode::updateMapperStateMachine(bool frame_good)
+{
+  if (backend_ != "mapper" || !mapper_recovery_cfg_.enabled)
+  {
+    return;
+  }
+
+  if (frame_good)
+  {
+    mapper_consecutive_failures_ = 0;
+    ++mapper_consecutive_successes_;
+  }
+  else
+  {
+    mapper_consecutive_successes_ = 0;
+    ++mapper_consecutive_failures_;
+  }
+
+  const MapperRuntimeState prev_state = mapper_state_;
+  switch (mapper_state_)
+  {
+    case MapperRuntimeState::TRACKING:
+      if (!frame_good &&
+          mapper_consecutive_failures_ >= mapper_recovery_cfg_.fail_frames_to_degraded)
+      {
+        mapper_state_ = MapperRuntimeState::DEGRADED;
+      }
+      break;
+
+    case MapperRuntimeState::DEGRADED:
+      if (!frame_good &&
+          mapper_consecutive_failures_ >= mapper_recovery_cfg_.fail_frames_to_ins_only)
+      {
+        mapper_state_ = MapperRuntimeState::INS_ONLY;
+        mapper_ins_only_frames_ = 0;
+      }
+      else if (frame_good &&
+               mapper_consecutive_successes_ >= mapper_recovery_cfg_.success_frames_to_tracking)
+      {
+        mapper_state_ = MapperRuntimeState::TRACKING;
+      }
+      break;
+
+    case MapperRuntimeState::INS_ONLY:
+      if (frame_good)
+      {
+        mapper_state_ = (mapper_consecutive_successes_ >= mapper_recovery_cfg_.success_frames_to_tracking)
+                            ? MapperRuntimeState::TRACKING
+                            : MapperRuntimeState::DEGRADED;
+      }
+      break;
+  }
+
+  if (mapper_state_ != MapperRuntimeState::INS_ONLY)
+  {
+    mapper_ins_only_frames_ = 0;
+  }
+
+  if (prev_state != mapper_state_)
+  {
+    ROS_WARN_STREAM("[location] mapper_state transition "
+                    << mapperStateName(static_cast<int>(prev_state))
+                    << " -> " << mapperStateName(static_cast<int>(mapper_state_))
+                    << " (frame_good=" << (frame_good ? "true" : "false")
+                    << ", fail=" << mapper_consecutive_failures_
+                    << ", succ=" << mapper_consecutive_successes_ << ")");
+  }
+}
+
+int LocationNode::carStateQualityLevel() const
+{
+  if (!mapper_.has_carstate())
+  {
+    return 0;
+  }
+
+  int level = 2;
+  if (backend_ == "mapper" && mapper_recovery_cfg_.enabled)
+  {
+    if (mapper_state_ == MapperRuntimeState::INS_ONLY)
+    {
+      level = 0;
+    }
+    else if (mapper_state_ == MapperRuntimeState::DEGRADED)
+    {
+      level = 1;
+    }
+  }
+
+  if (tf_monitor_cfg_.max_delay_sec > 0.0 && tf_last_lag_sec_ > tf_monitor_cfg_.max_delay_sec)
+  {
+    level = std::min(level, 1);
+  }
+  if (tf_monitor_cfg_.max_future_sec > 0.0 && tf_last_lag_sec_ < -tf_monitor_cfg_.max_future_sec)
+  {
+    level = std::min(level, 1);
+  }
+
+  return level;
+}
+
+std::string LocationNode::carStateQualityLabel() const
+{
+  const int level = carStateQualityLevel();
+  if (level >= 2) return "GOOD";
+  if (level == 1) return "DEGRADED";
+  return "POOR";
+}
+
 void LocationNode::publishState(const localization_core::CarState &state, const ros::Time &stamp, bool publish_carstate)
 {
   const geometry_msgs::Quaternion orientation = YawToQuaternion(state.car_state.theta);
   double v_forward = 0.0;
   double yaw_rate = 0.0;
+  const ros::Time now = ros::Time::now();
+  tf_last_lag_sec_ = (now - stamp).toSec();
+  tf_max_lag_sec_ = std::max(tf_max_lag_sec_, tf_last_lag_sec_);
+
+  if (tf_monitor_cfg_.max_delay_sec > 0.0 && tf_last_lag_sec_ > tf_monitor_cfg_.max_delay_sec)
+  {
+    ++tf_delay_exceed_count_;
+    ROS_WARN_THROTTLE(2.0,
+                      "[location] TF lag exceeds threshold: lag=%.4fs limit=%.4fs",
+                      tf_last_lag_sec_, tf_monitor_cfg_.max_delay_sec);
+  }
+  if (tf_monitor_cfg_.max_future_sec > 0.0 && tf_last_lag_sec_ < -tf_monitor_cfg_.max_future_sec)
+  {
+    ++tf_future_stamp_count_;
+    ROS_WARN_THROTTLE(2.0,
+                      "[location] TF stamp is in future: lag=%.4fs tolerance=%.4fs",
+                      tf_last_lag_sec_, tf_monitor_cfg_.max_future_sec);
+  }
+  if (has_last_state_ && stamp < last_stamp_)
+  {
+    ++tf_stamp_regression_count_;
+    ROS_WARN_THROTTLE(2.0,
+                      "[location] Non-monotonic TF stamp detected (current %.6f < previous %.6f)",
+                      stamp.toSec(), last_stamp_.toSec());
+  }
+  if (has_last_state_ && tf_monitor_cfg_.max_gap_sec > 0.0)
+  {
+    const double dt = (stamp - last_stamp_).toSec();
+    if (dt > tf_monitor_cfg_.max_gap_sec)
+    {
+      ++tf_gap_exceed_count_;
+      ROS_WARN_THROTTLE(2.0,
+                        "[location] TF publish gap exceeds threshold: dt=%.4fs limit=%.4fs",
+                        dt, tf_monitor_cfg_.max_gap_sec);
+    }
+  }
+
   if (has_last_state_ && stamp == last_stamp_)
   {
     // Avoid duplicate TF publishing
@@ -414,9 +642,22 @@ void LocationNode::publishDiagnostics(const diagnostic_msgs::DiagnosticArray &di
 void LocationNode::publishEntryHealth(const std::string &source, const ros::Time &stamp, bool force)
 {
   using KV = autodrive_msgs::DiagnosticsHelper;
-  const uint8_t level = mapper_.has_carstate() ? diagnostic_msgs::DiagnosticStatus::OK
-                                               : diagnostic_msgs::DiagnosticStatus::WARN;
-  const std::string message = mapper_.has_carstate() ? "OK" : "WAITING_CARSTATE";
+  const int quality_level = carStateQualityLevel();
+  uint8_t level = diagnostic_msgs::DiagnosticStatus::OK;
+  if (!mapper_.has_carstate())
+  {
+    level = diagnostic_msgs::DiagnosticStatus::WARN;
+  }
+  else if (quality_level <= 0)
+  {
+    level = diagnostic_msgs::DiagnosticStatus::ERROR;
+  }
+  else if (quality_level == 1)
+  {
+    level = diagnostic_msgs::DiagnosticStatus::WARN;
+  }
+  const std::string quality_label = carStateQualityLabel();
+  const std::string message = mapper_.has_carstate() ? quality_label : "WAITING_CARSTATE";
 
   std::vector<diagnostic_msgs::KeyValue> kvs;
   kvs.push_back(KV::KV("source", source));
@@ -425,6 +666,26 @@ void LocationNode::publishEntryHealth(const std::string &source, const ros::Time
   kvs.push_back(KV::KV("use_external_carstate", use_external_carstate_ ? "true" : "false"));
   kvs.push_back(KV::KV("world_frame", world_frame_));
   kvs.push_back(KV::KV("base_link_frame", base_link_frame_));
+  kvs.push_back(KV::KV("car_state_quality_level", std::to_string(quality_level)));
+  kvs.push_back(KV::KV("car_state_quality_label", quality_label));
+  kvs.push_back(KV::KV("car_state_covariance_available", "false"));
+  kvs.push_back(KV::KV("car_state_quality_contract", "diagnostics_only"));
+  kvs.push_back(KV::KV("mapper_state", mapperStateName(static_cast<int>(mapper_state_))));
+  kvs.push_back(KV::KV("mapper_consecutive_failures", std::to_string(mapper_consecutive_failures_)));
+  kvs.push_back(KV::KV("mapper_consecutive_successes", std::to_string(mapper_consecutive_successes_)));
+  kvs.push_back(KV::KV("mapper_ins_only_frames", std::to_string(mapper_ins_only_frames_)));
+  kvs.push_back(KV::KV("cone_last_update_success", last_cone_update_success_ ? "true" : "false"));
+  kvs.push_back(KV::KV("cone_last_frame_good", last_cone_frame_good_ ? "true" : "false"));
+  kvs.push_back(KV::KV("cone_last_input_count", std::to_string(last_input_cone_count_)));
+  kvs.push_back(KV::KV("cone_last_local_count", std::to_string(last_local_cone_count_)));
+  kvs.push_back(KV::KV("cone_last_match_ratio", ToFixed(last_cone_match_ratio_, 3)));
+  kvs.push_back(KV::KV("cone_drop_count", std::to_string(mapper_drop_count_)));
+  kvs.push_back(KV::KV("tf_lag_sec", ToFixed(tf_last_lag_sec_, 4)));
+  kvs.push_back(KV::KV("tf_max_lag_sec", ToFixed(tf_max_lag_sec_, 4)));
+  kvs.push_back(KV::KV("tf_delay_exceed_count", std::to_string(tf_delay_exceed_count_)));
+  kvs.push_back(KV::KV("tf_future_stamp_count", std::to_string(tf_future_stamp_count_)));
+  kvs.push_back(KV::KV("tf_stamp_regression_count", std::to_string(tf_stamp_regression_count_)));
+  kvs.push_back(KV::KV("tf_gap_exceed_count", std::to_string(tf_gap_exceed_count_)));
 
   diag_helper_.PublishStatus("localization_entry_health", "localization_ros/location_node",
                              level, message, kvs, stamp, force);
@@ -492,7 +753,6 @@ void LocationNode::coneCallback(const autodrive_msgs::HUAT_ConeDetections::Const
   }
 
   const ros::Time stamp = msg->header.stamp.isZero() ? ros::Time::now() : msg->header.stamp;
-
   // 时间戳对齐：用检测时间戳插值 INS 状态，重新更新 mapper
   localization_core::Asensing interp_ins;
   if (interpolateIns(stamp, interp_ins))
@@ -502,12 +762,62 @@ void LocationNode::coneCallback(const autodrive_msgs::HUAT_ConeDetections::Const
   }
 
   localization_core::ConeDetections detections = ToCore(*msg);
+  const int input_count = static_cast<int>(detections.detections.size());
+  last_input_cone_count_ = input_count;
   localization_core::ConeMap map;
   localization_core::PointCloudPtr cloud;
 
-  if (!mapper_.UpdateFromCones(detections, &map, &cloud))
+  if (!shouldProcessConeFusion())
   {
+    ++mapper_drop_count_;
+    last_cone_update_success_ = false;
+    last_cone_frame_good_ = false;
+    last_local_cone_count_ = 0;
+    last_cone_match_ratio_ = 0.0;
+    if (mapper_recovery_cfg_.publish_stale_map_on_failure && has_last_map_msg_)
+    {
+      autodrive_msgs::HUAT_ConeMap stale_map = last_map_msg_;
+      stale_map.header.stamp = stamp;
+      stale_map.header.frame_id = world_frame_;
+      map_pub_.publish(stale_map);
+    }
+    publishEntryHealth("cone_ins_only", stamp);
     return;
+  }
+
+  const bool update_success = mapper_.UpdateFromCones(detections, &map, &cloud);
+  last_cone_update_success_ = update_success;
+  last_local_cone_count_ = update_success ? static_cast<int>(map.cones.size()) : 0;
+  last_cone_match_ratio_ = (input_count > 0 && update_success)
+                               ? static_cast<double>(last_local_cone_count_) / static_cast<double>(input_count)
+                               : 0.0;
+
+  const bool frame_good = update_success &&
+                          (last_local_cone_count_ >= mapper_recovery_cfg_.min_local_cones_for_tracking) &&
+                          (last_cone_match_ratio_ >= mapper_recovery_cfg_.min_match_ratio_for_tracking);
+  last_cone_frame_good_ = frame_good;
+  updateMapperStateMachine(frame_good);
+
+  if (!update_success)
+  {
+    ++mapper_drop_count_;
+    if (mapper_recovery_cfg_.publish_stale_map_on_failure && has_last_map_msg_)
+    {
+      autodrive_msgs::HUAT_ConeMap stale_map = last_map_msg_;
+      stale_map.header.stamp = stamp;
+      stale_map.header.frame_id = world_frame_;
+      map_pub_.publish(stale_map);
+    }
+    publishEntryHealth("cone_update_failed", stamp);
+    return;
+  }
+
+  if (!frame_good)
+  {
+    ROS_WARN_THROTTLE(2.0,
+                      "[location] weak cone frame: local=%d input=%d match_ratio=%.3f state=%s",
+                      last_local_cone_count_, input_count, last_cone_match_ratio_,
+                      mapperStateName(static_cast<int>(mapper_state_)));
   }
 
   autodrive_msgs::HUAT_ConeMap out_map;
@@ -515,6 +825,8 @@ void LocationNode::coneCallback(const autodrive_msgs::HUAT_ConeDetections::Const
   out_map.header.stamp = stamp;
   out_map.header.frame_id = world_frame_;
   map_pub_.publish(out_map);
+  last_map_msg_ = out_map;
+  has_last_map_msg_ = true;
 
   if (cloud)
   {
@@ -531,7 +843,7 @@ void LocationNode::coneCallback(const autodrive_msgs::HUAT_ConeDetections::Const
     feedFactorGraphCones(*msg);
   }
 
-  publishEntryHealth("cone", stamp);
+  publishEntryHealth(frame_good ? "cone" : "cone_degraded", stamp);
 }
 
 localization_core::Asensing LocationNode::ToCore(const autodrive_msgs::HUAT_InsP2 &msg)
