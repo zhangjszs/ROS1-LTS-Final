@@ -9,6 +9,18 @@
 namespace perception {
 
 /**
+ * @brief 帧间自车运动增量（LiDAR/ego坐标系: x前 y左 z上）
+ *
+ * 由ROS层从IMU/里程计获取，传入tracker用于预测步骤。
+ * 当无IMU数据时全部为零，退化为原有行为。
+ */
+struct EgoMotion {
+    double dx = 0.0;    // 前向位移 [m]
+    double dy = 0.0;    // 左向位移 [m]
+    double dyaw = 0.0;  // 航向变化 [rad]，左转为正
+};
+
+/**
  * @brief 锥桶跟踪器 - 利用时序信息提高检测稳定性
  *
  * 功能：
@@ -16,6 +28,7 @@ namespace perception {
  * 2. 卡尔曼滤波平滑位置
  * 3. 减少闪烁和误检
  * 4. Hungarian algorithm for optimal track-detection association
+ * 5. 自车运动补偿（G10）
  */
 class ConeTracker {
 public:
@@ -60,8 +73,10 @@ public:
      * @brief 更新跟踪器
      * @param detections 当前帧检测结果
      * @param dt 时间间隔 [s]
+     * @param ego 帧间自车运动增量（默认零 = 无补偿）
      */
-    void update(const std::vector<Detection>& detections, double dt);
+    void update(const std::vector<Detection>& detections, double dt,
+                const EgoMotion& ego = EgoMotion{});
 
     /**
      * @brief 获取已确认的锥桶
@@ -83,7 +98,7 @@ public:
     }
 
 private:
-    void predict(double dt);
+    void predict(const EgoMotion& ego);
 
     /**
      * @brief 数据关联 - Hungarian algorithm (Munkres) for optimal assignment

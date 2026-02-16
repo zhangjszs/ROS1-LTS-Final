@@ -49,6 +49,7 @@ struct ConeDetection
   double distance = 0.0;
   pcl::PointCloud<PointType>::Ptr cluster;
   bool is_cone = false;
+  int track_id = -1;  // G12: tracker-assigned ID (-1 = untracked)
 };
 
 struct LidarClusterOutput
@@ -469,6 +470,8 @@ public:
   void SetInputCloud(const pcl::PointCloud<PointType>::ConstPtr &cloud, uint32_t seq);
   /// 零拷贝版本：转移点云所有权，避免深拷贝
   void SetInputCloud(pcl::PointCloud<PointType>::Ptr &&cloud, uint32_t seq);
+  /// G10: 设置帧间自车运动增量（LiDAR坐标系），用于tracker预测步骤
+  void SetEgoMotion(const perception::EgoMotion &ego);
   bool Process(LidarClusterOutput *output);
 
 private:
@@ -600,6 +603,7 @@ private:
   perception::ConeTracker cone_tracker_;
   bool tracker_enabled_ = false;
   double last_frame_time_ = -1.0;
+  perception::EgoMotion ego_motion_;  // G10: 帧间自车运动增量
 
   // Topology repair
   perception::TopologyRepair topology_repair_;

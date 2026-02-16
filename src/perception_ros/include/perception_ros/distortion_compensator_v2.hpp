@@ -92,6 +92,15 @@ public:
      */
     bool IsEnabled() const { return config_.enable; }
 
+    /**
+     * @brief G10: 获取最新自车速度（LiDAR坐标系: x前 y左 z上）
+     * @param[out] vx 前向速度 [m/s]
+     * @param[out] vy 左向速度 [m/s]
+     * @param[out] yaw_rate 航向角速度 [rad/s]，左转为正
+     * @return 是否有有效IMU数据
+     */
+    bool GetLatestEgoVelocity(double &vx, double &vy, double &yaw_rate) const;
+
 private:
     void imuCallback(const autodrive_msgs::HUAT_InsP2::ConstPtr& msg);
 

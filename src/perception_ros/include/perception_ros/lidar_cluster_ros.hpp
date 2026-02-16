@@ -7,12 +7,22 @@
 #include <autodrive_msgs/HUAT_ConeDetections.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <std_msgs/Header.h>
+#include <visualization_msgs/MarkerArray.h>
 
 #include <perception_core/lidar_cluster_core.hpp>
 #include <perception_ros/perf_stats.hpp>
 #include <perception_ros/distortion_compensator_v2.hpp>
+#include <fsd_common/diagnostics_helper.hpp>
+#include <fsd_common/topic_contract.hpp>
 
 namespace perception_ros {
+
+/// Perception health level (mirrors diagnostic_msgs levels).
+enum class HealthLevel : uint8_t {
+  NORMAL = 0,         // diagnostic_msgs::DiagnosticStatus::OK
+  LOW_DETECTION = 1,  // diagnostic_msgs::DiagnosticStatus::WARN
+  NO_DETECTION = 2    // diagnostic_msgs::DiagnosticStatus::ERROR
+};
 
 class LidarClusterRos {
  public:
@@ -29,6 +39,10 @@ class LidarClusterRos {
   void publishOutput(const LidarClusterOutput &output);
   void runOnceLocked();
   void updateGroundWatchdogLocked(double t_ground_ms);
+  void updateHealthState(int n_detections, double t_total_ms);
+  void publishDiagnostics(const LidarClusterOutput &output, int n_published);
+  void publishDebugMarkers(const LidarClusterOutput &output);
+  void validateStamp(std_msgs::Header &header);
 
   ros::NodeHandle nh_;
   ros::NodeHandle private_nh_;
@@ -66,6 +80,9 @@ class LidarClusterRos {
   size_t perf_log_every_ = 30;
   std::string pipeline_mode_ = "event_driven";  // event_driven | legacy_poll
   double legacy_poll_hz_ = 10.0;
+  bool input_guard_enable_ = true;              // G4: 输入边界防御总开关
+  int input_guard_max_points_ = 500000;         // G4: 点云最大允许点数
+  bool input_guard_filter_invalid_points_ = true;  // G4: 过滤NaN/Inf点
   bool force_fgs_fast_path_ = true;             // T30-2: 锁定FGS快路径
   bool ground_watchdog_enable_ = true;          // T30-2: 地面分割看门狗
   double ground_watchdog_warn_ms_ = 8.0;        // T30-2: t_ground_ms告警阈值
@@ -84,6 +101,25 @@ class LidarClusterRos {
 
   // IMU Distortion Compensation V2 (支持time字段、预积分、外参)
   std::unique_ptr<DistortionCompensatorV2> compensator_;
+
+  // ── Diagnostics & Health State ──────────────────────────────────
+  fsd_common::DiagnosticsHelper diag_helper_;
+  HealthLevel health_level_ = HealthLevel::NORMAL;
+  int consecutive_zero_detections_ = 0;
+  int consecutive_low_detections_ = 0;
+  double diag_rate_hz_ = 2.0;                // 诊断发布频率
+  int diag_low_detection_threshold_ = 2;     // 低检测数阈值
+  int diag_zero_frames_to_warn_ = 3;         // 连续零检测帧数 → WARN
+  int diag_zero_frames_to_error_ = 8;        // 连续零检测帧数 → ERROR
+  int diag_low_frames_to_warn_ = 5;          // 连续低检测帧数 → WARN
+  int diag_recovery_frames_ = 3;             // 恢复所需连续正常帧数
+  int consecutive_normal_frames_ = 0;        // 连续正常帧计数（用于恢复）
+  double diag_latency_warn_ms_ = 15.0;       // 延迟告警阈值
+  double stamp_max_drift_sec_ = 1.0;          // stamp 与接收时间最大允许偏差 [s]
+
+  // ── Debug visualization ───────────────────────────────────────
+  bool debug_publish_markers_ = false;         // G6: 调试标记发布开关
+  ros::Publisher debug_marker_pub_;            // G6: bbox marker publisher
 };
 
 }  // namespace perception_ros

@@ -33,6 +33,32 @@ pipeline_mode: event_driven       # 调度模式：event_driven | legacy_poll
 legacy_poll_hz: 10.0              # 轮询频率（legacy_poll模式下生效）
 
 # ==========================
+# Diagnostics (诊断与健康状态)
+# ==========================
+diagnostics:
+  rate_hz: 2.0                    # 诊断发布频率 [Hz]
+  low_detection_threshold: 2      # 低检测数阈值 (个)（≤此值视为低检测）
+  zero_frames_to_warn: 3          # 连续零检测帧数 → LOW_DETECTION (WARN) (帧)
+  zero_frames_to_error: 8         # 连续零检测帧数 → NO_DETECTION (ERROR) (帧)
+  low_frames_to_warn: 5           # 连续低检测帧数 → LOW_DETECTION (WARN) (帧)
+  recovery_frames: 3              # 恢复到 NORMAL 所需连续正常帧数 (帧)
+  latency_warn_ms: 15.0           # 单帧延迟告警阈值 [ms]
+
+# ==========================
+# Stamp Validation (时间戳校验)
+# ==========================
+stamp:
+  max_drift_sec: 1.0              # stamp 与 wall clock 最大允许偏差 [s]（仅非 sim_time 模式）
+
+# ==========================
+# Input Guard (输入边界防御)
+# ==========================
+input_guard:
+  enable: true                    # 输入防御总开关
+  max_points: 500000              # 单帧点云最大允许点数 (个)
+  filter_invalid_points: true     # 过滤 NaN/Inf 点
+
+# ==========================
 # Ground Segmentation (地面分割)
 # ==========================
 sensor_height: 0.125              # 激光雷达安装高度 (m)
@@ -216,7 +242,7 @@ confidence:
   # Intensity constraints
   min_intensity_mean: 15.0        # 最小平均强度
 
-  # Feature weights
+  # Feature weights [0-1, sum should ≈ 1.0]
   weight_size: 0.35               # 尺寸特征权重
   weight_shape: 0.3               # 形状特征权重
   weight_density: 0.2             # 密度特征权重
@@ -225,10 +251,10 @@ confidence:
 
   # Model fitting
   enable_model_fitting: true       # 启用几何模型拟合
-  model_fit_bonus: 0.2            # 拟合成功奖励
-  model_fit_penalty: 0.05         # 拟合失败惩罚
+  model_fit_bonus: 0.2            # 拟合成功奖励 [0-1]
+  model_fit_penalty: 0.05         # 拟合失败惩罚 [0-1]
 
-  # 距离自适应置信度门槛
+  # 距离自适应置信度门槛 [0-1]
   min_confidence_near: 0.2        # 近处门槛 - trackdrive标准门槛
   min_confidence_far: 0.5        # 远处门槛 - 抑制远处噪声误检
   confidence_ramp_start: 8.0      # 开始升高门槛的距离 (m)
@@ -238,19 +264,26 @@ confidence:
   # 利用赛道几何先验评估检测的合理性
   track_semantic:
     enable: true                  # 语义评分开关
-    weight: 0.15                  # 语义维度权重
+    weight: 0.15                  # 语义维度权重 [0-1]
     expected_track_width: 3.5     # 预期赛道宽度 (m) - trackdrive赛道宽度略大
     expected_cone_spacing: 5.0    # 预期同侧锥桶间距 (m)
     spacing_tolerance: 2.0         # 间距评分容差 (m)
     width_tolerance: 1.0          # 宽度评分容差 (m)
     isolation_radius: 8.0         # 邻居搜索半径 (m)
-    min_neighbors_hard: 0          # 硬剔除邻居数阈值
+    min_neighbors_hard: 0          # 硬剔除邻居数阈值 (个)
     max_isolation_distance: 12.0   # 最大孤立距离 (m)
 
 # 模式覆盖（由 roi/mode 选择）
 # Only keep values that are truly mission-sensitive.
 mode_presets:
   track:
+    tracker:
+      enable: true
+    topology:
+      enable: true
+    filters:
+      obstacle_height:
+        enable: true
     confidence:
       min_confidence_near: 0.2
       min_confidence_far: 0.5
@@ -270,6 +303,13 @@ mode_presets:
       distance_segments: [5.0, 10.0, 15.0, 25.0, 35.0, 50.0]
       cluster_tolerance: [0.15, 0.3, 0.5, 0.5, 0.4, 0.3, 0.25]
   accel:
+    tracker:
+      enable: true
+    topology:
+      enable: true
+    filters:
+      obstacle_height:
+        enable: true
     confidence:
       min_confidence_near: 0.25
       min_confidence_far: 0.55
@@ -289,6 +329,13 @@ mode_presets:
       distance_segments: [5.0, 10.0, 20.0, 35.0, 50.0, 70.0]
       cluster_tolerance: [0.15, 0.3, 0.5, 0.4, 0.3, 0.25, 0.2]
   skidpad:
+    tracker:
+      enable: false
+    topology:
+      enable: false
+    filters:
+      obstacle_height:
+        enable: false
     confidence:
       min_confidence_near: 0.15
       min_confidence_far: 0.3
@@ -320,12 +367,12 @@ cone_size_typing:
 tracker:
   enable: true                    # 跟踪器总开关
   association_threshold: 2.0      # 关联距离阈值 (m)
-  confirm_frames: 3               # 确认所需连续帧数
-  delete_frames: 5                # 删除所需连续丢失帧数
-  process_noise: 0.1              # 过程噪声
-  measurement_noise: 0.05         # 测量噪声
+  confirm_frames: 3               # 确认所需连续帧数 (帧)
+  delete_frames: 5                # 删除所需连续丢失帧数 (帧)
+  process_noise: 0.1              # 过程噪声 (m²，卡尔曼Q矩阵)
+  measurement_noise: 0.05         # 测量噪声 (m²，卡尔曼R矩阵)
   only_output_confirmed: true     # 仅输出已确认的锥桶
-  confirmed_confidence_boost: 0.1 # 确认后的置信度加成
+  confirmed_confidence_boost: 0.1 # 确认后的置信度加成 [0-1]
 
 # ==========================
 # Proximity Deduplication (近距离去重)
@@ -344,7 +391,7 @@ topology:
   max_track_width: 4.0            # 最大赛道宽度 (m)
   max_repair_range: 15.0          # 修复最大距离 (m)
   outlier_lateral_threshold: 5.0  # 横向离群阈值 (m)
-  interpolated_confidence: 0.2    # 插值锥桶的置信度
+  interpolated_confidence: 0.2    # 插值锥桶的置信度 [0-1]
 
 # ==========================
 # Sensor Model (传感器模型)
@@ -353,8 +400,8 @@ sensor_model: 32                  # velodyne product type (16/32)
 # Legacy fallback: utility.cpp still reads road_type_ in some branches.
 # Keep it consistent with roi.mode in overlays.
 road_type: 3                      # 1=skidpad, 2=accel, 3=track
-str_range: "15,30,45,60"
-str_seg_distance: "0.5,1.1,1.6,2.1,2.6"
+str_range: "15,30,45,60"                # 距离分段 (m)，逗号分隔
+str_seg_distance: "0.5,1.1,1.6,2.1,2.6"  # 各段聚类距离 (m)，逗号分隔
 
 # ==========================
 # Clustering (shared defaults)
@@ -370,25 +417,25 @@ cluster:
   # 自适应聚类大小
   adaptive_size:
     enable: true                  # 启用自适应聚类大小
-    near_min_size: 3              # 近距离最小聚类点数
-    near_max_size: 100            # 近距离最大聚类点数
-    far_min_size: 2               # 远距离最小聚类点数
-    far_max_size: 30              # 远距离最大聚类点数
+    near_min_size: 3              # 近距离最小聚类点数 (个)
+    near_max_size: 100            # 近距离最大聚类点数 (个)
+    far_min_size: 2               # 远距离最小聚类点数 (个)
+    far_max_size: 30              # 远距离最大聚类点数 (个)
 
-  min_cluster_size: 1
-  max_cluster_size: 50
+  min_cluster_size: 1              # 固定最小聚类点数 (个)
+  max_cluster_size: 50              # 固定最大聚类点数 (个)
 
   # DBSCAN参数
   dbscan:
-    eps: 0.3                      # 邻域半径
-    min_pts: 3                    # 核心点最小邻居数
+    eps: 0.3                      # 邻域半径 (m)
+    min_pts: 3                    # 核心点最小邻居数 (个)
     adaptive_eps: true            # 自适应调整eps
-    eps_near: 0.15                # 近距离eps
-    eps_far: 0.5                  # 远距离eps
+    eps_near: 0.15                # 近距离eps (m)
+    eps_far: 0.5                  # 远距离eps (m)
 
   # VLP-16专用参数
   vlp16:
-    cluster_tolerance: 0.3        # 聚类距离阈值
+    cluster_tolerance: 0.3        # 聚类距离阈值 (m)
     max_bbox_x: 0.4               # 锥桶bbox最大X尺寸 (m)
     max_bbox_y: 0.4               # 锥桶bbox最大Y尺寸 (m)
     max_bbox_z: 0.5               # 锥桶bbox最大Z尺寸 (m)
@@ -400,13 +447,13 @@ cluster:
   # FEC快速欧式聚类
   fec:
     enable: true                  # 启用FEC
-    quality: 0.3                  # 质量参数
+    quality: 0.3                  # 质量参数 [0.0=最快, 0.9=最精确]
 
   # 多帧累积
   multi_frame:
     enable: false                 # 先关闭
-    num_frames: 2                 # 累积帧数
-    max_distance: 10.0            # 仅远处点累积
+    num_frames: 2                 # 累积帧数 (帧)
+    max_distance: 10.0            # 仅远处点累积 (m)
 
 # 赛道参数
 length:
@@ -419,7 +466,7 @@ length:
 imu:
   enable: false                   # IMU功能总开关
   topic: /pbox_pub/Ins            # IMU数据话题
-  buffer_size: 200                # IMU数据缓冲区大小
+  buffer_size: 200                # IMU数据缓冲区大小 (条)
 
   # 畸变补偿
   distortion:
@@ -439,9 +486,9 @@ imu:
       tx: 0.0                    # X方向平移 (m)
       ty: 0.0                    # Y方向平移 (m)
       tz: 0.0                    # Z方向平移 (m)
-      roll: 0.0                  # Roll旋转 (度)
-      pitch: 0.0                 # Pitch旋转 (度)
-      yaw: 0.0                   # Yaw旋转 (度)
+      roll: 0.0                  # Roll旋转 (deg)
+      pitch: 0.0                 # Pitch旋转 (deg)
+      yaw: 0.0                   # Yaw旋转 (deg)
     noise:
       gyro_noise: 0.01            # 陀螺仪噪声
       accel_noise: 0.1            # 加速度计噪声
@@ -452,8 +499,8 @@ imu:
 # Performance Statistics
 # ==========================
 perf_stats_enable: false           # 性能统计开关
-perf_stats_window: 300            # 统计窗口大小
-perf_stats_log_every: 50          # 打印频率
+perf_stats_window: 300            # 统计窗口大小 (帧)
+perf_stats_log_every: 50          # 打印频率 (帧)
 
 # ==========================
 # GEOMETRY ROBUSTNESS ENHANCEMENT
@@ -479,17 +526,17 @@ stacked_cone_detection:
   
   # 堆叠锥识别
   identification:
-    min_points_per_layer: 5         # 每层最小点数
+    min_points_per_layer: 5         # 每层最小点数 (个)
     max_xy_distance: 0.4            # XY平面最大距离 (m)
     height_variation_threshold: 0.1 # 高度变化阈值 (m)
-    confidence_threshold: 0.3       # 堆叠锥识别置信度
+    confidence_threshold: 0.3       # 堆叠锥识别置信度 [0-1]
   
   # 去重策略
   deduplication:
     method: clustering              # 去重方法: clustering | grid | nearest
     cluster_tolerance: 0.5          # 聚类距离阈值 (m)
-    min_cluster_size: 2             # 最小聚类大小（堆叠锥至少2层）
-    max_cluster_size: 10            # 最大聚类大小
+    min_cluster_size: 2             # 最小聚类大小 (个)（堆叠锥至少2层）
+    max_cluster_size: 10            # 最大聚类大小 (个)
     representative_selection: highest_confidence  # 代表点选择: highest_confidence | centroid | lowest
     
   # 近距锥桶特殊处理（堆叠高发区）
@@ -506,9 +553,9 @@ occlusion_handling:
   # 遮挡检测
   detection:
     method: ray_tracing             # 检测方法: ray_tracing | angle_gap | density
-    angle_gap_threshold: 15.0       # 角度间隙阈值 (度)
-    min_occluded_cones: 1           # 最小遮挡锥数
-    occlusion_confidence_drop: 0.3  # 遮挡置信度下降
+    angle_gap_threshold: 15.0       # 角度间隙阈值 (deg)
+    min_occluded_cones: 1           # 最小遮挡锥数 (个)
+    occlusion_confidence_drop: 0.3  # 遮挡置信度下降 [0-1]
   
   # 缺失锥桶预测
   missing_cone_prediction:
@@ -517,8 +564,8 @@ occlusion_handling:
     expected_spacing: 5.0           # 预期间距 (m)
     spacing_tolerance: 1.5          # 间距容差 (m)
     max_prediction_distance: 10.0   # 最大预测距离 (m)
-    prediction_confidence: 0.25     # 预测锥桶置信度
-    max_consecutive_predictions: 2  # 最大连续预测数
+    prediction_confidence: 0.25     # 预测锥桶置信度 [0-1]
+    max_consecutive_predictions: 2  # 最大连续预测数 (帧)
     
   # 几何插值
   geometric_interpolation:
@@ -526,7 +573,7 @@ occlusion_handling:
     method: linear                  # 插值方法: linear | spline | arc
     max_interpolation_gap: 8.0      # 最大插值间隙 (m)
     use_track_curvature: true       # 使用赛道曲率
-    curvature_estimate_window: 5    # 曲率估计窗口
+    curvature_estimate_window: 5    # 曲率估计窗口 (个锥桶)
 
 # 短检测抑制（Short Detection Suppression）
 short_detection_suppression:
@@ -534,21 +581,21 @@ short_detection_suppression:
   
   # 单帧抑制
   single_frame:
-    min_detections_for_valid: 2     # 有效检测最小帧数
-    min_confidence: 0.3             # 最小置信度
+    min_detections_for_valid: 2     # 有效检测最小帧数 (帧)
+    min_confidence: 0.3             # 最小置信度 [0-1]
     
   # 空间连续性检查
   spatial_continuity:
     enabled: true                   # 启用空间连续性
     check_neighbor_detections: true # 检查邻居检测
     neighbor_radius: 3.0            # 邻居半径 (m)
-    min_neighbors: 1                # 最小邻居数
+    min_neighbors: 1                # 最小邻居数 (个)
     
   # 时间连续性检查
   temporal_continuity:
     enabled: true                   # 启用时间连续性
-    min_track_length: 3             # 最小跟踪长度（帧）
-    max_gap_frames: 2               # 最大间隙帧数
+    min_track_length: 3             # 最小跟踪长度 (帧)
+    max_gap_frames: 2               # 最大间隙帧数 (帧)
 
 # 几何一致性检查（Geometric Consistency Check）
 geometric_consistency:
@@ -564,16 +611,16 @@ geometric_consistency:
   # 空间分布一致性
   spatial_distribution:
     check_local_density: true       # 检查局部密度
-    expected_density_range: [10, 100]  # 预期密度范围
+    expected_density_range: [10, 100]  # 预期密度范围 (点/m²)
     check_spacing_uniformity: true  # 检查间距均匀性
     max_spacing_variance: 4.0       # 最大间距方差 (m²)
     
   # 角度分布一致性
   angular_distribution:
     check_bearing_variance: true    # 检查方位角方差
-    max_bearing_variance: 45.0      # 最大方位角方差 (度)
+    max_bearing_variance: 45.0      # 最大方位角方差 (deg)
     check_elevation_variance: true  # 检查俯仰角方差
-    max_elevation_variance: 10.0    # 最大俯仰角方差 (度)
+    max_elevation_variance: 10.0    # 最大俯仰角方差 (deg)
 
 # 回环场景优化（Loop Closure Optimization）
 loop_closure_optimization:
@@ -581,14 +628,14 @@ loop_closure_optimization:
   
   # 特征稳定性
   feature_stability:
-    min_feature_lifetime: 5         # 最小特征寿命（帧）
+    min_feature_lifetime: 5         # 最小特征寿命 (帧)
     feature_reidentification: true  # 特征重识别
-    reidentification_threshold: 0.7 # 重识别阈值
+    reidentification_threshold: 0.7 # 重识别阈值 [0-1]
     
   # 观测稳定性
   observation_stability:
     require_multi_frame_obs: true   # 要求多帧观测
-    min_observation_frames: 3       # 最小观测帧数
+    min_observation_frames: 3       # 最小观测帧数 (帧)
     observation_consistency_check: true  # 观测一致性检查
     max_observation_variance: 0.5   # 最大观测方差 (m)
     
@@ -598,5 +645,4 @@ loop_closure_optimization:
     check_distance_consistency: true # 检查距离一致性
     distance_tolerance: 0.5         # 距离容差 (m)
     check_angle_consistency: true   # 检查角度一致性
-    angle_tolerance: 10.0           # 角度容差 (度)
-
+    angle_tolerance: 10.0           # 角度容差 (deg)

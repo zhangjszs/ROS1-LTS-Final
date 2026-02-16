@@ -5,9 +5,10 @@
 
 namespace perception {
 
-void ConeTracker::update(const std::vector<Detection>& detections, double dt) {
-    // 1. 预测步骤
-    predict(dt);
+void ConeTracker::update(const std::vector<Detection>& detections, double dt,
+                         const EgoMotion& ego) {
+    // 1. 预测步骤：用自车运动补偿将旧轨迹变换到新ego坐标系
+    predict(ego);
 
     // 2. 数据关联 (Hungarian algorithm)
     auto associations = associate(detections);
@@ -19,14 +20,7 @@ void ConeTracker::update(const std::vector<Detection>& detections, double dt) {
         det_used[det_idx] = true;
     }
 
-    // 4. 未关联的检测创建新轨迹
-    for (size_t i = 0; i < detections.size(); ++i) {
-        if (!det_used[i]) {
-            createTrack(detections[i]);
-        }
-    }
-
-    // 5. 未关联的轨迹增加miss_count
+    // 4. 未关联的已有轨迹增加miss_count
     std::vector<bool> track_updated(tracks_.size(), false);
     for (const auto& [track_idx, det_idx] : associations) {
         track_updated[track_idx] = true;
@@ -38,17 +32,39 @@ void ConeTracker::update(const std::vector<Detection>& detections, double dt) {
         }
     }
 
-    // 6. 删除丢失的轨迹
+    // 5. 删除丢失的轨迹
     pruneDeadTracks();
+
+    // 6. 未关联的检测创建新轨迹
+    for (size_t i = 0; i < detections.size(); ++i) {
+        if (!det_used[i]) {
+            createTrack(detections[i]);
+        }
+    }
 }
 
-void ConeTracker::predict(double /*dt*/) {
-    // NOTE: In ego frame, static cones move backwards as the vehicle advances.
-    // We do NOT predict positions here because we don't have odometry input.
-    // Instead, we rely on a generous association_threshold to handle
-    // frame-to-frame displacement caused by vehicle motion.
-    // A future improvement would be to pass ego-motion (dx, dy, dyaw) from
-    // odometry/IMU and transform all tracks before association.
+void ConeTracker::predict(const EgoMotion& ego) {
+    // G10: Transform all tracked positions from old ego frame to new ego frame.
+    // Static cones appear to move as the vehicle advances.
+    // Given vehicle displacement (dx, dy) and rotation dyaw in ego frame:
+    //   x_new =  cos(dyaw) * (x_old - dx) + sin(dyaw) * (y_old - dy)
+    //   y_new = -sin(dyaw) * (x_old - dx) + cos(dyaw) * (y_old - dy)
+    //
+    // When ego-motion is zero (no IMU), this is a no-op — same as before.
+    if (ego.dx == 0.0 && ego.dy == 0.0 && ego.dyaw == 0.0) {
+        return;
+    }
+
+    const double c = std::cos(ego.dyaw);
+    const double s = std::sin(ego.dyaw);
+
+    for (auto& track : tracks_) {
+        const double tx = track.x - ego.dx;
+        const double ty = track.y - ego.dy;
+        track.x =  c * tx + s * ty;
+        track.y = -s * tx + c * ty;
+        // z is unaffected by planar ego-motion
+    }
 }
 
 std::vector<std::pair<int, int>> ConeTracker::associate(const std::vector<Detection>& detections) {

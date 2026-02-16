@@ -1,0 +1,18 @@
+# Ground-truth cone map for perception evaluation
+# Format: x,y,z (meters, in velodyne/LiDAR frame)
+# Lines starting with # are ignored.
+#
+# How to create this file:
+#   1. Park the vehicle at the start position (same as bag recording start).
+#   2. Measure cone positions relative to the LiDAR sensor.
+#      - x: forward (m), y: left (m), z: up (m)
+#   3. For static scenes (vehicle not moving), list all visible cones.
+#   4. For dynamic scenes, this file represents the ego-frame cone map
+#      at the recording start; the evaluator matches per-frame detections
+#      against this static map (suitable for stationary vehicle tests).
+#
+# Example (4 cones forming a short track segment):
+3.0,1.5,0.0
+3.0,-1.5,0.0
+8.0,1.5,0.0
+8.0,-1.5,0.0

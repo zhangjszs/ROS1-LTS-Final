@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <numeric>
 #include <ros/serialization.h>
 #include <xmlrpcpp/XmlRpcValue.h>
 #include <pcl_conversions/pcl_conversions.h>
@@ -117,10 +118,43 @@ LidarClusterRos::LidarClusterRos(ros::NodeHandle nh, ros::NodeHandle private_nh)
   cones_pub_ = nh_.advertise<sensor_msgs::PointCloud2>(cones_topic_, 1);
   detections_pub_ = nh_.advertise<autodrive_msgs::HUAT_ConeDetections>(detections_topic_, 10);
 
+  // G6: Debug visualization (optional, default off)
+  private_nh_.param<bool>("debug/publish_markers", debug_publish_markers_, false);
+  if (debug_publish_markers_)
+  {
+    debug_marker_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("perception/debug/cone_markers", 1);
+    ROS_INFO("Debug cone markers enabled on perception/debug/cone_markers");
+  }
+
   // Initialize distortion compensator V2 (支持time字段、预积分、外参)
   auto compensator_config = DistortionCompensatorV2Config::LoadFromRos(private_nh_);
   if (compensator_config.enable) {
     compensator_ = std::make_unique<DistortionCompensatorV2>(nh_, compensator_config);
+  }
+
+  // ── Diagnostics 初始化 ──────────────────────────────────────────
+  {
+    std::string diag_topic, global_diag_topic;
+    private_nh_.param<std::string>("diagnostics_topic", diag_topic,
+                                   fsd_common::topic_contract::kPerceptionDiagnostics);
+    private_nh_.param<std::string>("global_diagnostics_topic", global_diag_topic,
+                                   fsd_common::topic_contract::kDiagnosticsGlobal);
+    private_nh_.param<double>("diagnostics/rate_hz", diag_rate_hz_, 2.0);
+    private_nh_.param<int>("diagnostics/low_detection_threshold", diag_low_detection_threshold_, 2);
+    private_nh_.param<int>("diagnostics/zero_frames_to_warn", diag_zero_frames_to_warn_, 3);
+    private_nh_.param<int>("diagnostics/zero_frames_to_error", diag_zero_frames_to_error_, 8);
+    private_nh_.param<int>("diagnostics/low_frames_to_warn", diag_low_frames_to_warn_, 5);
+    private_nh_.param<int>("diagnostics/recovery_frames", diag_recovery_frames_, 3);
+    private_nh_.param<double>("diagnostics/latency_warn_ms", diag_latency_warn_ms_, 15.0);
+    private_nh_.param<double>("stamp/max_drift_sec", stamp_max_drift_sec_,
+                              fsd_common::stamp_contract::kMaxStampDriftSec);
+
+    fsd_common::DiagnosticsHelper::Config dcfg;
+    dcfg.local_topic = diag_topic;
+    dcfg.global_topic = global_diag_topic;
+    dcfg.publish_global = true;
+    dcfg.rate_hz = diag_rate_hz_;
+    diag_helper_.Init(nh_, dcfg);
   }
 
   ROS_INFO("lidar cluster finished initialization");
@@ -186,6 +220,28 @@ void LidarClusterRos::loadParams()
   {
     ROS_WARN_STREAM("Invalid legacy_poll_hz: " << legacy_poll_hz_ << ", fallback to 10.0");
     legacy_poll_hz_ = 10.0;
+  }
+  if (!private_nh_.param<bool>("input_guard/enable", input_guard_enable_, true))
+  {
+    ROS_DEBUG_STREAM("Did not load input_guard/enable. Standard value is: " << input_guard_enable_);
+  }
+  if (!private_nh_.param<int>("input_guard/max_points", input_guard_max_points_, 500000))
+  {
+    ROS_DEBUG_STREAM("Did not load input_guard/max_points. Standard value is: "
+                     << input_guard_max_points_);
+  }
+  if (!private_nh_.param<bool>("input_guard/filter_invalid_points",
+                               input_guard_filter_invalid_points_,
+                               true))
+  {
+    ROS_DEBUG_STREAM("Did not load input_guard/filter_invalid_points. Standard value is: "
+                     << input_guard_filter_invalid_points_);
+  }
+  if (input_guard_max_points_ <= 0)
+  {
+    ROS_WARN_STREAM("Invalid input_guard/max_points: " << input_guard_max_points_
+                    << ", fallback to 500000");
+    input_guard_max_points_ = 500000;
   }
 
   if (!private_nh_.param<double>("sensor_height", config_.sensor_height, 0.135))
@@ -958,6 +1014,23 @@ void LidarClusterRos::applyModePreset()
   if (LoadDoubleVector(private_nh_, prefix + "/cluster/cluster_tolerance", tolerances)) {
     config_.cluster.cluster_tolerance = tolerances;
   }
+
+  // G13: 覆盖模块开关（tracker / topology / obstacle_height）
+  private_nh_.param<bool>(prefix + "/tracker/enable",
+                          config_.tracker.enable,
+                          config_.tracker.enable);
+  private_nh_.param<bool>(prefix + "/topology/enable",
+                          config_.topology.enable,
+                          config_.topology.enable);
+  private_nh_.param<bool>(prefix + "/filters/obstacle_height/enable",
+                          config_.filters.obstacle_height.enable,
+                          config_.filters.obstacle_height.enable);
+
+  ROS_INFO("Mode preset '%s' applied: tracker=%s, topology=%s, obstacle_height=%s",
+           mode.c_str(),
+           config_.tracker.enable ? "on" : "off",
+           config_.topology.enable ? "on" : "off",
+           config_.filters.obstacle_height.enable ? "on" : "off");
 }
 
 void LidarClusterRos::pointCallback(const sensor_msgs::PointCloud2ConstPtr &msg)
@@ -975,8 +1048,55 @@ void LidarClusterRos::pointCallback(const sensor_msgs::PointCloud2ConstPtr &msg)
     pcl::fromROSMsg(*msg, *cloud);
   }
 
+  // G4: 输入边界防御
+  if (input_guard_enable_)
+  {
+    if (cloud->empty())
+    {
+      ROS_WARN_THROTTLE(2.0, "Received empty point cloud, dropping frame");
+      return;
+    }
+
+    if (cloud->size() > static_cast<size_t>(input_guard_max_points_))
+    {
+      ROS_WARN_THROTTLE(2.0,
+                        "Point cloud too large (%zu > %d), dropping frame",
+                        cloud->size(),
+                        input_guard_max_points_);
+      return;
+    }
+
+    if (input_guard_filter_invalid_points_)
+    {
+      const size_t before_size = cloud->points.size();
+      cloud->points.erase(
+          std::remove_if(cloud->points.begin(),
+                         cloud->points.end(),
+                         [](const PointType &p) {
+                           return !std::isfinite(p.x) || !std::isfinite(p.y) || !std::isfinite(p.z);
+                         }),
+          cloud->points.end());
+      const size_t invalid_count = before_size - cloud->points.size();
+      if (invalid_count > 0)
+      {
+        cloud->width = static_cast<uint32_t>(cloud->points.size());
+        cloud->height = 1;
+        cloud->is_dense = true;
+        ROS_WARN_THROTTLE(2.0,
+                          "Filtered %zu invalid points (NaN/Inf) from cloud",
+                          invalid_count);
+      }
+      if (cloud->empty())
+      {
+        ROS_WARN_THROTTLE(2.0, "Point cloud contains only invalid points, dropping frame");
+        return;
+      }
+    }
+  }
+
   std::lock_guard<std::mutex> lock(seq_mutex_);
   last_header_ = msg->header;
+  validateStamp(last_header_);
   last_seq_ = msg->header.seq;
   got_cloud_ = true;
   // 零拷贝：转移点云所有权给core，避免深拷贝
@@ -1027,6 +1147,20 @@ void LidarClusterRos::runOnceLocked()
   }
   
   last_cloud_stamp_ = last_header_.stamp;
+
+  // G10: Extract ego-motion from IMU compensator for tracker prediction
+  {
+    perception::EgoMotion ego;
+    double vx = 0.0, vy = 0.0, yaw_rate = 0.0;
+    if (compensator_ && compensator_->GetLatestEgoVelocity(vx, vy, yaw_rate))
+    {
+      const double dt = frame_interval > 0.0 ? frame_interval : 0.1;
+      ego.dx = vx * dt;
+      ego.dy = vy * dt;
+      ego.dyaw = yaw_rate * dt;
+    }
+    core_.SetEgoMotion(ego);
+  }
 
   if (!core_.Process(&output_))
   {
@@ -1104,8 +1238,18 @@ void LidarClusterRos::publishOutput(const LidarClusterOutput &output)
     detections.pc_whole = pub_cones_msg_;
   }
 
-  for (const auto &det : output.cones)
+  // G11: 按角度排序，保证帧间输出顺序稳定
+  const auto &cones = output.cones;
+  std::vector<size_t> order(cones.size());
+  std::iota(order.begin(), order.end(), 0);
+  std::sort(order.begin(), order.end(), [&cones](size_t a, size_t b) {
+    return std::atan2(cones[a].centroid.y, cones[a].centroid.x)
+         < std::atan2(cones[b].centroid.y, cones[b].centroid.x);
+  });
+
+  for (const size_t idx : order)
   {
+    const auto &det = cones[idx];
     // Defense-in-depth: skip detections with non-finite centroids
     if (!std::isfinite(det.centroid.x) || !std::isfinite(det.centroid.y) || !std::isfinite(det.centroid.z))
     {
@@ -1140,6 +1284,7 @@ void LidarClusterRos::publishOutput(const LidarClusterOutput &output)
       detections.confidence.push_back(0.0f);  // VLP-16 填充默认值
     }
     detections.obj_dist.push_back(static_cast<float>(det.distance));
+    detections.track_ids.push_back(static_cast<int32_t>(det.track_id));
     detections.color_types.push_back(
         classifyConeTypeBySize(det,
                                enable_cone_size_typing_,
@@ -1158,6 +1303,27 @@ void LidarClusterRos::publishOutput(const LidarClusterOutput &output)
   detections_pub_.publish(detections);
   bytes_pub += ros::serialization::serializationLength(detections);
 
+  // G3: Array length invariant — all parallel arrays must match
+  {
+    const size_t n = detections.points.size();
+    if (detections.maxPoints.size() != n || detections.minPoints.size() != n ||
+        detections.confidence.size() != n || detections.obj_dist.size() != n ||
+        detections.track_ids.size() != n || detections.color_types.size() != n)
+    {
+      ROS_ERROR_THROTTLE(1.0,
+          "ConeDetections array length mismatch: points=%zu max=%zu min=%zu "
+          "conf=%zu dist=%zu color=%zu",
+          n, detections.maxPoints.size(), detections.minPoints.size(),
+          detections.confidence.size(), detections.obj_dist.size(),
+          detections.color_types.size());
+    }
+  }
+
+  const int n_published = static_cast<int>(detections.points.size());
+  updateHealthState(n_published, output.t_total_ms);
+  publishDiagnostics(output, n_published);
+  publishDebugMarkers(output);
+
   PerfSample sample;
   sample.t_pass_ms = output.t_pass_ms;
   sample.t_ground_ms = output.t_ground_ms;
@@ -1165,8 +1331,250 @@ void LidarClusterRos::publishOutput(const LidarClusterOutput &output)
   sample.t_total_ms = output.t_total_ms;
   sample.n_points = static_cast<double>(output.input_points);
   sample.n_clusters = static_cast<double>(output.total_clusters);
+  sample.n_detections = static_cast<double>(n_published);
   sample.bytes_pub = static_cast<double>(bytes_pub);
   perf_stats_.Add(sample);
+}
+
+void LidarClusterRos::validateStamp(std_msgs::Header &header)
+{
+  // 0) frame_id 检查
+  if (header.frame_id.empty())
+  {
+    ROS_WARN_ONCE("Point cloud frame_id is empty. "
+                  "Check LiDAR driver configuration.");
+  }
+  else if (header.frame_id != fsd_common::frame_contract::kVelodyne)
+  {
+    ROS_WARN_ONCE("Point cloud frame_id is '%s', expected '%s'. "
+                  "Verify sensor frame configuration.",
+                  header.frame_id.c_str(),
+                  fsd_common::frame_contract::kVelodyne);
+  }
+
+  // 1) 零时间戳 → 降级为接收时间
+  if (header.stamp.isZero())
+  {
+    ROS_WARN_ONCE("Point cloud stamp is zero, falling back to ros::Time::now(). "
+                  "Check LiDAR driver timestamp configuration.");
+    header.stamp = ros::Time::now();
+    return;
+  }
+
+  // 2) 非单调递增（排除 rosbag restart，那个在 runOnceLocked 中处理）
+  if (!last_cloud_stamp_.isZero() && header.stamp < last_cloud_stamp_)
+  {
+    // 小幅回退（< 1s）不是 rosbag restart，是驱动异常
+    const double rollback = (last_cloud_stamp_ - header.stamp).toSec();
+    if (rollback < 1.0)
+    {
+      ROS_WARN_THROTTLE(2.0,
+          "Point cloud stamp went backwards by %.3fs (seq=%u). "
+          "Possible driver timestamp jitter.",
+          rollback, header.seq);
+    }
+  }
+
+  // 3) 与 wall clock 偏差检查（仅在非 sim_time 模式下有意义）
+  if (!ros::Time::isSimTime())
+  {
+    const double drift = std::abs((ros::Time::now() - header.stamp).toSec());
+    if (drift > stamp_max_drift_sec_)
+    {
+      ROS_WARN_ONCE(
+          "Point cloud stamp drifts %.2fs from wall clock (threshold=%.1fs). "
+          "Check PPS/NTP sync on LiDAR driver.",
+          drift, stamp_max_drift_sec_);
+    }
+  }
+}
+
+void LidarClusterRos::updateHealthState(int n_detections, double t_total_ms)
+{
+  const bool is_zero = (n_detections == 0);
+  const bool is_low = (!is_zero && n_detections <= diag_low_detection_threshold_);
+  const bool is_normal = (n_detections > diag_low_detection_threshold_);
+
+  // ── 正常帧计数（用于恢复） ──
+  if (is_normal && t_total_ms <= diag_latency_warn_ms_)
+  {
+    ++consecutive_normal_frames_;
+  }
+  else
+  {
+    consecutive_normal_frames_ = 0;
+  }
+
+  // ── 异常帧计数 ──
+  if (is_zero)
+  {
+    ++consecutive_zero_detections_;
+    consecutive_low_detections_ = 0;
+  }
+  else if (is_low)
+  {
+    consecutive_zero_detections_ = 0;
+    ++consecutive_low_detections_;
+  }
+  else
+  {
+    consecutive_zero_detections_ = 0;
+    consecutive_low_detections_ = 0;
+  }
+
+  // ── 状态转移 ──
+  HealthLevel prev = health_level_;
+
+  if (consecutive_zero_detections_ >= diag_zero_frames_to_error_)
+  {
+    health_level_ = HealthLevel::NO_DETECTION;
+  }
+  else if (consecutive_zero_detections_ >= diag_zero_frames_to_warn_ ||
+           consecutive_low_detections_ >= diag_low_frames_to_warn_)
+  {
+    health_level_ = HealthLevel::LOW_DETECTION;
+  }
+
+  // 恢复：连续 N 帧正常才回到 NORMAL
+  if (health_level_ != HealthLevel::NORMAL &&
+      consecutive_normal_frames_ >= diag_recovery_frames_)
+  {
+    health_level_ = HealthLevel::NORMAL;
+  }
+
+  if (health_level_ != prev)
+  {
+    const char *names[] = {"NORMAL", "LOW_DETECTION", "NO_DETECTION"};
+    ROS_WARN("Perception health: %s -> %s (zero=%d, low=%d, normal=%d)",
+             names[static_cast<int>(prev)],
+             names[static_cast<int>(health_level_)],
+             consecutive_zero_detections_,
+             consecutive_low_detections_,
+             consecutive_normal_frames_);
+  }
+}
+
+void LidarClusterRos::publishDiagnostics(const LidarClusterOutput &output,
+                                          int n_published)
+{
+  using DH = fsd_common::DiagnosticsHelper;
+
+  uint8_t level = static_cast<uint8_t>(health_level_);
+  const char *messages[] = {"OK", "Low detection count", "No detections"};
+  std::string msg = messages[level];
+
+  if (output.t_total_ms > diag_latency_warn_ms_ &&
+      health_level_ == HealthLevel::NORMAL)
+  {
+    level = 1;  // WARN
+    msg = "High latency";
+  }
+
+  std::vector<diagnostic_msgs::KeyValue> kvs;
+  kvs.reserve(26);
+  kvs.push_back(DH::KV("n_detections", std::to_string(n_published)));
+  kvs.push_back(DH::KV("n_input_points", std::to_string(output.input_points)));
+  kvs.push_back(DH::KV("n_clusters", std::to_string(output.total_clusters)));
+  kvs.push_back(DH::KV("t_total_ms", std::to_string(output.t_total_ms)));
+  kvs.push_back(DH::KV("t_ground_ms", std::to_string(output.t_ground_ms)));
+  kvs.push_back(DH::KV("t_cluster_ms", std::to_string(output.t_cluster_ms)));
+  kvs.push_back(DH::KV("t_pass_ms", std::to_string(output.t_pass_ms)));
+  kvs.push_back(DH::KV("health", messages[static_cast<int>(health_level_)]));
+  kvs.push_back(DH::KV("consecutive_zero", std::to_string(consecutive_zero_detections_)));
+  kvs.push_back(DH::KV("ground_method", config_.ground_method));
+
+  // G9: Per-distance confidence segmentation
+  {
+    int n_near = 0, n_mid = 0, n_far = 0;
+    double sum_conf_near = 0.0, sum_conf_mid = 0.0, sum_conf_far = 0.0;
+    const double ramp_start = config_.confidence.confidence_ramp_start;
+    const double ramp_end = config_.confidence.confidence_ramp_end;
+    for (const auto &cone : output.cones)
+    {
+      if (cone.distance < ramp_start)
+      {
+        ++n_near;
+        sum_conf_near += cone.confidence;
+      }
+      else if (cone.distance < ramp_end)
+      {
+        ++n_mid;
+        sum_conf_mid += cone.confidence;
+      }
+      else
+      {
+        ++n_far;
+        sum_conf_far += cone.confidence;
+      }
+    }
+    kvs.push_back(DH::KV("n_near", std::to_string(n_near)));
+    kvs.push_back(DH::KV("n_mid", std::to_string(n_mid)));
+    kvs.push_back(DH::KV("n_far", std::to_string(n_far)));
+    kvs.push_back(DH::KV("conf_near",
+        n_near > 0 ? std::to_string(sum_conf_near / n_near) : "0"));
+    kvs.push_back(DH::KV("conf_mid",
+        n_mid > 0 ? std::to_string(sum_conf_mid / n_mid) : "0"));
+    kvs.push_back(DH::KV("conf_far",
+        n_far > 0 ? std::to_string(sum_conf_far / n_far) : "0"));
+  }
+
+  // G7: Rolling-window perf stats (p50/p95/max for key latencies)
+  {
+    auto snap = perf_stats_.SnapshotStats();
+    kvs.push_back(DH::KV("perf_total_p50", std::to_string(snap.t_total_ms.p50)));
+    kvs.push_back(DH::KV("perf_total_p95", std::to_string(snap.t_total_ms.p95)));
+    kvs.push_back(DH::KV("perf_total_max", std::to_string(snap.t_total_ms.max)));
+    kvs.push_back(DH::KV("perf_ground_p95", std::to_string(snap.t_ground_ms.p95)));
+    kvs.push_back(DH::KV("perf_cluster_p95", std::to_string(snap.t_cluster_ms.p95)));
+    kvs.push_back(DH::KV("perf_points_mean", std::to_string(snap.n_points.mean)));
+    kvs.push_back(DH::KV("perf_detections_mean", std::to_string(snap.n_detections.mean)));
+    kvs.push_back(DH::KV("perf_bytes_mean", std::to_string(snap.bytes_pub.mean)));
+  }
+
+  diag_helper_.PublishStatus("perception_lidar", "perception_ros/lidar_cluster",
+                             level, msg, kvs, last_header_.stamp);
+}
+
+void LidarClusterRos::publishDebugMarkers(const LidarClusterOutput &output)
+{
+  if (!debug_publish_markers_ || debug_marker_pub_.getNumSubscribers() == 0)
+  {
+    return;
+  }
+
+  visualization_msgs::MarkerArray markers;
+  // Delete all previous markers
+  visualization_msgs::Marker del;
+  del.action = visualization_msgs::Marker::DELETEALL;
+  del.header = last_header_;
+  del.ns = "cone_bbox";
+  markers.markers.push_back(del);
+
+  int id = 0;
+  for (const auto &cone : output.cones)
+  {
+    visualization_msgs::Marker m;
+    m.header = last_header_;
+    m.ns = "cone_bbox";
+    m.id = id++;
+    m.type = visualization_msgs::Marker::CUBE;
+    m.action = visualization_msgs::Marker::ADD;
+    m.pose.position.x = 0.5 * (cone.min.x + cone.max.x);
+    m.pose.position.y = 0.5 * (cone.min.y + cone.max.y);
+    m.pose.position.z = 0.5 * (cone.min.z + cone.max.z);
+    m.pose.orientation.w = 1.0;
+    m.scale.x = std::max(0.05, static_cast<double>(cone.max.x - cone.min.x));
+    m.scale.y = std::max(0.05, static_cast<double>(cone.max.y - cone.min.y));
+    m.scale.z = std::max(0.05, static_cast<double>(cone.max.z - cone.min.z));
+    // Color by confidence: green=high, red=low
+    m.color.r = static_cast<float>(1.0 - cone.confidence);
+    m.color.g = static_cast<float>(cone.confidence);
+    m.color.b = 0.0f;
+    m.color.a = 0.6f;
+    m.lifetime = ros::Duration(0.2);
+    markers.markers.push_back(m);
+  }
+  debug_marker_pub_.publish(markers);
 }
 
 }  // namespace perception_ros

@@ -50,6 +50,11 @@ void lidar_cluster::SetInputCloud(pcl::PointCloud<PointType>::Ptr &&cloud, uint3
   frame_count = static_cast<int>(seq);
 }
 
+void lidar_cluster::SetEgoMotion(const perception::EgoMotion &ego)
+{
+  ego_motion_ = ego;
+}
+
 bool lidar_cluster::Process(LidarClusterOutput *output)
 {
   if (!output) {
@@ -129,7 +134,7 @@ bool lidar_cluster::Process(LidarClusterOutput *output)
       tracker_dets.push_back(td);
     }
 
-    cone_tracker_.update(tracker_dets, dt);
+    cone_tracker_.update(tracker_dets, dt, ego_motion_);
 
     // Get confirmed tracks and match back to original detections
     auto confirmed = config_.tracker.only_output_confirmed
@@ -159,6 +164,7 @@ bool lidar_cluster::Process(LidarClusterOutput *output)
         ConeDetection det = output->cones[best_idx];
         // Boost confidence for confirmed tracks
         det.confidence = std::min(1.0, det.confidence + config_.tracker.confirmed_confidence_boost);
+        det.track_id = track.id;  // G12: propagate tracker ID
         filtered_cones.push_back(std::move(det));
         if (output->cones[best_idx].cluster) {
           filtered_cloud->points.insert(

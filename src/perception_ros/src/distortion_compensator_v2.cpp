@@ -275,4 +275,21 @@ bool DistortionCompensatorV2::CompensateFromMsg(const sensor_msgs::PointCloud2& 
     }
 }
 
+bool DistortionCompensatorV2::GetLatestEgoVelocity(double &vx, double &vy,
+                                                     double &yaw_rate) const {
+    if (!config_.enable || !has_imu_data_) {
+        vx = vy = yaw_rate = 0.0;
+        return false;
+    }
+
+    // debug_info 中的 ref_velocity 是 FRD 车体系 (x前 y右 z下)
+    // LiDAR/ego 坐标系是 (x前 y左 z上)
+    // 转换: vx_lidar = vx_frd, vy_lidar = -vy_frd, yaw_rate_lidar = -omega_z_frd
+    const auto &info = compensator_.GetDebugInfo();
+    vx = info.ref_velocity.x();
+    vy = -info.ref_velocity.y();
+    yaw_rate = -info.ref_angular_velocity.z();
+    return true;
+}
+
 }  // namespace perception_ros

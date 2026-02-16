@@ -94,5 +94,26 @@ if(CATKIN_ENABLE_TESTING)
       ${PCL_LIBRARIES}
     )
   endif()
-endif()
 
+  # Confidence scorer 测试
+  catkin_add_gtest(test_confidence_scorer
+    test/test_confidence_scorer.cpp
+  )
+  if(TARGET test_confidence_scorer)
+    target_link_libraries(test_confidence_scorer
+      ${PROJECT_NAME}
+      ${PCL_LIBRARIES}
+    )
+  endif()
+
+  # Cone tracker 测试
+  catkin_add_gtest(test_cone_tracker
+    test/test_cone_tracker.cpp
+  )
+  if(TARGET test_cone_tracker)
+    target_link_libraries(test_cone_tracker
+      ${PROJECT_NAME}
+      ${PCL_LIBRARIES}
+    )
+  endif()
+endif()

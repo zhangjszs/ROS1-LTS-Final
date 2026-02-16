@@ -19,6 +19,7 @@ inline constexpr const char *kVehicleStatus = "vehicle/status";
 
 // ── Diagnostics ─────────────────────────────────────────────────
 inline constexpr const char *kDiagnosticsGlobal = "/diagnostics";
+inline constexpr const char *kPerceptionDiagnostics = "perception/diagnostics";
 inline constexpr const char *kControlDiagnostics = "control/diagnostics";
 inline constexpr const char *kLocalizationDiagnostics = "localization/diagnostics";
 inline constexpr const char *kPlanningDiagnostics = "planning/diagnostics";
@@ -34,4 +35,11 @@ inline constexpr const char *kVelodyne = "velodyne";
 inline constexpr const char *kImu = "imu";
 
 } // namespace frame_contract
+
+namespace stamp_contract {
+
+/// Maximum acceptable drift between sensor stamp and receive time [s].
+inline constexpr double kMaxStampDriftSec = 1.0;
+
+} // namespace stamp_contract
 } // namespace fsd_common
