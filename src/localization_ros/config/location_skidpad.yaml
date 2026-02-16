@@ -88,6 +88,14 @@ map:
   # 调小：更严格的验证（可能剔除真锥桶）
   circle_tolerance: 2.0
 
+  # 第一圈建图后冻结策略
+  freeze:
+    enabled: false
+    freeze_after_frames: 300
+    freeze_after_cones: 120
+    allow_merge_when_frozen: true
+    allow_new_cones_when_frozen: false
+
 # ==========================
 # 【调参指南 - Skidpad】
 # ==========================

@@ -83,6 +83,35 @@ struct ConeDetections {
   std::vector<ConeDetection> detections;
 };
 
+struct ConeAssociationDebug {
+  Point3 detection_base;
+  Point3 detection_global;
+  Point3 matched_global;
+  std::uint32_t matched_id = 0;
+  double distance = 0.0;
+  bool merged = false;
+};
+
+struct MapUpdateStats {
+  int input_count = 0;
+  int bbox_reject_count = 0;
+  int geometry_reject_count = 0;
+  int conf_add_reject_count = 0;
+  int conf_merge_reject_count = 0;
+  int frozen_reject_count = 0;
+  int merged_count = 0;
+  int inserted_count = 0;
+  int local_output_count = 0;
+  int map_size = 0;
+  int update_seq = 0;
+  bool map_frozen = false;
+  double mean_match_distance = 0.0;
+  double max_match_distance = 0.0;
+  std::vector<Cone> inlier_cones;
+  std::vector<Cone> outlier_cones;
+  std::vector<ConeAssociationDebug> associations;
+};
+
 struct LocationParams {
   double lidar_to_imu_dist = 1.87;
   double front_to_imu_x = 0.0;
@@ -140,6 +169,15 @@ struct LocationParams {
     bool reject_single_cone_paths = true;
   };
   ShortPathSuppression short_path_suppression;
+
+  struct MapFreeze {
+    bool enabled = false;
+    int freeze_after_frames = 300;         // 处理多少帧锥桶后冻结
+    int freeze_after_cones = 120;          // 地图锥桶数量达到该阈值后冻结
+    bool allow_merge_when_frozen = true;   // 冻结后是否允许更新已有锥桶
+    bool allow_new_cones_when_frozen = false;  // 冻结后是否允许新增锥桶
+  };
+  MapFreeze map_freeze;
 };
 
 using PointCloud = pcl::PointCloud<pcl::PointXYZ>;

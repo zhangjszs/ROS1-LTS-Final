@@ -198,6 +198,14 @@ map:
       local_cone_range: 30.0           # 标准局部范围
       track_width: 3.5                 # 较宽的赛道 (m)
 
+  # 第一圈建图后冻结策略
+  freeze:
+    enabled: false
+    freeze_after_frames: 300
+    freeze_after_cones: 120
+    allow_merge_when_frozen: true
+    allow_new_cones_when_frozen: false
+
 # ==========================
 # 后端选择
 # ==========================
@@ -237,6 +245,41 @@ heading_sanity:
   max_step_deg: 45.0
   max_rate_deg_per_sec: 180.0
   max_heading_gyro_residual_rad_s: 0.35
+
+# ==========================
+# 定位 debug topics
+# ==========================
+debug_topics:
+  enabled: true
+  inlier_map: "localization/debug/inlier_map"
+  outlier_map: "localization/debug/outlier_map"
+  local_map: "localization/debug/local_map"
+  match_pairs: "localization/debug/match_pairs"
+  relocalization: "localization/debug/relocalization"
+  max_pairs: 20
+
+# ==========================
+# 地图漂移检测与回退
+# ==========================
+map_drift:
+  enabled: true
+  min_match_ratio: 0.15
+  max_mean_match_distance: 2.0
+  min_local_cones: 2
+  bad_frames_to_trigger: 15
+  cooldown_frames: 50
+  trigger_only_when_frozen: true
+  action: "rollback"   # rollback | reset | freeze
+
+# ==========================
+# 地图版本化保存/加载接口
+# ==========================
+map_persistence:
+  enabled: true
+  save_path: "/tmp/localization_map.csv"
+  version_tag: "v1"
+  save_service: "localization/map/save"
+  load_service: "localization/map/load"
 
 # ==========================
 # 因子图参数（仅在 backend=factor_graph 时使用）

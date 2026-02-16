@@ -19,6 +19,7 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <std_srvs/Trigger.h>
 
 #include <localization_core/location_mapper.hpp>
 #include <localization_core/factor_graph_optimizer.hpp>
@@ -43,6 +44,10 @@ class LocationNode {
   void publishEntryHealth(const std::string &source, const ros::Time &stamp, bool force = false);
   void updateHeadingSanity(const autodrive_msgs::HUAT_InsP2 &msg, const ros::Time &stamp);
   void updateConeMapLifecycleStats(const autodrive_msgs::HUAT_ConeMap &map_msg);
+  void publishMapperDebugTopics(const localization_core::MapUpdateStats &stats, const ros::Time &stamp);
+  bool evaluateDriftAndRecover(const localization_core::MapUpdateStats &stats, const ros::Time &stamp);
+  bool handleSaveMap(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res);
+  bool handleLoadMap(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res);
 
   static localization_core::Asensing ToCore(const autodrive_msgs::HUAT_InsP2 &msg);
   static localization_core::CarState ToCore(const autodrive_msgs::HUAT_CarState &msg);
@@ -63,8 +68,15 @@ class LocationNode {
   ros::Publisher pose_pub_;
   ros::Publisher odom_pub_;
   ros::Publisher status_pub_;
+  ros::Publisher debug_inlier_map_pub_;
+  ros::Publisher debug_outlier_map_pub_;
+  ros::Publisher debug_local_map_pub_;
+  ros::Publisher debug_match_pairs_pub_;
+  ros::Publisher debug_relocalization_pub_;
   autodrive_msgs::DiagnosticsHelper diag_helper_;
   tf2_ros::TransformBroadcaster tf_broadcaster_;
+  ros::ServiceServer save_map_srv_;
+  ros::ServiceServer load_map_srv_;
 
   bool use_external_carstate_ = false;
   std::string ins_topic_;
@@ -183,6 +195,53 @@ class LocationNode {
   std::uint64_t cone_non_monotonic_new_id_count_ = 0;
   std::uint64_t cone_zero_id_count_ = 0;
   std::uint64_t cone_stale_publish_count_ = 0;
+
+  struct DebugTopicsConfig {
+    bool enabled = true;
+    std::string inlier_map_topic = "localization/debug/inlier_map";
+    std::string outlier_map_topic = "localization/debug/outlier_map";
+    std::string local_map_topic = "localization/debug/local_map";
+    std::string match_pairs_topic = "localization/debug/match_pairs";
+    std::string relocalization_topic = "localization/debug/relocalization";
+    int max_pairs = 20;
+  };
+  DebugTopicsConfig debug_topics_cfg_;
+  localization_core::MapUpdateStats last_map_stats_;
+  bool has_last_map_stats_ = false;
+
+  struct DriftMonitorConfig {
+    bool enabled = true;
+    double min_match_ratio = 0.15;
+    double max_mean_match_distance = 2.0;
+    int min_local_cones = 2;
+    int bad_frames_to_trigger = 15;
+    int cooldown_frames = 50;
+    bool trigger_only_when_frozen = true;
+    std::string action = "rollback";  // rollback | reset | freeze
+  };
+  DriftMonitorConfig drift_monitor_cfg_;
+  int drift_bad_frames_ = 0;
+  int drift_cooldown_frames_ = 0;
+  std::uint64_t drift_event_count_ = 0;
+  std::uint64_t drift_rollback_count_ = 0;
+  std::uint64_t drift_reset_count_ = 0;
+  std::uint64_t drift_freeze_count_ = 0;
+  bool drift_last_frame_bad_ = false;
+
+  struct MapPersistenceConfig {
+    bool enabled = true;
+    std::string save_path = "/tmp/localization_map.csv";
+    std::string version_tag = "v1";
+    std::string save_service = "localization/map/save";
+    std::string load_service = "localization/map/load";
+  };
+  MapPersistenceConfig map_persistence_cfg_;
+  std::uint64_t map_save_count_ = 0;
+  std::uint64_t map_load_count_ = 0;
+  std::uint64_t map_save_fail_count_ = 0;
+  std::uint64_t map_load_fail_count_ = 0;
+  double map_last_save_time_sec_ = 0.0;
+  double map_last_load_time_sec_ = 0.0;
 
   // Heading init logging (Item 3)
   bool heading_init_logged_ = false;

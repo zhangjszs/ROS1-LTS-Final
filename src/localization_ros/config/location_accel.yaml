@@ -77,6 +77,14 @@ map:
   # 直线加速赛道通常较窄
   track_width: 3.0
 
+  # 第一圈建图后冻结策略
+  freeze:
+    enabled: false
+    freeze_after_frames: 300
+    freeze_after_cones: 120
+    allow_merge_when_frozen: true
+    allow_new_cones_when_frozen: false
+
 # ==========================
 # 【调参指南 - Acceleration】
 # ==========================

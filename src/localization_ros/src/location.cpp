@@ -78,6 +78,14 @@ LocationNode::LocationNode(ros::NodeHandle &nh)
   global_map_pub_ = nh_.advertise<sensor_msgs::PointCloud2>(global_map_topic_, 10);
   pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>(pose_topic_, 10);
   odom_pub_ = nh_.advertise<nav_msgs::Odometry>(odom_topic_, 10);
+  if (debug_topics_cfg_.enabled)
+  {
+    debug_inlier_map_pub_ = nh_.advertise<autodrive_msgs::HUAT_ConeMap>(debug_topics_cfg_.inlier_map_topic, 10);
+    debug_outlier_map_pub_ = nh_.advertise<autodrive_msgs::HUAT_ConeMap>(debug_topics_cfg_.outlier_map_topic, 10);
+    debug_local_map_pub_ = nh_.advertise<autodrive_msgs::HUAT_ConeMap>(debug_topics_cfg_.local_map_topic, 10);
+    debug_match_pairs_pub_ = nh_.advertise<std_msgs::String>(debug_topics_cfg_.match_pairs_topic, 10);
+    debug_relocalization_pub_ = nh_.advertise<std_msgs::String>(debug_topics_cfg_.relocalization_topic, 10);
+  }
 
   // Status diagnostics publisher
   LoadParam(pnh_, nh_, "topics/fg_status", status_topic_, std::string(autodrive_msgs::topic_contract::kLocalizationFgStatus));
@@ -97,6 +105,11 @@ LocationNode::LocationNode(ros::NodeHandle &nh)
     dcfg.queue_size = 10;
     dcfg.latch_local = true;
     diag_helper_.Init(nh_, dcfg);
+  }
+  if (map_persistence_cfg_.enabled)
+  {
+    save_map_srv_ = nh_.advertiseService(map_persistence_cfg_.save_service, &LocationNode::handleSaveMap, this);
+    load_map_srv_ = nh_.advertiseService(map_persistence_cfg_.load_service, &LocationNode::handleLoadMap, this);
   }
 
   // Initialize factor graph backend if configured
@@ -260,6 +273,15 @@ void LocationNode::loadParameters()
   }
   LoadParam(pnh_, nh_, "short_path_suppression/reject_single_cone_paths", params_.short_path_suppression.reject_single_cone_paths, true);
 
+  // 地图冻结参数（第一圈建图 -> 冻结）
+  LoadParam(pnh_, nh_, "map/freeze/enabled", params_.map_freeze.enabled, false);
+  LoadParam(pnh_, nh_, "map/freeze/freeze_after_frames", params_.map_freeze.freeze_after_frames, 300);
+  LoadParam(pnh_, nh_, "map/freeze/freeze_after_cones", params_.map_freeze.freeze_after_cones, 120);
+  LoadParam(pnh_, nh_, "map/freeze/allow_merge_when_frozen", params_.map_freeze.allow_merge_when_frozen, true);
+  LoadParam(pnh_, nh_, "map/freeze/allow_new_cones_when_frozen", params_.map_freeze.allow_new_cones_when_frozen, false);
+  params_.map_freeze.freeze_after_frames = std::max(0, params_.map_freeze.freeze_after_frames);
+  params_.map_freeze.freeze_after_cones = std::max(0, params_.map_freeze.freeze_after_cones);
+
   // 模式预设覆盖：从 map/mode_presets/<mode>/ 读取并覆盖对应参数
   const std::string preset_prefix = "map/mode_presets/" + params_.map_mode + "/";
   double tmp_d;
@@ -347,6 +369,53 @@ void LocationNode::loadParameters()
   heading_sanity_cfg_.max_rate_deg_per_sec = std::max(0.0, heading_sanity_cfg_.max_rate_deg_per_sec);
   heading_sanity_cfg_.max_heading_gyro_residual_rad_s =
       std::max(0.0, heading_sanity_cfg_.max_heading_gyro_residual_rad_s);
+
+  // Debug topics (匹配对 / inlier / outlier / local map / 重定位评分)
+  LoadParam(pnh_, nh_, "debug_topics/enabled", debug_topics_cfg_.enabled, true);
+  LoadParam(pnh_, nh_, "debug_topics/inlier_map", debug_topics_cfg_.inlier_map_topic,
+            std::string("localization/debug/inlier_map"));
+  LoadParam(pnh_, nh_, "debug_topics/outlier_map", debug_topics_cfg_.outlier_map_topic,
+            std::string("localization/debug/outlier_map"));
+  LoadParam(pnh_, nh_, "debug_topics/local_map", debug_topics_cfg_.local_map_topic,
+            std::string("localization/debug/local_map"));
+  LoadParam(pnh_, nh_, "debug_topics/match_pairs", debug_topics_cfg_.match_pairs_topic,
+            std::string("localization/debug/match_pairs"));
+  LoadParam(pnh_, nh_, "debug_topics/relocalization", debug_topics_cfg_.relocalization_topic,
+            std::string("localization/debug/relocalization"));
+  LoadParam(pnh_, nh_, "debug_topics/max_pairs", debug_topics_cfg_.max_pairs, 20);
+  debug_topics_cfg_.max_pairs = std::max(1, debug_topics_cfg_.max_pairs);
+
+  // 地图漂移监控与恢复
+  LoadParam(pnh_, nh_, "map_drift/enabled", drift_monitor_cfg_.enabled, true);
+  LoadParam(pnh_, nh_, "map_drift/min_match_ratio", drift_monitor_cfg_.min_match_ratio, 0.15);
+  LoadParam(pnh_, nh_, "map_drift/max_mean_match_distance", drift_monitor_cfg_.max_mean_match_distance, 2.0);
+  LoadParam(pnh_, nh_, "map_drift/min_local_cones", drift_monitor_cfg_.min_local_cones, 2);
+  LoadParam(pnh_, nh_, "map_drift/bad_frames_to_trigger", drift_monitor_cfg_.bad_frames_to_trigger, 15);
+  LoadParam(pnh_, nh_, "map_drift/cooldown_frames", drift_monitor_cfg_.cooldown_frames, 50);
+  LoadParam(pnh_, nh_, "map_drift/trigger_only_when_frozen", drift_monitor_cfg_.trigger_only_when_frozen, true);
+  LoadParam(pnh_, nh_, "map_drift/action", drift_monitor_cfg_.action, std::string("rollback"));
+  drift_monitor_cfg_.min_match_ratio = std::max(0.0, std::min(1.0, drift_monitor_cfg_.min_match_ratio));
+  drift_monitor_cfg_.max_mean_match_distance = std::max(0.0, drift_monitor_cfg_.max_mean_match_distance);
+  drift_monitor_cfg_.min_local_cones = std::max(1, drift_monitor_cfg_.min_local_cones);
+  drift_monitor_cfg_.bad_frames_to_trigger = std::max(1, drift_monitor_cfg_.bad_frames_to_trigger);
+  drift_monitor_cfg_.cooldown_frames = std::max(0, drift_monitor_cfg_.cooldown_frames);
+  if (drift_monitor_cfg_.action != "rollback" &&
+      drift_monitor_cfg_.action != "reset" &&
+      drift_monitor_cfg_.action != "freeze")
+  {
+    drift_monitor_cfg_.action = "rollback";
+  }
+
+  // 地图保存/加载接口
+  LoadParam(pnh_, nh_, "map_persistence/enabled", map_persistence_cfg_.enabled, true);
+  LoadParam(pnh_, nh_, "map_persistence/save_path", map_persistence_cfg_.save_path,
+            std::string("/tmp/localization_map.csv"));
+  LoadParam(pnh_, nh_, "map_persistence/version_tag", map_persistence_cfg_.version_tag,
+            std::string("v1"));
+  LoadParam(pnh_, nh_, "map_persistence/save_service", map_persistence_cfg_.save_service,
+            std::string("localization/map/save"));
+  LoadParam(pnh_, nh_, "map_persistence/load_service", map_persistence_cfg_.load_service,
+            std::string("localization/map/load"));
 
   // Factor graph config
   if (backend_ == "factor_graph")
@@ -649,6 +718,204 @@ void LocationNode::updateConeMapLifecycleStats(const autodrive_msgs::HUAT_ConeMa
   }
 }
 
+void LocationNode::publishMapperDebugTopics(const localization_core::MapUpdateStats &stats, const ros::Time &stamp)
+{
+  if (!debug_topics_cfg_.enabled)
+  {
+    return;
+  }
+
+  localization_core::ConeMap inlier_map;
+  inlier_map.cones = stats.inlier_cones;
+  autodrive_msgs::HUAT_ConeMap inlier_msg;
+  ToRos(inlier_map, &inlier_msg);
+  inlier_msg.header.stamp = stamp;
+  inlier_msg.header.frame_id = world_frame_;
+  debug_inlier_map_pub_.publish(inlier_msg);
+
+  localization_core::ConeMap outlier_map;
+  outlier_map.cones = stats.outlier_cones;
+  autodrive_msgs::HUAT_ConeMap outlier_msg;
+  ToRos(outlier_map, &outlier_msg);
+  outlier_msg.header.stamp = stamp;
+  outlier_msg.header.frame_id = world_frame_;
+  debug_outlier_map_pub_.publish(outlier_msg);
+
+  if (has_last_map_msg_)
+  {
+    autodrive_msgs::HUAT_ConeMap local_msg = last_map_msg_;
+    local_msg.header.stamp = stamp;
+    local_msg.header.frame_id = world_frame_;
+    debug_local_map_pub_.publish(local_msg);
+  }
+
+  std_msgs::String pair_msg;
+  {
+    std::ostringstream oss;
+    oss << "seq=" << stats.update_seq
+        << ",merged=" << stats.merged_count
+        << ",inserted=" << stats.inserted_count
+        << ",outlier=" << (stats.bbox_reject_count + stats.geometry_reject_count +
+                           stats.conf_add_reject_count + stats.conf_merge_reject_count +
+                           stats.frozen_reject_count)
+        << ",map_frozen=" << (stats.map_frozen ? "true" : "false")
+        << ",mean_match_distance=" << ToFixed(stats.mean_match_distance, 3);
+    const int max_pairs = std::min(debug_topics_cfg_.max_pairs, static_cast<int>(stats.associations.size()));
+    for (int i = 0; i < max_pairs; ++i)
+    {
+      const auto &a = stats.associations[i];
+      oss << ";pair" << i
+          << "{id=" << a.matched_id
+          << ",d=" << ToFixed(a.distance, 3)
+          << ",merged=" << (a.merged ? "1" : "0")
+          << ",obs=(" << ToFixed(a.detection_base.x, 2) << "," << ToFixed(a.detection_base.y, 2) << ")"
+          << ",map=(" << ToFixed(a.matched_global.x, 2) << "," << ToFixed(a.matched_global.y, 2) << ")}";
+    }
+    pair_msg.data = oss.str();
+  }
+  debug_match_pairs_pub_.publish(pair_msg);
+
+  std_msgs::String reloc_msg;
+  {
+    std::ostringstream oss;
+    oss << "backend=" << backend_
+        << ",state=" << mapperStateName(static_cast<int>(mapper_state_))
+        << ",candidate_score=" << ToFixed(last_cone_match_ratio_, 3)
+        << ",mode=proxy_match_ratio";
+    reloc_msg.data = oss.str();
+  }
+  debug_relocalization_pub_.publish(reloc_msg);
+}
+
+bool LocationNode::evaluateDriftAndRecover(const localization_core::MapUpdateStats &stats, const ros::Time &stamp)
+{
+  if (!drift_monitor_cfg_.enabled)
+  {
+    return false;
+  }
+  if (drift_cooldown_frames_ > 0)
+  {
+    --drift_cooldown_frames_;
+    drift_bad_frames_ = 0;
+    drift_last_frame_bad_ = false;
+    return false;
+  }
+
+  const bool low_match = last_cone_match_ratio_ < drift_monitor_cfg_.min_match_ratio;
+  const bool high_residual =
+      (stats.merged_count > 0 && stats.mean_match_distance > drift_monitor_cfg_.max_mean_match_distance);
+  const bool low_local = stats.local_output_count < drift_monitor_cfg_.min_local_cones;
+
+  bool frame_bad = low_match || high_residual || low_local;
+  if (drift_monitor_cfg_.trigger_only_when_frozen && !stats.map_frozen)
+  {
+    frame_bad = false;
+  }
+  drift_last_frame_bad_ = frame_bad;
+  if (!frame_bad)
+  {
+    drift_bad_frames_ = 0;
+    return false;
+  }
+
+  ++drift_bad_frames_;
+  if (drift_bad_frames_ < drift_monitor_cfg_.bad_frames_to_trigger)
+  {
+    return false;
+  }
+
+  ++drift_event_count_;
+  bool recovered = false;
+  if (drift_monitor_cfg_.action == "rollback")
+  {
+    recovered = mapper_.RollbackToCheckpoint();
+    if (recovered)
+    {
+      ++drift_rollback_count_;
+    }
+  }
+  if (!recovered && drift_monitor_cfg_.action == "reset")
+  {
+    mapper_.ResetMap(false);
+    recovered = true;
+    ++drift_reset_count_;
+  }
+  if (!recovered && drift_monitor_cfg_.action == "freeze")
+  {
+    mapper_state_ = MapperRuntimeState::INS_ONLY;
+    mapper_ins_only_frames_ = 0;
+    recovered = true;
+    ++drift_freeze_count_;
+  }
+  if (!recovered)
+  {
+    mapper_.ResetMap(false);
+    recovered = true;
+    ++drift_reset_count_;
+  }
+
+  if (recovered)
+  {
+    drift_bad_frames_ = 0;
+    drift_cooldown_frames_ = drift_monitor_cfg_.cooldown_frames;
+    has_last_map_msg_ = false;
+    has_last_map_stats_ = false;
+    seen_cone_ids_.clear();
+    cone_max_id_seen_ = 0;
+    cone_last_map_size_ = 0;
+    ROS_WARN_STREAM("[location] map drift recovery triggered, action=" << drift_monitor_cfg_.action
+                    << ", match_ratio=" << ToFixed(last_cone_match_ratio_, 3)
+                    << ", mean_match_distance=" << ToFixed(stats.mean_match_distance, 3));
+    publishEntryHealth("drift_recovery", stamp, true);
+  }
+  return recovered;
+}
+
+bool LocationNode::handleSaveMap(std_srvs::Trigger::Request &, std_srvs::Trigger::Response &res)
+{
+  std::string error_msg;
+  const bool ok = mapper_.SaveMapToFile(map_persistence_cfg_.save_path, &error_msg);
+  if (ok)
+  {
+    ++map_save_count_;
+    map_last_save_time_sec_ = ros::Time::now().toSec();
+    res.success = true;
+    res.message = "saved map to " + map_persistence_cfg_.save_path;
+  }
+  else
+  {
+    ++map_save_fail_count_;
+    res.success = false;
+    res.message = "save map failed: " + error_msg;
+  }
+  return true;
+}
+
+bool LocationNode::handleLoadMap(std_srvs::Trigger::Request &, std_srvs::Trigger::Response &res)
+{
+  std::string error_msg;
+  const bool ok = mapper_.LoadMapFromFile(map_persistence_cfg_.save_path, &error_msg);
+  if (ok)
+  {
+    ++map_load_count_;
+    map_last_load_time_sec_ = ros::Time::now().toSec();
+    has_last_map_msg_ = false;
+    has_last_map_stats_ = false;
+    seen_cone_ids_.clear();
+    cone_max_id_seen_ = 0;
+    cone_last_map_size_ = 0;
+    res.success = true;
+    res.message = "loaded map from " + map_persistence_cfg_.save_path;
+  }
+  else
+  {
+    ++map_load_fail_count_;
+    res.success = false;
+    res.message = "load map failed: " + error_msg;
+  }
+  return true;
+}
+
 void LocationNode::publishState(const localization_core::CarState &state, const ros::Time &stamp, bool publish_carstate)
 {
   const geometry_msgs::Quaternion orientation = YawToQuaternion(state.car_state.theta);
@@ -819,6 +1086,42 @@ void LocationNode::publishEntryHealth(const std::string &source, const ros::Time
   kvs.push_back(KV::KV("cone_non_monotonic_new_id_count", std::to_string(cone_non_monotonic_new_id_count_)));
   kvs.push_back(KV::KV("cone_zero_id_count", std::to_string(cone_zero_id_count_)));
   kvs.push_back(KV::KV("cone_stale_publish_count", std::to_string(cone_stale_publish_count_)));
+  kvs.push_back(KV::KV("debug_topics_enabled", debug_topics_cfg_.enabled ? "true" : "false"));
+  kvs.push_back(KV::KV("map_frozen", mapper_.map_frozen() ? "true" : "false"));
+  kvs.push_back(KV::KV("map_size", std::to_string(mapper_.map_size())));
+  kvs.push_back(KV::KV("map_update_seq", std::to_string(mapper_.map_update_seq())));
+  kvs.push_back(KV::KV("map_checkpoint_available", mapper_.has_checkpoint() ? "true" : "false"));
+  kvs.push_back(KV::KV("map_persistence_enabled", map_persistence_cfg_.enabled ? "true" : "false"));
+  kvs.push_back(KV::KV("map_version_tag", map_persistence_cfg_.version_tag));
+  kvs.push_back(KV::KV("map_save_path", map_persistence_cfg_.save_path));
+  kvs.push_back(KV::KV("map_save_count", std::to_string(map_save_count_)));
+  kvs.push_back(KV::KV("map_load_count", std::to_string(map_load_count_)));
+  kvs.push_back(KV::KV("map_save_fail_count", std::to_string(map_save_fail_count_)));
+  kvs.push_back(KV::KV("map_load_fail_count", std::to_string(map_load_fail_count_)));
+  kvs.push_back(KV::KV("map_last_save_time_sec", ToFixed(map_last_save_time_sec_, 3)));
+  kvs.push_back(KV::KV("map_last_load_time_sec", ToFixed(map_last_load_time_sec_, 3)));
+  kvs.push_back(KV::KV("drift_monitor_enabled", drift_monitor_cfg_.enabled ? "true" : "false"));
+  kvs.push_back(KV::KV("drift_bad_frames", std::to_string(drift_bad_frames_)));
+  kvs.push_back(KV::KV("drift_last_frame_bad", drift_last_frame_bad_ ? "true" : "false"));
+  kvs.push_back(KV::KV("drift_cooldown_frames", std::to_string(drift_cooldown_frames_)));
+  kvs.push_back(KV::KV("drift_event_count", std::to_string(drift_event_count_)));
+  kvs.push_back(KV::KV("drift_rollback_count", std::to_string(drift_rollback_count_)));
+  kvs.push_back(KV::KV("drift_reset_count", std::to_string(drift_reset_count_)));
+  kvs.push_back(KV::KV("drift_freeze_count", std::to_string(drift_freeze_count_)));
+  if (has_last_map_stats_)
+  {
+    kvs.push_back(KV::KV("mapper_input_count", std::to_string(last_map_stats_.input_count)));
+    kvs.push_back(KV::KV("mapper_bbox_reject_count", std::to_string(last_map_stats_.bbox_reject_count)));
+    kvs.push_back(KV::KV("mapper_geometry_reject_count", std::to_string(last_map_stats_.geometry_reject_count)));
+    kvs.push_back(KV::KV("mapper_conf_add_reject_count", std::to_string(last_map_stats_.conf_add_reject_count)));
+    kvs.push_back(KV::KV("mapper_conf_merge_reject_count", std::to_string(last_map_stats_.conf_merge_reject_count)));
+    kvs.push_back(KV::KV("mapper_frozen_reject_count", std::to_string(last_map_stats_.frozen_reject_count)));
+    kvs.push_back(KV::KV("mapper_merged_count", std::to_string(last_map_stats_.merged_count)));
+    kvs.push_back(KV::KV("mapper_inserted_count", std::to_string(last_map_stats_.inserted_count)));
+    kvs.push_back(KV::KV("mapper_local_output_count", std::to_string(last_map_stats_.local_output_count)));
+    kvs.push_back(KV::KV("mapper_mean_match_distance", ToFixed(last_map_stats_.mean_match_distance, 3)));
+    kvs.push_back(KV::KV("mapper_max_match_distance", ToFixed(last_map_stats_.max_match_distance, 3)));
+  }
 
   diag_helper_.PublishStatus("localization_entry_health", "localization_ros/location_node",
                              level, message, kvs, stamp, force);
@@ -900,10 +1203,12 @@ void LocationNode::coneCallback(const autodrive_msgs::HUAT_ConeDetections::Const
   last_input_cone_count_ = input_count;
   localization_core::ConeMap map;
   localization_core::PointCloudPtr cloud;
+  localization_core::MapUpdateStats map_stats;
 
   if (!shouldProcessConeFusion())
   {
     ++mapper_drop_count_;
+    has_last_map_stats_ = false;
     last_cone_update_success_ = false;
     last_cone_frame_good_ = false;
     last_local_cone_count_ = 0;
@@ -920,9 +1225,14 @@ void LocationNode::coneCallback(const autodrive_msgs::HUAT_ConeDetections::Const
     return;
   }
 
-  const bool update_success = mapper_.UpdateFromCones(detections, &map, &cloud);
+  const bool update_success = mapper_.UpdateFromCones(detections, &map, &cloud, &map_stats);
+  if (update_success)
+  {
+    last_map_stats_ = map_stats;
+    has_last_map_stats_ = true;
+  }
   last_cone_update_success_ = update_success;
-  last_local_cone_count_ = update_success ? static_cast<int>(map.cones.size()) : 0;
+  last_local_cone_count_ = update_success ? map_stats.local_output_count : 0;
   last_cone_match_ratio_ = (input_count > 0 && update_success)
                                ? static_cast<double>(last_local_cone_count_) / static_cast<double>(input_count)
                                : 0.0;
@@ -936,6 +1246,7 @@ void LocationNode::coneCallback(const autodrive_msgs::HUAT_ConeDetections::Const
   if (!update_success)
   {
     ++mapper_drop_count_;
+    has_last_map_stats_ = false;
     if (mapper_recovery_cfg_.publish_stale_map_on_failure && has_last_map_msg_)
     {
       autodrive_msgs::HUAT_ConeMap stale_map = last_map_msg_;
@@ -945,6 +1256,12 @@ void LocationNode::coneCallback(const autodrive_msgs::HUAT_ConeDetections::Const
       ++cone_stale_publish_count_;
     }
     publishEntryHealth("cone_update_failed", stamp);
+    return;
+  }
+
+  if (evaluateDriftAndRecover(map_stats, stamp))
+  {
+    publishEntryHealth("cone_drift_recovered", stamp);
     return;
   }
 
@@ -964,6 +1281,7 @@ void LocationNode::coneCallback(const autodrive_msgs::HUAT_ConeDetections::Const
   map_pub_.publish(out_map);
   last_map_msg_ = out_map;
   has_last_map_msg_ = true;
+  publishMapperDebugTopics(map_stats, stamp);
 
   if (cloud)
   {

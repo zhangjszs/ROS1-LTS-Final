@@ -24,7 +24,19 @@ class LocationMapper {
   void UpdateFromCarState(const CarState &state);
   bool UpdateFromCones(const ConeDetections &detections,
                        ConeMap *map_out,
-                       PointCloudPtr *cloud_out);
+                       PointCloudPtr *cloud_out,
+                       MapUpdateStats *stats_out = nullptr);
+
+  bool map_frozen() const { std::lock_guard<std::mutex> lk(state_mutex_); return map_frozen_; }
+  int map_size() const { std::lock_guard<std::mutex> lk(state_mutex_); return static_cast<int>(cloud_->size()); }
+  int cone_update_frames() const { std::lock_guard<std::mutex> lk(state_mutex_); return cone_update_frames_; }
+  int map_update_seq() const { std::lock_guard<std::mutex> lk(state_mutex_); return map_update_seq_; }
+  bool has_checkpoint() const { std::lock_guard<std::mutex> lk(state_mutex_); return has_checkpoint_; }
+
+  void ResetMap(bool keep_checkpoint = false);
+  bool RollbackToCheckpoint();
+  bool SaveMapToFile(const std::string &path, std::string *error_msg = nullptr) const;
+  bool LoadMapFromFile(const std::string &path, std::string *error_msg = nullptr);
 
  private:
   void GeoDeticToENU(double lat, double lon, double h,
@@ -44,6 +56,9 @@ class LocationMapper {
 
   bool first_cone_msg_ = false;
   bool has_carstate_ = false;
+  bool map_frozen_ = false;
+  int cone_update_frames_ = 0;
+  int map_update_seq_ = 0;
 
   CarState car_state_;
   Asensing mimu_;
@@ -62,6 +77,13 @@ class LocationMapper {
   std::vector<std::uint8_t> point_types_;  // 每个锥桶类型: 0/1/2/3/4
   std::vector<double> point_confidences_;  // 每个锥桶的置信度 [0.0, 1.0]
   pcl::KdTreeFLANN<pcl::PointXYZ> kdtree_;
+
+  bool has_checkpoint_ = false;
+  PointCloudPtr checkpoint_cloud_;
+  std::vector<int> checkpoint_ids_;
+  std::vector<int> checkpoint_obs_counts_;
+  std::vector<std::uint8_t> checkpoint_types_;
+  std::vector<double> checkpoint_confidences_;
 
   mutable std::mutex state_mutex_;
 };

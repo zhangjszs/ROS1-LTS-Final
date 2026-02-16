@@ -7,6 +7,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   roslib
   sensor_msgs
+  std_srvs
   geometry_msgs
   nav_msgs
   tf2_ros
@@ -23,7 +24,7 @@ find_package(GTSAM REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS include
-  CATKIN_DEPENDS roscpp roslib sensor_msgs geometry_msgs nav_msgs tf2_ros pcl_ros pcl_conversions autodrive_msgs fsd_common localization_core diagnostic_msgs
+  CATKIN_DEPENDS roscpp roslib sensor_msgs std_srvs geometry_msgs nav_msgs tf2_ros pcl_ros pcl_conversions autodrive_msgs fsd_common localization_core diagnostic_msgs
 )
 
 include_directories(
