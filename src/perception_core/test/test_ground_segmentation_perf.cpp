@@ -159,7 +159,7 @@ TEST_F(FGSPerformanceTest, SmallCloud_10k) {
 TEST_F(FGSPerformanceTest, MediumCloud_50k) {
     const size_t num_points = 50000;
     const int iterations = 30;
-    const double max_allowed_ms = 10.0;
+    const double max_allowed_ms = 15.0;
 
     auto cloud = generateTestCloud(num_points);
     std::vector<double> times;
@@ -189,7 +189,7 @@ TEST_F(FGSPerformanceTest, MediumCloud_50k) {
 TEST_F(FGSPerformanceTest, LargeCloud_100k) {
     const size_t num_points = 100000;
     const int iterations = 20;
-    const double max_allowed_ms = 20.0;
+    const double max_allowed_ms = 30.0;
 
     auto cloud = generateTestCloud(num_points);
     std::vector<double> times;

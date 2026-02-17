@@ -118,6 +118,9 @@ public:
   SkidpadPhase GetPhase() const { return phase_; }
   double GetRecommendedSpeedCap() const;
   std::string GetPhaseName() const;
+  int GetRightLaps() const { return right_laps_; }
+  int GetLeftLaps() const { return left_laps_; }
+  bool IsGeometryValid() const { return geometry_.valid; }
 
 private:
   struct CircleModel

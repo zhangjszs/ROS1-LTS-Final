@@ -106,6 +106,8 @@ void PlanningPipelineNode::InitHighSpeed(ros::NodeHandle &nh)
   pnh.param("finish_grace_frames", finishGraceFrames_, 300);
   pnh.param("enable_loop_fallback_by_lap_counter", enableLoopFallbackByLapCounter_, true);
   pnh.param("loop_fallback_min_laps", loopFallbackMinLaps_, 1);
+  pnh.param("finish_zone_x_threshold", finish_zone_x_threshold_, 1.0);
+  pnh.param("finish_zone_y_threshold", finish_zone_y_threshold_, 1.0);
   pnh.param("perf_stats_enable", perf_enabled_, true);
   pnh.param("perf_stats_window", perf_window_, 300);
   pnh.param("perf_stats_log_every", perf_log_every_, 30);
@@ -247,6 +249,21 @@ void PlanningPipelineNode::HighSpeedConeCallback(
     ROS_WARN("[planning_pipeline/high_speed] Empty cone set.");
     return;
   }
+
+  constexpr size_t kMaxCones = 2000;
+  if (data->cone.size() > kMaxCones)
+  {
+    ROS_WARN_THROTTLE(1.0, "[planning_pipeline/high_speed] Cone count %zu exceeds limit %d, truncating.",
+                      data->cone.size(), kMaxCones);
+  }
+
+  static ros::Time last_stamp;
+  if (last_stamp.isValid() && data->header.stamp < last_stamp)
+  {
+    ROS_WARN_THROTTLE(1.0, "[planning_pipeline/high_speed] Stamp regression: %.3f -> %.3f",
+                      last_stamp.toSec(), data->header.stamp.toSec());
+  }
+  last_stamp = data->header.stamp;
 
   ros::WallTime total_start = ros::WallTime::now();
   size_t bytes_pub = 0;
@@ -424,14 +441,14 @@ void PlanningPipelineNode::HighSpeedConeCallback(
 bool PlanningPipelineNode::HighSpeedFinishCheck()
 {
   if (!inter_ &&
-      std::abs(hs_way_computer_->getCarState().car_state.x) < 1 &&
-      std::abs(hs_way_computer_->getCarState().car_state.y) < 1)
+      std::abs(hs_way_computer_->getCarState().car_state.x) < finish_zone_x_threshold_ &&
+      std::abs(hs_way_computer_->getCarState().car_state.y) < finish_zone_y_threshold_)
   {
     inter_ = true;
     ROS_INFO("[planning_pipeline/high_speed] Entered finish zone.");
   }
-  if (std::abs(hs_way_computer_->getCarState().car_state.y) < 1 &&
-      inter_ && hs_way_computer_->getCarState().car_state.x > 1)
+  if (std::abs(hs_way_computer_->getCarState().car_state.y) < finish_zone_y_threshold_ &&
+      inter_ && hs_way_computer_->getCarState().car_state.x > finish_zone_x_threshold_)
   {
     inter_ = false;
     interTimes_++;

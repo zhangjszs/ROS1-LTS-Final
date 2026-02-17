@@ -82,6 +82,13 @@ private:
   int interTimes_ = 0;
   bool inter_ = false;
 
+  // Finish zone parameters
+  double finish_zone_x_threshold_ = 1.0;
+  double finish_zone_y_threshold_ = 1.0;
+
+  // Input validation
+  ros::Time last_cone_stamp_;
+
   // PerfStats config
   bool perf_enabled_ = true;
   int perf_window_ = 300;

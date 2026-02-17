@@ -1,2 +1,14 @@
 # Planning base config — 公共参数（所有 mission 共享）
-# 当前为空，mission-specific 参数在各自 config 文件中
+#
+# 【Cone 输入源说明】
+#   - line_detection / skidpad_detection:
+#       订阅 perception/lidar_cluster/detections（原始检测），
+#       用于在线实时规划，无需全局地图。
+#   - high_speed_tracking:
+#       订阅 localization/cone_map（已建图锥桶），
+#       用于全局路径优化，依赖定位模块的地图积累。
+#   这是有意的架构选择，而非 bug。
+#
+# 【外参统一】
+#   LiDAR→IMU 偏移量统一为 1.87m，与 localization/lidarToIMUDist 一致。
+#   各模块不应自行定义不同的值。

@@ -1261,9 +1261,9 @@ autodrive_msgs::HUAT_PathLimits WayComputer::getPathLimits() const  {
     res.tracklimits.right.push_back(n.cone());
   }
 
-  // res.tracklimits.replan indicates if the n midpoints in front of the car
+  // replan indicates if the n midpoints in front of the car
   // have varied from last iteration
-  res.tracklimits.replan = this->way_.quinEhLobjetiuDeLaSevaDiresio(this->lastWay_);
+  res.replan = this->way_.quinEhLobjetiuDeLaSevaDiresio(this->lastWay_);
   this->fillPathDynamics(res);
   planning_ros::contract::EnforcePathDynamicsShape(res);
   return res;
@@ -1352,9 +1352,9 @@ autodrive_msgs::HUAT_PathLimits WayComputer::getPathLimitsGlobal(int x)  {
     res.tracklimits.right.push_back(n.cone());
   }
 
-  // res.tracklimits.replan indicates if the n midpoints in front of the car
+  // replan indicates if the n midpoints in front of the car
   // have varied from last iteration
-  res.tracklimits.replan = this->way_.quinEhLobjetiuDeLaSevaDiresio(this->lastWay_);
+  res.replan = this->way_.quinEhLobjetiuDeLaSevaDiresio(this->lastWay_);
   this->fillPathDynamics(res);
   planning_ros::contract::EnforcePathDynamicsShape(res);
   return res;

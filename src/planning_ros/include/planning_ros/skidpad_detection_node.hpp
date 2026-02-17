@@ -8,13 +8,16 @@
 #include <autodrive_msgs/HUAT_CarState.h>
 #include <autodrive_msgs/HUAT_ConeDetections.h>
 #include <autodrive_msgs/HUAT_PathLimits.h>
+#include <diagnostic_msgs/DiagnosticArray.h>
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/synchronizer.h>
 #include <ros/ros.h>
 #include <std_msgs/Bool.h>
 
+#include <fsd_common/diagnostics_helper.hpp>
 #include "planning_core/skidpad_detection_core.hpp"
+#include "planning_ros/skidpad_detection_perf_stats.hpp"
 
 namespace planning_ros
 {
@@ -65,10 +68,15 @@ private:
   double max_brake_ = 4.0;
   double min_speed_ = 1.0;
   double curvature_epsilon_ = 1e-3;
+  double latest_vehicle_speed_ = 0.0;
   ros::Time latest_sync_time_;
   planning_core::SkidpadPhase last_phase_{planning_core::SkidpadPhase::ENTRY};
   bool phase_initialized_{false};
   std::mutex data_mutex_;
+
+  fsd_common::DiagnosticsHelper diag_helper_;
+  SkidpadPerfStats perf_stats_;
+  int64_t cone_count_{0};
 };
 
 } // namespace planning_ros

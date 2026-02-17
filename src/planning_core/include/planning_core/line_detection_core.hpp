@@ -52,7 +52,7 @@ struct LineDetectionParams
   double min_cone_distance{2.0};
   double path_interval{0.1};
   double max_path_distance{75.0};
-  double imu_offset_x{1.88};
+  double imu_offset_x{1.87};
   double finish_line_threshold{2.0};
   double max_cone_lateral_distance{10.0};
   double min_rho_diff{2.0};

@@ -41,7 +41,7 @@ topics:
   log_path: "planning/skidpad/log_path"
   
   # 输出: 路径限制（左右边界）
-  pathlimits: "planning/skidpad/pathlimits"
+  pathlimits: "planning/pathlimits"
   
   # 输出: 接近终点标志
   approaching_goal: "planning/skidpad/approaching_goal"

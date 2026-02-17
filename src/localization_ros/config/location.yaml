@@ -90,10 +90,17 @@ length:
   # 影响: 锥桶坐标从LiDAR系变换到IMU系
   # 示例: LiDAR在IMU前方1.87m，则设为1.87
   lidarToIMUDist: 1.87
-  
+
+  # 车辆轴距（前轴到后轴距离）
+  # 单位: m
+  # 与 control_ros (car_arg/length=1.55) 和
+  # state_estimator (kinematic_correction/wheelbase=1.55) 保持一致
+  wheelbase: 1.55
+
   # 前轴到IMU的距离（车辆几何参数）
   # 单位: m
   # 用于车辆运动学模型、轴距计算
+  # TODO: 标定后填入实际值，当前 IMU 近似在质心位置
   frontToIMUdistanceX: 0.0
   frontToIMUdistanceY: 0.0
   frontToIMUdistanceZ: 0.0

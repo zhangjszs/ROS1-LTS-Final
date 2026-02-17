@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "planning_core/speed_profile.hpp"
+#include "planning_core/track_constraints.hpp"
 #include "planning_ros/contract_utils.hpp"
 
 namespace planning_ros
@@ -28,6 +29,15 @@ SkidpadDetectionNode::SkidpadDetectionNode(ros::NodeHandle &nh)
 
   pathlimits_pub_ = nh_.advertise<autodrive_msgs::HUAT_PathLimits>(pathlimits_topic_, 10, true);
   approaching_goal_pub_ = nh_.advertise<std_msgs::Bool>(approaching_goal_topic_, 10);
+
+  {
+    fsd_common::DiagnosticsHelper::Config dcfg;
+    dcfg.local_topic = "planning/diagnostics";
+    dcfg.global_topic = "/diagnostics";
+    dcfg.publish_global = true;
+    dcfg.rate_hz = 1.0;
+    diag_helper_.Init(nh_, dcfg);
+  }
 
   pnh_.param("max_data_age", max_data_age_, 0.5);
 }
@@ -176,6 +186,7 @@ void SkidpadDetectionNode::SyncCallback(const ConeMsg::ConstPtr &cone_msg,
   }
 
   core_.ProcessConeDetections(cones);
+  cone_count_ = cones.size();
 
   // 处理车辆状态
   planning_core::Trajectory state;
@@ -183,6 +194,7 @@ void SkidpadDetectionNode::SyncCallback(const ConeMsg::ConstPtr &cone_msg,
   state.y = car_state->car_state.y;
   state.yaw = car_state->car_state.theta;
   state.v = car_state->V;
+  latest_vehicle_speed_ = std::isfinite(car_state->V) ? std::max(0.0, static_cast<double>(car_state->V)) : 0.0;
   core_.UpdateVehicleState(state);
 }
 
@@ -218,7 +230,7 @@ void SkidpadDetectionNode::FillPathDynamics(autodrive_msgs::HUAT_PathLimits &msg
   sp.max_brake = max_brake_;
   sp.min_speed = min_speed_;
   sp.curvature_epsilon = curvature_epsilon_;
-  sp.current_speed = 0.0;  // skidpad doesn't seed from vehicle speed
+  sp.current_speed = latest_vehicle_speed_;
   planning_core::ComputeSpeedProfile(pts, msg.curvatures, sp, msg.target_speeds);
 }
 
@@ -237,8 +249,6 @@ void SkidpadDetectionNode::PublishPathLimits(const std::vector<planning_core::Po
     msg.path.push_back(p);
   }
 
-  msg.tracklimits.replan = msg.replan;
-
   FillPathDynamics(msg);
   contract::EnforcePathDynamicsShape(msg);
   contract::FinalizePathLimitsMessage(msg, latest_sync_time_, output_frame_);
@@ -254,6 +264,8 @@ void SkidpadDetectionNode::PublishApproachingGoal(bool approaching)
 
 void SkidpadDetectionNode::RunOnce()
 {
+  const ros::Time tick = ros::Time::now();
+
   core_.RunAlgorithm();
 
   const planning_core::SkidpadPhase phase = core_.GetPhase();
@@ -265,13 +277,38 @@ void SkidpadDetectionNode::RunOnce()
     phase_initialized_ = true;
   }
 
+  std::vector<planning_core::Pose> current_path;
   if (core_.HasNewPath())
   {
-    PublishPathLimits(core_.GetPath());
+    current_path = core_.GetPath();
+    PublishPathLimits(current_path);
     core_.ClearPathUpdated();
   }
 
   PublishApproachingGoal(core_.IsApproachingGoal());
+
+  const double t_total_ms = (ros::Time::now() - tick).toSec() * 1000.0;
+  SkidpadPerfSample sample;
+  sample.t_total_ms = t_total_ms;
+  sample.n_cones = static_cast<double>(cone_count_);
+  sample.path_size = static_cast<double>(current_path.size());
+  perf_stats_.Add(sample);
+
+  std::vector<diagnostic_msgs::KeyValue> kvs;
+  diagnostic_msgs::KeyValue kv;
+  kv.key = "backend"; kv.value = "skidpad"; kvs.push_back(kv);
+  kv.key = "phase"; kv.value = core_.GetPhaseName(); kvs.push_back(kv);
+  kv.key = "path_size"; kv.value = std::to_string(current_path.size()); kvs.push_back(kv);
+  kv.key = "n_cones"; kv.value = std::to_string(cone_count_); kvs.push_back(kv);
+  kv.key = "speed_cap"; kv.value = std::to_string(core_.GetRecommendedSpeedCap()); kvs.push_back(kv);
+  kv.key = "approaching_goal"; kv.value = core_.IsApproachingGoal() ? "true" : "false"; kvs.push_back(kv);
+  kv.key = "safety_width"; kv.value = std::to_string(planning_core::getSafetyWidth("skidpad")); kvs.push_back(kv);
+  kv.key = "right_laps"; kv.value = std::to_string(core_.GetRightLaps()); kvs.push_back(kv);
+  kv.key = "left_laps"; kv.value = std::to_string(core_.GetLeftLaps()); kvs.push_back(kv);
+  kv.key = "geometry_valid"; kv.value = core_.IsGeometryValid() ? "true" : "false"; kvs.push_back(kv);
+
+  diag_helper_.PublishStatus("planning/skidpad", "skidpad_detection", diagnostic_msgs::DiagnosticStatus::OK,
+                            "OK", kvs, tick, true);
 }
 
 } // namespace planning_ros
