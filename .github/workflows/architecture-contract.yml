@@ -1,0 +1,91 @@
+name: Architecture Contract Check
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - 'LICENSE'
+      - 'perf_reports/**'
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - 'LICENSE'
+      - 'perf_reports/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract-check:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup ROS Noetic
+        uses: ros-tooling/setup-ros@v0.7
+        with:
+          required-ros-distributions: noetic
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            python3-catkin-tools \
+            python3-rosdep \
+            ros-noetic-pcl-ros \
+            ros-noetic-tf2-geometry-msgs \
+            libpcl-dev \
+            libeigen3-dev
+          sudo rosdep init || true
+          rosdep update
+
+      - name: Install package dependencies
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          rosdep install --from-paths src --ignore-src -r -y
+
+      - name: Build required packages
+        run: |
+          source /opt/ros/noetic/setup.bash
+          cd "$GITHUB_WORKSPACE"
+          catkin build --no-status --summarize \
+            fsd_launch perception_ros localization_ros planning_ros control_ros vehicle_interface_ros simulation_ros
+
+      - name: Run unit tests
+        run: |
+          source /opt/ros/noetic/setup.bash
+          cd "$GITHUB_WORKSPACE"
+          source devel/setup.bash
+          catkin run_tests --no-status
+          catkin_test_results build --verbose
+
+      - name: Run perf stats contract checks
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          ./scripts/check_perf_stats_contracts.sh
+
+      - name: Run topic contract checks
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          ./scripts/check_topic_contracts.sh
+
+      - name: Run deprecation contract checks
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          ./scripts/check_deprecation_contracts.sh
+
+      - name: Run runtime smoke checks
+        env:
+          RUNTIME_SMOKE_REQUIRED: "1"
+          SMOKE_TIMEOUT_SEC: "60"
+          STARTUP_WAIT_SEC: "40"
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          ./scripts/check_runtime_smoke.sh

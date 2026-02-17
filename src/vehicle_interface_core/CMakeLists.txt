@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(vehicle_interface_core)
 
-add_compile_options(-std=c++17)
+add_compile_options(-std=c++17 -Wall -Wextra -Wno-unused-parameter)
 
 find_package(catkin REQUIRED)
 

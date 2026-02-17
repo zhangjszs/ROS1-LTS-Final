@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(planning_ros)
 
-add_compile_options(-std=c++17)
+add_compile_options(-std=c++17 -Wall -Wextra -Wno-unused-parameter)
 
 find_package(catkin REQUIRED COMPONENTS
   autodrive_msgs
