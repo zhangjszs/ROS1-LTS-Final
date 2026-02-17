@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "planning_core/speed_profile.hpp"
+#include "planning_core/track_constraints.hpp"
 #include "planning_ros/contract_utils.hpp"
 
 namespace
@@ -39,6 +40,15 @@ LineDetectionNode::LineDetectionNode(ros::NodeHandle &nh)
   pathlimits_pub_ = nh_.advertise<autodrive_msgs::HUAT_PathLimits>(pathlimits_topic_, 1);
   finish_pub_ = nh_.advertise<std_msgs::Bool>(finish_topic_, 1);
 
+  {
+    fsd_common::DiagnosticsHelper::Config dcfg;
+    dcfg.local_topic = "planning/diagnostics";
+    dcfg.global_topic = "/diagnostics";
+    dcfg.publish_global = true;
+    dcfg.rate_hz = 1.0;
+    diag_helper_.Init(nh_, dcfg);
+  }
+
   pnh_.param("max_data_age", max_data_age_, 0.5);
 
   ROS_INFO("[LineDetection] Node initialized with ApproximateTime sync");
@@ -67,7 +77,7 @@ void LineDetectionNode::LoadParameters()
   pnh_.param("path/accel_distance", params_.accel_distance, 75.0);
   pnh_.param("path/brake_distance", params_.brake_distance, 100.0);
 
-  pnh_.param("vehicle/imu_offset_x", params_.imu_offset_x, 1.88);
+  pnh_.param("vehicle/imu_offset_x", params_.imu_offset_x, 1.87);
 
   pnh_.param("finish/threshold", params_.finish_line_threshold, 2.0);
 
@@ -102,6 +112,11 @@ void LineDetectionNode::LoadParameters()
   {
     params_.max_path_distance = min_total;
   }
+
+  // B22: critical parameter range validation
+  if (params_.hough_rho_resolution <= 0.0) { params_.hough_rho_resolution = 0.1; }
+  if (params_.path_interval <= 0.0) { params_.path_interval = 0.1; }
+  if (speed_cap_ < 0.0) { speed_cap_ = 0.0; }
 }
 
 void LineDetectionNode::SyncCallback(const ConeMsg::ConstPtr &cone_msg,
@@ -115,6 +130,7 @@ void LineDetectionNode::SyncCallback(const ConeMsg::ConstPtr &cone_msg,
   {
     ROS_WARN_THROTTLE(1.0, "[LineDetection] Large time diff between cone (%.3f) and state (%.3f): %.3fms",
                       cone_msg->header.stamp.toSec(), car_state->header.stamp.toSec(), time_diff * 1000.0);
+    return;
   }
 
   latest_sync_time_ = std::max(cone_msg->header.stamp, car_state->header.stamp);
@@ -154,6 +170,7 @@ void LineDetectionNode::SyncCallback(const ConeMsg::ConstPtr &cone_msg,
     }
 
     core_.UpdateCones(cones);
+    cone_count_ = cones.size();
   }
 
   // 处理车辆状态
@@ -266,8 +283,6 @@ void LineDetectionNode::PublishPathLimits(const std::vector<planning_core::Pose>
     msg.path.push_back(p);
   }
 
-  msg.tracklimits.replan = msg.replan;
-
   FillPathDynamics(msg);
   contract::EnforcePathDynamicsShape(msg);
   contract::FinalizePathLimitsMessage(msg, latest_sync_time_, output_frame_);
@@ -293,6 +308,7 @@ void LineDetectionNode::PublishFinishOnce()
 
 void LineDetectionNode::RunOnce()
 {
+  const ros::Time tick = ros::Time::now();
   std::vector<planning_core::Pose> planned_path;
   bool finished = false;
   std::string error;
@@ -322,6 +338,26 @@ void LineDetectionNode::RunOnce()
   {
     PublishFinishOnce();
   }
+
+  const double t_total_ms = (ros::Time::now() - tick).toSec() * 1000.0;
+  LinePerfSample sample;
+  sample.t_total_ms = t_total_ms;
+  sample.n_cones = static_cast<double>(cone_count_);
+  sample.path_size = static_cast<double>(planned_path.size());
+  perf_stats_.Add(sample);
+
+  std::vector<diagnostic_msgs::KeyValue> kvs;
+  diagnostic_msgs::KeyValue kv;
+  kv.key = "backend"; kv.value = "line"; kvs.push_back(kv);
+  kv.key = "phase"; kv.value = finished ? "finished" : "running"; kvs.push_back(kv);
+  kv.key = "error"; kv.value = error.empty() ? "none" : error; kvs.push_back(kv);
+  kv.key = "path_size"; kv.value = std::to_string(planned_path.size()); kvs.push_back(kv);
+  kv.key = "n_cones"; kv.value = std::to_string(cone_count_); kvs.push_back(kv);
+  kv.key = "safety_width"; kv.value = std::to_string(planning_core::getSafetyWidth("line")); kvs.push_back(kv);
+
+  uint8_t level = error.empty() ? diagnostic_msgs::DiagnosticStatus::OK : diagnostic_msgs::DiagnosticStatus::WARN;
+  diag_helper_.PublishStatus("planning/line", "line_detection", level,
+                            error.empty() ? "OK" : error, kvs, tick, true);
 }
 
 } // namespace planning_ros

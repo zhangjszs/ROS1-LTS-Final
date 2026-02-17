@@ -35,6 +35,12 @@ std::vector<ConePoint> LineDetectionCore::FilterCones(const std::vector<ConePoin
 
   for (const ConePoint &cone : cones)
   {
+    // B15: filter out NaN/Inf cone positions
+    if (!std::isfinite(cone.x) || !std::isfinite(cone.y))
+    {
+      continue;
+    }
+
     double distance = std::sqrt(cone.x * cone.x + cone.y * cone.y);
 
     if (distance >= params_.min_cone_distance && distance <= params_.max_cone_distance)

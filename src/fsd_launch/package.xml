@@ -17,7 +17,7 @@
     <exec_depend>planning_ros</exec_depend>
     <exec_depend>control_ros</exec_depend>
     <exec_depend>vehicle_interface_ros</exec_depend>
-    <exec_depend>race_rviz_viz</exec_depend>
+    <exec_depend>fsd_visualization</exec_depend>
 
     <!-- 工具依赖 -->
     <exec_depend>rosbag</exec_depend>

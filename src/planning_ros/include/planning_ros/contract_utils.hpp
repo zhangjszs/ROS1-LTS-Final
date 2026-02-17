@@ -16,6 +16,10 @@ using fsd_common::contract::NormalizeFrameId;
 using fsd_common::contract::DecodeConeConfidenceScore;
 using fsd_common::contract::EncodeConeConfidenceScaled;
 
+// B9: Timestamp semantics
+// - msg.header.stamp  = sensor/input timestamp (from upstream message, normalized)
+// - msg.stamp         = publish wall-clock time (ros::Time::now() at publish)
+// - msg.tracklimits.stamp = same as msg.stamp (co-published)
 inline void FinalizePathLimitsMessage(autodrive_msgs::HUAT_PathLimits &msg,
                                       const ros::Time &input_stamp,
                                       const std::string &frame_id = autodrive_msgs::frame_contract::kWorld)

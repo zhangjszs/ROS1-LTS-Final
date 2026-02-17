@@ -194,6 +194,14 @@ void UDPSocket::setBroadcast() {
                (raw_type *) &broadcastPermission, sizeof(broadcastPermission));
 }
 
+void UDPSocket::setReceiveTimeout(int timeout_ms) {
+    struct timeval tv;
+    tv.tv_sec = timeout_ms / 1000;
+    tv.tv_usec = (timeout_ms % 1000) * 1000;
+    setsockopt(sockDesc, SOL_SOCKET, SO_RCVTIMEO,
+               (raw_type *) &tv, sizeof(tv));
+}
+
 void UDPSocket::disconnect(){
     sockaddr_in nullAddr;
     memset(&nullAddr, 0, sizeof(nullAddr));

@@ -181,6 +181,12 @@ public:
     void disconnect();
 
     /**
+     *   Set receive timeout on the socket
+     *   @param timeout_ms timeout in milliseconds (0 = no timeout)
+     */
+    void setReceiveTimeout(int timeout_ms);
+
+    /**
      *   Send the given buffer as a UDP datagram to the
      *   specified address/port
      *   @param buffer buffer to be written

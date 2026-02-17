@@ -124,6 +124,15 @@ protected:
 
   bool finish_signal_{false};
   bool stop_requested_{false};
+
+  // B25: default pedal tuning constants (extracted from ComputeDefaultPedal)
+  double default_target_speed_{4.0};
+  double default_pedal_kp_{0.5};
+  double default_pedal_ki_{0.1};
+  double default_pedal_cap_{5.0};
+  double default_pedal_max_{30.0};
+  double default_min_speed_threshold_{0.3};
+  double default_high_speed_threshold_{2.0};
 };
 
 } // namespace control_core
