@@ -52,5 +52,9 @@ private:
 
     uint8_t vehicle_tx_cmd_msg[VEHICLE_CMD_LENGHT];
     bool is_running;
+    bool verify_checksum_{false};
+
+    // B11: verify sum-of-bytes checksum on received vehicle frame
+    static bool VerifyVehicleChecksum(const uint8_t *buf, int len);
 };
 #endif

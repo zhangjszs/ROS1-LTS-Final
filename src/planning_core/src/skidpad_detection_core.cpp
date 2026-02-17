@@ -395,6 +395,7 @@ void SkidpadDetectionCore::TransitionTo(SkidpadPhase next_phase)
 
 double SkidpadDetectionCore::NormalizeAngle(double angle)
 {
+  if (!std::isfinite(angle)) { return 0.0; }
   while (angle > M_PI)
   {
     angle -= kTwoPi;
@@ -657,6 +658,12 @@ void SkidpadDetectionCore::RunAlgorithm()
 
   if (!geometry_.valid)
   {
+    if (cones_local_.empty())
+    {
+      path_output_.clear();
+      path_updated_ = false;
+      return;
+    }
     path_output_ = BuildFallbackPath();
     path_updated_ = !path_output_.empty();
     UpdateApproaching();

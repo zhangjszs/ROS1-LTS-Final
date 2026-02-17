@@ -26,6 +26,12 @@ void ControllerBase::SetParams(const ControlParams &params)
   slip_gain_ = params.slip_gain;
   min_lookahead_ = params.min_lookahead;
   max_lookahead_ = params.max_lookahead;
+
+  // B22: critical parameter range validation
+  if (car_length_ <= 0.0) { car_length_ = 1.55; }
+  if (steering_delta_max_ <= 0.0) { steering_delta_max_ = 0.5; }
+  if (min_lookahead_ <= 0.0) { min_lookahead_ = 0.5; }
+  if (max_lookahead_ < min_lookahead_) { max_lookahead_ = min_lookahead_ + 1.0; }
 }
 
 void ControllerBase::UpdateCarState(const CarState &state)
@@ -108,8 +114,8 @@ int ControllerBase::GetTargetIndex()
 
 double ControllerBase::angle_range(double alpha) const
 {
-  return (alpha > M_PI) ? (alpha - 2 * M_PI) : (alpha < -M_PI) ? (alpha + 2 * M_PI)
-                                                               : alpha;
+  if (!std::isfinite(alpha)) { return 0.0; }
+  return std::remainder(alpha, 2.0 * M_PI);
 }
 
 double ControllerBase::angle_pid(double delta)
@@ -215,20 +221,19 @@ int ControllerBase::ComputeSteeringWithLookahead(int target_index)
 
 int ControllerBase::ComputeDefaultPedal()
 {
-  double target = 4.0;
-  double error = target - car_veloc_;
+  double error = default_target_speed_ - car_veloc_;
   double accel;
   veloc_integra_ += error;
-  accel = 0.5 * error + 0.1 * veloc_integra_;
+  accel = default_pedal_kp_ * error + default_pedal_ki_ * veloc_integra_;
 
-  if (car_veloc_ > 2)
-    accel = 5;
+  if (car_veloc_ > default_high_speed_threshold_)
+    accel = default_pedal_cap_;
 
-  if (accel > 30)
-    accel = 5;
+  if (accel > default_pedal_max_)
+    accel = default_pedal_cap_;
 
-  if (car_veloc_ <= 0.3)
-    accel = 5;
+  if (car_veloc_ <= default_min_speed_threshold_)
+    accel = default_pedal_cap_;
   return static_cast<int>(accel);
 }
 
