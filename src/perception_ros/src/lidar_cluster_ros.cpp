@@ -1478,13 +1478,17 @@ void LidarClusterRos::publishDiagnostics(const LidarClusterOutput &output,
 
   std::vector<diagnostic_msgs::KeyValue> kvs;
   kvs.reserve(38);
+  // B12: Perception quality statistics
+  // Detection counts
   kvs.push_back(DH::KV("n_detections", std::to_string(n_published)));
   kvs.push_back(DH::KV("n_input_points", std::to_string(output.input_points)));
   kvs.push_back(DH::KV("n_clusters", std::to_string(output.total_clusters)));
+  // Performance metrics
   kvs.push_back(DH::KV("t_total_ms", std::to_string(output.t_total_ms)));
   kvs.push_back(DH::KV("t_ground_ms", std::to_string(output.t_ground_ms)));
   kvs.push_back(DH::KV("t_cluster_ms", std::to_string(output.t_cluster_ms)));
   kvs.push_back(DH::KV("t_pass_ms", std::to_string(output.t_pass_ms)));
+  // Health status
   kvs.push_back(DH::KV("health", messages[static_cast<int>(health_level_)]));
   kvs.push_back(DH::KV("consecutive_zero", std::to_string(consecutive_zero_detections_)));
   kvs.push_back(DH::KV("ground_method", config_.ground_method));
@@ -1511,7 +1515,9 @@ void LidarClusterRos::publishDiagnostics(const LidarClusterOutput &output,
     kvs.push_back(DH::KV("input_guard_drop_ratio", std::to_string(drop_ratio)));
   }
 
-  // G9: Per-distance confidence segmentation
+  // B12: Per-distance confidence segmentation (quality indicator)
+  // Segments: near (<ramp_start), mid (ramp_start~ramp_end), far (>ramp_end)
+  // Tracks detection count and average confidence per segment
   {
     int n_near = 0, n_mid = 0, n_far = 0;
     double sum_conf_near = 0.0, sum_conf_mid = 0.0, sum_conf_far = 0.0;
@@ -1546,7 +1552,9 @@ void LidarClusterRos::publishDiagnostics(const LidarClusterOutput &output,
         n_far > 0 ? std::to_string(sum_conf_far / n_far) : "0"));
   }
 
-  // G7: Rolling-window perf stats (p50/p95/max for key latencies)
+  // B12: Rolling-window performance statistics (quality indicator)
+  // Provides p50/p95/max percentiles for latency and mean for throughput
+  // Helps identify performance degradation and outliers
   {
     auto snap = perf_stats_.SnapshotStats();
     kvs.push_back(DH::KV("perf_total_p50", std::to_string(snap.t_total_ms.p50)));
