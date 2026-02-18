@@ -261,6 +261,31 @@ private:
     }
     pose_ready_ = false;
 
+    // B1: Validate PathLimits array length invariant
+    // CRITICAL: path, target_speeds, curvatures must have same length
+    const size_t path_len = msgs->path.size();
+    const size_t speeds_len = msgs->target_speeds.size();
+    const size_t curvatures_len = msgs->curvatures.size();
+
+    if (path_len != speeds_len || path_len != curvatures_len)
+    {
+      ROS_ERROR("[control] PathLimits array length mismatch: path=%zu, target_speeds=%zu, curvatures=%zu. "
+                "Rejecting invalid path to prevent array out-of-bounds access.",
+                path_len, speeds_len, curvatures_len);
+      ++pathlimits_validation_error_count_;
+      path_ready_ = false;
+      PublishDiagnostics(true);
+      return;
+    }
+
+    // B1: Additional safety checks
+    if (path_len == 0)
+    {
+      ROS_WARN_THROTTLE(1.0, "[control] Received empty path, ignoring.");
+      path_ready_ = false;
+      return;
+    }
+
     std::vector<control_core::Position> path;
     path.reserve(msgs->path.size());
     for (const auto &path_tem : msgs->path)
@@ -276,6 +301,7 @@ private:
       controller_->UpdatePath(path);
     }
     path_ready_ = true;
+    last_pathlimits_time_ = ros::Time::now();
   }
 
   void LastCallback(const std_msgs::Bool::ConstPtr &msg)
@@ -332,6 +358,13 @@ private:
     uint8_t level = diagnostic_msgs::DiagnosticStatus::OK;
     std::string message = "OK";
 
+    // B1: Check for PathLimits validation errors
+    if (pathlimits_validation_error_count_ > 0)
+    {
+      level = diagnostic_msgs::DiagnosticStatus::ERROR;
+      message = "PATHLIMITS_VALIDATION_ERROR";
+    }
+
     if (mode_source_ != "param")
     {
       level = diagnostic_msgs::DiagnosticStatus::WARN;
@@ -356,10 +389,14 @@ private:
     kvs.push_back(DH::KV("mode_file_path", mode_file_path_));
     kvs.push_back(DH::KV("mode_file_read_error_count", std::to_string(mode_file_read_error_count_)));
     kvs.push_back(DH::KV("external_stop_source", external_stop_source_));
-    kvs.push_back(DH::KV("enable_external_stop_file", enable_external_stop_file_ ? "true" : "false"));
-    kvs.push_back(DH::KV("external_stop_file_path", external_stop_file_path_));
     kvs.push_back(DH::KV("external_stop_file_open_error_count", std::to_string(external_stop_file_open_error_count_)));
     kvs.push_back(DH::KV("external_stop_trigger_count", std::to_string(external_stop_trigger_count_)));
+
+    // B1: Add PathLimits validation error count
+    kvs.push_back(DH::KV("pathlimits_validation_error_count", std::to_string(pathlimits_validation_error_count_)));
+
+    kvs.push_back(DH::KV("enable_external_stop_file", enable_external_stop_file_ ? "true" : "false"));
+    kvs.push_back(DH::KV("external_stop_file_path", external_stop_file_path_));
     kvs.push_back(DH::KV("simulation", simulation_ ? "true" : "false"));
     kvs.push_back(DH::KV("cmd_topic", cmd_topic_));
     kvs.push_back(DH::KV("carstate_topic", carstate_topic_));
@@ -404,6 +441,12 @@ private:
   int external_stop_trigger_count_{0};
 
   double diagnostics_rate_hz_{1.0};
+
+  // B1: PathLimits validation error counter
+  int pathlimits_validation_error_count_{0};
+
+  // B4: Input timeout tracking
+  ros::Time last_pathlimits_time_;
 };
 
 } // namespace control_ros
