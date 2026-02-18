@@ -1,3 +1,18 @@
+# ==========================================================
+# B22: Diagnostic Aggregator Configuration
+# ==========================================================
+# Maps diagnostic status names to aggregated groups for
+# rqt_robot_monitor and /diagnostics_agg topic.
+#
+# Each analyzer matches status names by prefix (startswith)
+# and groups them under a display path.
+#
+# Adding a new subsystem:
+#   1. Add an analyzer entry below
+#   2. Set startswith to match the DiagnosticsHelper name
+#   3. The path determines the display hierarchy
+# ==========================================================
+
 analyzers:
   control_entry:
     type: diagnostic_aggregator/GenericAnalyzer

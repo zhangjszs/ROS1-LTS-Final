@@ -1,3 +1,17 @@
+# ==========================================================
+# B22: Vehicle Fleet Configuration
+# ==========================================================
+# Defines available vehicle profiles for fsd_launch.
+# Each vehicle has per-subsystem config files under
+# config/vehicles/{name}/.
+#
+# To add a new vehicle:
+#   1. Create config/vehicles/{name}/ directory
+#   2. Copy A13 profile files and adjust parameters
+#   3. Add entry to supported_vehicles and vehicles map
+#   4. Launch with: vehicle:={name}
+# ==========================================================
+
 # Fleet-level vehicle profile index for fsd_launch.
 version: 1
 
