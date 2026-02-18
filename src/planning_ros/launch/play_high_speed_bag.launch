@@ -3,7 +3,8 @@
   <arg name="rate" default="1.0" />
   <arg name="loop" default="false" />
 
-  <param name="use_sim_time" value="true" />
+  <!-- B7: Unified use_sim_time management - use global parameter with leading slash -->
+  <param name="/use_sim_time" value="true" />
 
   <include file="$(find planning_ros)/launch/high_speed_tracking.launch" />
   <include file="$(find perception_ros)/launch/lidar_cluster.launch">

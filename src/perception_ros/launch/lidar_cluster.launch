@@ -10,8 +10,7 @@
     <arg name="extra_config" default="" doc="额外参数覆盖文件（vehicle overlay）"/>
     <arg name="extra_local_config" default="" doc="额外本地覆盖文件（*.local.yaml）"/>
 
-    <!-- Enable sim time when playing rosbag -->
-    <param name="/use_sim_time" value="true" if="$(eval arg('bag') != '')" />
+    <!-- B7: Removed redundant use_sim_time setting - should be managed by parent launch file -->
 
     <group ns="$(arg ns)">
         <node pkg="nodelet" type="nodelet" name="lidar_cluster_nodelet_manager" args="manager" output="screen" />
