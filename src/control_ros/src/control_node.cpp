@@ -121,12 +121,19 @@ public:
     PublishDiagnostics(true);
   }
 
+  // B19: Stop priority (highest first):
+  //   P0: External stop file (operator-triggered, checked first)
+  //   P1: Input timeout (planning layer crash detection, 500ms)
+  //   P2: Controller stop_requested (mission complete / planner stop)
+  // EBS hardware stop is outside software control (handled by vehicle_interface)
   void SpinOnce()
   {
     PublishDiagnostics(false);
 
+    // P0: External stop file
     if (!simulation_ && enable_external_stop_file_ && CheckExternalStop())
     {
+      stop_reason_ = "EXTERNAL_STOP_FILE";
       PublishEmergencyStop();
       ++external_stop_trigger_count_;
       PublishDiagnostics(true);
@@ -134,7 +141,7 @@ public:
       return;
     }
 
-    // B4: Check input timeout for pathlimits (500ms)
+    // P1: Input timeout
     if (mode_ != fsd_common::ControlMode::kTest && mode_ != fsd_common::ControlMode::kEbs)
     {
       if (last_pathlimits_time_.isValid())
@@ -145,6 +152,7 @@ public:
 
         if (timeout_sec > kInputTimeoutSec)
         {
+          stop_reason_ = "INPUT_TIMEOUT";
           ROS_ERROR("[control] PathLimits input timeout: %.3f sec (threshold: %.3f sec). "
                     "Planning layer may have crashed. Triggering emergency stop.",
                     timeout_sec, kInputTimeoutSec);
@@ -166,10 +174,13 @@ public:
     if (controller_)
     {
       auto output = controller_->ComputeOutput();
+      // P2: Controller stop request (mission complete)
       if (output.stop_requested)
       {
+        stop_reason_ = "MISSION_COMPLETE";
         autodrive_msgs::HUAT_VehicleCmd stop_cmd;
         PublishCommand(stop_cmd);
+        PublishDiagnostics(true);
         ros::shutdown();
         return;
       }
@@ -474,6 +485,7 @@ private:
     kvs.push_back(DH::KV("enable_external_stop_file", enable_external_stop_file_ ? "true" : "false"));
     kvs.push_back(DH::KV("external_stop_file_path", external_stop_file_path_));
     kvs.push_back(DH::KV("simulation", simulation_ ? "true" : "false"));
+    kvs.push_back(DH::KV("stop_reason", stop_reason_));
     kvs.push_back(DH::KV("cmd_topic", cmd_topic_));
     kvs.push_back(DH::KV("carstate_topic", carstate_topic_));
     kvs.push_back(DH::KV("approaching_goal_topic", approaching_goal_topic_));
@@ -533,6 +545,9 @@ private:
   int latency_sample_count_{0};
   int e2e_latency_warn_count_{0};
   static constexpr double kE2eLatencyWarnSec = 0.1;  // 100ms
+
+  // B19: Stop reason tracking
+  std::string stop_reason_{"RUNNING"};
 };
 
 } // namespace control_ros
