@@ -331,7 +331,15 @@ void PlanningPipelineNode::HighSpeedSyncCallback(
     hs_viz_->visualize(hs_way_computer_->lastFilteredEdges());
     hs_viz_->visualize(hs_way_computer_->wayForVisualization());
   }
-  // Loop closure logic
+  // B18: Planning mode state machine (high_speed)
+  // ┌─────────────────┐    loop_closed_raw ||    ┌──────────┐
+  // │ MAP_BUILD_SAFE  │───  loop_closed_fallback ──▶│ FAST_LAP │
+  // │ (partial path)  │◀── !loop_closed_for_pub ───│(full path)│
+  // └─────────────────┘                            └──────────┘
+  // Transitions:
+  //   → FAST_LAP: isLoopClosed() (geometric) OR interTimes >= loopFallbackMinLaps
+  //   → MAP_BUILD_SAFE: loop lost and fallback not active
+  // Diagnostics: lap_mode, loop_closed, loop_fallback_active, inter_times
   const bool loop_closed_raw = hs_way_computer_->isLoopClosed();
   const bool loop_closed_fallback =
       enableLoopFallbackByLapCounter_ && (interTimes_ >= std::max(1, loopFallbackMinLaps_));
