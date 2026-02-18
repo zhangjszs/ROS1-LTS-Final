@@ -325,6 +325,35 @@ private:
     }
     path_ready_ = true;
     last_pathlimits_time_ = ros::Time::now();
+
+    // B13: End-to-end latency tracking
+    if (msgs->header.stamp.isValid() && !msgs->header.stamp.isZero())
+    {
+      const ros::Time now = ros::Time::now();
+      const double e2e = (now - msgs->header.stamp).toSec();
+      if (e2e >= 0.0 && e2e < 10.0)  // sanity: ignore negative or huge values
+      {
+        e2e_latency_sum_ += e2e;
+        if (e2e > e2e_latency_max_) e2e_latency_max_ = e2e;
+        ++latency_sample_count_;
+        if (e2e > kE2eLatencyWarnSec)
+        {
+          ++e2e_latency_warn_count_;
+          ROS_WARN_THROTTLE(2.0, "[control] E2E latency %.1fms exceeds threshold %.0fms",
+                            e2e * 1000.0, kE2eLatencyWarnSec * 1000.0);
+        }
+      }
+      // Planning-to-control segment
+      if (msgs->stamp.isValid() && !msgs->stamp.isZero())
+      {
+        const double p2c = (now - msgs->stamp).toSec();
+        if (p2c >= 0.0 && p2c < 10.0)
+        {
+          planning_latency_sum_ += p2c;
+          if (p2c > planning_latency_max_) planning_latency_max_ = p2c;
+        }
+      }
+    }
   }
 
   void LastCallback(const std_msgs::Bool::ConstPtr &msg)
@@ -428,6 +457,20 @@ private:
     // B4: Add input timeout count
     kvs.push_back(DH::KV("input_timeout_count", std::to_string(input_timeout_count_)));
 
+    // B13: End-to-end latency metrics
+    {
+      const double e2e_mean = latency_sample_count_ > 0
+          ? (e2e_latency_sum_ / latency_sample_count_) * 1000.0 : 0.0;
+      const double p2c_mean = latency_sample_count_ > 0
+          ? (planning_latency_sum_ / latency_sample_count_) * 1000.0 : 0.0;
+      kvs.push_back(DH::KV("e2e_latency_mean_ms", std::to_string(e2e_mean)));
+      kvs.push_back(DH::KV("e2e_latency_max_ms", std::to_string(e2e_latency_max_ * 1000.0)));
+      kvs.push_back(DH::KV("planning_to_control_mean_ms", std::to_string(p2c_mean)));
+      kvs.push_back(DH::KV("planning_to_control_max_ms", std::to_string(planning_latency_max_ * 1000.0)));
+      kvs.push_back(DH::KV("e2e_latency_warn_count", std::to_string(e2e_latency_warn_count_)));
+      kvs.push_back(DH::KV("latency_samples", std::to_string(latency_sample_count_)));
+    }
+
     kvs.push_back(DH::KV("enable_external_stop_file", enable_external_stop_file_ ? "true" : "false"));
     kvs.push_back(DH::KV("external_stop_file_path", external_stop_file_path_));
     kvs.push_back(DH::KV("simulation", simulation_ ? "true" : "false"));
@@ -481,6 +524,15 @@ private:
   // B4: Input timeout tracking
   ros::Time last_pathlimits_time_;
   int input_timeout_count_{0};
+
+  // B13: End-to-end latency tracking (LiDAR → control command)
+  double e2e_latency_sum_{0.0};
+  double e2e_latency_max_{0.0};
+  double planning_latency_sum_{0.0};
+  double planning_latency_max_{0.0};
+  int latency_sample_count_{0};
+  int e2e_latency_warn_count_{0};
+  static constexpr double kE2eLatencyWarnSec = 0.1;  // 100ms
 };
 
 } // namespace control_ros
