@@ -91,8 +91,11 @@ length:
   # 示例: LiDAR在IMU前方1.87m，则设为1.87
   lidarToIMUDist: 1.87
 
-  # 车辆轴距（前轴到后轴距离）
+  # B11: 车辆轴距（前轴到后轴距离）
   # 单位: m
+  # 注意: 统一真值源在 fsd_launch/config/vehicles/*/vehicle_geometry.yaml
+  #       (kinematic_correction/wheelbase)
+  #       此处为 fallback 默认值，仅在 vehicle_geometry.yaml 未加载时生效
   # 与 control_ros (car_arg/length=1.55) 和
   # state_estimator (kinematic_correction/wheelbase=1.55) 保持一致
   wheelbase: 1.55

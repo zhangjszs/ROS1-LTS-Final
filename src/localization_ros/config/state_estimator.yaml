@@ -118,15 +118,20 @@ accel_gravity: 9.79
 kinematic_correction:
   # 启用低速运动学修正
   enable: true
-  
-  # 轴距
+
+  # B11: 轴距 (Wheelbase)
   # 单位: m
   # 车辆前后轴之间的距离
+  # 注意: 统一真值源在 fsd_launch/config/vehicles/*/vehicle_geometry.yaml
+  #       (kinematic_correction/wheelbase)
+  #       此处为 fallback 默认值，仅在 vehicle_geometry.yaml 未加载时生效
   wheelbase: 1.55
-  
-  # 重心到后轴距离
+
+  # B11: 重心到后轴距离
   # 单位: m
-  # 注意: 统一真值源在 vehicle_geometry.yaml，此处为 fallback 默认值
+  # 注意: 统一真值源在 fsd_launch/config/vehicles/*/vehicle_geometry.yaml
+  #       (kinematic_correction/cg_to_rear)
+  #       此处为 fallback 默认值，仅在 vehicle_geometry.yaml 未加载时生效
   cg_to_rear: 0.78
   
   # 混合速度阈值
