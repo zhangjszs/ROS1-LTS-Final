@@ -137,10 +137,18 @@ void PlanningPipelineNode::InitHighSpeed(ros::NodeHandle &nh)
     TxtClear();
   }
 
-  hs_cone_sub_ = nh.subscribe(hs_params_->main.input_cones_topic, 1,
-                               &PlanningPipelineNode::HighSpeedConeCallback, this);
-  hs_pose_sub_ = nh.subscribe(hs_params_->main.input_pose_topic, 1,
-                               &WayComputer::stateCallback, hs_way_computer_.get());
+  // B2: Setup message synchronization for high-speed mode
+  hs_cone_sub_ = std::make_unique<message_filters::Subscriber<autodrive_msgs::HUAT_ConeMap>>(
+      nh, hs_params_->main.input_cones_topic, 10);
+  hs_state_sub_ = std::make_unique<message_filters::Subscriber<autodrive_msgs::HUAT_CarState>>(
+      nh, hs_params_->main.input_pose_topic, 10);
+
+  hs_sync_ = std::make_unique<message_filters::Synchronizer<SyncPolicy>>(
+      SyncPolicy(10), *hs_cone_sub_, *hs_state_sub_);
+  hs_sync_->setMaxIntervalDuration(ros::Duration(0.1)); // 100ms max time difference
+  hs_sync_->registerCallback(boost::bind(&PlanningPipelineNode::HighSpeedSyncCallback, this, _1, _2));
+
+  ROS_INFO("[planning_pipeline/high_speed] Message synchronizer configured (max_interval=100ms).");
 
   std::string pathlimits_topic;
   pnh.param<std::string>("output_pathlimits_topic", pathlimits_topic,
@@ -229,13 +237,17 @@ bool PlanningPipelineNode::SpinOnce()
 }
 
 // ---------------------------------------------------------------------------
-// High-speed cone callback (migrated from main.cpp::callback_ccat)
+// High-speed synchronized callback (B2: message synchronization)
 // ---------------------------------------------------------------------------
 
-void PlanningPipelineNode::HighSpeedConeCallback(
-    const autodrive_msgs::HUAT_ConeMap::ConstPtr &data)
+void PlanningPipelineNode::HighSpeedSyncCallback(
+    const autodrive_msgs::HUAT_ConeMap::ConstPtr &cone_msg,
+    const autodrive_msgs::HUAT_CarState::ConstPtr &state_msg)
 {
-  const ros::Time diag_stamp = contract::NormalizeInputStamp(data->header.stamp);
+  const ros::Time diag_stamp = contract::NormalizeInputStamp(cone_msg->header.stamp);
+
+  // B2: Update car state from synchronized message
+  hs_way_computer_->stateCallback(state_msg);
 
   if (!hs_params_ || !hs_way_computer_ || !hs_way_computer_->isLocalTfValid())
   {
@@ -243,7 +255,7 @@ void PlanningPipelineNode::HighSpeedConeCallback(
     ROS_WARN("[planning_pipeline/high_speed] CarState not received or wayComputer invalid.");
     return;
   }
-  if (data->cone.empty())
+  if (cone_msg->cone.empty())
   {
     PublishEntryHealth(diag_stamp, false);
     ROS_WARN("[planning_pipeline/high_speed] Empty cone set.");
@@ -251,27 +263,36 @@ void PlanningPipelineNode::HighSpeedConeCallback(
   }
 
   constexpr size_t kMaxCones = 2000;
-  if (data->cone.size() > kMaxCones)
+  if (cone_msg->cone.size() > kMaxCones)
   {
     ROS_WARN_THROTTLE(1.0, "[planning_pipeline/high_speed] Cone count %zu exceeds limit %d, truncating.",
-                      data->cone.size(), kMaxCones);
+                      cone_msg->cone.size(), kMaxCones);
+  }
+
+  // B2: Check timestamp synchronization quality
+  const double time_diff = std::abs((cone_msg->header.stamp - state_msg->header.stamp).toSec());
+  if (time_diff > 0.1)
+  {
+    ROS_WARN_THROTTLE(1.0, "[planning_pipeline/high_speed] Large time difference between cone and state: %.3f sec",
+                      time_diff);
+    ++sync_failure_count_;
   }
 
   static ros::Time last_stamp;
-  if (last_stamp.isValid() && data->header.stamp < last_stamp)
+  if (last_stamp.isValid() && cone_msg->header.stamp < last_stamp)
   {
     ROS_WARN_THROTTLE(1.0, "[planning_pipeline/high_speed] Stamp regression: %.3f -> %.3f",
-                      last_stamp.toSec(), data->header.stamp.toSec());
+                      last_stamp.toSec(), cone_msg->header.stamp.toSec());
   }
-  last_stamp = data->header.stamp;
+  last_stamp = cone_msg->header.stamp;
 
   ros::WallTime total_start = ros::WallTime::now();
   size_t bytes_pub = 0;
 
   // Filter cones by confidence
   std::vector<Node> nodes;
-  nodes.reserve(data->cone.size());
-  for (const autodrive_msgs::HUAT_Cone &c : data->cone)
+  nodes.reserve(cone_msg->cone.size());
+  for (const autodrive_msgs::HUAT_Cone &c : cone_msg->cone)
   {
     if (contract::DecodeConeConfidenceScore(c.confidence) >= hs_params_->main.min_cone_confidence)
     {
@@ -336,6 +357,17 @@ void PlanningPipelineNode::HighSpeedConeCallback(
     }
     autodrive_msgs::HUAT_PathLimits full_msg =
         hs_way_computer_->getPathLimitsGlobal(hs_params_->main.the_mode_of_full_path);
+
+    // B5: Validate path quality before publishing
+    std::string quality_warning;
+    int curv_violations = 0;
+    double max_curv = 0.0;
+    if (!planning_ros::contract::ValidatePathQuality(full_msg, &quality_warning, &curv_violations, &max_curv))
+    {
+      ROS_WARN_THROTTLE(1.0, "[planning_pipeline/high_speed] Path quality issues: %s", quality_warning.c_str());
+      path_quality_violation_count_++;
+    }
+
     if (debug_save_way_files_) DoWayFullMsg(full_msg);
     pathlimits_pub_.publish(full_msg);
     bytes_pub += ros::serialization::serializationLength(full_msg);
@@ -362,6 +394,17 @@ void PlanningPipelineNode::HighSpeedConeCallback(
     }
     autodrive_msgs::HUAT_PathLimits partial_msg =
         hs_way_computer_->getPathLimitsGlobal(hs_params_->main.the_mode_of_partial_path);
+
+    // B5: Validate path quality before publishing
+    std::string quality_warning;
+    int curv_violations = 0;
+    double max_curv = 0.0;
+    if (!planning_ros::contract::ValidatePathQuality(partial_msg, &quality_warning, &curv_violations, &max_curv))
+    {
+      ROS_WARN_THROTTLE(1.0, "[planning_pipeline/high_speed] Path quality issues: %s", quality_warning.c_str());
+      path_quality_violation_count_++;
+    }
+
     if (debug_save_way_files_) DoWayMsg(partial_msg);
     pathlimits_pub_.publish(partial_msg);
     bytes_pub += ros::serialization::serializationLength(partial_msg);

@@ -7,8 +7,12 @@
 #include <autodrive_msgs/HUAT_ConeMap.h>
 #include <autodrive_msgs/HUAT_PathLimits.h>
 #include <autodrive_msgs/HUAT_Stop.h>
+#include <autodrive_msgs/HUAT_CarState.h>
 #include <diagnostic_msgs/DiagnosticArray.h>
 #include <ros/ros.h>
+#include <message_filters/subscriber.h>
+#include <message_filters/synchronizer.h>
+#include <message_filters/sync_policies/approximate_time.h>
 #include <autodrive_msgs/topic_contract.hpp>
 #include <autodrive_msgs/diagnostics_helper.hpp>
 
@@ -47,7 +51,8 @@ private:
   void InitHighSpeed(ros::NodeHandle &nh);
 
   // --- High-speed specific ---
-  void HighSpeedConeCallback(const autodrive_msgs::HUAT_ConeMap::ConstPtr &data);
+  void HighSpeedSyncCallback(const autodrive_msgs::HUAT_ConeMap::ConstPtr &cone_msg,
+                             const autodrive_msgs::HUAT_CarState::ConstPtr &state_msg);
   bool HighSpeedFinishCheck();
   void PublishDiagnostics(const diagnostic_msgs::DiagnosticArray &diag_arr);
   void PublishEntryHealth(const ros::Time &stamp, bool force = false);
@@ -67,8 +72,14 @@ private:
   ros::Publisher pathlimits_pub_;
   ros::Publisher hs_stop_pub_;
   autodrive_msgs::DiagnosticsHelper diag_helper_;
-  ros::Subscriber hs_cone_sub_;
-  ros::Subscriber hs_pose_sub_;
+
+  // B2: High-speed message synchronization
+  typedef message_filters::sync_policies::ApproximateTime<autodrive_msgs::HUAT_ConeMap,
+                                                           autodrive_msgs::HUAT_CarState> SyncPolicy;
+  std::unique_ptr<message_filters::Subscriber<autodrive_msgs::HUAT_ConeMap>> hs_cone_sub_;
+  std::unique_ptr<message_filters::Subscriber<autodrive_msgs::HUAT_CarState>> hs_state_sub_;
+  std::unique_ptr<message_filters::Synchronizer<SyncPolicy>> hs_sync_;
+  int sync_failure_count_ = 0;
 
   // Lap counting / loop state (from main.cpp globals)
   bool wasLoopClosed_ = false;
@@ -101,6 +112,9 @@ private:
   void TxtClear();
   void DoWayMsg(const autodrive_msgs::HUAT_PathLimits &msgs);
   void DoWayFullMsg(const autodrive_msgs::HUAT_PathLimits &msgs);
+
+  // B5: Path quality violation counter
+  int path_quality_violation_count_ = 0;
 };
 
 } // namespace planning_ros

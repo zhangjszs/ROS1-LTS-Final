@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cmath>
 #include <sstream>
 #include <string>
 
@@ -65,6 +66,67 @@ inline bool ValidatePathDynamicsShape(const autodrive_msgs::HUAT_PathLimits &msg
   }
 
   return true;
+}
+
+// B5: Validate path quality (curvature, length)
+// Returns true if valid, false if quality issues detected
+inline bool ValidatePathQuality(const autodrive_msgs::HUAT_PathLimits &msg,
+                                std::string *warning = nullptr,
+                                int *curvature_violations = nullptr,
+                                double *max_curvature = nullptr)
+{
+  bool has_issues = false;
+  std::ostringstream oss;
+
+  // Check path length
+  const size_t path_len = msg.path.size();
+  constexpr size_t kMinPathLength = 5; // Minimum 5 points for lookahead
+  if (path_len < kMinPathLength)
+  {
+    oss << "Path too short: " << path_len << " points (min: " << kMinPathLength << "); ";
+    has_issues = true;
+  }
+
+  // Check curvature limit (vehicle physical constraint)
+  constexpr double kMaxCurvature = 0.222; // 1/m, corresponds to min turning radius ~4.5m
+  int violations = 0;
+  double max_curv = 0.0;
+
+  for (size_t i = 0; i < msg.curvatures.size(); ++i)
+  {
+    const double abs_curv = std::abs(msg.curvatures[i]);
+    if (abs_curv > max_curv)
+    {
+      max_curv = abs_curv;
+    }
+    if (abs_curv > kMaxCurvature)
+    {
+      ++violations;
+    }
+  }
+
+  if (violations > 0)
+  {
+    oss << "Curvature violations: " << violations << " points exceed " << kMaxCurvature
+        << " 1/m (max: " << max_curv << " 1/m); ";
+    has_issues = true;
+  }
+
+  if (curvature_violations)
+  {
+    *curvature_violations = violations;
+  }
+  if (max_curvature)
+  {
+    *max_curvature = max_curv;
+  }
+
+  if (warning && has_issues)
+  {
+    *warning = oss.str();
+  }
+
+  return !has_issues;
 }
 
 }  // namespace contract

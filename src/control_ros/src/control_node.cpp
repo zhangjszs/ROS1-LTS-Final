@@ -134,6 +134,29 @@ public:
       return;
     }
 
+    // B4: Check input timeout for pathlimits (500ms)
+    if (mode_ != fsd_common::ControlMode::kTest && mode_ != fsd_common::ControlMode::kEbs)
+    {
+      if (last_pathlimits_time_.isValid())
+      {
+        const ros::Time now = ros::Time::now();
+        const double timeout_sec = (now - last_pathlimits_time_).toSec();
+        constexpr double kInputTimeoutSec = 0.5; // 500ms
+
+        if (timeout_sec > kInputTimeoutSec)
+        {
+          ROS_ERROR("[control] PathLimits input timeout: %.3f sec (threshold: %.3f sec). "
+                    "Planning layer may have crashed. Triggering emergency stop.",
+                    timeout_sec, kInputTimeoutSec);
+          PublishEmergencyStop();
+          ++input_timeout_count_;
+          PublishDiagnostics(true);
+          ros::shutdown();
+          return;
+        }
+      }
+    }
+
     if (!path_ready_ && !(mode_ == fsd_common::ControlMode::kTest || mode_ == fsd_common::ControlMode::kEbs))
     {
       ROS_WARN("得不到有效的惯导路径信息");
@@ -358,6 +381,13 @@ private:
     uint8_t level = diagnostic_msgs::DiagnosticStatus::OK;
     std::string message = "OK";
 
+    // B4: Check for input timeout
+    if (input_timeout_count_ > 0)
+    {
+      level = diagnostic_msgs::DiagnosticStatus::ERROR;
+      message = "INPUT_TIMEOUT";
+    }
+
     // B1: Check for PathLimits validation errors
     if (pathlimits_validation_error_count_ > 0)
     {
@@ -394,6 +424,9 @@ private:
 
     // B1: Add PathLimits validation error count
     kvs.push_back(DH::KV("pathlimits_validation_error_count", std::to_string(pathlimits_validation_error_count_)));
+
+    // B4: Add input timeout count
+    kvs.push_back(DH::KV("input_timeout_count", std::to_string(input_timeout_count_)));
 
     kvs.push_back(DH::KV("enable_external_stop_file", enable_external_stop_file_ ? "true" : "false"));
     kvs.push_back(DH::KV("external_stop_file_path", external_stop_file_path_));
@@ -447,6 +480,7 @@ private:
 
   // B4: Input timeout tracking
   ros::Time last_pathlimits_time_;
+  int input_timeout_count_{0};
 };
 
 } // namespace control_ros
