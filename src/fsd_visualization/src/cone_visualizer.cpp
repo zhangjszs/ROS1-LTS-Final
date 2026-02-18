@@ -35,7 +35,9 @@ int parseLegacyColorChar(char c) {
 }  // namespace
 
 ConeVisualizer::ConeVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh)
-    : tf_listener_(tf_buffer_) {
+    : tf_listener_(tf_buffer_),
+      tf_lookup_failure_count_(0),
+      tf_extrapolation_failure_count_(0) {
     // 参数
     pnh.param<std::string>("frame_id", frame_id_, FRAME_GLOBAL);
     pnh.param<double>("cone_radius", cone_radius_, CONE_RADIUS);
@@ -50,18 +52,34 @@ ConeVisualizer::ConeVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh)
     pnh.param<std::string>("topics/cone_detections", cone_detections_topic_, autodrive_msgs::topic_contract::kConeDetections);
     pnh.param<std::string>("topics/cone_map", cone_map_topic_, autodrive_msgs::topic_contract::kConeMap);
     pnh.param<std::string>("topics/markers", markers_topic_, "fsd/viz/cones");
-    
+
+    // B8: TF timeout monitoring parameters
+    pnh.param<double>("tf_timeout_sec", tf_timeout_sec_, 0.1);
+
+    // B8: Initialize diagnostics helper
+    fsd_common::DiagnosticsHelper::Config diag_cfg;
+    diag_cfg.local_topic = "~/diagnostics";
+    diag_cfg.global_topic = "/diagnostics";
+    diag_cfg.publish_global = true;
+    diag_cfg.rate_hz = 1.0;
+    diag_helper_.Init(nh, diag_cfg);
+
     // 订阅
-    sub_cone_detections_ = nh.subscribe(cone_detections_topic_, 1, 
+    sub_cone_detections_ = nh.subscribe(cone_detections_topic_, 1,
         &ConeVisualizer::coneDetectionsCallback, this);
     sub_cone_map_ = nh.subscribe(cone_map_topic_, 1,
         &ConeVisualizer::coneMapCallback, this);
-    
+
     // 发布
     // Latch latest markers so RViz opened later can still render world objects.
     pub_markers_ = nh.advertise<visualization_msgs::MarkerArray>(markers_topic_, 1, true);
-    
-    ROS_INFO("[ConeVisualizer] Initialized");
+
+    // B8: Diagnostics timer (1Hz)
+    diag_timer_ = nh.createTimer(ros::Duration(1.0), [this](const ros::TimerEvent&) {
+        publishDiagnostics();
+    });
+
+    ROS_INFO("[ConeVisualizer] Initialized (tf_timeout=%.3f sec)", tf_timeout_sec_);
 }
 
 void ConeVisualizer::coneDetectionsCallback(
@@ -80,16 +98,23 @@ void ConeVisualizer::coneDetectionsCallback(
 
     if (need_transform) {
         try {
+            // B8: Use configurable timeout instead of hardcoded 0.05
             tf_msg = tf_buffer_.lookupTransform(
-                frame_id_, source_frame, msg->header.stamp, ros::Duration(0.05));
-        } catch (const tf2::TransformException&) {
+                frame_id_, source_frame, msg->header.stamp, ros::Duration(tf_timeout_sec_));
+        } catch (const tf2::TransformException& ex) {
+            // B8: Track extrapolation failures
+            if (std::string(ex.what()).find("extrapolation") != std::string::npos) {
+                ++tf_extrapolation_failure_count_;
+            }
             try {
                 tf_msg = tf_buffer_.lookupTransform(
-                    frame_id_, source_frame, ros::Time(0), ros::Duration(0.05));
-            } catch (const tf2::TransformException& ex) {
+                    frame_id_, source_frame, ros::Time(0), ros::Duration(tf_timeout_sec_));
+            } catch (const tf2::TransformException& ex2) {
+                ++tf_lookup_failure_count_;
+                last_tf_failure_time_ = ros::Time::now();
                 ROS_WARN_THROTTLE(1.0,
                                   "[ConeVisualizer] TF %s->%s unavailable for detections: %s",
-                                  source_frame.c_str(), frame_id_.c_str(), ex.what());
+                                  source_frame.c_str(), frame_id_.c_str(), ex2.what());
                 return;
             }
         }
@@ -392,6 +417,31 @@ visualization_msgs::Marker ConeVisualizer::createDistanceLabel(
     marker.lifetime = ros::Duration(0.2);
 
     return marker;
+}
+
+// B8: TF timeout monitoring diagnostics
+void ConeVisualizer::publishDiagnostics() {
+    using DH = autodrive_msgs::DiagnosticsHelper;
+
+    uint8_t level = diagnostic_msgs::DiagnosticStatus::OK;
+    std::string message = "OK";
+
+    // Check for recent TF failures
+    if (last_tf_failure_time_.isValid()) {
+        const double time_since_failure = (ros::Time::now() - last_tf_failure_time_).toSec();
+        if (time_since_failure < 5.0) {
+            level = diagnostic_msgs::DiagnosticStatus::WARN;
+            message = "TF_LOOKUP_FAILURES";
+        }
+    }
+
+    std::vector<diagnostic_msgs::KeyValue> kvs;
+    kvs.push_back(DH::KV("tf_timeout_sec", std::to_string(tf_timeout_sec_)));
+    kvs.push_back(DH::KV("tf_lookup_failure_count", std::to_string(tf_lookup_failure_count_)));
+    kvs.push_back(DH::KV("tf_extrapolation_failure_count", std::to_string(tf_extrapolation_failure_count_)));
+    kvs.push_back(DH::KV("target_frame", frame_id_));
+
+    diag_helper_.PublishStatus("cone_visualizer", "fsd_visualization", level, message, kvs, ros::Time::now(), false);
 }
 
 }  // namespace fsd_viz

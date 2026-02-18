@@ -5,6 +5,8 @@
 #include <autodrive_msgs/HUAT_ConeDetections.h>
 #include <autodrive_msgs/HUAT_ConeMap.h>
 #include <autodrive_msgs/topic_contract.hpp>
+#include <autodrive_msgs/diagnostics_helper.hpp>
+#include <diagnostic_msgs/DiagnosticArray.h>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 #include "fsd_visualization/viz_config.hpp"
@@ -14,11 +16,14 @@ namespace fsd_viz {
 class ConeVisualizer {
 public:
     ConeVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh);
-    
+
 private:
     void coneDetectionsCallback(const autodrive_msgs::HUAT_ConeDetections::ConstPtr& msg);
     void coneMapCallback(const autodrive_msgs::HUAT_ConeMap::ConstPtr& msg);
-    
+
+    // B8: TF timeout monitoring
+    void publishDiagnostics();
+
     visualization_msgs::Marker createConeMarker(
         double x, double y, double z,
         int id, int type, const std::string& ns, const std::string& frame_id,
@@ -36,7 +41,7 @@ private:
     ros::Subscriber sub_cone_detections_;
     ros::Subscriber sub_cone_map_;
     ros::Publisher pub_markers_;
-    
+
     std::string cone_detections_topic_;
     std::string cone_map_topic_;
     std::string markers_topic_;
@@ -53,6 +58,14 @@ private:
     std::string cone_mesh_type_;  // "fssim" or "gazebo"
     tf2_ros::Buffer tf_buffer_;
     tf2_ros::TransformListener tf_listener_;
+
+    // B8: TF timeout monitoring
+    double tf_timeout_sec_;
+    int tf_lookup_failure_count_;
+    int tf_extrapolation_failure_count_;
+    ros::Time last_tf_failure_time_;
+    autodrive_msgs::DiagnosticsHelper diag_helper_;
+    ros::Timer diag_timer_;
 };
 
 }  // namespace fsd_viz
