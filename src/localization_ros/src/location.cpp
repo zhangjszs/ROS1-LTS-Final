@@ -578,6 +578,12 @@ void LocationNode::updateMapperStateMachine(bool frame_good)
 
   if (prev_state != mapper_state_)
   {
+    // B20: Track degraded mode transition statistics
+    if (mapper_state_ == MapperRuntimeState::DEGRADED) ++mapper_degraded_entry_count_;
+    if (mapper_state_ == MapperRuntimeState::INS_ONLY) ++mapper_ins_only_entry_count_;
+    if (mapper_state_ == MapperRuntimeState::TRACKING && prev_state != MapperRuntimeState::TRACKING)
+      ++mapper_recovery_count_;
+
     ROS_WARN_STREAM("[location] mapper_state transition "
                     << mapperStateName(static_cast<int>(prev_state))
                     << " -> " << mapperStateName(static_cast<int>(mapper_state_))
@@ -585,6 +591,9 @@ void LocationNode::updateMapperStateMachine(bool frame_good)
                     << ", fail=" << mapper_consecutive_failures_
                     << ", succ=" << mapper_consecutive_successes_ << ")");
   }
+  // B20: Accumulate total frames in degraded/ins_only states
+  if (mapper_state_ == MapperRuntimeState::DEGRADED) ++mapper_degraded_total_frames_;
+  if (mapper_state_ == MapperRuntimeState::INS_ONLY) ++mapper_ins_only_total_frames_;
 }
 
 int LocationNode::carStateQualityLevel() const
@@ -1060,6 +1069,12 @@ void LocationNode::publishEntryHealth(const std::string &source, const ros::Time
   kvs.push_back(KV::KV("mapper_consecutive_failures", std::to_string(mapper_consecutive_failures_)));
   kvs.push_back(KV::KV("mapper_consecutive_successes", std::to_string(mapper_consecutive_successes_)));
   kvs.push_back(KV::KV("mapper_ins_only_frames", std::to_string(mapper_ins_only_frames_)));
+  // B20: Degraded mode performance statistics
+  kvs.push_back(KV::KV("mapper_degraded_entry_count", std::to_string(mapper_degraded_entry_count_)));
+  kvs.push_back(KV::KV("mapper_ins_only_entry_count", std::to_string(mapper_ins_only_entry_count_)));
+  kvs.push_back(KV::KV("mapper_recovery_count", std::to_string(mapper_recovery_count_)));
+  kvs.push_back(KV::KV("mapper_degraded_total_frames", std::to_string(mapper_degraded_total_frames_)));
+  kvs.push_back(KV::KV("mapper_ins_only_total_frames", std::to_string(mapper_ins_only_total_frames_)));
   kvs.push_back(KV::KV("cone_last_update_success", last_cone_update_success_ ? "true" : "false"));
   kvs.push_back(KV::KV("cone_last_frame_good", last_cone_frame_good_ ? "true" : "false"));
   kvs.push_back(KV::KV("cone_last_input_count", std::to_string(last_input_cone_count_)));

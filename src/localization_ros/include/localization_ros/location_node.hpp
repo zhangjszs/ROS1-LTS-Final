@@ -150,6 +150,12 @@ class LocationNode {
   int mapper_consecutive_failures_ = 0;
   int mapper_consecutive_successes_ = 0;
   int mapper_ins_only_frames_ = 0;
+  // B20: Degraded mode performance counters
+  int mapper_degraded_entry_count_ = 0;
+  int mapper_ins_only_entry_count_ = 0;
+  int mapper_recovery_count_ = 0;
+  int mapper_degraded_total_frames_ = 0;
+  int mapper_ins_only_total_frames_ = 0;
   bool last_cone_update_success_ = false;
   bool last_cone_frame_good_ = false;
   int last_input_cone_count_ = 0;
