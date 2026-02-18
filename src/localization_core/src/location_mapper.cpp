@@ -316,6 +316,9 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
     cone.position_global.y = rot_y + lidar_offset_y + car_state_.car_state.y;
     cone.position_global.z = det.point.z;
     cone.type = normalizeConeType(det.color_type);
+    // B10: Propagate perception confidence to localization map
+    // Input: det.confidence from perception (0.0-1.0)
+    // Output: encoded as uint32 (0-1000) for message transmission
     cone.confidence = confidence::EncodeScaled(std::max(0.0, std::min(1.0, det.confidence)));
     return cone;
   };
@@ -413,6 +416,9 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
           point_types_[nearest_idx] = obs_type;
         }
       }
+      // B10: Update confidence with weighted average
+      // Existing confidence is weighted by w_old, new detection by w_new
+      // This allows confidence to increase with repeated observations
       if (nearest_idx < static_cast<int>(point_confidences_.size()))
       {
         point_confidences_[nearest_idx] = point_confidences_[nearest_idx] * w_old + det_conf * w_new;
@@ -460,6 +466,7 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
     point_ids_.push_back(id);
     point_obs_counts_.push_back(1);
     point_types_.push_back(normalizeConeType(det.color_type));
+    // B10: Store initial confidence for new cone in map
     point_confidences_.push_back(det_conf);
     kdtree_needs_rebuild = true;
     push_inlier(det_cone);
@@ -595,9 +602,11 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
     cone_msg.position_base_link.z = cone_msg.position_global.z;
     cone_msg.type = (i < point_types_.size()) ? point_types_[i] : kConeNone;
     {
+      // B10: Publish confidence with observation bonus
+      // Base confidence from stored value, bonus for repeated observations
       double conf = (i < point_confidences_.size()) ? point_confidences_[i] : 0.0;
       int obs = (i < point_obs_counts_.size()) ? point_obs_counts_[i] : 1;
-      double obs_bonus = std::min(0.2, 0.05 * (obs - 1));
+      double obs_bonus = std::min(0.2, 0.05 * (obs - 1));  // Max +0.2 for 5+ observations
       conf = std::min(1.0, std::max(0.0, conf + obs_bonus));
       cone_msg.confidence = confidence::EncodeScaled(conf);
     }
