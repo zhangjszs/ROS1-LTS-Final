@@ -1079,6 +1079,8 @@ void LocationNode::publishEntryHealth(const std::string &source, const ros::Time
   kvs.push_back(KV::KV("heading_step_violation_count", std::to_string(heading_jump_violation_count_)));
   kvs.push_back(KV::KV("heading_rate_violation_count", std::to_string(heading_rate_violation_count_)));
   kvs.push_back(KV::KV("heading_gyro_mismatch_count", std::to_string(heading_gyro_mismatch_count_)));
+  // B9: INS timestamp rollback protection
+  kvs.push_back(KV::KV("ins_stamp_rollback_count", std::to_string(ins_stamp_rollback_count_)));
   kvs.push_back(KV::KV("cone_last_map_size", std::to_string(cone_last_map_size_)));
   kvs.push_back(KV::KV("cone_unique_id_seen", std::to_string(seen_cone_ids_.size())));
   kvs.push_back(KV::KV("cone_new_id_count", std::to_string(cone_new_id_count_)));
@@ -1130,6 +1132,18 @@ void LocationNode::publishEntryHealth(const std::string &source, const ros::Time
 void LocationNode::imuCallback(const autodrive_msgs::HUAT_InsP2::ConstPtr &msg)
 {
   const ros::Time stamp = msg->header.stamp.isZero() ? ros::Time::now() : msg->header.stamp;
+
+  // B9: INS timestamp rollback protection
+  if (has_last_ins_stamp_ && stamp < last_ins_stamp_)
+  {
+    ++ins_stamp_rollback_count_;
+    ROS_WARN_THROTTLE(1.0,
+                      "[localization] INS timestamp rollback detected: current=%.6f < previous=%.6f (delta=%.6f sec). "
+                      "Rejecting message to prevent state corruption.",
+                      stamp.toSec(), last_ins_stamp_.toSec(), (last_ins_stamp_ - stamp).toSec());
+    return;  // Reject message with rollback timestamp
+  }
+
   updateHeadingSanity(*msg, stamp);
 
   localization_core::Asensing core_msg = ToCore(*msg);
@@ -1162,6 +1176,10 @@ void LocationNode::imuCallback(const autodrive_msgs::HUAT_InsP2::ConstPtr &msg)
   {
     feedFactorGraph(*msg);
   }
+
+  // B9: Update last INS timestamp after successful processing
+  last_ins_stamp_ = stamp;
+  has_last_ins_stamp_ = true;
 
   publishEntryHealth("imu", msg->header.stamp);
 }

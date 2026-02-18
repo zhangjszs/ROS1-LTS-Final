@@ -188,6 +188,11 @@ class LocationNode {
   std::uint64_t heading_rate_violation_count_ = 0;
   std::uint64_t heading_gyro_mismatch_count_ = 0;
 
+  // B9: INS timestamp rollback protection
+  bool has_last_ins_stamp_ = false;
+  ros::Time last_ins_stamp_;
+  std::uint64_t ins_stamp_rollback_count_ = 0;
+
   std::unordered_set<std::uint32_t> seen_cone_ids_;
   std::uint32_t cone_max_id_seen_ = 0;
   int cone_last_map_size_ = 0;
