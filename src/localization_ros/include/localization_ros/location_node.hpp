@@ -104,6 +104,12 @@ class LocationNode {
   std::unique_ptr<localization_core::FactorGraphOptimizer> fg_optimizer_;
   localization_core::FactorGraphConfig fg_config_;
   double fg_start_time_ = -1.0;
+  // B21: Relocalization success rate tracking
+  localization_core::AnomalyState fg_last_anomaly_state_ = localization_core::AnomalyState::TRACKING;
+  int fg_reloc_attempt_count_ = 0;
+  int fg_reloc_success_count_ = 0;
+  double fg_reloc_total_ms_ = 0.0;
+  ros::WallTime fg_reloc_start_time_;
   void feedFactorGraph(const autodrive_msgs::HUAT_InsP2 &msg);
   void feedFactorGraphCones(const autodrive_msgs::HUAT_ConeDetections &msg);
   void updateMapperStateMachine(bool frame_good);

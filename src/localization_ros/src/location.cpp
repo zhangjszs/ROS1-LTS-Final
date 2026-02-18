@@ -1545,6 +1545,34 @@ void LocationNode::feedFactorGraph(const autodrive_msgs::HUAT_InsP2 &msg)
     const int state_idx = static_cast<int>(anomaly_state);
     const char* state_name = (state_idx >= 0 && state_idx < 5) ? state_names[state_idx] : "UNKNOWN";
 
+    // B21: Track relocalization attempt/success statistics
+    {
+      const bool is_reloc = (anomaly_state == localization_core::AnomalyState::RELOC_A ||
+                             anomaly_state == localization_core::AnomalyState::RELOC_B);
+      const bool was_reloc = (fg_last_anomaly_state_ == localization_core::AnomalyState::RELOC_A ||
+                              fg_last_anomaly_state_ == localization_core::AnomalyState::RELOC_B);
+      if (is_reloc && !was_reloc)
+      {
+        ++fg_reloc_attempt_count_;
+        fg_reloc_start_time_ = ros::WallTime::now();
+      }
+      if (was_reloc && !is_reloc)
+      {
+        const double dur_ms = (ros::WallTime::now() - fg_reloc_start_time_).toSec() * 1000.0;
+        fg_reloc_total_ms_ += dur_ms;
+        if (anomaly_state == localization_core::AnomalyState::TRACKING)
+        {
+          ++fg_reloc_success_count_;
+          ROS_INFO("[FG] Relocalization succeeded in %.1fms", dur_ms);
+        }
+        else
+        {
+          ROS_WARN("[FG] Relocalization failed after %.1fms, state=%s", dur_ms, state_name);
+        }
+      }
+      fg_last_anomaly_state_ = anomaly_state;
+    }
+
     ROS_INFO_THROTTLE(5.0, "[FG shadow] kf=%lu pose=(%.2f,%.2f,%.3f) opt_ms=%.1f lm=%zu chi2=%.2f match=%.2f state=%s",
                       fg_optimizer_->NumKeyframes(),
                       fg_pose.x, fg_pose.y, fg_pose.theta,
@@ -1593,6 +1621,17 @@ void LocationNode::feedFactorGraph(const autodrive_msgs::HUAT_InsP2 &msg)
       ds.values.push_back(kv("num_keyframes", std::to_string(fg_optimizer_->NumKeyframes())));
       ds.values.push_back(kv("num_landmarks", std::to_string(fg_optimizer_->GetLandmarks().size())));
       ds.values.push_back(kv("opt_time_ms", std::to_string(fg_optimizer_->LastOptTimeMs())));
+      // B21: Relocalization success rate statistics
+      ds.values.push_back(kv("reloc_attempt_count", std::to_string(fg_reloc_attempt_count_)));
+      ds.values.push_back(kv("reloc_success_count", std::to_string(fg_reloc_success_count_)));
+      ds.values.push_back(kv("reloc_success_rate",
+          fg_reloc_attempt_count_ > 0
+              ? std::to_string(static_cast<double>(fg_reloc_success_count_) / fg_reloc_attempt_count_)
+              : "n/a"));
+      ds.values.push_back(kv("reloc_avg_ms",
+          fg_reloc_attempt_count_ > 0
+              ? std::to_string(fg_reloc_total_ms_ / fg_reloc_attempt_count_)
+              : "0"));
 
       diag_arr.status.push_back(ds);
       publishDiagnostics(diag_arr);
