@@ -58,7 +58,7 @@ ConeVisualizer::ConeVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh)
 
     // B8: Initialize diagnostics helper
     fsd_common::DiagnosticsHelper::Config diag_cfg;
-    diag_cfg.local_topic = "~/diagnostics";
+    diag_cfg.local_topic = "fsd_viz/diagnostics";
     diag_cfg.global_topic = "/diagnostics";
     diag_cfg.publish_global = true;
     diag_cfg.rate_hz = 1.0;
