@@ -376,6 +376,72 @@ rosdep install --from-paths src --ignore-src -r -y
 ### Runtime Issues
 
 - Ensure all sensor drivers are running before launching main system
-- Check that rosbag contains required topics: `/velodyne_points`, `/pbox_pub/Ins`
+- Check that rosbag contains required topics: `/velodyne_points`, `/INS/ASENSING_INS`
 - Verify coordinate frame transforms are published correctly
 - Check parameter files are loaded (use `rosparam list`)
+
+### ROS Topic Name Pitfall
+
+**Never pass tilde (`~`) names to `NodeHandle` methods directly.** `~/foo` is only valid as a constructor argument, not as a topic string passed to `advertise`/`subscribe`/`publish`. Use absolute paths (`/node_name/foo`) or relative paths (`foo`) instead.
+
+```cpp
+// WRONG — throws ros::InvalidNameException at runtime
+nh.advertise<Msg>("~/diagnostics", 1);
+
+// CORRECT
+nh.advertise<Msg>("my_node/diagnostics", 1);  // relative
+nh.advertise<Msg>("/my_node/diagnostics", 1); // absolute
+```
+
+### Available Test Rosbags
+
+| File | Size | Duration | Topics |
+|------|------|----------|--------|
+| `~/rosbag/track.bag` | 5.1G | 121s | `/velodyne_points`, `/INS/ASENSING_INS`, `/resize_img_out` |
+| `~/rosbag/skidpad.bag` | 6.2G | — | Full sensor suite |
+| `~/rosbag/accel.bag` | 995M | — | Full sensor suite |
+| `~/rosbag/2024-10-17-01-19-05.bag` | 681M | 89s | LiDAR only (no INS) |
+
+`track.bag` is the recommended bag for full-stack trackdrive validation.
+
+## Observability Patterns
+
+### DiagnosticsHelper
+
+All subsystems publish health via `autodrive_msgs::DiagnosticsHelper`. Read live diagnostics:
+
+```bash
+# All diagnostics (raw)
+rostopic echo /diagnostics
+
+# Aggregated by subsystem (requires diagnostic_aggregator running)
+rostopic echo /diagnostics_agg
+
+# Per-subsystem topics
+rostopic echo /localization/diagnostics
+rostopic echo /control/diagnostics
+rostopic echo /perception/lidar_cluster/perception/diagnostics
+```
+
+Key diagnostic fields to check after a rosbag run:
+- `mapper_state` — TRACKING / DEGRADED / INS_ONLY
+- `e2e_latency_mean_ms` / `e2e_latency_max_ms` — end-to-end pipeline latency
+- `stop_reason` — why control stopped (RUNNING / MISSION_COMPLETE / INPUT_TIMEOUT)
+- `reloc_attempt_count` / `reloc_success_count` — factor graph relocalization stats
+- `n_detections`, `t_total_ms` — perception throughput
+
+### PathLimits Timestamp Convention
+
+`HUAT_PathLimits` carries two timestamps (defined in `planning_ros/include/planning_ros/contract_utils.hpp`):
+- `header.stamp` — original sensor/LiDAR timestamp (for e2e latency measurement)
+- `stamp` — wall-clock time when planning published the message
+
+Always use `FinalizePathLimitsMessage(msg, input_stamp, frame_id)` when constructing a PathLimits message.
+
+## Audit Comment Convention
+
+Code changes from the system audit use `// B<N>:` tags for traceability:
+- B1–B6: P0 safety fixes (array bounds, NaN guards, message sync, timeouts)
+- B7–B22: P1 improvements (observability, documentation, latency tracking)
+
+When adding new audit-style fixes, continue the numbering sequence.
