@@ -1366,8 +1366,19 @@ void lidar_cluster::clusterMethod32(LidarClusterOutput *output)
             float euc = std::sqrt(centroid[0] * centroid[0] +
                                   centroid[1] * centroid[1]);
 
-            // 距离自适应Y轴梯形ROI拒绝（在confidence计算之前，节省计算量）
-            bool y_rejected = false;
+            // ROI拒绝（在confidence计算之前，节省计算量）
+            bool roi_rejected = false;
+
+            // 远距离中心线排除：抑制前方护栏/墙壁导致的中心线假锥
+            if (config_.roi.center_exclusion.enable) {
+                const auto &ce = config_.roi.center_exclusion;
+                if (euc >= ce.start_distance &&
+                    std::fabs(centroid[1]) <= ce.y_half) {
+                    roi_rejected = true;
+                }
+            }
+
+            // 距离自适应Y轴梯形ROI拒绝（远处收窄Y范围）
             if (config_.roi.adaptive_y.enable)
             {
                 const auto &ay = config_.roi.adaptive_y;
@@ -1389,11 +1400,11 @@ void lidar_cluster::clusterMethod32(LidarClusterOutput *output)
                 }
                 if (std::fabs(centroid[1]) > y_limit)
                 {
-                    y_rejected = true;
+                    roi_rejected = true;
                 }
             }
 
-            double confidence = y_rejected ? -1.0 : getConfidenceWithFitting(cloud_cluster);
+            double confidence = roi_rejected ? -1.0 : getConfidenceWithFitting(cloud_cluster);
 
             // 距离自适应置信度门槛（替代原来的 confidence > 0）
             double min_conf;

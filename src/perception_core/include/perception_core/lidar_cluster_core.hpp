@@ -250,6 +250,16 @@ struct LidarClusterConfig
       double ramp_start_x = 5.0;   // 开始收窄的X距离 (m)
     };
     AdaptiveYConfig adaptive_y;
+
+    // 远距离中心线排除（用于抑制前方护栏/墙壁造成的“中心线假锥”）
+    // 规则：当欧氏距离 >= start_distance 且 |y| <= y_half 时，直接拒绝该聚类候选。
+    struct CenterExclusionConfig
+    {
+      bool enable = false;
+      double y_half = 1.0;         // 中心线半宽 (m)
+      double start_distance = 18.0; // 开始生效距离 (m)
+    };
+    CenterExclusionConfig center_exclusion;
   };
 
   struct FilterConfig

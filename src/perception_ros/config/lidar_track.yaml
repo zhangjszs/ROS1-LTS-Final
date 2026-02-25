@@ -35,6 +35,11 @@ filters:
   obstacle_height:
     # 启用柱状障碍物滤波（高速场景可能有树/障碍物）
     enable: true
+    # 针对 18m+ 墙/护栏：提高对“连续竖直结构”的抑制，避免形成假锥簇
+    # 说明：该滤波在地面分割后执行，仅对远处点生效（见 min_distance）
+    max_z_span: 0.35
+    # 远处真锥可能更稀疏：提高判定所需点数，避免误杀
+    min_points_to_judge: 8
 
 tracker:
   # ✅ 启用时序跟踪器（稳定性优先）
@@ -46,6 +51,27 @@ topology:
   # ✅ 启用拓扑修复（保证赛道连续性）
   # 高速场景需要稳定的赛道边界用于规划
   enable: true
+
+# ==========================
+# Track mode presets override (18m+ tuning)
+# - applyModePreset() 会从 mode_presets/<mode> 覆盖 adaptive_y 与 cluster 参数
+# ==========================
+mode_presets:
+  track:
+    adaptive_y:
+      # 更早开始收窄远处横向视野，降低侧向墙/护栏进入候选簇的概率
+      ramp_start_x: 8.0
+      far_y_half: 3.0
+      near_y_half: 10.0
+    cluster:
+      # 收紧 15–35m 段聚类距离，减少墙面碎点聚成“像锥桶”的小簇
+      # ranges: <5, 5-10, 10-15, 15-25, 25-35, 35-50, >=50
+      cluster_tolerance: [0.15, 0.3, 0.5, 0.5, 0.4, 0.3, 0.25]
+    center_exclusion:
+      # 18m+ 中心线假锥抑制：如果检测落在中心线狭窄带内，直接拒绝
+      enable: true
+      y_half: 1.0
+      start_distance: 18.0
 
 # ==========================
 # TrackDrive Geometry Robustness Overlay
