@@ -1,6 +1,7 @@
 #ifndef CONTROL_CORE_TYPES_HPP_
 #define CONTROL_CORE_TYPES_HPP_
 
+#include <cstdint>
 #include <vector>
 
 namespace control_core
@@ -52,6 +53,14 @@ struct ControlParams
   // 速度自适应参数
   double min_lookahead{2.0};    // 最小前视距离 [m]
   double max_lookahead{10.0};   // 最大前视距离 [m]
+
+  // 曲率前馈参数
+  double curvature_ff_gain{1.0};  // 曲率前馈增益 (0=禁用)
+
+  // 主动制动参数
+  double brake_kp{40.0};            // 制动比例增益
+  double brake_max{80.0};           // 最大制动力
+  double brake_speed_margin{0.5};   // 超速容忍量 [m/s]
 };
 
 struct ControlOutput
@@ -62,6 +71,27 @@ struct ControlOutput
   int racing_status{2};
   bool stop_requested{false};
 };
+
+// B30: Explicit stop-state enum replacing string-based stop_reason
+enum class ControlStopState : uint8_t
+{
+  RUNNING = 0,
+  EXTERNAL_STOP_FILE = 1,
+  INPUT_TIMEOUT = 2,
+  MISSION_COMPLETE = 3
+};
+
+inline const char *ControlStopStateName(ControlStopState s)
+{
+  switch (s)
+  {
+    case ControlStopState::RUNNING:            return "RUNNING";
+    case ControlStopState::EXTERNAL_STOP_FILE: return "EXTERNAL_STOP_FILE";
+    case ControlStopState::INPUT_TIMEOUT:      return "INPUT_TIMEOUT";
+    case ControlStopState::MISSION_COMPLETE:   return "MISSION_COMPLETE";
+  }
+  return "UNKNOWN";
+}
 
 } // namespace control_core
 

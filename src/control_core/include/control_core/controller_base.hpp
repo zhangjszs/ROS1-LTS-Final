@@ -17,6 +17,8 @@ public:
   void SetParams(const ControlParams &params);
   virtual void UpdateCarState(const CarState &state);
   void UpdatePath(const std::vector<Position> &path);
+  void UpdateTargetSpeeds(const std::vector<double> &speeds);
+  void UpdateCurvatures(const std::vector<double> &curvatures);
   void SetFinishSignal(bool finish_signal);
 
   ControlOutput ComputeOutput();
@@ -30,6 +32,7 @@ protected:
   virtual int ComputeBrake() = 0;
   virtual int ComputeStatus() = 0;
 
+  int FindNearestIndex() const;
   int GetTargetIndex();
   double distance_square(double x1, double y1, double x2, double y2) const;
   double angle_range(double alpha) const;
@@ -65,6 +68,20 @@ protected:
   int ComputeSteeringWithLookahead(int target_index);
 
   /**
+   * @brief 获取指定路径点的目标速度
+   * @param index 路径点索引
+   * @return 目标速度 [m/s]，无数据时返回 default_target_speed_
+   */
+  double GetTargetSpeedAt(int index) const;
+
+  /**
+   * @brief 获取指定路径点的曲率
+   * @param index 路径点索引
+   * @return 曲率 [1/m]，无数据时返回 0.0
+   */
+  double GetCurvatureAt(int index) const;
+
+  /**
    * @brief 默认油门计算（可被子类覆盖）
    */
   virtual int ComputeDefaultPedal();
@@ -82,6 +99,8 @@ protected:
   void RequestStop();
 
   std::vector<Position> path_coordinate_{};
+  std::vector<double> target_speeds_{};
+  std::vector<double> curvatures_{};
 
   double car_x_{0.0};
   double car_y_{0.0};
@@ -110,6 +129,7 @@ protected:
   double slip_gain_{0.5};
   double min_lookahead_{2.0};
   double max_lookahead_{10.0};
+  double curvature_ff_gain_{1.0};
 
   // Steering conversion parameters
   double steering_ratio_{3.73};
@@ -133,6 +153,11 @@ protected:
   double default_pedal_max_{30.0};
   double default_min_speed_threshold_{0.3};
   double default_high_speed_threshold_{2.0};
+
+  // B27: active braking tuning constants
+  double brake_kp_{40.0};            // 制动比例增益
+  double brake_max_{80.0};           // 最大制动力
+  double brake_speed_margin_{0.5};   // 超速容忍量 [m/s]
 };
 
 } // namespace control_core

@@ -19,7 +19,6 @@ protected:
   int ComputeStatus() override;
 
 private:
-  int GetMinIndex();
   double CountError(double x1, double y1, double x2, double y2, double heading) const;
 };
 

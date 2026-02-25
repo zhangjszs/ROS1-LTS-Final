@@ -26,6 +26,10 @@ void ControllerBase::SetParams(const ControlParams &params)
   slip_gain_ = params.slip_gain;
   min_lookahead_ = params.min_lookahead;
   max_lookahead_ = params.max_lookahead;
+  curvature_ff_gain_ = params.curvature_ff_gain;
+  brake_kp_ = params.brake_kp;
+  brake_max_ = params.brake_max;
+  brake_speed_margin_ = params.brake_speed_margin;
 
   // B22: critical parameter range validation
   if (car_length_ <= 0.0) { car_length_ = 1.55; }
@@ -49,6 +53,25 @@ void ControllerBase::UpdateCarState(const CarState &state)
 void ControllerBase::UpdatePath(const std::vector<Position> &path)
 {
   path_coordinate_ = path;
+  // Clear stale data if path length changed
+  if (target_speeds_.size() != path.size())
+  {
+    target_speeds_.clear();
+  }
+  if (curvatures_.size() != path.size())
+  {
+    curvatures_.clear();
+  }
+}
+
+void ControllerBase::UpdateTargetSpeeds(const std::vector<double> &speeds)
+{
+  target_speeds_ = speeds;
+}
+
+void ControllerBase::UpdateCurvatures(const std::vector<double> &curvatures)
+{
+  curvatures_ = curvatures;
 }
 
 void ControllerBase::SetFinishSignal(bool finish_signal)
@@ -78,25 +101,31 @@ double ControllerBase::distance_square(double x1, double y1, double x2, double y
   return std::pow(x1 - x2, 2) + std::pow(y1 - y2, 2);
 }
 
-int ControllerBase::GetTargetIndex()
+int ControllerBase::FindNearestIndex() const
 {
   double min_distance = std::numeric_limits<double>::max();
+  int nearest = 0;
+  for (int i = 0; i < static_cast<int>(path_coordinate_.size()); ++i)
+  {
+    double d = distance_square(car_x_, car_y_, path_coordinate_[i].x, path_coordinate_[i].y);
+    if (d < min_distance)
+    {
+      min_distance = d;
+      nearest = i;
+    }
+  }
+  return nearest;
+}
+
+int ControllerBase::GetTargetIndex()
+{
   double diff_distance = 0;
   double tem_distance;
   int index = 0;
-  int min = 0;
 
   lookhead_ = computeAdaptiveLookahead();
 
-  for (min = index = 0; index < static_cast<int>(path_coordinate_.size()); index++)
-  {
-    double tmp_distance = distance_square(car_x_, car_y_, path_coordinate_[index].x, path_coordinate_[index].y);
-    if (tmp_distance < min_distance)
-    {
-      min_distance = tmp_distance;
-      min = index;
-    }
-  }
+  int min = FindNearestIndex();
 
   for (index = min + 1, diff_distance = 0.0; index < static_cast<int>(path_coordinate_.size()); index++)
   {
@@ -212,6 +241,14 @@ int ControllerBase::ComputeSteeringWithLookahead(int target_index)
 
   double delta = std::atan2(2 * car_length_ * std::sin(alpha) / lookhead_, 1.0);
 
+  // Curvature feedforward: delta_ff = atan(L * kappa)
+  if (curvature_ff_gain_ > 0.0 && !curvatures_.empty())
+  {
+    double kappa = GetCurvatureAt(target_index);
+    double delta_ff = std::atan(car_length_ * kappa);
+    delta += curvature_ff_gain_ * delta_ff;
+  }
+
   delta = compensateSlipAngle(delta);
 
   delta = angle_pid(delta);
@@ -219,14 +256,43 @@ int ControllerBase::ComputeSteeringWithLookahead(int target_index)
   return static_cast<int>(delta / M_PI * 180 * steering_ratio_) + steering_offset_;
 }
 
+double ControllerBase::GetTargetSpeedAt(int index) const
+{
+  if (target_speeds_.empty() || index < 0 ||
+      index >= static_cast<int>(target_speeds_.size()))
+  {
+    return default_target_speed_;
+  }
+  double v = target_speeds_[index];
+  return (v > 0.0) ? v : default_target_speed_;
+}
+
+double ControllerBase::GetCurvatureAt(int index) const
+{
+  if (curvatures_.empty() || index < 0 ||
+      index >= static_cast<int>(curvatures_.size()))
+  {
+    return 0.0;
+  }
+  return curvatures_[index];
+}
+
 int ControllerBase::ComputeDefaultPedal()
 {
-  double error = default_target_speed_ - car_veloc_;
+  // Look up per-point target speed from planning layer
+  double target_speed = default_target_speed_;
+  if (!path_coordinate_.empty() && !target_speeds_.empty())
+  {
+    int nearest = FindNearestIndex();
+    target_speed = GetTargetSpeedAt(nearest);
+  }
+
+  double error = target_speed - car_veloc_;
   double accel;
   veloc_integra_ += error;
   accel = default_pedal_kp_ * error + default_pedal_ki_ * veloc_integra_;
 
-  if (car_veloc_ > default_high_speed_threshold_)
+  if (car_veloc_ > default_high_speed_threshold_ && car_veloc_ > target_speed)
     accel = default_pedal_cap_;
 
   if (accel > default_pedal_max_)
@@ -239,6 +305,23 @@ int ControllerBase::ComputeDefaultPedal()
 
 int ControllerBase::ComputeDefaultBrake()
 {
+  if (path_coordinate_.empty() || target_speeds_.empty())
+  {
+    return 0;
+  }
+
+  int nearest = FindNearestIndex();
+  double target_speed = GetTargetSpeedAt(nearest);
+  double overspeed = car_veloc_ - target_speed;
+
+  if (overspeed > brake_speed_margin_)
+  {
+    // Proportional braking: harder brake for larger overspeed
+    double brake = brake_kp_ * (overspeed - brake_speed_margin_);
+    if (brake > brake_max_) brake = brake_max_;
+    return static_cast<int>(brake);
+  }
+
   return 0;
 }
 

@@ -50,6 +50,9 @@ pp:
   min_lookahead: 3.0
   max_lookahead: 15.0
 
+  # 曲率前馈：直线赛曲率小，弱前馈即可
+  curvature_ff_gain: 0.5
+
 # ==========================
 # 【调参指南 - Acceleration】
 # ==========================

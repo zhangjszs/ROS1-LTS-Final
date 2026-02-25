@@ -1,6 +1,6 @@
 #include "control_core/skip_controller.hpp"
 
-#include <limits>
+#include <algorithm>
 
 namespace control_core
 {
@@ -9,25 +9,6 @@ void SkipController::UpdateCarState(const CarState &state)
 {
   ControllerBase::UpdateCarState(state);
   car_fangle_ = state.theta;
-}
-
-int SkipController::GetMinIndex()
-{
-  double min_distance = std::numeric_limits<double>::max();
-  int index = 0;
-  int min = 0;
-  lookhead_ = computeAdaptiveLookahead();
-  for (min = index = 0; index < static_cast<int>(path_coordinate_.size()); index++)
-  {
-    double tem_distance = distance_square(car_x_, car_y_, path_coordinate_[index].x, path_coordinate_[index].y);
-    if (tem_distance < min_distance)
-    {
-      min_distance = tem_distance;
-      min = index;
-    }
-  }
-  tar_ = min;
-  return min;
 }
 
 double SkipController::CountError(double x1, double y1, double x2, double y2, double heading) const
@@ -40,12 +21,21 @@ double SkipController::CountError(double x1, double y1, double x2, double y2, do
 
 int SkipController::ComputeSteering()
 {
-  int index_min = GetMinIndex();
-  if (index_min >= static_cast<int>(path_coordinate_.size()) - 1 && finish_signal_)
+  int index_min = FindNearestIndex();
+  tar_ = index_min;
+
+  // B26: Bounds-safe access — clamp to second-to-last point
+  const int last = static_cast<int>(path_coordinate_.size()) - 1;
+  if (index_min >= last)
   {
-    RequestStop();
-    return steering_offset_;
+    if (finish_signal_)
+    {
+      RequestStop();
+      return steering_offset_;
+    }
+    index_min = std::max(last - 1, 0);
   }
+
   double alpha = std::atan2(path_coordinate_[index_min + 1].y - path_coordinate_[index_min].y,
                             path_coordinate_[index_min + 1].x - path_coordinate_[index_min].x) - car_fangle_;
 

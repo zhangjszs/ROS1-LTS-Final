@@ -47,6 +47,9 @@ pp:
   min_lookahead: 2.0
   max_lookahead: 10.0
 
+  # 曲率前馈：标准配置
+  curvature_ff_gain: 1.0
+
 # ==========================
 # 【调参指南 - TrackDrive】
 # ==========================

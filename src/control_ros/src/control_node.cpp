@@ -17,6 +17,8 @@
 #include <diagnostic_msgs/DiagnosticArray.h>
 #include <std_msgs/Bool.h>
 
+#include "control_core/types.hpp"
+
 #include "control_core/high_controller.hpp"
 #include "control_core/line_controller.hpp"
 #include "control_core/skip_controller.hpp"
@@ -83,6 +85,10 @@ public:
     pnh_.param<std::string>("carstate_topic", carstate_topic_, autodrive_msgs::topic_contract::kCarState);
     pnh_.param<std::string>("approaching_goal_topic", approaching_goal_topic_,
                             autodrive_msgs::topic_contract::kApproachingGoal);
+    // Planning input watchdog: use wall-time to avoid /clock validity/jumps during sim replay startup.
+    // Default is stricter on real vehicle, looser in simulation replay.
+    pnh_.param("input_timeout_sec", input_timeout_sec_, simulation_ ? 2.0 : 0.5);
+    if (input_timeout_sec_ <= 0.0) input_timeout_sec_ = simulation_ ? 2.0 : 0.5;
     pnh_.param("diagnostics_rate_hz", diagnostics_rate_hz_, 1.0);
     {
       std::string diag_topic, global_diag_topic;
@@ -133,7 +139,7 @@ public:
     // P0: External stop file
     if (!simulation_ && enable_external_stop_file_ && CheckExternalStop())
     {
-      stop_reason_ = "EXTERNAL_STOP_FILE";
+      stop_state_ = control_core::ControlStopState::EXTERNAL_STOP_FILE;
       PublishEmergencyStop();
       ++external_stop_trigger_count_;
       PublishDiagnostics(true);
@@ -144,18 +150,15 @@ public:
     // P1: Input timeout
     if (mode_ != fsd_common::ControlMode::kTest && mode_ != fsd_common::ControlMode::kEbs)
     {
-      if (last_pathlimits_time_.isValid())
+      if (has_pathlimits_)
       {
-        const ros::Time now = ros::Time::now();
-        const double timeout_sec = (now - last_pathlimits_time_).toSec();
-        constexpr double kInputTimeoutSec = 0.5; // 500ms
-
-        if (timeout_sec > kInputTimeoutSec)
+        const double timeout_sec = (ros::WallTime::now() - last_pathlimits_wall_time_).toSec();
+        if (timeout_sec > input_timeout_sec_)
         {
-          stop_reason_ = "INPUT_TIMEOUT";
+          stop_state_ = control_core::ControlStopState::INPUT_TIMEOUT;
           ROS_ERROR("[control] PathLimits input timeout: %.3f sec (threshold: %.3f sec). "
                     "Planning layer may have crashed. Triggering emergency stop.",
-                    timeout_sec, kInputTimeoutSec);
+                    timeout_sec, input_timeout_sec_);
           PublishEmergencyStop();
           ++input_timeout_count_;
           PublishDiagnostics(true);
@@ -177,7 +180,7 @@ public:
       // P2: Controller stop request (mission complete)
       if (output.stop_requested)
       {
-        stop_reason_ = "MISSION_COMPLETE";
+        stop_state_ = control_core::ControlStopState::MISSION_COMPLETE;
         autodrive_msgs::HUAT_VehicleCmd stop_cmd;
         PublishCommand(stop_cmd);
         PublishDiagnostics(true);
@@ -201,6 +204,11 @@ public:
       cmd.checksum = cmd.head1 + cmd.head2 + cmd.length +
                      cmd.steering + cmd.pedal_ratio + cmd.brake_force +
                      cmd.gear_position + cmd.working_mode + cmd.racing_num + cmd.racing_status;
+
+      // B28: Track last output for diagnostics
+      last_steering_ = cmd.steering;
+      last_pedal_ = cmd.pedal_ratio;
+      last_brake_ = cmd.brake_force;
 
       PublishCommand(cmd);
       controller_->Tick();
@@ -241,6 +249,10 @@ private:
     nh_.param(ns + "/slip_gain", params.slip_gain, 0.5);
     nh_.param(ns + "/min_lookahead", params.min_lookahead, 2.0);
     nh_.param(ns + "/max_lookahead", params.max_lookahead, 10.0);
+    nh_.param(ns + "/curvature_ff_gain", params.curvature_ff_gain, 1.0);
+    nh_.param("braking/brake_kp", params.brake_kp, 40.0);
+    nh_.param("braking/brake_max", params.brake_max, 80.0);
+    nh_.param("braking/brake_speed_margin", params.brake_speed_margin, 0.5);
 
     if (controller_)
     {
@@ -333,9 +345,17 @@ private:
     if (controller_)
     {
       controller_->UpdatePath(path);
+      // P0-1: Pass per-point target speeds from planning to controller
+      std::vector<double> speeds(msgs->target_speeds.begin(), msgs->target_speeds.end());
+      controller_->UpdateTargetSpeeds(speeds);
+      has_target_speeds_ = !speeds.empty();
+      // Pass per-point curvatures for steering feedforward
+      std::vector<double> curvatures(msgs->curvatures.begin(), msgs->curvatures.end());
+      controller_->UpdateCurvatures(curvatures);
     }
     path_ready_ = true;
-    last_pathlimits_time_ = ros::Time::now();
+    has_pathlimits_ = true;
+    last_pathlimits_wall_time_ = ros::WallTime::now();
 
     // B13: End-to-end latency tracking
     if (msgs->header.stamp.isValid() && !msgs->header.stamp.isZero())
@@ -347,11 +367,12 @@ private:
         e2e_latency_sum_ += e2e;
         if (e2e > e2e_latency_max_) e2e_latency_max_ = e2e;
         ++latency_sample_count_;
-        if (e2e > kE2eLatencyWarnSec)
+        const double warn_threshold = simulation_ ? 0.5 : kE2eLatencyWarnSec;
+        if (e2e > warn_threshold)
         {
           ++e2e_latency_warn_count_;
           ROS_WARN_THROTTLE(2.0, "[control] E2E latency %.1fms exceeds threshold %.0fms",
-                            e2e * 1000.0, kE2eLatencyWarnSec * 1000.0);
+                            e2e * 1000.0, warn_threshold * 1000.0);
         }
       }
       // Planning-to-control segment
@@ -485,10 +506,16 @@ private:
     kvs.push_back(DH::KV("enable_external_stop_file", enable_external_stop_file_ ? "true" : "false"));
     kvs.push_back(DH::KV("external_stop_file_path", external_stop_file_path_));
     kvs.push_back(DH::KV("simulation", simulation_ ? "true" : "false"));
-    kvs.push_back(DH::KV("stop_reason", stop_reason_));
+    kvs.push_back(DH::KV("stop_reason", control_core::ControlStopStateName(stop_state_)));
     kvs.push_back(DH::KV("cmd_topic", cmd_topic_));
     kvs.push_back(DH::KV("carstate_topic", carstate_topic_));
     kvs.push_back(DH::KV("approaching_goal_topic", approaching_goal_topic_));
+
+    // B28: Longitudinal control diagnostics
+    kvs.push_back(DH::KV("last_steering", std::to_string(last_steering_)));
+    kvs.push_back(DH::KV("last_pedal", std::to_string(last_pedal_)));
+    kvs.push_back(DH::KV("last_brake", std::to_string(last_brake_)));
+    kvs.push_back(DH::KV("has_target_speeds", has_target_speeds_ ? "true" : "false"));
 
     diag_helper_.PublishStatus("control_entry_health", "control_ros/control_node",
                                level, message, kvs, ros::Time(0), force);
@@ -534,7 +561,9 @@ private:
   int pathlimits_validation_error_count_{0};
 
   // B4: Input timeout tracking
-  ros::Time last_pathlimits_time_;
+  double input_timeout_sec_{0.5};
+  bool has_pathlimits_{false};
+  ros::WallTime last_pathlimits_wall_time_;
   int input_timeout_count_{0};
 
   // B13: End-to-end latency tracking (LiDAR → control command)
@@ -546,8 +575,15 @@ private:
   int e2e_latency_warn_count_{0};
   static constexpr double kE2eLatencyWarnSec = 0.1;  // 100ms
 
-  // B19: Stop reason tracking
-  std::string stop_reason_{"RUNNING"};
+  // B19/B30: Stop reason tracking
+  control_core::ControlStopState stop_state_{control_core::ControlStopState::RUNNING};
+
+  // B28: Last control output for diagnostics
+  int last_steering_{110};
+  int last_pedal_{0};
+  int last_brake_{0};
+  double last_target_speed_{0.0};
+  bool has_target_speeds_{false};
 };
 
 } // namespace control_ros
