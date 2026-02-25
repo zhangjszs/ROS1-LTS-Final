@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>vision_ros</name>
+  <version>1.0.0</version>
+  <description>ROS wrapper for vision-based cone detection</description>
+  <license>BSD</license>
+  <maintainer email="team@2025huat.dev">2025HUAT Team</maintainer>
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>roscpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>cv_bridge</depend>
+  <depend>image_transport</depend>
+  <depend>autodrive_msgs</depend>
+  <depend>fsd_common</depend>
+  <depend>vision_core</depend>
+  <depend>diagnostic_msgs</depend>
+</package>

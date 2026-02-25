@@ -42,6 +42,7 @@ add_library(${PROJECT_NAME}
   src/fallback_detector.cpp
   src/detection_postprocess.cpp
   src/temporal_tracker.cpp
+  src/inference_backend.cpp
 )
 if(HAVE_ONNXRUNTIME)
   target_sources(${PROJECT_NAME} PRIVATE src/onnx_backend.cpp)
