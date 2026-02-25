@@ -70,10 +70,14 @@ inline bool ValidatePathDynamicsShape(const autodrive_msgs::HUAT_PathLimits &msg
 
 // B5: Validate path quality (curvature, length)
 // Returns true if valid, false if quality issues detected
+// min_violations: minimum number of violating points before flagging (default 5)
+// warn_scale: tolerance multiplier on kMaxCurvature for warn gate (default 1.08)
 inline bool ValidatePathQuality(const autodrive_msgs::HUAT_PathLimits &msg,
                                 std::string *warning = nullptr,
                                 int *curvature_violations = nullptr,
-                                double *max_curvature = nullptr)
+                                double *max_curvature = nullptr,
+                                int min_violations = 5,
+                                double warn_scale = 1.08)
 {
   bool has_issues = false;
   std::ostringstream oss;
@@ -89,6 +93,7 @@ inline bool ValidatePathQuality(const autodrive_msgs::HUAT_PathLimits &msg,
 
   // Check curvature limit (vehicle physical constraint)
   constexpr double kMaxCurvature = 0.222; // 1/m, corresponds to min turning radius ~4.5m
+  const double kWarnCurvature = kMaxCurvature * std::max(1.0, warn_scale);
   int violations = 0;
   double max_curv = 0.0;
 
@@ -99,13 +104,13 @@ inline bool ValidatePathQuality(const autodrive_msgs::HUAT_PathLimits &msg,
     {
       max_curv = abs_curv;
     }
-    if (abs_curv > kMaxCurvature)
+    if (abs_curv > kWarnCurvature)
     {
       ++violations;
     }
   }
 
-  if (violations > 0)
+  if (violations >= std::max(1, min_violations))
   {
     oss << "Curvature violations: " << violations << " points exceed " << kMaxCurvature
         << " 1/m (max: " << max_curv << " 1/m); ";

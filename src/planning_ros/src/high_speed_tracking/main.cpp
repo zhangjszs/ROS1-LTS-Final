@@ -183,7 +183,40 @@ void callback_ccat(const autodrive_msgs::HUAT_ConeMap::ConstPtr &data)
   nodes.reserve(data->cone.size());
   for (const autodrive_msgs::HUAT_Cone &c : data->cone)
   {
-    if (planning_ros::contract::DecodeConeConfidenceScore(c.confidence) >= params->main.min_cone_confidence)
+    const double base_min = params->main.min_cone_confidence;
+    double required_min = base_min;
+    const auto &p = c.position_baseLink;
+    const double dist = std::hypot(static_cast<double>(p.x), static_cast<double>(p.y));
+    if (static_cast<double>(p.x) >= 0.0 &&
+        dist >= params->main.far_front_center_dist_threshold &&
+        std::abs(static_cast<double>(p.y)) <= params->main.far_front_center_abs_y_threshold)
+    {
+      required_min = std::max(required_min,
+                              static_cast<double>(params->main.min_cone_confidence_far_front_center));
+    }
+    if (static_cast<double>(p.x) >= 0.0 &&
+        dist >= params->main.far_side_dist_threshold &&
+        std::abs(static_cast<double>(p.y)) > params->main.far_side_abs_y_threshold)
+    {
+      required_min = std::max(required_min, static_cast<double>(params->main.min_cone_confidence_far_side));
+    }
+    if (static_cast<double>(p.x) >= 0.0 &&
+        dist >= params->main.far_side_dist_threshold &&
+        std::abs(static_cast<double>(p.y)) > params->main.far_side_abs_y_strict_threshold)
+    {
+      required_min = std::max(required_min, static_cast<double>(params->main.min_cone_confidence_far_side_strict));
+    }
+
+    if (params->main.cone_geom_filter_enable) {
+      const bool front_ok = !params->main.cone_geom_filter_front_only || static_cast<double>(p.x) >= 0.0;
+      if (front_ok &&
+          dist >= params->main.cone_geom_filter_dist_th &&
+          std::abs(static_cast<double>(p.y)) > params->main.cone_geom_filter_abs_y_max) {
+        continue;
+      }
+    }
+
+    if (planning_ros::contract::DecodeConeConfidenceScore(c.confidence) >= required_min)
     {
       nodes.emplace_back(c);
     }

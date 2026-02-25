@@ -28,6 +28,24 @@ Params::Params(ros::NodeHandle *const nh) {
   pnh.param<bool>("shutdown_on_loop_closure", main.shutdown_on_loop_closure, true);
   pnh.param<bool>("debug_save_way_files", main.debug_save_way_files, false);
   pnh.param<float>("min_cone_confidence", main.min_cone_confidence, 0.0);
+  pnh.param<float>("min_cone_confidence_far_front_center",
+                   main.min_cone_confidence_far_front_center,
+                   main.min_cone_confidence);
+  pnh.param<float>("min_cone_confidence_far_side", main.min_cone_confidence_far_side, main.min_cone_confidence);
+  pnh.param<float>("min_cone_confidence_far_side_strict", main.min_cone_confidence_far_side_strict, main.min_cone_confidence_far_side);
+  pnh.param<double>("far_front_center_dist_threshold",
+                    main.far_front_center_dist_threshold,
+                    18.0);
+  pnh.param<double>("far_front_center_abs_y_threshold",
+                    main.far_front_center_abs_y_threshold,
+                    1.0);
+  pnh.param<double>("far_side_dist_threshold", main.far_side_dist_threshold, 18.0);
+  pnh.param<double>("far_side_abs_y_threshold", main.far_side_abs_y_threshold, 1.0);
+  pnh.param<double>("far_side_abs_y_strict_threshold", main.far_side_abs_y_strict_threshold, 15.0);
+  pnh.param<bool>("cone_geom_filter_enable", main.cone_geom_filter_enable, false);
+  pnh.param<double>("cone_geom_filter_dist_th", main.cone_geom_filter_dist_th, 18.0);
+  pnh.param<double>("cone_geom_filter_abs_y_max", main.cone_geom_filter_abs_y_max, 15.0);
+  pnh.param<bool>("cone_geom_filter_front_only", main.cone_geom_filter_front_only, true);
   pnh.param<int>("number_of_stopped_turns", main.number_of_stopped_turns, 3);
   pnh.param<int>("the_mode_of_partial_path", main.the_mode_of_partial_path, 2);
   pnh.param<int>("the_mode_of_full_path", main.the_mode_of_full_path, 3);
@@ -36,6 +54,10 @@ Params::Params(ros::NodeHandle *const nh) {
   pnh.param<double>("max_triangle_edge_len", wayComputer.max_triangle_edge_len, 9.0);
   pnh.param<double>("min_triangle_angle", wayComputer.min_triangle_angle, 0.25);
   pnh.param<double>("max_dist_circum_midPoint", wayComputer.max_dist_circum_midPoint, 1.0);
+  pnh.param<bool>("tracklimits_filter_enable", wayComputer.tracklimits_filter_enable, false);
+  pnh.param<double>("tracklimits_filter_dist_th", wayComputer.tracklimits_filter_dist_th, 18.0);
+  pnh.param<double>("tracklimits_filter_abs_y_max", wayComputer.tracklimits_filter_abs_y_max, 30.0);
+  pnh.param<bool>("tracklimits_filter_front_only", wayComputer.tracklimits_filter_front_only, true);
   pnh.param<int>("failsafe_max_way_horizon_size", wayComputer.failsafe_max_way_horizon_size, 6);
   pnh.param<bool>("general_failsafe", wayComputer.general_failsafe, true);
   pnh.param<double>("general_failsafe_safetyFactor", wayComputer.general_failsafe_safetyFactor, 1.4);
@@ -48,6 +70,9 @@ Params::Params(ros::NodeHandle *const nh) {
   pnh.param<int>("max_search_options", wayComputer.search.max_search_options, 2);
   pnh.param<double>("max_next_heuristic", wayComputer.search.max_next_heuristic, 3.0);
   pnh.param<float>("heur_dist_ponderation", wayComputer.search.heur_dist_ponderation, 0.6);
+  pnh.param<double>("heur_lateral_penalty_weight", wayComputer.search.heur_lateral_penalty_weight, 0.0);
+  pnh.param<double>("heur_lateral_penalty_dist_th", wayComputer.search.heur_lateral_penalty_dist_th, 18.0);
+  pnh.param<double>("heur_lateral_penalty_abs_y_threshold", wayComputer.search.heur_lateral_penalty_abs_y_threshold, 15.0);
   pnh.param<bool>("allow_intersection", wayComputer.search.allow_intersection, false);
   pnh.param<float>("max_treeSearch_time", wayComputer.search.max_treeSearch_time, 0.05);
   // WayComputer::Way
@@ -89,6 +114,8 @@ Params::Params(ros::NodeHandle *const nh) {
   pnh.param<double>("search_adaptive_heuristic_max", wayComputer.speed.search_adaptive_heuristic_max, 14.0);
   pnh.param<bool>("search_adaptive_retry_on_short", wayComputer.speed.search_adaptive_retry_on_short, true);
   pnh.param<bool>("loop_diag_enable", wayComputer.speed.loop_diag_enable, false);
+  pnh.param<double>("curvature_lookahead_m", wayComputer.speed.curvature_lookahead_m, 5.0);
+  pnh.param<bool>("decel_to_stop_at_end", wayComputer.speed.decel_to_stop_at_end, false);
 
   // Visualization
   pnh.param<bool>("publish_viz_data", visualization.publish_viz_data, true);

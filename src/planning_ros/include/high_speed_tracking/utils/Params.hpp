@@ -30,11 +30,27 @@ class Params {
     bool shutdown_on_loop_closure;
     bool debug_save_way_files;
     float min_cone_confidence;
+    float min_cone_confidence_far_front_center;
+    float min_cone_confidence_far_side;
+    float min_cone_confidence_far_side_strict;
+    double far_front_center_dist_threshold;
+    double far_front_center_abs_y_threshold;
+    double far_side_dist_threshold;
+    double far_side_abs_y_threshold;
+    double far_side_abs_y_strict_threshold;
+    bool cone_geom_filter_enable;
+    double cone_geom_filter_dist_th;
+    double cone_geom_filter_abs_y_max;
+    bool cone_geom_filter_front_only;
     int number_of_stopped_turns;
     int the_mode_of_partial_path,the_mode_of_full_path;
   } main;
   struct WayComputer {
     double max_triangle_edge_len, min_triangle_angle, max_dist_circum_midPoint;
+    bool tracklimits_filter_enable;
+    double tracklimits_filter_dist_th;
+    double tracklimits_filter_abs_y_max;
+    bool tracklimits_filter_front_only;
     int failsafe_max_way_horizon_size;
     bool general_failsafe;
     double general_failsafe_safetyFactor;
@@ -45,6 +61,9 @@ class Params {
       int max_search_options;
       double max_next_heuristic;
       float heur_dist_ponderation;
+      double heur_lateral_penalty_weight;
+      double heur_lateral_penalty_dist_th;
+      double heur_lateral_penalty_abs_y_threshold;
       bool allow_intersection;
       float max_treeSearch_time;
     } search;
@@ -88,6 +107,8 @@ class Params {
       double search_adaptive_heuristic_max;
       bool search_adaptive_retry_on_short;
       bool loop_diag_enable;
+      double curvature_lookahead_m;
+      bool decel_to_stop_at_end;
     } speed;
   } wayComputer;
   struct Visualization {

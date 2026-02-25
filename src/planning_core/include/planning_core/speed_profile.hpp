@@ -17,6 +17,13 @@ struct SpeedProfileParams
   double min_speed = 1.0;
   double curvature_epsilon = 1e-3;
   double current_speed = 0.0;
+
+  // Lookahead curvature preview: use max curvature in a forward window
+  // to start braking before entering curves (0 = disabled, use point curvature)
+  double curvature_lookahead_m = 5.0;
+
+  // End-of-path deceleration: force last point to min_speed
+  bool decel_to_stop_at_end = false;
 };
 
 struct Point2D
@@ -61,7 +68,8 @@ inline void ComputeCurvatures(const std::vector<Point2D> &path,
 }
 
 /// Compute a feasible speed profile given curvatures and path geometry.
-/// Uses lateral-acceleration limit, forward (accel) and backward (brake) passes.
+/// Uses lateral-acceleration limit (with lookahead curvature preview),
+/// forward (accel) and backward (brake) passes.
 inline void ComputeSpeedProfile(const std::vector<Point2D> &path,
                                 const std::vector<double> &curvatures,
                                 const SpeedProfileParams &p,
@@ -88,11 +96,38 @@ inline void ComputeSpeedProfile(const std::vector<Point2D> &path,
       ds[i] = std::max(1e-3, PointDist(path[i], path[i + 1]));
   }
 
-  // Lateral acceleration constraint
+  // Lookahead curvature preview: for each point, find max |kappa| in
+  // a forward window of curvature_lookahead_m meters.
+  // This makes the vehicle start slowing BEFORE entering a curve.
+  std::vector<double> effective_kappa(n, 0.0);
+  if (p.curvature_lookahead_m > 0.0 && n >= 2)
+  {
+    for (size_t i = 0; i < n; ++i)
+    {
+      double max_k = std::abs(curvatures[i]);
+      double dist_acc = 0.0;
+      for (size_t j = i; j + 1 < n; ++j)
+      {
+        dist_acc += ds[j];
+        if (dist_acc > p.curvature_lookahead_m)
+          break;
+        double k = std::abs(curvatures[j + 1]);
+        if (k > max_k) max_k = k;
+      }
+      effective_kappa[i] = max_k;
+    }
+  }
+  else
+  {
+    for (size_t i = 0; i < n; ++i)
+      effective_kappa[i] = std::abs(curvatures[i]);
+  }
+
+  // PASS 1: Lateral acceleration constraint with lookahead curvature
   std::vector<double> v_ref(n, v_cap);
   for (size_t i = 0; i < n; ++i)
   {
-    const double denom = std::max(std::abs(curvatures[i]), kappa_eps);
+    const double denom = std::max(effective_kappa[i], kappa_eps);
     const double v_lat_max = std::sqrt(std::max(0.0, a_lat / denom));
     v_ref[i] = std::max(v_min, std::min(v_cap, v_lat_max));
   }
@@ -101,7 +136,13 @@ inline void ComputeSpeedProfile(const std::vector<Point2D> &path,
   v_ref[0] = std::max(v_min, std::min(v_cap,
       std::isfinite(p.current_speed) ? std::max(0.0, p.current_speed) : 0.0));
 
-  // Forward pass (acceleration constraint)
+  // End-of-path deceleration: force last point to min_speed
+  if (p.decel_to_stop_at_end && n >= 2)
+  {
+    v_ref[n - 1] = v_min;
+  }
+
+  // PASS 2: Forward pass (acceleration constraint)
   for (size_t i = 1; i < n; ++i)
   {
     const double reachable = std::sqrt(std::max(0.0,
@@ -109,7 +150,7 @@ inline void ComputeSpeedProfile(const std::vector<Point2D> &path,
     v_ref[i] = std::min(v_ref[i], reachable);
   }
 
-  // Backward pass (braking constraint)
+  // PASS 3: Backward pass (braking constraint)
   for (size_t i = n - 1; i > 0; --i)
   {
     const double reachable = std::sqrt(std::max(0.0,

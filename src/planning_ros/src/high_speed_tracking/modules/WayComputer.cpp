@@ -304,7 +304,16 @@ double WayComputer::getHeuristic(const Point &actPos, const Point &nextPos, cons
   double angle = Vector(actPos, nextPos).angleWith(dir);
   double angleHeur = -log(std::max(0.0, ((M_PI_2 - abs(angle)) / M_PI_2) - 0.2)); //这个计算过程的目的是将夹角越接近0，启发式函数值越大
 
-  return params.heur_dist_ponderation * distHeur + (1 - params.heur_dist_ponderation) * angleHeur;
+  double lateral_penalty = 0.0;
+  if (params.heur_lateral_penalty_weight > 0.0 && distHeur >= params.heur_lateral_penalty_dist_th) {
+    const double abs_y = std::abs(nextPos.y);
+    const double excess = std::max(0.0, abs_y - params.heur_lateral_penalty_abs_y_threshold);
+    lateral_penalty = params.heur_lateral_penalty_weight * excess;
+  }
+
+  return params.heur_dist_ponderation * distHeur +
+         (1 - params.heur_dist_ponderation) * angleHeur +
+         lateral_penalty;
 }
 
 inline double WayComputer::avgEdgeLen(const Trace *trace) const {
@@ -762,6 +771,8 @@ void WayComputer::fillPathDynamics(autodrive_msgs::HUAT_PathLimits &msg) const {
   sp.min_speed = speed_cfg.min_speed;
   sp.curvature_epsilon = speed_cfg.curvature_epsilon;
   sp.current_speed = std::isfinite(this->CarState.V) ? static_cast<double>(this->CarState.V) : 0.0;
+  sp.curvature_lookahead_m = speed_cfg.curvature_lookahead_m;
+  sp.decel_to_stop_at_end = speed_cfg.decel_to_stop_at_end;
 
   planning_core::ComputeSpeedProfile(pts, msg.curvatures, sp, msg.target_speeds);
 
@@ -1255,10 +1266,34 @@ autodrive_msgs::HUAT_PathLimits WayComputer::getPathLimits() const  {
   Tracklimits tracklimits = this->wayToPublish_.getTracklimits();
   res.tracklimits.left.reserve(tracklimits.first.size());
   for (const Node &n : tracklimits.first) {
-    res.tracklimits.left.push_back(n.cone());
+    const autodrive_msgs::HUAT_Cone c = n.cone();
+    if (this->params_.tracklimits_filter_enable) {
+      const double x = static_cast<double>(c.position_baseLink.x);
+      const double y = static_cast<double>(c.position_baseLink.y);
+      const double dist = std::hypot(x, y);
+      const bool front_ok = !this->params_.tracklimits_filter_front_only || x >= 0.0;
+      if (front_ok &&
+          dist >= this->params_.tracklimits_filter_dist_th &&
+          std::abs(y) > this->params_.tracklimits_filter_abs_y_max) {
+        continue;
+      }
+    }
+    res.tracklimits.left.push_back(c);
   }
   for (const Node &n : tracklimits.second) {
-    res.tracklimits.right.push_back(n.cone());
+    const autodrive_msgs::HUAT_Cone c = n.cone();
+    if (this->params_.tracklimits_filter_enable) {
+      const double x = static_cast<double>(c.position_baseLink.x);
+      const double y = static_cast<double>(c.position_baseLink.y);
+      const double dist = std::hypot(x, y);
+      const bool front_ok = !this->params_.tracklimits_filter_front_only || x >= 0.0;
+      if (front_ok &&
+          dist >= this->params_.tracklimits_filter_dist_th &&
+          std::abs(y) > this->params_.tracklimits_filter_abs_y_max) {
+        continue;
+      }
+    }
+    res.tracklimits.right.push_back(c);
   }
 
   // replan indicates if the n midpoints in front of the car
@@ -1346,10 +1381,34 @@ autodrive_msgs::HUAT_PathLimits WayComputer::getPathLimitsGlobal(int x)  {
   Tracklimits tracklimits = this->wayToPublish_.getTracklimits();
   res.tracklimits.left.reserve(tracklimits.first.size());
   for (const Node &n : tracklimits.first) {
-    res.tracklimits.left.push_back(n.cone());
+    const autodrive_msgs::HUAT_Cone c = n.cone();
+    if (this->params_.tracklimits_filter_enable) {
+      const double x = static_cast<double>(c.position_baseLink.x);
+      const double y = static_cast<double>(c.position_baseLink.y);
+      const double dist = std::hypot(x, y);
+      const bool front_ok = !this->params_.tracklimits_filter_front_only || x >= 0.0;
+      if (front_ok &&
+          dist >= this->params_.tracklimits_filter_dist_th &&
+          std::abs(y) > this->params_.tracklimits_filter_abs_y_max) {
+        continue;
+      }
+    }
+    res.tracklimits.left.push_back(c);
   }
   for (const Node &n : tracklimits.second) {
-    res.tracklimits.right.push_back(n.cone());
+    const autodrive_msgs::HUAT_Cone c = n.cone();
+    if (this->params_.tracklimits_filter_enable) {
+      const double x = static_cast<double>(c.position_baseLink.x);
+      const double y = static_cast<double>(c.position_baseLink.y);
+      const double dist = std::hypot(x, y);
+      const bool front_ok = !this->params_.tracklimits_filter_front_only || x >= 0.0;
+      if (front_ok &&
+          dist >= this->params_.tracklimits_filter_dist_th &&
+          std::abs(y) > this->params_.tracklimits_filter_abs_y_max) {
+        continue;
+      }
+    }
+    res.tracklimits.right.push_back(c);
   }
 
   // replan indicates if the n midpoints in front of the car

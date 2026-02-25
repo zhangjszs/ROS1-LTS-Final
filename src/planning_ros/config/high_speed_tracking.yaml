@@ -36,22 +36,41 @@ the_mode_of_partial_path:       2       # int    [-]   选择发布路径的方�
 the_mode_of_full_path:          3       # int    [-]   选择发布路径的方式(已回环)
 
 # Filtering
-min_cone_confidence:            0.0     # float  [-]   置信度阈值：低于此值的锥桶不会参与规划
-max_triangle_edge_len:          7.0     # double [m]   过滤掉有边长大于此值的三角形
-min_triangle_angle:             0.20    # double [-]   内角小于此值的三角形被删除(弧度制)
-max_dist_circum_midPoint:       10.0    # double [m]   中点与三角形外接圆心之间的最大距离限制,超过此限制会被删除
+min_cone_confidence:            0.8     # float  [-]   置信度阈值：低于此值的锥桶不会参与规划
+min_cone_confidence_far_front_center: 0.86 # float [-]  前向窄带(|y|很小)远距更严格阈值（抑制正前方连续结构误检）
+far_front_center_dist_threshold: 18.0  # double [m]   前向窄带远距阈值：x>=0 且 dist>=该值才启用 front_center 阈值
+far_front_center_abs_y_threshold: 1.2  # double [m]   前向窄带阈值：|y|<=该值时启用 front_center 阈值
+min_cone_confidence_far_side:   0.86    # float  [-]   远距侧向(|y|大)更严格阈值（抑制墙/护栏类连续结构误检）
+min_cone_confidence_far_side_strict: 0.90 # float [-]  远距极侧向(|y|很大)更严格阈值（针对墙/护栏类连续结构）
+far_side_dist_threshold:        16.0    # double [m]   远距分段阈值：x>=0 且 dist>=该值才启用 far_side 阈值
+far_side_abs_y_threshold:       1.2     # double [m]   侧向分段阈值：|y|>该值才启用 far_side 阈值
+far_side_abs_y_strict_threshold: 11.8 # double [m]   极侧向阈值：|y|>该值时使用 strict 置信度阈值
+cone_geom_filter_enable:        true    # bool   [-]   输入锥桶几何过滤（影响搜索/三角剖分）：抑制远距墙/护栏类离群 cone
+cone_geom_filter_dist_th:       18.0    # double [m]   dist>=该值才启用几何过滤
+cone_geom_filter_abs_y_max:     23.0    # double [m]   远距 cone 最大允许 |y|（超过认为离群）
+cone_geom_filter_front_only:    true    # bool   [-]   仅对前向(x>=0) cone 应用几何过滤
+tracklimits_filter_enable:      true    # bool   [-]   发布前过滤轨道边界离群点（不影响搜索，仅影响 tracklimits 输出）
+tracklimits_filter_dist_th:     16.0    # double [m]   仅对远距 cone 应用过滤
+tracklimits_filter_abs_y_max:   20.0    # double [m]   远距 tracklimits 最大允许 |y|（更严格，优先压制墙/护栏离群）
+tracklimits_filter_front_only:  true    # bool   [-]   仅对前向(x>=0) cone 应用过滤
+max_triangle_edge_len:          7.5     # double [m]   过滤掉有边长大于此值的三角形
+min_triangle_angle:             0.24    # double [-]   内角小于此值的三角形被删除(弧度制)
+max_dist_circum_midPoint:       14.0    # double [m]   中点与三角形外接圆心之间的最大距离限制,超过此限制会被删除
 
 # Search
 max_way_horizon_size:           0       # int    [num] 车前方路径点的最大值,0等于无穷,也就是有多少就找多少路径点
-max_search_tree_height:         7       # int    [num] 树搜索的最大值, 越大越好
-search_radius:                  15.0    # double [m]   搜索路径的半径,多了会增大耗时,少了不好出路径
-max_angle_diff:                 1.4     # double [rad] 中点构成的路径之间最大的角度差范围是( 0, pi/2)
-edge_len_diff_factor:           1.2     # double [-]   如果路径的平均边长为x，则只有当x-this*x < length(e) <= x+x*this时，才会考虑属于边e的中点
-max_search_options:             3       # int    [num] 搜索过程中树中每个节点的最大子节点数，2是稳定的，3是危险的
-max_next_heuristic:             4.0     # double [-]   启发值门槛,需要根据锥筒间距来进行调整,如果太小会规划不出来路径,太大则会让路径不可靠
+max_search_tree_height:         8       # int    [num] 树搜索的最大值, 越大越好（提高可行路径覆盖）
+search_radius:                  18.0    # double [m]   搜索路径半径（降低 short-path 触发频率）
+edge_len_diff_factor:           0.95    # double [-]   边长相对均匀约束（越小越严格）
+max_angle_diff:                 1.20    # double [rad] 角度差略收紧，减少尖角/反弹式边选择
+max_search_options:             3       # int    [num] 每节点最大分支数（更高分支=更易搜到，但可能更抖/更爆炸）；当前 sweep 选 3
+max_next_heuristic:             4.5     # double [-]   启发值门槛（略放宽以抵消分支数降低）
 heur_dist_ponderation:          0.4     # float  [-]   范围( 0.0,  1.0)计算启发值的时候给长度的权重
+heur_lateral_penalty_weight:   0.10     # double [-]   远距侧向(y大)启发式惩罚权重（0=关闭）
+heur_lateral_penalty_dist_th:  16.0    # double [m]   dist>=该值才启用侧向惩罚
+heur_lateral_penalty_abs_y_threshold: 12.0 # double [m] |y|超过该阈值才产生惩罚
 allow_intersection:             false   # bool   [-]   是否允许路径交叉(路径中的循环)
-max_treeSearch_time:            0.10    # float  [s]   树搜索所能花费的最大时间，否则，搜索将停止，并选择最好的中点(并添加到路径中)
+max_treeSearch_time:            0.14    # float  [s]   树搜索最大耗时（换取更稳定的路径；超时会截断搜索）
 
 # Loop Closure                  #这个应该不用怎么碰,关于圈数和关闭节点是用的另外的判定方式
 shutdown_on_loop_closure:       false   # bool   [-]   路线闭环之后是否关闭节点
@@ -68,16 +87,16 @@ min_speed:                      1.0     # double [m/s] 最低巡航速度，避�
 curvature_epsilon:              0.001   # double [1/m] 曲率限速分母下限
 mode_transition_frames:         40      # int    [frame] SAFE_LAP/FAST_LAP 速度上限渐进过渡帧数
 curvature_limit:                0.222   # double [1/m] AUT 几何曲率参考上限（R>=4.5m）
-curvature_warn_limit_scale:     1.08    # double [-]   告警/质量判定容差倍率（仅用于告警统计，不改变速度约束的曲率值）
+curvature_warn_limit_scale:     1.06    # double [-]   告警/质量判定容差倍率（仅用于告警统计，不改变速度约束的曲率值）
 curvature_smoothing_enable:     true    # bool   [-]   对输出路径做轻量曲率平滑
-curvature_smoothing_max_iters:  4       # int    [iter] 曲率平滑最大迭代次数
-curvature_smoothing_alpha:      0.25    # double [-]   每次将超限点拉向邻点中点的比例
-curvature_warn_ratio:           0.12    # double [-]   超限点比例达到该阈值才告警
-curvature_warn_min_points:      8       # int    [num] 超限点最小数量门槛
-min_publish_path_size:          12      # int    [num] 可发布路径最小点数，低于该值视为短路径
-short_path_stable_relax_points: 3       # int    [num] 已有稳定路径时，短路径阈值放宽点数（减少持有回退触发）
+curvature_smoothing_max_iters:  15      # int    [iter] 曲率平滑最大迭代次数（抑制局部尖角/抖动）
+curvature_smoothing_alpha:      0.45    # double [-]   平滑步长（更强的拉回力度）
+curvature_warn_ratio:           0.15    # double [-]   超限点比例达到该阈值才告警（更敏感，优先hold稳定路径）
+curvature_warn_min_points:      5       # int    [num] 超限点最小数量门槛
+min_publish_path_size:          13      # int    [num] 可发布路径最小点数，低于该值视为短路径
+short_path_stable_relax_points: 5       # int    [num] 已有稳定路径时，短路径阈值放宽点数（减少持有回退触发）
 hold_last_valid_path:           true    # bool   [-]   短路径时保留上次有效路径
-hold_last_valid_max_frames:     25      # int    [frame] 最多连续保留帧数
+hold_last_valid_max_frames:     30      # int    [frame] 最多连续保留帧数（更抗瞬时误检/短路径）
 loop_close_debounce_frames:     1       # int    [frame] 回环成立防抖帧数，几何回环一旦成立立即切到 FAST_LAP
 loop_open_debounce_frames:      15      # int    [frame] 回环失效防抖帧数，连续失效后回退到 SAFE_LAP
 loop_allow_reopen:              false   # bool   [-]   默认锁存 FAST_LAP，不因短时回环抖动回退 SAFE（降低 full 发布抖动）
@@ -86,16 +105,18 @@ search_adaptive_enable:         true    # bool   [-]   启用短路径自适应�
 search_adaptive_trigger_frames: 1       # int    [frame] 连续短路径达到该帧数后开始放宽搜索参数
 search_adaptive_step_frames:    1       # int    [frame] 每累计该帧数，放宽等级 +1
 search_adaptive_max_level:      8       # int    [-]   放宽等级上限
-search_adaptive_bootstrap_level: 4      # int    [-]   在尚无稳定路径时使用的基础放宽等级
+search_adaptive_bootstrap_level: 3      # int    [-]   在尚无稳定路径时使用的基础放宽等级（略收敛，降低初期乱搜）
 search_adaptive_radius_step:    3.0     # double [m]   每级额外增加的搜索半径
 search_adaptive_heuristic_step: 1.0     # double [-]   每级额外增加的启发值阈值
 search_adaptive_radius_max:     40.0    # double [m]   搜索半径放宽上限
 search_adaptive_heuristic_max:  14.0    # double [-]   启发值阈值放宽上限
 search_adaptive_retry_on_short: true    # bool   [-]   当帧短路径时立即用更宽参数重算一次
 loop_diag_enable:               false   # bool   [-]   打印几何回环诊断（way_size/首尾距/尾点到历史最小距）
+curvature_lookahead_m:          5.0     # double [m]   前视曲率窗口：用窗口内最大曲率限速，提前入弯减速
+decel_to_stop_at_end:           false   # bool   [-]   路径末端强制减速到 min_speed（循迹模式通常关闭）
 
 # Replan flag
-vital_num_midpoints:            10      # int    [num] 没搞清楚,建议没问题就别动.number of midpoints that are considered "vital" from the car's position on. This is taken into account when computing the (inner) replan flag.
+vital_num_midpoints:            10      # int    [num] 参与replan flag的前向关键点数量（更小=更少触发replan）
 
 # Fail safe(s)                  #没搞明白,没问题建议别动
 failsafe_max_way_horizon_size:  6       # int    [num] 在故障安全触发的时候，车前方的大小将设置为此值。避免不良影响

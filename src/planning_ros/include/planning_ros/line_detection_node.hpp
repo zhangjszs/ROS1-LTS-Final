@@ -71,6 +71,8 @@ private:
   double max_brake_ = 4.0;
   double min_speed_ = 1.0;
   double curvature_epsilon_ = 1e-3;
+  double curvature_lookahead_m_ = 5.0;
+  bool decel_to_stop_at_end_ = true;
   double accel_zone_length_ = 75.0;
   double brake_zone_length_ = 100.0;
   double timing_start_offset_ = 0.3;

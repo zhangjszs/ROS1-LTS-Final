@@ -16,6 +16,7 @@
 #include <autodrive_msgs/topic_contract.hpp>
 #include <autodrive_msgs/diagnostics_helper.hpp>
 
+#include "planning_core/mission_state_machine.hpp"
 #include "planning_ros/line_detection_node.hpp"
 #include "planning_ros/skidpad_detection_node.hpp"
 
@@ -115,6 +116,9 @@ private:
 
   // B5: Path quality violation counter
   int path_quality_violation_count_ = 0;
+
+  // B29: Mission state machine
+  planning_core::MissionStateMachine mission_fsm_;
 };
 
 } // namespace planning_ros
