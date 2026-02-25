@@ -4,6 +4,7 @@
   <version>1.0.0</version>
   <description>Pure C++ vision algorithms for cone detection and color classification</description>
   <license>BSD</license>
+  <maintainer email="team@2025huat.dev">2025HUAT Team</maintainer>
   <buildtool_depend>catkin</buildtool_depend>
   <depend>OpenCV</depend>
 </package>
