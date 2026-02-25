@@ -155,6 +155,13 @@ void PlanningPipelineNode::InitHighSpeed(ros::NodeHandle &nh)
                          autodrive_msgs::topic_contract::kPathLimits);
   pathlimits_pub_ = nh.advertise<autodrive_msgs::HUAT_PathLimits>(pathlimits_topic, 1);
   hs_stop_pub_ = nh.advertise<autodrive_msgs::HUAT_Stop>(hs_params_->main.stop_topic, 1);
+
+  // B29: Initialize mission FSM from existing params
+  planning_core::MissionFSMConfig fsm_cfg;
+  fsm_cfg.required_laps = hs_params_->main.number_of_stopped_turns;
+  fsm_cfg.finish_grace_frames = finishGraceFrames_;
+  fsm_cfg.wait_full_before_stop = waitFullBeforeStop_;
+  mission_fsm_ = planning_core::MissionStateMachine(fsm_cfg);
 }
 
 // ---------------------------------------------------------------------------
@@ -212,6 +219,11 @@ void PlanningPipelineNode::PublishEntryHealth(const ros::Time &stamp, bool force
     kvs.push_back(DH::KV("loop_fallback_active", loopFallbackWasActive_ ? "true" : "false"));
     kvs.push_back(DH::KV("inter_times", std::to_string(interTimes_)));
     kvs.push_back(DH::KV("internal_viz_side_channel", enable_internal_viz_side_channel_ ? "true" : "false"));
+    // B29: Mission FSM state in entry health
+    kvs.push_back(DH::KV("mission_state",
+        planning_core::MissionStateMachine::StateName(mission_fsm_.GetState())));
+    kvs.push_back(DH::KV("mission_state_frames",
+        std::to_string(mission_fsm_.FramesInCurrentState())));
   }
 
   diag_helper_.PublishStatus("planning_entry_health", "planning_ros/planning_pipeline",
@@ -265,7 +277,7 @@ void PlanningPipelineNode::HighSpeedSyncCallback(
   constexpr size_t kMaxCones = 2000;
   if (cone_msg->cone.size() > kMaxCones)
   {
-    ROS_WARN_THROTTLE(1.0, "[planning_pipeline/high_speed] Cone count %zu exceeds limit %d, truncating.",
+    ROS_WARN_THROTTLE(1.0, "[planning_pipeline/high_speed] Cone count %zu exceeds limit %zu, truncating.",
                       cone_msg->cone.size(), kMaxCones);
   }
 
@@ -294,8 +306,45 @@ void PlanningPipelineNode::HighSpeedSyncCallback(
   nodes.reserve(cone_msg->cone.size());
   for (const autodrive_msgs::HUAT_Cone &c : cone_msg->cone)
   {
-    if (contract::DecodeConeConfidenceScore(c.confidence) >= hs_params_->main.min_cone_confidence)
+    const double base_min = hs_params_->main.min_cone_confidence;
+    double required_min = base_min;
+    const auto &p = c.position_baseLink;
+    const double dist = std::hypot(static_cast<double>(p.x), static_cast<double>(p.y));
+    if (static_cast<double>(p.x) >= 0.0 &&
+        dist >= hs_params_->main.far_front_center_dist_threshold &&
+        std::abs(static_cast<double>(p.y)) <= hs_params_->main.far_front_center_abs_y_threshold)
     {
+      required_min = std::max(required_min,
+                              static_cast<double>(hs_params_->main.min_cone_confidence_far_front_center));
+    }
+    if (static_cast<double>(p.x) >= 0.0 &&
+        dist >= hs_params_->main.far_side_dist_threshold &&
+        std::abs(static_cast<double>(p.y)) > hs_params_->main.far_side_abs_y_threshold)
+    {
+      required_min = std::max(required_min, static_cast<double>(hs_params_->main.min_cone_confidence_far_side));
+    }
+    if (static_cast<double>(p.x) >= 0.0 &&
+        dist >= hs_params_->main.far_side_dist_threshold &&
+        std::abs(static_cast<double>(p.y)) > hs_params_->main.far_side_abs_y_strict_threshold)
+    {
+      required_min = std::max(required_min, static_cast<double>(hs_params_->main.min_cone_confidence_far_side_strict));
+    }
+
+    if (hs_params_->main.cone_geom_filter_enable) {
+      const bool front_ok = !hs_params_->main.cone_geom_filter_front_only || static_cast<double>(p.x) >= 0.0;
+      if (front_ok &&
+          dist >= hs_params_->main.cone_geom_filter_dist_th &&
+          std::abs(static_cast<double>(p.y)) > hs_params_->main.cone_geom_filter_abs_y_max) {
+        continue;
+      }
+    }
+
+    if (contract::DecodeConeConfidenceScore(c.confidence) >= required_min)
+    {
+      if (c.type > 5)
+      {
+        ROS_WARN_ONCE("[planning_pipeline/high_speed] Cone type %u out of range [0..5], treating as NONE.", c.type);
+      }
       nodes.emplace_back(c);
     }
   }
@@ -357,6 +406,22 @@ void PlanningPipelineNode::HighSpeedSyncCallback(
   loopFallbackWasActive_ = loop_fallback_active_now;
   const bool loop_closed_for_publish = loop_closed_raw || loop_closed_fallback;
 
+  // B29: Update mission FSM
+  {
+    planning_core::MissionFSMInput fsm_in;
+    fsm_in.has_valid_path = !nodes.empty();
+    fsm_in.loop_closed = loop_closed_for_publish;
+    fsm_in.lap_count = interTimes_;
+    fsm_in.full_path_published = fullPathPublishedOnce_;
+    fsm_in.stop_requested = finish_reached;
+    if (mission_fsm_.Update(fsm_in))
+    {
+      ROS_INFO("[planning_pipeline] Mission FSM: %s (frame %d)",
+               planning_core::MissionStateMachine::StateName(mission_fsm_.GetState()),
+               mission_fsm_.TotalFrames());
+    }
+  }
+
   if (loop_closed_for_publish)
   {
     if (!wasLoopClosed_)
@@ -370,7 +435,7 @@ void PlanningPipelineNode::HighSpeedSyncCallback(
     std::string quality_warning;
     int curv_violations = 0;
     double max_curv = 0.0;
-    if (!planning_ros::contract::ValidatePathQuality(full_msg, &quality_warning, &curv_violations, &max_curv))
+    if (!planning_ros::contract::ValidatePathQuality(full_msg, &quality_warning, &curv_violations, &max_curv, 5, 1.08))
     {
       ROS_WARN_THROTTLE(1.0, "[planning_pipeline/high_speed] Path quality issues: %s", quality_warning.c_str());
       path_quality_violation_count_++;
@@ -407,7 +472,7 @@ void PlanningPipelineNode::HighSpeedSyncCallback(
     std::string quality_warning;
     int curv_violations = 0;
     double max_curv = 0.0;
-    if (!planning_ros::contract::ValidatePathQuality(partial_msg, &quality_warning, &curv_violations, &max_curv))
+    if (!planning_ros::contract::ValidatePathQuality(partial_msg, &quality_warning, &curv_violations, &max_curv, 10, 1.5))
     {
       ROS_WARN_THROTTLE(1.0, "[planning_pipeline/high_speed] Path quality issues: %s", quality_warning.c_str());
       path_quality_violation_count_++;
@@ -442,6 +507,9 @@ void PlanningPipelineNode::HighSpeedSyncCallback(
     ds.values.push_back(kv("loop_closed", loop_closed_raw ? "true" : "false"));
     ds.values.push_back(kv("loop_fallback_active", loop_fallback_active_now ? "true" : "false"));
     ds.values.push_back(kv("inter_times", std::to_string(interTimes_)));
+    // B29: Mission FSM state in per-callback diagnostics
+    ds.values.push_back(kv("mission_state",
+        planning_core::MissionStateMachine::StateName(mission_fsm_.GetState())));
 
     diag_arr.status.push_back(ds);
     PublishDiagnostics(diag_arr);

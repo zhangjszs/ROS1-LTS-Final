@@ -84,7 +84,9 @@ void SkidpadDetectionCore::ProcessConeDetections(const std::vector<ConePoint> &c
 {
   skidpad_msg_ptr_->clear();
   cones_local_.clear();
+  cone_colors_local_.clear();
   cones_local_.reserve(cones.size());
+  cone_colors_local_.reserve(cones.size());
 
   for (const auto &point : cones)
   {
@@ -92,19 +94,17 @@ void SkidpadDetectionCore::ProcessConeDetections(const std::vector<ConePoint> &c
     {
       continue;
     }
-
-    pcl::PointXYZ pcl_point;
-    pcl_point.x = static_cast<float>(point.x);
-    pcl_point.y = static_cast<float>(point.y);
-    pcl_point.z = static_cast<float>(point.z);
-    skidpad_msg_ptr_->push_back(pcl_point);
-  }
-
-  PassThrough(skidpad_msg_ptr_);
-  cones_local_.reserve(skidpad_msg_ptr_->size());
-  for (const auto &p : skidpad_msg_ptr_->points)
-  {
-    cones_local_.emplace_back(p.x, p.y);
+    // Inline passthrough filter (same logic as PCL PassThrough)
+    if (point.x < params_.passthrough_x_min || point.x > params_.passthrough_x_max)
+    {
+      continue;
+    }
+    if (point.y < params_.passthrough_y_min || point.y > params_.passthrough_y_max)
+    {
+      continue;
+    }
+    cones_local_.emplace_back(point.x, point.y);
+    cone_colors_local_.push_back(point.color_type);
   }
 }
 
@@ -282,15 +282,30 @@ bool SkidpadDetectionCore::EstimateGeometry(GeometryModel *geometry)
   right_pts.reserve(cones_local_.size());
   left_pts.reserve(cones_local_.size());
 
-  for (const Eigen::Vector2d &p : cones_local_)
+  for (size_t i = 0; i < cones_local_.size(); ++i)
   {
-    if (p.y() < 0.0)
+    const Eigen::Vector2d &p = cones_local_[i];
+    const uint8_t color = (i < cone_colors_local_.size()) ? cone_colors_local_[i] : 4;
+
+    if (color == 0)  // BLUE = right boundary
     {
       right_pts.push_back(p);
     }
-    else
+    else if (color == 1 || color == 5)  // YELLOW or RED = left boundary
     {
       left_pts.push_back(p);
+    }
+    else
+    {
+      // NONE/ORANGE: fall back to geometric split
+      if (p.y() < 0.0)
+      {
+        right_pts.push_back(p);
+      }
+      else
+      {
+        left_pts.push_back(p);
+      }
     }
   }
 

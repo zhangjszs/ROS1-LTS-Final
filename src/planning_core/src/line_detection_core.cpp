@@ -64,18 +64,44 @@ std::vector<Pose> LineDetectionCore::GenerateFallbackPathFromSparseCones(const s
 
   if (!cones.empty())
   {
-    double min_y = cones.front().y;
-    double max_y = cones.front().y;
-    for (const ConePoint &cone : cones)
+    // Try color-aware center estimation first
+    double sum_left_y = 0.0, sum_right_y = 0.0;
+    int n_left = 0, n_right = 0;
+    for (const ConePoint &c : cones)
     {
-      min_y = std::min(min_y, cone.y);
-      max_y = std::max(max_y, cone.y);
+      if (c.color_type == 1 || c.color_type == 5)  // YELLOW or RED = left boundary
+      {
+        sum_left_y += c.y;
+        ++n_left;
+      }
+      else if (c.color_type == 0)  // BLUE = right boundary
+      {
+        sum_right_y += c.y;
+        ++n_right;
+      }
     }
 
-    double estimate = 0.5 * (min_y + max_y);
+    double estimate;
+    if (n_left > 0 && n_right > 0)
+    {
+      // Color-aware: average of left-boundary mean and right-boundary mean
+      estimate = 0.5 * (sum_left_y / n_left + sum_right_y / n_right);
+    }
+    else
+    {
+      // Fallback to geometric (min+max)/2
+      double min_y = cones.front().y;
+      double max_y = cones.front().y;
+      for (const ConePoint &cone : cones)
+      {
+        min_y = std::min(min_y, cone.y);
+        max_y = std::max(max_y, cone.y);
+      }
+      estimate = 0.5 * (min_y + max_y);
+    }
+
     if (fallback_center_valid_)
     {
-      // Low-pass to avoid sudden centerline jumps on sparse cones.
       fallback_center_y_ = 0.7 * fallback_center_y_ + 0.3 * estimate;
     }
     else

@@ -9,6 +9,7 @@
  */
 
 #include "structures/Way.hpp"
+#include "planning_core/track_constraints.hpp"
 double limit = 400.0;
 double post_group_x[20];
 double post_group_y[20];
@@ -398,6 +399,28 @@ Tracklimits Way::getTracklimits() const
     {
       left = &e.n1;
       right = &e.n0;
+    }
+
+    // Color-aware override: use cone color to validate/correct geometric classification.
+    // BLUE(0) = right boundary, YELLOW(1) = left boundary per FS rules.
+    // Only override when color is definitive (not NONE/ORANGE).
+    {
+      const uint32_t lt = left->type();
+      const uint32_t rt = right->type();
+      const bool l_has_color = (lt != planning_core::cone_type::NONE &&
+                                lt != planning_core::cone_type::ORANGE_SMALL &&
+                                lt != planning_core::cone_type::ORANGE_BIG);
+      const bool r_has_color = (rt != planning_core::cone_type::NONE &&
+                                rt != planning_core::cone_type::ORANGE_SMALL &&
+                                rt != planning_core::cone_type::ORANGE_BIG);
+      if (l_has_color && r_has_color) {
+        if (lt == planning_core::cone_type::BLUE && rt == planning_core::cone_type::YELLOW)
+          std::swap(left, right);
+      } else if (l_has_color && !r_has_color) {
+        if (lt == planning_core::cone_type::BLUE) std::swap(left, right);
+      } else if (!l_has_color && r_has_color) {
+        if (rt == planning_core::cone_type::YELLOW) std::swap(left, right);
+      }
     }
 
     // Save first Nodes

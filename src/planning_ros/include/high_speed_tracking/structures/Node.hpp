@@ -173,6 +173,11 @@ Node(const autodrive_msgs::HUAT_Cone &c);
   autodrive_msgs::HUAT_Cone cone() const;
 
   /**
+   * @brief Returns the cone type (0=BLUE,1=YELLOW,2=ORANGE_SMALL,3=ORANGE_BIG,4=NONE,5=RED).
+   */
+  uint32_t type() const { return type_; }
+
+  /**
    * @brief Cout operator.
    *
    * @param[in,out] os

@@ -146,6 +146,8 @@ void SkidpadDetectionNode::LoadParameters()
   pnh_.param("speed/max_brake", max_brake_, 4.0);
   pnh_.param("speed/min_speed", min_speed_, 1.0);
   pnh_.param("speed/curvature_epsilon", curvature_epsilon_, 1e-3);
+  pnh_.param("speed/curvature_lookahead_m", curvature_lookahead_m_, 3.0);
+  pnh_.param("speed/decel_to_stop_at_end", decel_to_stop_at_end_, false);
 }
 
 void SkidpadDetectionNode::SyncCallback(const ConeMsg::ConstPtr &cone_msg,
@@ -172,8 +174,9 @@ void SkidpadDetectionNode::SyncCallback(const ConeMsg::ConstPtr &cone_msg,
   std::vector<planning_core::ConePoint> cones;
   cones.reserve(cone_msg->points.size());
 
-  for (const geometry_msgs::Point32 &point : cone_msg->points)
+  for (size_t i = 0; i < cone_msg->points.size(); ++i)
   {
+    const geometry_msgs::Point32 &point = cone_msg->points[i];
     if (!std::isfinite(point.x) || !std::isfinite(point.y) || !std::isfinite(point.z))
     {
       continue;
@@ -182,6 +185,7 @@ void SkidpadDetectionNode::SyncCallback(const ConeMsg::ConstPtr &cone_msg,
     cone.x = point.x;
     cone.y = point.y;
     cone.z = point.z;
+    cone.color_type = (i < cone_msg->color_types.size()) ? cone_msg->color_types[i] : 4;
     cones.push_back(cone);
   }
 
@@ -231,6 +235,8 @@ void SkidpadDetectionNode::FillPathDynamics(autodrive_msgs::HUAT_PathLimits &msg
   sp.min_speed = min_speed_;
   sp.curvature_epsilon = curvature_epsilon_;
   sp.current_speed = latest_vehicle_speed_;
+  sp.curvature_lookahead_m = curvature_lookahead_m_;
+  sp.decel_to_stop_at_end = decel_to_stop_at_end_;
   planning_core::ComputeSpeedProfile(pts, msg.curvatures, sp, msg.target_speeds);
 }
 

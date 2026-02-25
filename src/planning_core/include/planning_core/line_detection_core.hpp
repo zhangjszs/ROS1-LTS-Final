@@ -21,6 +21,7 @@ struct ConePoint
   double x{0.0};
   double y{0.0};
   double z{0.0};
+  uint8_t color_type{4};  // 4 = NONE (default, graceful degradation)
 };
 
 struct VehicleState

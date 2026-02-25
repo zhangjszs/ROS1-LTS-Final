@@ -176,6 +176,7 @@ private:
 
   pcl::PointCloud<pcl::PointXYZ>::Ptr skidpad_msg_ptr_;
   std::vector<Eigen::Vector2d> cones_local_{};
+  std::vector<uint8_t> cone_colors_local_{};
   GeometryModel geometry_{};
 
   SkidpadPhase phase_{SkidpadPhase::ENTRY};

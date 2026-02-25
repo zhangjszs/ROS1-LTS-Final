@@ -95,6 +95,8 @@ void LineDetectionNode::LoadParameters()
   pnh_.param("speed/max_brake", max_brake_, 4.0);
   pnh_.param("speed/min_speed", min_speed_, 1.0);
   pnh_.param("speed/curvature_epsilon", curvature_epsilon_, 1e-3);
+  pnh_.param("speed/curvature_lookahead_m", curvature_lookahead_m_, 5.0);
+  pnh_.param("speed/decel_to_stop_at_end", decel_to_stop_at_end_, true);
   pnh_.param("speed/accel_zone_length", accel_zone_length_, 75.0);
   pnh_.param("speed/brake_zone_length", brake_zone_length_, 100.0);
   pnh_.param("speed/timing_start_offset", timing_start_offset_, 0.3);
@@ -155,8 +157,9 @@ void LineDetectionNode::SyncCallback(const ConeMsg::ConstPtr &cone_msg,
     std::vector<planning_core::ConePoint> cones;
     cones.reserve(cone_msg->points.size());
 
-    for (const geometry_msgs::Point32 &point : cone_msg->points)
+    for (size_t i = 0; i < cone_msg->points.size(); ++i)
     {
+      const geometry_msgs::Point32 &point = cone_msg->points[i];
       if (!std::isfinite(point.x) || !std::isfinite(point.y) || !std::isfinite(point.z))
       {
         continue;
@@ -166,6 +169,7 @@ void LineDetectionNode::SyncCallback(const ConeMsg::ConstPtr &cone_msg,
       cone.x = point.x;
       cone.y = point.y;
       cone.z = point.z;
+      cone.color_type = (i < cone_msg->color_types.size()) ? cone_msg->color_types[i] : 4;
       cones.push_back(cone);
     }
 
@@ -223,6 +227,8 @@ void LineDetectionNode::FillPathDynamics(autodrive_msgs::HUAT_PathLimits &msg) c
   sp.min_speed = min_speed_;
   sp.curvature_epsilon = curvature_epsilon_;
   sp.current_speed = latest_vehicle_speed_;
+  sp.curvature_lookahead_m = curvature_lookahead_m_;
+  sp.decel_to_stop_at_end = decel_to_stop_at_end_;
   planning_core::ComputeSpeedProfile(pts, msg.curvatures, sp, msg.target_speeds);
 
   // Acceleration-mission zone overlay: accel zone + brake zone

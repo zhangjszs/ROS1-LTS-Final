@@ -957,7 +957,8 @@ void LocationMapper::interpolateMissingCones(ConeMap *map_out)
 
       vc.id = static_cast<std::uint32_t>(getNewId());  // 虚拟锥使用会话内唯一ID（禁止ID=0）
       vc.confidence = confidence::EncodeScaled(cfg.min_confidence_for_interpolation);
-      vc.type = kConeNone;
+      // Inherit color from neighbors if they agree; otherwise NONE
+      vc.type = (c1.type == c2.type && c1.type != kConeNone) ? c1.type : kConeNone;
       interpolated.push_back(vc);
     }
   }
