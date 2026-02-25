@@ -13,6 +13,11 @@ inline constexpr const char *kApproachingGoal = "planning/skidpad/approaching_go
 inline constexpr const char *kConeDetections = "perception/lidar_cluster/detections";
 inline constexpr const char *kConeMap = "localization/cone_map";
 
+// ── Vision ────────────────────────────────────────────────────────
+inline constexpr const char *kVisionDetections = "perception/vision/detections";
+inline constexpr const char *kVisionDebugImage = "perception/vision/debug_image";
+inline constexpr const char *kVisionDiagnostics = "perception/vision/diagnostics";
+
 // ── Vehicle interface ───────────────────────────────────────────
 inline constexpr const char *kInsMsg = "sensors/ins";
 inline constexpr const char *kVehicleStatus = "vehicle/status";

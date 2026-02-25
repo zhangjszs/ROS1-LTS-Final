@@ -28,6 +28,7 @@ add_message_files(  # Tell catkin which custom message files to include
   HUAT_TrackLimits.msg
   HUAT_VehicleCmd.msg
   HUAT_VehicleStatus.msg
+  HUAT_VisionDetections.msg
 )
 
 generate_messages(
