@@ -1,0 +1,51 @@
+# === Vision Base Config ===
+# Layered: vision_base.yaml -> vision_{mode}.yaml -> mission overlay -> local override
+
+# --- Inference backend ---
+inference:
+  backend_type: "onnx"          # "onnx" | "tensorrt" | "fallback_only"
+  model_path: ""                # empty = fallback-only mode
+  input_width: 640
+  input_height: 640
+  use_fp16: true
+  num_threads: 2
+
+# --- Detection ---
+detection:
+  conf_threshold: 0.5
+  nms_threshold: 0.45
+  max_detections: 50
+
+# --- Image quality assessment ---
+quality:
+  blur_threshold: 200.0
+  blur_degraded: 100.0
+  blur_poor: 50.0
+  brightness_low: 40.0
+  brightness_high: 220.0
+
+# --- Enhancement ---
+enhancement:
+  auto_clahe: true
+  clahe_clip_limit: 2.0
+  auto_gamma: true
+  denoise_on_poor: true
+  sharpen_on_blur: true
+
+# --- Fallback (HSV traditional) ---
+fallback:
+  enabled: true
+  model_confidence_floor: 0.3
+  min_contour_area: 200.0
+  max_contour_area: 50000.0
+
+# --- Output ---
+output:
+  publish_debug_image: false
+  debug_image_rate: 5
+  confidence_scale: 1000
+
+# --- Node ---
+node:
+  image_topic: "/resize_img_out"
+  loop_rate: 30

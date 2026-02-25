@@ -1,0 +1,4 @@
+# TrackDrive: higher speed, prioritize low latency
+detection:
+  conf_threshold: 0.45
+  max_detections: 50

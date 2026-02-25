@@ -1,0 +1,45 @@
+<!--
+  FSD Vision Subsystem
+  视觉子系统：图像锥桶检测与颜色分类
+
+  Args:
+    mission: track | skidpad | accel (selects config overlay)
+    mode: standard | lightweight | fallback_only
+    debug: true/false (enable debug image publishing)
+-->
+<launch>
+  <arg name="mission" default="track"/>
+  <arg name="mode" default="standard"/>
+  <arg name="debug" default="false"/>
+  <arg name="image_topic" default="/resize_img_out"/>
+  <arg name="ns" default="perception/vision"/>
+  <arg name="extra_config" default="" doc="Vehicle overlay config"/>
+  <arg name="extra_local_config" default="" doc="Local override config"/>
+
+  <group ns="$(arg ns)">
+    <node pkg="vision_ros" type="vision_node" name="vision_node" output="screen">
+      <!-- Layered config: base -> mission -> vehicle -> local -->
+      <rosparam command="load" file="$(find vision_ros)/config/vision_base.yaml"/>
+      <rosparam command="load" file="$(find vision_ros)/config/vision_$(arg mission).yaml"/>
+      <rosparam if="$(eval arg('extra_config') != '')"
+                command="load" file="$(arg extra_config)"/>
+      <rosparam if="$(eval arg('extra_local_config') != '')"
+                command="load" file="$(arg extra_local_config)"/>
+
+      <!-- Mode overrides -->
+      <param name="inference/backend_type" value="fallback_only"
+             if="$(eval mode == 'fallback_only')"/>
+      <param name="inference/input_width" value="320"
+             if="$(eval mode == 'lightweight')"/>
+      <param name="inference/input_height" value="320"
+             if="$(eval mode == 'lightweight')"/>
+
+      <!-- Debug -->
+      <param name="output/publish_debug_image" value="true"
+             if="$(eval debug == 'true')"/>
+
+      <!-- Image topic -->
+      <param name="node/image_topic" value="$(arg image_topic)"/>
+    </node>
+  </group>
+</launch>

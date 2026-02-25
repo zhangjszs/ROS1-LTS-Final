@@ -1,0 +1,4 @@
+# Skidpad: tighter area, fewer cones
+detection:
+  conf_threshold: 0.5
+  max_detections: 30
