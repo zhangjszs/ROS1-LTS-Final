@@ -181,6 +181,12 @@ roi:
     far_y_half: 4.0
     ramp_start_x: 15.0
 
+  # 远距离中心线排除：用于抑制前方护栏/墙壁导致的中心线假锥（默认关闭）
+  center_exclusion:
+    enable: false
+    y_half: 1.0
+    start_distance: 18.0
+
 # ==========================
 # Filters (滤波)
 # ==========================
@@ -646,3 +652,15 @@ loop_closure_optimization:
     distance_tolerance: 0.5         # 距离容差 (m)
     check_angle_consistency: true   # 检查角度一致性
     angle_tolerance: 10.0           # 角度容差 (deg)
+
+# === Vision Color Injection ===
+# When enabled, subscribes to vision detections and overrides color_types
+# with camera-based color classification (BLUE/YELLOW/RED).
+# When disabled or no vision data available, falls back to geometry-only typing.
+vision_inject:
+  enabled: false
+  max_age_sec: 0.2
+  min_confidence: 300
+  match_angle_deg: 5.0
+  camera_hfov_deg: 60.0
+  camera_width_px: 640

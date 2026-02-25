@@ -7,6 +7,7 @@
 
 #include <ros/ros.h>
 #include <autodrive_msgs/HUAT_ConeDetections.h>
+#include <autodrive_msgs/HUAT_VisionDetections.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <std_msgs/Header.h>
 #include <visualization_msgs/MarkerArray.h>
@@ -128,6 +129,20 @@ class LidarClusterRos {
   // ── Debug visualization ───────────────────────────────────────
   bool debug_publish_markers_ = false;         // G6: 调试标记发布开关
   ros::Publisher debug_marker_pub_;            // G6: bbox marker publisher
+
+  // ── Vision color injection ──────────────────────────────────────
+  bool vision_inject_enabled_ = false;
+  ros::Subscriber vision_sub_;
+  autodrive_msgs::HUAT_VisionDetections::ConstPtr last_vision_msg_;
+  mutable std::mutex vision_mutex_;
+  double vision_max_age_sec_ = 0.2;
+  float vision_min_confidence_ = 300.0f;
+  double vision_match_angle_deg_ = 5.0;
+  double camera_hfov_deg_ = 60.0;
+  int camera_width_px_ = 640;
+
+  void visionCallback(const autodrive_msgs::HUAT_VisionDetections::ConstPtr& msg);
+  uint8_t matchVisionColor(float cone_angle_deg) const;
 };
 
 }  // namespace perception_ros

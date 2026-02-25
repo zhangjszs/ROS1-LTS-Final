@@ -126,6 +126,15 @@ LidarClusterRos::LidarClusterRos(ros::NodeHandle nh, ros::NodeHandle private_nh)
     ROS_INFO("Debug cone markers enabled on perception/debug/cone_markers");
   }
 
+  // Vision color injection subscriber
+  if (vision_inject_enabled_) {
+    vision_sub_ = nh_.subscribe(
+        fsd_common::topic_contract::kVisionDetections, 1,
+        &LidarClusterRos::visionCallback, this);
+    ROS_INFO("[perception] Vision color injection enabled, subscribing to '%s'",
+             fsd_common::topic_contract::kVisionDetections);
+  }
+
   // Initialize distortion compensator V2 (支持time字段、预积分、外参)
   auto compensator_config = DistortionCompensatorV2Config::LoadFromRos(private_nh_);
   if (compensator_config.enable) {
@@ -801,6 +810,14 @@ void LidarClusterRos::loadParams()
   private_nh_.param<double>("cone_size_typing/big_height_threshold", big_cone_height_threshold_, 0.45);
   private_nh_.param<double>("cone_size_typing/big_area_threshold", big_cone_area_threshold_, 0.09);
 
+  // Vision color injection params
+  private_nh_.param<bool>("vision_inject/enabled", vision_inject_enabled_, false);
+  private_nh_.param<double>("vision_inject/max_age_sec", vision_max_age_sec_, 0.2);
+  private_nh_.param<float>("vision_inject/min_confidence", vision_min_confidence_, 300.0f);
+  private_nh_.param<double>("vision_inject/match_angle_deg", vision_match_angle_deg_, 5.0);
+  private_nh_.param<double>("vision_inject/camera_hfov_deg", camera_hfov_deg_, 60.0);
+  private_nh_.param<int>("vision_inject/camera_width_px", camera_width_px_, 640);
+
   // ---- Cone Tracker 参数加载 ----
   private_nh_.param<bool>("tracker/enable", config_.tracker.enable, false);
   private_nh_.param<double>("tracker/association_threshold", config_.tracker.association_threshold, 0.5);
@@ -836,6 +853,11 @@ void LidarClusterRos::loadParams()
   private_nh_.param<double>("roi/adaptive_y/near_y_half", config_.roi.adaptive_y.near_y_half, 5.0);
   private_nh_.param<double>("roi/adaptive_y/far_y_half", config_.roi.adaptive_y.far_y_half, 2.0);
   private_nh_.param<double>("roi/adaptive_y/ramp_start_x", config_.roi.adaptive_y.ramp_start_x, 5.0);
+
+  // ---- 远距离中心线排除参数（抑制前方护栏/墙壁导致的中心线假锥）----
+  private_nh_.param<bool>("roi/center_exclusion/enable", config_.roi.center_exclusion.enable, false);
+  private_nh_.param<double>("roi/center_exclusion/y_half", config_.roi.center_exclusion.y_half, 1.0);
+  private_nh_.param<double>("roi/center_exclusion/start_distance", config_.roi.center_exclusion.start_distance, 18.0);
 
   // 根据 roi.mode 覆盖对应赛道预设参数
   applyModePreset();
@@ -910,6 +932,10 @@ void LidarClusterRos::loadParams()
            config_.roi.adaptive_y.near_y_half,
            config_.roi.adaptive_y.far_y_half,
            config_.roi.adaptive_y.ramp_start_x);
+  ROS_INFO("roi/center_exclusion: %s (y_half=%.2f, start_distance=%.1fm)",
+           config_.roi.center_exclusion.enable ? "on" : "off",
+           config_.roi.center_exclusion.y_half,
+           config_.roi.center_exclusion.start_distance);
   ROS_INFO("cone_size_typing: %s (big_height_thr=%.2f, big_area_thr=%.3f)",
            enable_cone_size_typing_ ? "on" : "off",
            big_cone_height_threshold_,
@@ -990,6 +1016,19 @@ void LidarClusterRos::applyModePreset()
     private_nh_.param<double>(prefix + "/adaptive_y/ramp_start_x",
                               config_.roi.adaptive_y.ramp_start_x,
                               config_.roi.adaptive_y.ramp_start_x);
+  }
+
+  // 覆盖 center_exclusion 参数
+  private_nh_.param<bool>(prefix + "/center_exclusion/enable",
+                          config_.roi.center_exclusion.enable,
+                          config_.roi.center_exclusion.enable);
+  if (config_.roi.center_exclusion.enable) {
+    private_nh_.param<double>(prefix + "/center_exclusion/y_half",
+                              config_.roi.center_exclusion.y_half,
+                              config_.roi.center_exclusion.y_half);
+    private_nh_.param<double>(prefix + "/center_exclusion/start_distance",
+                              config_.roi.center_exclusion.start_distance,
+                              config_.roi.center_exclusion.start_distance);
   }
 
   // 覆盖 track_semantic 参数
@@ -1291,11 +1330,24 @@ void LidarClusterRos::publishOutput(const LidarClusterOutput &output)
     }
     detections.obj_dist.push_back(static_cast<float>(det.distance));
     detections.track_ids.push_back(static_cast<int32_t>(det.track_id));
-    detections.color_types.push_back(
-        classifyConeTypeBySize(det,
-                               enable_cone_size_typing_,
-                               big_cone_height_threshold_,
-                               big_cone_area_threshold_));
+
+    uint8_t geo_color = classifyConeTypeBySize(det,
+        enable_cone_size_typing_,
+        big_cone_height_threshold_,
+        big_cone_area_threshold_);
+
+    if (vision_inject_enabled_) {
+      float angle_deg = static_cast<float>(
+          std::atan2(det.centroid.y, det.centroid.x) * 180.0 / M_PI);
+      uint8_t vision_color = matchVisionColor(angle_deg);
+      if (vision_color != 4) {  // 4 = NONE
+        detections.color_types.push_back(vision_color);
+      } else {
+        detections.color_types.push_back(geo_color);
+      }
+    } else {
+      detections.color_types.push_back(geo_color);
+    }
 
     if (det.cluster)
     {
@@ -1611,6 +1663,41 @@ void LidarClusterRos::publishDebugMarkers(const LidarClusterOutput &output)
     markers.markers.push_back(m);
   }
   debug_marker_pub_.publish(markers);
+}
+
+void LidarClusterRos::visionCallback(
+    const autodrive_msgs::HUAT_VisionDetections::ConstPtr& msg) {
+  std::lock_guard<std::mutex> lock(vision_mutex_);
+  last_vision_msg_ = msg;
+}
+
+uint8_t LidarClusterRos::matchVisionColor(float cone_angle_deg) const {
+  std::lock_guard<std::mutex> lock(vision_mutex_);
+  if (!last_vision_msg_) return 4;  // NONE
+
+  double age = (ros::Time::now() - last_vision_msg_->header.stamp).toSec();
+  if (age > vision_max_age_sec_) return 4;
+
+  if (last_vision_msg_->image_quality >= 3) return 4;  // UNUSABLE
+
+  float best_angle_diff = static_cast<float>(vision_match_angle_deg_);
+  uint8_t best_color = 4;  // NONE
+
+  for (size_t i = 0; i < last_vision_msg_->x.size(); ++i) {
+    if (last_vision_msg_->confidences[i] < static_cast<int32_t>(vision_min_confidence_))
+      continue;
+
+    float px = static_cast<float>(last_vision_msg_->x[i]);
+    float vision_angle = (px / camera_width_px_ - 0.5f)
+                         * static_cast<float>(camera_hfov_deg_);
+
+    float diff = std::abs(vision_angle - cone_angle_deg);
+    if (diff < best_angle_diff) {
+      best_angle_diff = diff;
+      best_color = last_vision_msg_->color_types[i];
+    }
+  }
+  return best_color;
 }
 
 }  // namespace perception_ros
