@@ -77,50 +77,51 @@ void VisionNode::spin() {
 // ── Parameter Loading ────────────────────────────────────────────
 
 void VisionNode::loadParams() {
-  private_nh_.param<std::string>("image_topic", image_topic_, "camera/image_raw");
-  private_nh_.param<std::string>("backend_type", backend_type_, "onnx");
-  private_nh_.param<double>("loop_rate", loop_rate_, 30.0);
-  private_nh_.param<int>("max_detections", max_detections_, 20);
-  private_nh_.param<bool>("publish_debug_image", publish_debug_image_, true);
-  private_nh_.param<double>("debug_image_rate", debug_image_rate_, 5.0);
-  private_nh_.param<bool>("fallback_enabled", fallback_enabled_, true);
-  private_nh_.param<float>("model_confidence_floor", model_confidence_floor_, 0.3f);
-  private_nh_.param<int>("degraded_frame_count", degraded_frame_count_, 3);
-  private_nh_.param<int>("poor_frame_count", poor_frame_count_, 5);
-  private_nh_.param<int>("unusable_frame_count", unusable_frame_count_, 10);
-  private_nh_.param<int>("recovery_frame_count", recovery_frame_count_, 5);
+  // Node params (YAML: node/)
+  private_nh_.param<std::string>("node/image_topic", image_topic_, "/resize_img_out");
+  private_nh_.param<double>("node/loop_rate", loop_rate_, 30.0);
+  private_nh_.param<int>("detection/max_detections", max_detections_, 20);
+  private_nh_.param<bool>("output/publish_debug_image", publish_debug_image_, true);
+  private_nh_.param<double>("output/debug_image_rate", debug_image_rate_, 5.0);
+  private_nh_.param<bool>("fallback/enabled", fallback_enabled_, true);
+  private_nh_.param<float>("fallback/model_confidence_floor", model_confidence_floor_, 0.3f);
+  private_nh_.param<int>("node/degraded_frame_count", degraded_frame_count_, 3);
+  private_nh_.param<int>("node/poor_frame_count", poor_frame_count_, 5);
+  private_nh_.param<int>("node/unusable_frame_count", unusable_frame_count_, 10);
+  private_nh_.param<int>("node/recovery_frame_count", recovery_frame_count_, 5);
 
-  // Inference config
-  private_nh_.param<std::string>("model_path", inference_cfg_.model_path, "");
-  private_nh_.param<int>("input_width", inference_cfg_.input_width, 640);
-  private_nh_.param<int>("input_height", inference_cfg_.input_height, 640);
+  // Inference config (YAML: inference/)
+  private_nh_.param<std::string>("inference/backend_type", backend_type_, "onnx");
+  private_nh_.param<std::string>("inference/model_path", inference_cfg_.model_path, "");
+  private_nh_.param<int>("inference/input_width", inference_cfg_.input_width, 640);
+  private_nh_.param<int>("inference/input_height", inference_cfg_.input_height, 640);
   float conf_thresh, nms_thresh;
-  private_nh_.param<float>("conf_threshold", conf_thresh, 0.5f);
-  private_nh_.param<float>("nms_threshold", nms_thresh, 0.45f);
+  private_nh_.param<float>("detection/conf_threshold", conf_thresh, 0.5f);
+  private_nh_.param<float>("detection/nms_threshold", nms_thresh, 0.45f);
   inference_cfg_.conf_threshold = conf_thresh;
   inference_cfg_.nms_threshold = nms_thresh;
-  private_nh_.param<bool>("use_fp16", inference_cfg_.use_fp16, true);
-  private_nh_.param<int>("num_threads", inference_cfg_.num_threads, 2);
+  private_nh_.param<bool>("inference/use_fp16", inference_cfg_.use_fp16, true);
+  private_nh_.param<int>("inference/num_threads", inference_cfg_.num_threads, 2);
 
-  // Quality thresholds
-  private_nh_.param<float>("blur_good", quality_thresholds_.blur_good, 200.0f);
-  private_nh_.param<float>("blur_degraded", quality_thresholds_.blur_degraded, 100.0f);
-  private_nh_.param<float>("blur_poor", quality_thresholds_.blur_poor, 50.0f);
-  private_nh_.param<float>("brightness_low", quality_thresholds_.brightness_low, 40.0f);
-  private_nh_.param<float>("brightness_high", quality_thresholds_.brightness_high, 220.0f);
+  // Quality thresholds (YAML: quality/)
+  private_nh_.param<float>("quality/blur_threshold", quality_thresholds_.blur_good, 200.0f);
+  private_nh_.param<float>("quality/blur_degraded", quality_thresholds_.blur_degraded, 100.0f);
+  private_nh_.param<float>("quality/blur_poor", quality_thresholds_.blur_poor, 50.0f);
+  private_nh_.param<float>("quality/brightness_low", quality_thresholds_.brightness_low, 40.0f);
+  private_nh_.param<float>("quality/brightness_high", quality_thresholds_.brightness_high, 220.0f);
 
-  // Enhancer config
-  private_nh_.param<bool>("auto_clahe", enhancer_cfg_.auto_clahe, true);
+  // Enhancer config (YAML: enhancement/)
+  private_nh_.param<bool>("enhancement/auto_clahe", enhancer_cfg_.auto_clahe, true);
   float clahe_clip;
-  private_nh_.param<float>("clahe_clip_limit", clahe_clip, 2.0f);
+  private_nh_.param<float>("enhancement/clahe_clip_limit", clahe_clip, 2.0f);
   enhancer_cfg_.clahe_clip_limit = clahe_clip;
-  private_nh_.param<bool>("auto_gamma", enhancer_cfg_.auto_gamma, true);
-  private_nh_.param<bool>("denoise_on_poor", enhancer_cfg_.denoise_on_poor, true);
-  private_nh_.param<bool>("sharpen_on_blur", enhancer_cfg_.sharpen_on_blur, true);
+  private_nh_.param<bool>("enhancement/auto_gamma", enhancer_cfg_.auto_gamma, true);
+  private_nh_.param<bool>("enhancement/denoise_on_poor", enhancer_cfg_.denoise_on_poor, true);
+  private_nh_.param<bool>("enhancement/sharpen_on_blur", enhancer_cfg_.sharpen_on_blur, true);
 
-  // Fallback config
-  private_nh_.param<double>("fallback_min_area", fallback_cfg_.min_area, 200.0);
-  private_nh_.param<double>("fallback_max_area", fallback_cfg_.max_area, 50000.0);
+  // Fallback config (YAML: fallback/)
+  private_nh_.param<double>("fallback/min_contour_area", fallback_cfg_.min_area, 200.0);
+  private_nh_.param<double>("fallback/max_contour_area", fallback_cfg_.max_area, 50000.0);
 
   // Tracker config
   float iou_thresh;
@@ -155,10 +156,13 @@ void VisionNode::processFrame(const cv::Mat& bgr, const std_msgs::Header& header
   // 2. Enhance image
   cv::Mat enhanced = enhancer_->enhance(bgr, qm.overall);
 
-  // 3. Model inference (skip if UNUSABLE)
+  // 3. Model inference (skip if UNUSABLE or VISION_LOST/FALLBACK state)
   std::vector<vision_core::Detection> model_dets;
   uint32_t inference_us = 0;
-  if (qm.overall != vision_core::ImageQuality::UNUSABLE && backend_ && backend_->isReady()) {
+  bool skip_model = (qm.overall == vision_core::ImageQuality::UNUSABLE ||
+                     state_ == VisionState::VISION_LOST ||
+                     state_ == VisionState::FALLBACK_MODE);
+  if (!skip_model && backend_ && backend_->isReady()) {
     auto t0 = std::chrono::steady_clock::now();
     model_dets = backend_->detect(enhanced);
     auto t1 = std::chrono::steady_clock::now();
@@ -172,8 +176,8 @@ void VisionNode::processFrame(const cv::Mat& bgr, const std_msgs::Header& header
     fallback_dets = fallback_->detect(enhanced);
   }
 
-  // 5. Fuse detections
-  auto fused = fuseDetections(model_dets, fallback_dets, qm.overall);
+  // 5. Fuse detections (state-aware)
+  auto fused = fuseDetections(model_dets, fallback_dets, qm.overall, state_);
 
   // 6. Temporal tracking
   auto tracked = tracker_->update(fused);
@@ -194,10 +198,17 @@ void VisionNode::processFrame(const cv::Mat& bgr, const std_msgs::Header& header
 std::vector<vision_core::Detection> VisionNode::fuseDetections(
     const std::vector<vision_core::Detection>& model_dets,
     const std::vector<vision_core::Detection>& fallback_dets,
-    vision_core::ImageQuality quality) {
+    vision_core::ImageQuality quality,
+    VisionState state) {
 
-  // GOOD quality with model results: trust model only
-  if (quality == vision_core::ImageQuality::GOOD && !model_dets.empty()) {
+  // VISION_LOST or FALLBACK_MODE: only use fallback
+  if (state == VisionState::VISION_LOST || state == VisionState::FALLBACK_MODE) {
+    return fallback_dets;
+  }
+
+  // GOOD quality with model results in NORMAL state: trust model only
+  if (quality == vision_core::ImageQuality::GOOD && !model_dets.empty()
+      && state == VisionState::NORMAL) {
     return model_dets;
   }
 

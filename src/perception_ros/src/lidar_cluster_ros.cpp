@@ -1688,7 +1688,8 @@ uint8_t LidarClusterRos::matchVisionColor(float cone_angle_deg) const {
       continue;
 
     float px = static_cast<float>(last_vision_msg_->x[i]);
-    float vision_angle = (px / camera_width_px_ - 0.5f)
+    // 图像左侧 = 车辆左侧 = +Y = atan2正角，所以用 (0.5 - px/width) 保持符号一致
+    float vision_angle = (0.5f - px / camera_width_px_)
                          * static_cast<float>(camera_hfov_deg_);
 
     float diff = std::abs(vision_angle - cone_angle_deg);

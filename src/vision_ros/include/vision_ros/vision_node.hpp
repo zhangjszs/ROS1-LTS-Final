@@ -52,7 +52,8 @@ private:
   std::vector<vision_core::Detection> fuseDetections(
       const std::vector<vision_core::Detection>& model_dets,
       const std::vector<vision_core::Detection>& fallback_dets,
-      vision_core::ImageQuality quality);
+      vision_core::ImageQuality quality,
+      VisionState state);
 
   // ROS
   ros::NodeHandle nh_;
