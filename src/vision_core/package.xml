@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>vision_core</name>
+  <version>1.0.0</version>
+  <description>Pure C++ vision algorithms for cone detection and color classification</description>
+  <license>BSD</license>
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>OpenCV</depend>
+</package>
