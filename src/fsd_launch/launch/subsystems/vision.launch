@@ -1,0 +1,22 @@
+<!--
+  FSD Vision Subsystem (fsd_launch wrapper)
+  Delegates to vision_ros/launch/vision.launch with mission_stack conventions.
+-->
+<launch>
+  <arg name="mission" default="track"/>
+  <arg name="mode" default="standard"/>
+  <arg name="debug" default="false"/>
+  <arg name="image_topic" default="/resize_img_out"/>
+  <arg name="vehicle" default="A13"/>
+  <arg name="vehicle_config" default="" doc="Vehicle overlay"/>
+  <arg name="vehicle_local_config" default="" doc="Local override"/>
+
+  <include file="$(find vision_ros)/launch/vision.launch">
+    <arg name="mission" value="$(arg mission)"/>
+    <arg name="mode" value="$(arg mode)"/>
+    <arg name="debug" value="$(arg debug)"/>
+    <arg name="image_topic" value="$(arg image_topic)"/>
+    <arg name="extra_config" value="$(arg vehicle_config)"/>
+    <arg name="extra_local_config" value="$(arg vehicle_local_config)"/>
+  </include>
+</launch>

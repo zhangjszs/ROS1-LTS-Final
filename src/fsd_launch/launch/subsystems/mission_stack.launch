@@ -12,9 +12,13 @@
     <arg name="control_mode_profile" default="track"/>
     <arg name="control_mode" default="4"/>
     <arg name="enable_perception" default="true"/>
+    <arg name="enable_vision" default="false" doc="Enable camera-based vision module"/>
     <arg name="enable_localization" default="true"/>
     <arg name="enable_planning" default="true"/>
     <arg name="enable_control" default="true"/>
+
+    <arg name="vision_mode" default="standard" doc="standard | lightweight | fallback_only"/>
+    <arg name="vision_debug" default="false"/>
 
     <arg name="vehicle" default="A13"/>
     <arg name="perception_vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/perception.yaml"/>
@@ -72,6 +76,15 @@
         <arg name="vehicle" value="$(arg vehicle)"/>
         <arg name="vehicle_config" value="$(arg perception_vehicle_config)"/>
         <arg name="vehicle_local_config" value="$(arg perception_vehicle_local_config)"/>
+    </include>
+
+    <!-- Vision (optional, parallel to LiDAR perception) -->
+    <include if="$(arg enable_vision)"
+             file="$(find fsd_launch)/launch/subsystems/vision.launch">
+        <arg name="mission" value="$(arg perception_mode)"/>
+        <arg name="mode" value="$(arg vision_mode)"/>
+        <arg name="debug" value="$(arg vision_debug)"/>
+        <arg name="vehicle" value="$(arg vehicle)"/>
     </include>
 
     <include if="$(arg enable_localization)" file="$(find fsd_launch)/launch/subsystems/localization.launch">
