@@ -16,6 +16,9 @@
     <arg name="rviz_mode" default="main" doc="RViz模式: main/global/pointcloud/dual"/>
     <arg name="vehicle" default="A13" doc="车辆型谱ID"/>
     <arg name="control_mode" default="4" doc="控制模式: 1(accel)/2(line)/3(skidpad)/4(track)"/>
+    <arg name="enable_vision" default="false" doc="启用视觉模块"/>
+    <arg name="vision_mode" default="standard" doc="视觉模式: standard/lightweight/fallback_only"/>
+    <arg name="vision_debug" default="false" doc="视觉调试图像"/>
 
     <include file="$(find fsd_launch)/launch/subsystems/mission_stack.launch">
         <arg name="simulation" value="$(arg simulation)"/>
@@ -32,5 +35,8 @@
         <arg name="planning_mission" value="high_speed"/>
         <arg name="control_mode_profile" value="track"/>
         <arg name="control_mode" value="$(arg control_mode)"/>
+        <arg name="enable_vision" value="$(arg enable_vision)"/>
+        <arg name="vision_mode" value="$(arg vision_mode)"/>
+        <arg name="vision_debug" value="$(arg vision_debug)"/>
     </include>
 </launch>
