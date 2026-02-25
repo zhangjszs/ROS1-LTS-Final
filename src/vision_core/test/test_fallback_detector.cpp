@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <opencv2/imgproc.hpp>
 #include "vision_core/fallback_detector.hpp"
 
 using namespace vision_core;
