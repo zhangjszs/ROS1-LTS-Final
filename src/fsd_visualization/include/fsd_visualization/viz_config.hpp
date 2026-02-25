@@ -1,8 +1,10 @@
 #pragma once
 
 #include <array>
+#include <algorithm>
 #include <cstdint>
 #include <string>
+#include <std_msgs/ColorRGBA.h>
 #include <autodrive_msgs/topic_contract.hpp>
 
 namespace fsd_viz {
@@ -118,6 +120,56 @@ inline std::string getConeMeshURI(ConeType type) {
 
 inline std::string getConeMeshURI(int type) {
     return getConeMeshURI(static_cast<ConeType>(type));
+}
+
+// ============ 速度色带 (Speed Color Gradient) ============
+// 绿(低速) → 黄(中速) → 红(高速)
+// speed_ratio: 0.0 = min_speed, 1.0 = max_speed
+inline std_msgs::ColorRGBA speedToColor(double speed, double v_min, double v_max) {
+    std_msgs::ColorRGBA c;
+    c.a = 1.0f;
+    double ratio = (v_max > v_min) ? (speed - v_min) / (v_max - v_min) : 0.0;
+    ratio = std::max(0.0, std::min(1.0, ratio));
+    if (ratio < 0.5) {
+        // 绿 → 黄
+        double t = ratio * 2.0;
+        c.r = static_cast<float>(t);
+        c.g = 1.0f;
+        c.b = 0.0f;
+    } else {
+        // 黄 → 红
+        double t = (ratio - 0.5) * 2.0;
+        c.r = 1.0f;
+        c.g = static_cast<float>(1.0 - t);
+        c.b = 0.0f;
+    }
+    return c;
+}
+
+// 制动区域颜色（半透明红）
+constexpr std::array<float, 4> BRAKE_ZONE = {1.0f, 0.1f, 0.1f, 0.6f};
+
+// ============ 曲率色带 (Curvature Color Gradient) ============
+// 蓝(低曲率/直道) → 青(中曲率) → 红(高曲率/急弯)
+inline std_msgs::ColorRGBA curvatureToColor(double kappa, double k_min, double k_max) {
+    std_msgs::ColorRGBA c;
+    c.a = 1.0f;
+    double ratio = (k_max > k_min) ? (std::abs(kappa) - k_min) / (k_max - k_min) : 0.0;
+    ratio = std::max(0.0, std::min(1.0, ratio));
+    if (ratio < 0.5) {
+        // 蓝 → 青
+        double t = ratio * 2.0;
+        c.r = 0.0f;
+        c.g = static_cast<float>(t);
+        c.b = 1.0f;
+    } else {
+        // 青 → 红
+        double t = (ratio - 0.5) * 2.0;
+        c.r = static_cast<float>(t);
+        c.g = static_cast<float>(1.0 - t);
+        c.b = static_cast<float>(1.0 - t);
+    }
+    return c;
 }
 
 }  // namespace fsd_viz

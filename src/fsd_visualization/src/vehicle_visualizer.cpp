@@ -1,4 +1,5 @@
 #include "fsd_visualization/vehicle_visualizer.hpp"
+#include <cstdio>
 #include <tf2/LinearMath/Quaternion.h>
 
 namespace fsd_viz {
@@ -13,6 +14,7 @@ VehicleVisualizer::VehicleVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh) 
     pnh.param<bool>("use_mesh", use_mesh_, true);
     pnh.param<std::string>("topics/car_state", car_state_topic_, "localization/car_state");
     pnh.param<std::string>("topics/sim_state", sim_state_topic_, "/simulation/state");
+    pnh.param<std::string>("topics/vehicle_cmd", vehicle_cmd_topic_, "vehicle/cmd");
     pnh.param<std::string>("topics/markers", markers_topic_, "fsd/viz/vehicle");
 
     // 订阅
@@ -20,6 +22,8 @@ VehicleVisualizer::VehicleVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh) 
         &VehicleVisualizer::carStateCallback, this);
     sub_sim_state_ = nh.subscribe(sim_state_topic_, 1,
         &VehicleVisualizer::simStateCallback, this);
+    sub_vehicle_cmd_ = nh.subscribe(vehicle_cmd_topic_, 1,
+        &VehicleVisualizer::vehicleCmdCallback, this);
 
     // 发布
     // Latch latest vehicle markers for RViz late subscribers.
@@ -92,6 +96,13 @@ void VehicleVisualizer::carStateCallback(
         auto steering = createSteeringMarker(state, cached_steering_);
         steering.header.stamp = msg->header.stamp;
         markers.markers.push_back(steering);
+    }
+
+    // 车辆状态文字叠加
+    {
+        auto text = createStateTextMarker(state, msg->V);
+        text.header.stamp = msg->header.stamp;
+        markers.markers.push_back(text);
     }
 
     pub_markers_.publish(markers);
@@ -362,7 +373,6 @@ visualization_msgs::Marker VehicleVisualizer::createVelocityMarker(
 
 visualization_msgs::Marker VehicleVisualizer::createSteeringMarker(
     const geometry_msgs::Pose2D& state, double steering_angle) {
-
     visualization_msgs::Marker marker;
     marker.header.frame_id = frame_id_;
     marker.ns = "vehicle_steering";
@@ -406,6 +416,56 @@ visualization_msgs::Marker VehicleVisualizer::createSteeringMarker(
     marker.color.a = VEHICLE_STEERING[3];
 
     marker.lifetime = ros::Duration(0.0);
+
+    return marker;
+}
+
+void VehicleVisualizer::vehicleCmdCallback(
+    const autodrive_msgs::HUAT_VehicleCmd::ConstPtr& msg) {
+    cached_cmd_steering_ = msg->steering;
+    cached_cmd_pedal_ = msg->pedal_ratio;
+    cached_cmd_brake_ = msg->brake_force;
+    has_vehicle_cmd_ = true;
+}
+
+visualization_msgs::Marker VehicleVisualizer::createStateTextMarker(
+    const geometry_msgs::Pose2D& state, double speed) {
+
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = frame_id_;
+    marker.ns = "vehicle_state_text";
+    marker.id = 0;
+    marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+    marker.action = visualization_msgs::Marker::ADD;
+
+    marker.pose.position.x = state.x;
+    marker.pose.position.y = state.y;
+    marker.pose.position.z = VEHICLE_HEIGHT + 1.2;
+    marker.pose.orientation.w = 1.0;
+
+    marker.scale.z = 0.35;  // 文字高度
+
+    // 白色文字
+    marker.color.r = 1.0f;
+    marker.color.g = 1.0f;
+    marker.color.b = 1.0f;
+    marker.color.a = 1.0f;
+
+    // 构建显示文本
+    char buf[128];
+    double speed_kmh = speed * 3.6;
+    if (has_vehicle_cmd_) {
+        int steer_deg = static_cast<int>(cached_cmd_steering_) - 110;
+        std::snprintf(buf, sizeof(buf), "V:%.1fkm/h S:%d P:%u B:%u",
+                      speed_kmh, steer_deg,
+                      static_cast<unsigned>(cached_cmd_pedal_),
+                      static_cast<unsigned>(cached_cmd_brake_));
+    } else {
+        std::snprintf(buf, sizeof(buf), "V:%.1fkm/h", speed_kmh);
+    }
+    marker.text = buf;
+
+    marker.lifetime = ros::Duration(0.3);
 
     return marker;
 }

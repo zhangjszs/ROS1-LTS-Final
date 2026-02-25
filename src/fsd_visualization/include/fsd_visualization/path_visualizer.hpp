@@ -25,7 +25,13 @@ private:
     
     visualization_msgs::MarkerArray createBoundaryMarkers(
         const autodrive_msgs::HUAT_PathLimits& msg);
-    
+
+    visualization_msgs::MarkerArray createSpeedColoredMarkers(
+        const autodrive_msgs::HUAT_PathLimits& msg);
+
+    visualization_msgs::MarkerArray createCurvatureColoredMarkers(
+        const autodrive_msgs::HUAT_PathLimits& msg);
+
     ros::Subscriber sub_path_unified_;
     ros::Subscriber sub_path_partial_;
     ros::Subscriber sub_path_full_;

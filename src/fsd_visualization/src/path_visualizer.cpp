@@ -1,4 +1,5 @@
 #include "fsd_visualization/path_visualizer.hpp"
+#include <cmath>
 
 namespace fsd_viz {
 
@@ -41,6 +42,18 @@ void PathVisualizer::pathLimitsUnifiedCallback(
 
     auto markers = createPathMarkers(*msg, "path_unified", PATH_CENTER);
     auto boundary_markers = createBoundaryMarkers(*msg);
+
+    // 速度色带路径（per-point coloring）
+    auto speed_markers = createSpeedColoredMarkers(*msg);
+    for (auto& m : speed_markers.markers) {
+        markers.markers.push_back(std::move(m));
+    }
+
+    // 曲率色带路径（per-point coloring）
+    auto curv_markers = createCurvatureColoredMarkers(*msg);
+    for (auto& m : curv_markers.markers) {
+        markers.markers.push_back(std::move(m));
+    }
 
     pub_path_markers_.publish(markers);
     pub_boundary_markers_.publish(boundary_markers);
@@ -217,6 +230,120 @@ visualization_msgs::MarkerArray PathVisualizer::createBoundaryMarkers(
         markers.markers.push_back(right_line);
     }
     
+    return markers;
+}
+
+visualization_msgs::MarkerArray PathVisualizer::createSpeedColoredMarkers(
+    const autodrive_msgs::HUAT_PathLimits& msg) {
+
+    visualization_msgs::MarkerArray markers;
+    const size_t n = msg.path.size();
+    if (n == 0 || msg.target_speeds.size() != n) {
+        return markers;
+    }
+
+    // 找速度范围
+    double v_min = 1e9, v_max = -1e9;
+    for (size_t i = 0; i < n; ++i) {
+        double v = msg.target_speeds[i];
+        if (v < v_min) v_min = v;
+        if (v > v_max) v_max = v;
+    }
+
+    // 速度色带球体列表（per-point color）
+    visualization_msgs::Marker spheres;
+    spheres.header = msg.header;
+    spheres.header.frame_id = frame_id_;
+    spheres.ns = "speed_colored";
+    spheres.id = 0;
+    spheres.type = visualization_msgs::Marker::SPHERE_LIST;
+    spheres.action = visualization_msgs::Marker::ADD;
+    spheres.scale.x = point_size_ * 1.6;
+    spheres.scale.y = point_size_ * 1.6;
+    spheres.scale.z = point_size_ * 1.6;
+    spheres.pose.orientation.w = 1.0;
+    spheres.lifetime = ros::Duration(0.2);
+    spheres.points.reserve(n);
+    spheres.colors.reserve(n);
+
+    for (size_t i = 0; i < n; ++i) {
+        geometry_msgs::Point p;
+        p.x = msg.path[i].x;
+        p.y = msg.path[i].y;
+        p.z = 0.10;  // 略高于普通路径点，避免 z-fighting
+        spheres.points.push_back(p);
+        spheres.colors.push_back(speedToColor(msg.target_speeds[i], v_min, v_max));
+    }
+
+    markers.markers.push_back(spheres);
+
+    // 速度色带线条（per-vertex color）
+    visualization_msgs::Marker line;
+    line.header = spheres.header;
+    line.ns = "speed_colored_line";
+    line.id = 1;
+    line.type = visualization_msgs::Marker::LINE_STRIP;
+    line.action = visualization_msgs::Marker::ADD;
+    line.scale.x = path_width_ * 2.0;
+    line.pose.orientation.w = 1.0;
+    line.lifetime = ros::Duration(0.2);
+    line.points.reserve(n);
+    line.colors.reserve(n);
+
+    for (size_t i = 0; i < n; ++i) {
+        geometry_msgs::Point p;
+        p.x = msg.path[i].x;
+        p.y = msg.path[i].y;
+        p.z = 0.08;
+        line.points.push_back(p);
+        line.colors.push_back(speedToColor(msg.target_speeds[i], v_min, v_max));
+    }
+
+    markers.markers.push_back(line);
+    return markers;
+}
+
+visualization_msgs::MarkerArray PathVisualizer::createCurvatureColoredMarkers(
+    const autodrive_msgs::HUAT_PathLimits& msg) {
+
+    visualization_msgs::MarkerArray markers;
+    const size_t n = msg.path.size();
+    if (n == 0 || msg.curvatures.size() != n) {
+        return markers;
+    }
+
+    // 找曲率绝对值范围
+    double k_min = 1e9, k_max = -1e9;
+    for (size_t i = 0; i < n; ++i) {
+        double k = std::abs(msg.curvatures[i]);
+        if (k < k_min) k_min = k;
+        if (k > k_max) k_max = k;
+    }
+
+    // 曲率色带线条（per-vertex color）— 偏移到路径右侧避免与速度色带重叠
+    visualization_msgs::Marker line;
+    line.header = msg.header;
+    line.header.frame_id = frame_id_;
+    line.ns = "curvature_colored";
+    line.id = 0;
+    line.type = visualization_msgs::Marker::LINE_STRIP;
+    line.action = visualization_msgs::Marker::ADD;
+    line.scale.x = path_width_ * 1.5;
+    line.pose.orientation.w = 1.0;
+    line.lifetime = ros::Duration(0.2);
+    line.points.reserve(n);
+    line.colors.reserve(n);
+
+    for (size_t i = 0; i < n; ++i) {
+        geometry_msgs::Point p;
+        p.x = msg.path[i].x;
+        p.y = msg.path[i].y;
+        p.z = 0.03;  // 低于速度色带，视觉分层
+        line.points.push_back(p);
+        line.colors.push_back(curvatureToColor(msg.curvatures[i], k_min, k_max));
+    }
+
+    markers.markers.push_back(line);
     return markers;
 }
 
