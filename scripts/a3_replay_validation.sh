@@ -16,7 +16,27 @@ rm -f "${RESULT_DIR}/launch.log" \
       "${RESULT_DIR}/global_diag_agg.txt" \
       "${RESULT_DIR}/vehicle_cmd.txt"
 
-source "${ROOT_DIR}/devel/setup.bash"
+# Workspace may be configured with catkin_tools "linked" devel layout where
+# top-level setup.bash is not present. Prefer the top-level setup when present,
+# otherwise fall back to setup.sh or a package-local setup to ensure
+# rospack/roslaunch can find workspace packages.
+source /opt/ros/noetic/setup.bash
+if [[ -f "${ROOT_DIR}/devel/setup.bash" ]]; then
+  # shellcheck source=/dev/null
+  source "${ROOT_DIR}/devel/setup.bash"
+elif [[ -f "${ROOT_DIR}/devel/setup.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "${ROOT_DIR}/devel/setup.sh"
+fi
+# catkin_tools "linked" devel layout: source a package-local setup to populate
+# ROS_PACKAGE_PATH with workspace packages (setup.sh from prebuild is insufficient).
+if [[ -f "${ROOT_DIR}/devel/.private/fsd_launch/setup.bash" ]]; then
+  # shellcheck source=/dev/null
+  source "${ROOT_DIR}/devel/.private/fsd_launch/setup.bash"
+elif [[ -f "${ROOT_DIR}/devel/.private/perception_ros/setup.bash" ]]; then
+  # shellcheck source=/dev/null
+  source "${ROOT_DIR}/devel/.private/perception_ros/setup.bash"
+fi
 export ROS_LOG_DIR=/tmp/roslog
 
 cleanup() {
@@ -47,12 +67,27 @@ for _ in $(seq 1 30); do
   sleep 1
 done
 
+timeout 20s rosparam dump "${RESULT_DIR}/rosparam_dump.yaml" 2>/dev/null || true
+
+# Wait for at least one sample (reduces replay startup variance / legacy-topic confusion)
+timeout 25s rostopic echo -n 1 /planning/pathlimits >/dev/null 2>&1 || true
+timeout 25s rostopic echo -n 1 /control/diagnostics >/dev/null 2>&1 || true
+
 timeout 20s rostopic echo -n 1 /control/diagnostics > "${RESULT_DIR}/control_diag.txt" 2>/dev/null || true
 timeout 20s rostopic echo -n 20 /localization/diagnostics > "${RESULT_DIR}/localization_diag.txt" 2>/dev/null || true
 timeout 20s rostopic echo -n 20 /planning/diagnostics > "${RESULT_DIR}/planning_diag.txt" 2>/dev/null || true
 timeout 20s rostopic echo -n 20 /diagnostics > "${RESULT_DIR}/global_diag.txt" 2>/dev/null || true
 timeout 20s rostopic echo -n 20 /diagnostics_agg > "${RESULT_DIR}/global_diag_agg.txt" 2>/dev/null || true
-timeout 20s rostopic echo -n 10 /vehcileCMDMsg > "${RESULT_DIR}/vehicle_cmd.txt" 2>/dev/null || true
+
+# Prefer canonical cmd topic; fall back to optional legacy alias when enabled.
+cmd_topic="/vehicle/cmd"
+timeout 25s rostopic echo -n 1 "${cmd_topic}" >/dev/null 2>&1 || true
+timeout 20s rostopic echo -n 10 "${cmd_topic}" > "${RESULT_DIR}/vehicle_cmd.txt" 2>/dev/null || true
+if [[ ! -s "${RESULT_DIR}/vehicle_cmd.txt" ]]; then
+  cmd_topic="/vehcileCMDMsg"
+  timeout 25s rostopic echo -n 1 "${cmd_topic}" >/dev/null 2>&1 || true
+  timeout 20s rostopic echo -n 10 "${cmd_topic}" > "${RESULT_DIR}/vehicle_cmd.txt" 2>/dev/null || true
+fi
 
 wait "${LAUNCH_PID}" || true
 unset LAUNCH_PID
@@ -150,14 +185,15 @@ fi
 
 cmd_count=$(rg -c "head1:" "${RESULT_DIR}/vehicle_cmd.txt" || true)
 if [[ "${cmd_count}" -ge 1 ]]; then
-  echo "[PASS] /vehcileCMDMsg published (${cmd_count} samples)"
+  echo "[PASS] ${cmd_topic} published (${cmd_count} samples)"
 else
-  echo "[FAIL] /vehcileCMDMsg not published"
+  echo "[FAIL] vehicle cmd not published (/vehicle/cmd or /vehcileCMDMsg)"
   pass=0
 fi
 
 echo "[A3] artifacts:"
 echo "  - ${RESULT_DIR}/launch.log"
+echo "  - ${RESULT_DIR}/rosparam_dump.yaml"
 echo "  - ${RESULT_DIR}/control_diag.txt"
 echo "  - ${RESULT_DIR}/localization_diag.txt"
 echo "  - ${RESULT_DIR}/planning_diag.txt"
