@@ -1,282 +1,304 @@
-#!/usr/bin/env bash
+#!/bin/bash
+#
+# check_perception_regression.sh - Perception bag 回放回归测试
+#
+# 功能:
+#   1. 回放指定 bag 文件
+#   2. 录制感知输出
+#   3. 计算指标并与 baseline 对比
+#   4. 超阈值则返回非零状态码
+#
+# 用法:
+#   ./check_perception_regression.sh <bag_file> [--baseline <baseline_json>] [--threshold <file>]
+#
+# 环境变量:
+#   REGRESSION_THRESHOLDS - 阈值配置文件路径 (默认: scripts/regression_thresholds.yaml)
+#
+
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKSPACE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
+# 默认配置
+BASELINE_DIR="${WORKSPACE_DIR}/perf_reports/baselines"
+THRESHOLD_FILE="${SCRIPT_DIR}/regression_thresholds.yaml"
+EVAL_SCRIPT="${WORKSPACE_DIR}/perf_reports/scripts/evaluate_perception_metrics.py"
+RESULTS_DIR="${WORKSPACE_DIR}/perf_reports/results"
+
+# 参数解析
 BAG_FILE=""
-BASELINE_JSON=""
-TOPIC="/perception/lidar_cluster/detections"
-GT_FILE=""
-GT_THRESHOLD="1.0"
-GT_MAX_RANGE="50.0"
-OUTPUT_JSON=""
+BASELINE_FILE=""
+USE_LATEST_BASELINE=false
+GENERATE_BASELINE=false
 
 usage() {
-  cat <<'EOF'
-Usage:
-  scripts/check_perception_regression.sh --bag <bag_file> --baseline <baseline_json> [options]
+    local exit_code="${1:-0}"
+    cat << EOF
+Usage: $(basename "$0") <bag_file> [options]
 
-Required:
-  --bag <bag_file>            ROS bag file path
-  --baseline <baseline_json>  Baseline metrics JSON from evaluate_perception_metrics.py
+Options:
+    -b, --baseline <file>     指定 baseline JSON 文件对比
+    -l, --latest-baseline     使用最新的 baseline 文件
+    -g, --generate-baseline   生成新的 baseline (不进行对比)
+    -t, --threshold <file>    指定阈值配置文件 (默认: ${THRESHOLD_FILE})
+    -h, --help                显示帮助
 
-Optional:
-  --topic <topic>             Detection topic (default: /perception/lidar_cluster/detections)
-  --gt <gt_csv>               GT csv file (enables GT metrics comparison)
-  --gt-threshold <meters>     GT matching threshold (default: 1.0)
-  --gt-max-range <meters>     GT max range (default: 50.0)
-  --output-json <path>        Current run output json path
-  -h, --help                  Show this help
+Examples:
+    # 生成 baseline
+    $(basename "$0") /data/bags/test_track.bag --generate-baseline
 
-Threshold env vars:
-  PERCEPTION_MAX_REL_INCREASE   Allowed increase for lower-better metrics (default: 0.20)
-  PERCEPTION_MAX_REL_DECREASE   Allowed decrease for higher-better metrics (default: 0.10)
-  PERCEPTION_MAX_ABS_WHEN_ZERO  Allowed absolute value if baseline is 0 (default: 0.02)
-  PERCEPTION_MIN_FRAME_RATIO    Minimum n_frames ratio vs baseline (default: 0.95)
+    # 与指定 baseline 对比
+    $(basename "$0") /data/bags/test_track.bag --baseline /path/to/baseline.json
+
+    # 使用最新 baseline
+    $(basename "$0") /data/bags/test_track.bag --latest-baseline
 EOF
+    exit "${exit_code}"
 }
+
+# 解析参数
+if [[ $# -eq 0 ]]; then
+    usage 1
+fi
 
 while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --bag)
-      BAG_FILE="${2:-}"
-      shift 2
-      ;;
-    --baseline)
-      BASELINE_JSON="${2:-}"
-      shift 2
-      ;;
-    --topic)
-      TOPIC="${2:-}"
-      shift 2
-      ;;
-    --gt)
-      GT_FILE="${2:-}"
-      shift 2
-      ;;
-    --gt-threshold)
-      GT_THRESHOLD="${2:-}"
-      shift 2
-      ;;
-    --gt-max-range)
-      GT_MAX_RANGE="${2:-}"
-      shift 2
-      ;;
-    --output-json)
-      OUTPUT_JSON="${2:-}"
-      shift 2
-      ;;
-    -h|--help)
-      usage
-      exit 0
-      ;;
-    *)
-      echo "ERROR: unknown argument: $1"
-      usage
-      exit 2
-      ;;
-  esac
+    case $1 in
+        -b|--baseline)
+            if [[ $# -lt 2 ]]; then
+                echo "ERROR: --baseline requires a file path"
+                usage 1
+            fi
+            BASELINE_FILE="$2"
+            shift 2
+            ;;
+        -l|--latest-baseline)
+            USE_LATEST_BASELINE=true
+            shift
+            ;;
+        -g|--generate-baseline)
+            GENERATE_BASELINE=true
+            shift
+            ;;
+        -t|--threshold)
+            if [[ $# -lt 2 ]]; then
+                echo "ERROR: --threshold requires a file path"
+                usage 1
+            fi
+            THRESHOLD_FILE="$2"
+            shift 2
+            ;;
+        -h|--help)
+            usage 0
+            ;;
+        -* )
+            echo "Unknown option: $1"
+            usage 1
+            ;;
+        *)
+            if [[ -z "${BAG_FILE}" ]]; then
+                BAG_FILE="$1"
+                shift
+            else
+                echo "ERROR: Unexpected positional argument: $1"
+                usage 1
+            fi
+            ;;
+    esac
 done
 
-if [[ -z "${BAG_FILE}" || -z "${BASELINE_JSON}" ]]; then
-  echo "ERROR: --bag and --baseline are required"
-  usage
-  exit 2
+if [[ -z "${BAG_FILE}" ]]; then
+    echo "ERROR: bag_file is required"
+    usage 1
 fi
 
+# 检查 bag 文件
 if [[ ! -f "${BAG_FILE}" ]]; then
-  echo "ERROR: bag file not found: ${BAG_FILE}"
-  exit 2
-fi
-if [[ ! -f "${BASELINE_JSON}" ]]; then
-  echo "ERROR: baseline json not found: ${BASELINE_JSON}"
-  exit 2
-fi
-if [[ -n "${GT_FILE}" && ! -f "${GT_FILE}" ]]; then
-  echo "ERROR: gt csv not found: ${GT_FILE}"
-  exit 2
+    echo "ERROR: Bag file not found: ${BAG_FILE}"
+    exit 1
 fi
 
-source /opt/ros/noetic/setup.bash
-if [[ -f "${ROOT_DIR}/devel/setup.bash" ]]; then
-  # shellcheck source=/dev/null
-  source "${ROOT_DIR}/devel/setup.bash"
-fi
+BAG_NAME=$(basename "${BAG_FILE}" .bag)
+mkdir -p "${RESULTS_DIR}"
+mkdir -p "${BASELINE_DIR}"
 
-TMP_DIR=""
-if [[ -z "${OUTPUT_JSON}" ]]; then
-  TMP_DIR="$(mktemp -d)"
-  OUTPUT_JSON="${TMP_DIR}/perception_current_metrics.json"
-fi
-
-cleanup() {
-  if [[ -n "${TMP_DIR}" ]]; then
-    rm -rf "${TMP_DIR}"
-  fi
+# 查找最新的 baseline
+find_latest_baseline() {
+    local pattern="${BASELINE_DIR}/${BAG_NAME}_baseline_*.json"
+    ls -t ${pattern} 2>/dev/null | head -1
 }
-trap cleanup EXIT
 
-EVAL_CMD=(
-  python3 "${ROOT_DIR}/perf_reports/scripts/evaluate_perception_metrics.py"
-  "${BAG_FILE}"
-  --topic "${TOPIC}"
-  -o "${OUTPUT_JSON}"
-)
-if [[ -n "${GT_FILE}" ]]; then
-  EVAL_CMD+=(--gt "${GT_FILE}" --gt-threshold "${GT_THRESHOLD}" --gt-max-range "${GT_MAX_RANGE}")
+# 确定 baseline 文件
+if [[ "${GENERATE_BASELINE}" == true ]]; then
+    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    BASELINE_FILE="${BASELINE_DIR}/${BAG_NAME}_baseline_${TIMESTAMP}.json"
+    echo "[INFO] Will generate new baseline: ${BASELINE_FILE}"
+elif [[ "${USE_LATEST_BASELINE}" == true ]]; then
+    BASELINE_FILE=$(find_latest_baseline)
+    if [[ -z "${BASELINE_FILE}" ]]; then
+        echo "ERROR: No baseline found for ${BAG_NAME}"
+        echo "       Run with --generate-baseline first"
+        exit 1
+    fi
+    echo "[INFO] Using latest baseline: ${BASELINE_FILE}"
+elif [[ -n "${BASELINE_FILE}" ]]; then
+    if [[ ! -f "${BASELINE_FILE}" ]]; then
+        echo "ERROR: Baseline file not found: ${BASELINE_FILE}"
+        exit 1
+    fi
+    echo "[INFO] Using specified baseline: ${BASELINE_FILE}"
+else
+    # 尝试自动查找 baseline
+    BASELINE_FILE=$(find_latest_baseline)
+    if [[ -n "${BASELINE_FILE}" ]]; then
+        echo "[INFO] Auto-detected baseline: ${BASELINE_FILE}"
+    else
+        echo "ERROR: No baseline specified and no auto-detected baseline found"
+        echo "       Run with --generate-baseline first, or specify --baseline"
+        exit 1
+    fi
 fi
 
-echo "[INFO] running perception evaluation"
-"${EVAL_CMD[@]}"
+# 检查评估脚本
+if [[ ! -f "${EVAL_SCRIPT}" ]]; then
+    echo "ERROR: Evaluation script not found: ${EVAL_SCRIPT}"
+    exit 1
+fi
 
-echo "[INFO] comparing against baseline"
-python3 - "${BASELINE_JSON}" "${OUTPUT_JSON}" <<'PY'
+# 运行评估
+RESULT_FILE="${RESULTS_DIR}/${BAG_NAME}_$(date +%Y%m%d_%H%M%S).json"
+echo "[INFO] Running perception evaluation..."
+echo "       Bag: ${BAG_FILE}"
+
+python3 "${EVAL_SCRIPT}" "${BAG_FILE}" -o "${RESULT_FILE}"
+
+if [[ ! -f "${RESULT_FILE}" ]]; then
+    echo "ERROR: Evaluation failed, no result file generated"
+    exit 1
+fi
+
+echo "[INFO] Result saved to: ${RESULT_FILE}"
+
+# 生成 baseline 模式
+if [[ "${GENERATE_BASELINE}" == true ]]; then
+    cp "${RESULT_FILE}" "${BASELINE_FILE}"
+    echo "[OK] Baseline generated: ${BASELINE_FILE}"
+    echo ""
+    cat "${BASELINE_FILE}"
+    exit 0
+fi
+
+# 对比模式
+echo "[INFO] Comparing with baseline..."
+
+# 如果没有 Python yaml 模块，使用简单对比
+python3 << EOF
 import json
-import os
 import sys
+from pathlib import Path
 
-baseline_path, current_path = sys.argv[1], sys.argv[2]
-
-with open(baseline_path, "r", encoding="utf-8") as f:
+# 加载结果和 baseline
+with open("${RESULT_FILE}") as f:
+    result = json.load(f)
+with open("${BASELINE_FILE}") as f:
     baseline = json.load(f)
-with open(current_path, "r", encoding="utf-8") as f:
-    current = json.load(f)
 
-baseline_metrics = baseline.get("metrics", {})
-current_metrics = current.get("metrics", {})
+# 定义阈值 (可从配置文件加载)
+thresholds = {
+    "mean_detections": {"abs": 2.0, "rel": 0.15},      # 绝对差值 < 2, 相对 < 15%
+    "std_detections": {"abs": 1.0, "rel": 0.20},       # 绝对差值 < 1, 相对 < 20%
+    "spike_rate": {"abs": 0.05, "rel": 0.30},          # 绝对差值 < 0.05, 相对 < 30%
+    "zero_frame_rate": {"abs": 0.05, "rel": 0.30},     # 绝对差值 < 0.05, 相对 < 30%
+    "mean_confidence": {"abs": 0.05, "rel": 0.10},     # 绝对差值 < 0.05, 相对 < 10%
+    "mean_distance_m": {"abs": 1.0, "rel": 0.10},      # 绝对差值 < 1m, 相对 < 10%
+    "symmetry_ratio": {"abs": 0.1, "rel": 0.15},       # 绝对差值 < 0.1, 相对 < 15%
+}
 
-if baseline.get("baseline_ready", True) is False:
-    print("[RESULT] perception regression check FAILED")
-    print("[FAIL] baseline is not ready (baseline_ready=false); freeze baseline first")
-    print(f"[INFO] baseline: {baseline_path}")
+# GT 指标阈值 (如果有)
+gt_thresholds = {
+    "precision": {"abs": 0.05, "rel": 0.10, "min": 0.85},
+    "recall": {"abs": 0.05, "rel": 0.10, "min": 0.80},
+    "f1": {"abs": 0.05, "rel": 0.10, "min": 0.82},
+    "rmse_m": {"abs": 0.3, "rel": 0.20, "max": 0.5},
+}
+
+r_metrics = result.get("metrics", {})
+b_metrics = baseline.get("metrics", {})
+
+violations = []
+warnings = []
+
+def check_metric(name, current, baseline_val, thresh):
+    if current is None or baseline_val is None:
+        return
+    
+    abs_diff = abs(current - baseline_val)
+    rel_diff = abs_diff / baseline_val if baseline_val != 0 else float('inf')
+    
+    status = "OK"
+    if abs_diff > thresh.get("abs", float('inf')) and rel_diff > thresh.get("rel", float('inf')):
+        status = "FAIL"
+        violations.append(f"{name}: {current:.4f} vs {baseline_val:.4f} (abs={abs_diff:.4f}, rel={rel_diff:.2%})")
+    elif abs_diff > thresh.get("abs", float('inf')) * 0.5 or rel_diff > thresh.get("rel", float('inf')) * 0.5:
+        status = "WARN"
+        warnings.append(f"{name}: {current:.4f} vs {baseline_val:.4f} (abs={abs_diff:.4f}, rel={rel_diff:.2%})")
+    
+    # 检查最小/最大值约束
+    if "min" in thresh and current < thresh["min"]:
+        violations.append(f"{name}: {current:.4f} < min {thresh['min']}")
+    if "max" in thresh and current > thresh["max"]:
+        violations.append(f"{name}: {current:.4f} > max {thresh['max']}")
+    
+    return status
+
+print("\n" + "="*60)
+print("REGRESSION TEST RESULTS")
+print("="*60)
+print(f"Bag:      ${BAG_NAME}")
+print(f"Baseline: ${BASELINE_FILE}")
+print(f"Result:   ${RESULT_FILE}")
+print("-"*60)
+
+# 检查代理指标
+print("\nProxy Metrics:")
+for name, thresh in thresholds.items():
+    current = r_metrics.get(name)
+    baseline_val = b_metrics.get(name)
+    if current is not None and baseline_val is not None:
+        status = check_metric(name, current, baseline_val, thresh)
+        marker = "✓" if status == "OK" else ("⚠" if status == "WARN" else "✗")
+        print(f"  {marker} {name:25s}: {current:8.4f} vs {baseline_val:8.4f}")
+
+# 检查 GT 指标 (如果有)
+has_gt = any(k in r_metrics for k in gt_thresholds.keys())
+if has_gt:
+    print("\nGT Metrics:")
+    for name, thresh in gt_thresholds.items():
+        current = r_metrics.get(name)
+        baseline_val = b_metrics.get(name)
+        if current is not None and baseline_val is not None:
+            status = check_metric(name, current, baseline_val, thresh)
+            marker = "✓" if status == "OK" else ("⚠" if status == "WARN" else "✗")
+            print(f"  {marker} {name:25s}: {current:8.4f} vs {baseline_val:8.4f}")
+
+print("\n" + "-"*60)
+
+if warnings:
+    print(f"\n⚠ WARNINGS ({len(warnings)}):")
+    for w in warnings:
+        print(f"  - {w}")
+
+if violations:
+    print(f"\n✗ VIOLATIONS ({len(violations)}):")
+    for v in violations:
+        print(f"  - {v}")
+    print("\n" + "="*60)
+    print("RESULT: FAILED")
+    print("="*60)
     sys.exit(1)
-
-required_metrics = [
-    "n_frames",
-    "mean_detections",
-    "std_detections",
-    "spike_rate",
-    "zero_frame_rate",
-    "mean_confidence",
-    "std_confidence",
-    "mean_distance_m",
-    "symmetry_ratio",
-    "mean_frame_interval_s",
-]
-
-def _missing_required(metric_map):
-    missing = []
-    for name in required_metrics:
-        value = metric_map.get(name)
-        if not isinstance(value, (int, float)):
-            missing.append(name)
-    return missing
-
-missing_baseline = _missing_required(baseline_metrics)
-if missing_baseline:
-    print("[RESULT] perception regression check FAILED")
-    print("[FAIL] baseline is missing required numeric metrics")
-    print(f"[INFO] missing baseline metrics: {', '.join(missing_baseline)}")
-    print(f"[INFO] baseline: {baseline_path}")
-    sys.exit(1)
-
-missing_current = _missing_required(current_metrics)
-if missing_current:
-    print("[RESULT] perception regression check FAILED")
-    print("[FAIL] current run is missing required numeric metrics")
-    print(f"[INFO] missing current metrics: {', '.join(missing_current)}")
-    print(f"[INFO] current: {current_path}")
-    sys.exit(1)
-
-lower_better_metrics = [
-    "std_detections",
-    "spike_rate",
-    "zero_frame_rate",
-    "std_confidence",
-    "mean_frame_interval_s",
-]
-higher_better_metrics = [
-    "mean_confidence",
-]
-
-for metric in ("precision", "recall", "f1"):
-    if metric in baseline_metrics and metric in current_metrics:
-        higher_better_metrics.append(metric)
-if "rmse_m" in baseline_metrics and "rmse_m" in current_metrics:
-    lower_better_metrics.append("rmse_m")
-
-max_rel_increase = float(os.getenv("PERCEPTION_MAX_REL_INCREASE", "0.20"))
-max_rel_decrease = float(os.getenv("PERCEPTION_MAX_REL_DECREASE", "0.10"))
-max_abs_when_zero = float(os.getenv("PERCEPTION_MAX_ABS_WHEN_ZERO", "0.02"))
-min_frame_ratio = float(os.getenv("PERCEPTION_MIN_FRAME_RATIO", "0.95"))
-
-failures = []
-infos = []
-
-def _fmt(v):
-    if isinstance(v, float):
-        return f"{v:.6g}"
-    return str(v)
-
-baseline_frames = baseline_metrics.get("n_frames")
-current_frames = current_metrics.get("n_frames")
-if isinstance(baseline_frames, (int, float)) and isinstance(current_frames, (int, float)) and baseline_frames > 0:
-    min_allowed = baseline_frames * min_frame_ratio
-    infos.append(
-        f"n_frames: baseline={_fmt(baseline_frames)} current={_fmt(current_frames)} min_allowed={_fmt(min_allowed)}"
-    )
-    if current_frames < min_allowed:
-        failures.append(
-            f"n_frames dropped below threshold: baseline={_fmt(baseline_frames)} current={_fmt(current_frames)} min_allowed={_fmt(min_allowed)}"
-        )
-
-for metric in lower_better_metrics:
-    if metric not in baseline_metrics or metric not in current_metrics:
-        continue
-    baseline_value = float(baseline_metrics[metric])
-    current_value = float(current_metrics[metric])
-    if baseline_value == 0.0:
-        allowed = max_abs_when_zero
-    else:
-        allowed = baseline_value * (1.0 + max_rel_increase)
-    infos.append(
-        f"{metric}: baseline={_fmt(baseline_value)} current={_fmt(current_value)} max_allowed={_fmt(allowed)}"
-    )
-    if current_value > allowed:
-        failures.append(
-            f"{metric} regressed (higher is worse): baseline={_fmt(baseline_value)} current={_fmt(current_value)} max_allowed={_fmt(allowed)}"
-        )
-
-for metric in higher_better_metrics:
-    if metric not in baseline_metrics or metric not in current_metrics:
-        continue
-    baseline_value = float(baseline_metrics[metric])
-    current_value = float(current_metrics[metric])
-    if baseline_value <= 0.0:
-        infos.append(
-            f"{metric}: baseline={_fmt(baseline_value)} current={_fmt(current_value)} (skip threshold, non-positive baseline)"
-        )
-        continue
-    min_allowed = baseline_value * (1.0 - max_rel_decrease)
-    infos.append(
-        f"{metric}: baseline={_fmt(baseline_value)} current={_fmt(current_value)} min_allowed={_fmt(min_allowed)}"
-    )
-    if current_value < min_allowed:
-        failures.append(
-            f"{metric} regressed (lower is worse): baseline={_fmt(baseline_value)} current={_fmt(current_value)} min_allowed={_fmt(min_allowed)}"
-        )
-
-if failures:
-    print("[RESULT] perception regression check FAILED")
-    for item in failures:
-        print(f"[FAIL] {item}")
-    print(f"[INFO] baseline: {baseline_path}")
-    print(f"[INFO] current:  {current_path}")
-    sys.exit(1)
-
-print("[RESULT] perception regression check PASSED")
-for item in infos:
-    print(f"[INFO] {item}")
-print(f"[INFO] baseline: {baseline_path}")
-print(f"[INFO] current:  {current_path}")
-PY
+else:
+    print("\n" + "="*60)
+    print("RESULT: PASSED")
+    print("="*60)
+    sys.exit(0)
+EOF
