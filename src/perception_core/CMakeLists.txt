@@ -116,4 +116,26 @@ if(CATKIN_ENABLE_TESTING)
       ${PCL_LIBRARIES}
     )
   endif()
+
+  # Topology repair 测试
+  catkin_add_gtest(test_topology_repair
+    test/test_topology_repair.cpp
+  )
+  if(TARGET test_topology_repair)
+    target_link_libraries(test_topology_repair
+      ${PROJECT_NAME}
+      ${PCL_LIBRARIES}
+    )
+  endif()
+
+  # Cluster feature extractor 测试
+  catkin_add_gtest(test_cluster_feature_extractor
+    test/test_cluster_feature_extractor.cpp
+  )
+  if(TARGET test_cluster_feature_extractor)
+    target_link_libraries(test_cluster_feature_extractor
+      ${PROJECT_NAME}
+      ${PCL_LIBRARIES}
+    )
+  endif()
 endif()
