@@ -886,6 +886,7 @@ void LidarClusterRos::loadParams()
   } else {
     // Legacy compatibility: map old vision_inject parameters to fusion behavior.
     private_nh_.param<bool>("vision_inject/enabled", fusion_enabled_, false);
+    private_nh_.param<double>("vision_inject/max_age_sec", fusion_sync_slop_sec_, 0.15);
     private_nh_.param<float>("vision_inject/min_confidence", fusion_min_vision_confidence_, 300.0f);
     private_nh_.param<double>("vision_inject/match_angle_deg", fusion_legacy_match_angle_deg_, 5.0);
     private_nh_.param<double>(
@@ -894,7 +895,6 @@ void LidarClusterRos::loadParams()
         "vision_inject/camera_width_px", fusion_legacy_camera_width_px_, 640);
     fusion_sync_policy_ = "approximate";
     fusion_sync_queue_size_ = 20;
-    fusion_sync_slop_sec_ = 0.2;
     fusion_max_cache_size_ = 100;
     fusion_vision_topic_ = fsd_common::topic_contract::kVisionDetections;
     fusion_camera_info_topic_ = "/camera/camera_info";

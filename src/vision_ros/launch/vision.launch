@@ -10,7 +10,7 @@
 <launch>
   <arg name="mission" default="track"/>
   <arg name="mode" default="standard"/>
-  <arg name="impl" default="cpp" doc="vision implementation: cpp|py"/>
+  <arg name="impl" default="py" doc="vision implementation: cpp|py"/>
   <arg name="debug" default="false"/>
   <arg name="image_topic" default="/camera/image_raw"/>
   <arg name="model_path" default="$(find vision_ros)/models/exp26l_gpu/best.onnx"/>

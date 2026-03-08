@@ -2,6 +2,7 @@
 
 import sys
 import time
+import threading
 
 import cv2
 import numpy as np
@@ -47,6 +48,116 @@ class Detection:
     self.confidence = confidence
     self.class_id = class_id
     self.color_type = color_type
+
+
+class PendingImageFrame:
+  __slots__ = ("msg", "receive_mono")
+
+  def __init__(self, msg, receive_mono):
+    self.msg = msg
+    self.receive_mono = float(receive_mono)
+
+
+class LatestFrameBuffer:
+  __slots__ = ("stale_after_sec", "_pending", "replaced_total", "stale_total", "last_stale_age_ms")
+
+  def __init__(self, stale_after_sec):
+    self.stale_after_sec = float(stale_after_sec)
+    self._pending = None
+    self.replaced_total = 0
+    self.stale_total = 0
+    self.last_stale_age_ms = 0.0
+
+  def store(self, frame):
+    if self._pending is not None:
+      self.replaced_total += 1
+    self._pending = frame
+
+  def has_pending(self):
+    return self._pending is not None
+
+  def pending_depth(self):
+    return 1 if self._pending is not None else 0
+
+  def take_latest(self, now_mono):
+    frame = self._pending
+    self._pending = None
+    if frame is None:
+      return None
+
+    age_sec = float(now_mono) - frame.receive_mono
+    if self.stale_after_sec > 0.0 and age_sec > self.stale_after_sec:
+      self.stale_total += 1
+      self.last_stale_age_ms = max(age_sec * 1000.0, 0.0)
+      return None
+
+    return frame
+
+
+class FrameStageTiming:
+  __slots__ = (
+    "header_stamp_sec",
+    "receive_mono",
+    "pick_mono",
+    "preprocess_done_mono",
+    "inference_done_mono",
+    "postprocess_done_mono",
+    "publish_done_mono",
+    "publish_ros_sec",
+  )
+
+  def __init__(self, header_stamp_sec, receive_mono):
+    self.header_stamp_sec = float(header_stamp_sec)
+    self.receive_mono = float(receive_mono)
+    self.pick_mono = float(receive_mono)
+    self.preprocess_done_mono = float(receive_mono)
+    self.inference_done_mono = float(receive_mono)
+    self.postprocess_done_mono = float(receive_mono)
+    self.publish_done_mono = float(receive_mono)
+    self.publish_ros_sec = 0.0
+
+  def mark_picked(self, pick_mono):
+    self.pick_mono = float(pick_mono)
+    self.preprocess_done_mono = self.pick_mono
+    self.inference_done_mono = self.pick_mono
+    self.postprocess_done_mono = self.pick_mono
+    self.publish_done_mono = self.pick_mono
+
+  def mark_preprocess_done(self, done_mono):
+    self.preprocess_done_mono = float(done_mono)
+
+  def mark_inference_done(self, done_mono):
+    self.inference_done_mono = float(done_mono)
+
+  def mark_postprocess_done(self, done_mono):
+    self.postprocess_done_mono = float(done_mono)
+
+  def mark_publish_done(self, done_mono, publish_ros_sec):
+    self.publish_done_mono = float(done_mono)
+    self.publish_ros_sec = float(publish_ros_sec)
+
+  @staticmethod
+  def _delta_ms(start_mono, end_mono):
+    return max((float(end_mono) - float(start_mono)) * 1000.0, 0.0)
+
+  def snapshot(self):
+    end_to_end_lag_ms = 0.0
+    if self.publish_ros_sec > 0.0 and self.header_stamp_sec > 0.0:
+      end_to_end_lag_ms = max((self.publish_ros_sec - self.header_stamp_sec) * 1000.0, 0.0)
+
+    return {
+      "receive_to_pick_ms": self._delta_ms(self.receive_mono, self.pick_mono),
+      "preprocess_ms": self._delta_ms(self.pick_mono, self.preprocess_done_mono),
+      "inference_stage_ms": self._delta_ms(
+        self.preprocess_done_mono, self.inference_done_mono
+      ),
+      "postprocess_ms": self._delta_ms(
+        self.inference_done_mono, self.postprocess_done_mono
+      ),
+      "publish_ms": self._delta_ms(self.postprocess_done_mono, self.publish_done_mono),
+      "total_processing_ms": self._delta_ms(self.pick_mono, self.publish_done_mono),
+      "end_to_end_publish_lag_ms": end_to_end_lag_ms,
+    }
 
 
 class TemporalTracker:
@@ -110,6 +221,10 @@ class VisionNodePy:
 
     self.last_debug_pub = rospy.Time(0)
     self.last_diag_pub = rospy.Time(0)
+    self.last_stage_timing = None
+    self.skipped_postprocess_newer_pending = 0
+    self.last_fallback_ms = 0.0
+    self.last_tracker_ms = 0.0
 
     self._load_params()
     self._init_backend()
@@ -130,15 +245,27 @@ class VisionNodePy:
     )
     self.diag_pub_global = rospy.Publisher("/diagnostics", DiagnosticArray, queue_size=1)
 
+    self.latest_frame_buffer = LatestFrameBuffer(self.stale_frame_age_sec)
+    self.latest_frame_cv = threading.Condition()
+    self.worker_shutdown = False
+    self.worker = threading.Thread(
+      target=self._worker_loop, name="vision_node_py_worker", daemon=True
+    )
+    self.worker.start()
+    rospy.on_shutdown(self._shutdown_worker)
+
     self.image_sub = rospy.Subscriber(self.image_topic, Image, self._image_callback, queue_size=1)
 
     rospy.loginfo(
-      "[vision_node_py] Initialized - backend=%s, mode=%s, topic=%s, tracker=%s, fallback=%s",
+      "[vision_node_py] Initialized - backend=%s, mode=%s, topic=%s, tracker=%s, fallback=%s, stale_frame_age_sec=%.3f, skip_heavy_if_newer_pending=%s, publish_debug_image=%s",
       self.backend_name,
       "onnx_inference" if self.backend_ready else "fallback_only",
       self.image_topic,
       "on" if self.tracker_enabled else "off",
       "on" if self.fallback_enabled else "off",
+      self.stale_frame_age_sec,
+      "on" if self.skip_heavy_if_newer_pending else "off",
+      "on" if self.publish_debug_image else "off",
     )
 
   def _load_params(self):
@@ -154,9 +281,11 @@ class VisionNodePy:
     self.nms_threshold = float(rospy.get_param("~detection/nms_threshold", 0.45))
     self.num_threads = int(rospy.get_param("~inference/num_threads", 2))
 
-    self.publish_debug_image = bool(rospy.get_param("~output/publish_debug_image", True))
+    self.publish_debug_image = bool(rospy.get_param("~output/publish_debug_image", False))
     self.debug_image_rate = float(rospy.get_param("~output/debug_image_rate", 5.0))
     self.diag_rate_hz = 2.0
+    self.stale_frame_age_sec = float(rospy.get_param("~node/stale_frame_age_sec", 0.5))
+    self.skip_heavy_if_newer_pending = bool(rospy.get_param("~node/skip_heavy_if_newer_pending", True))
 
     self.confidence_scale = 1000.0
     self.fallback_enabled = bool(rospy.get_param("~fallback/enabled", True))
@@ -278,21 +407,67 @@ class VisionNodePy:
   def spin(self):
     rospy.spin()
 
+  def _shutdown_worker(self):
+    with self.latest_frame_cv:
+      self.worker_shutdown = True
+      self.latest_frame_cv.notify_all()
+    if hasattr(self, "worker") and self.worker.is_alive():
+      self.worker.join(timeout=1.0)
+
   def _image_callback(self, msg):
+    with self.latest_frame_cv:
+      self.latest_frame_buffer.store(
+        PendingImageFrame(msg=msg, receive_mono=time.perf_counter())
+      )
+      self.latest_frame_cv.notify()
+
+  @staticmethod
+  def _current_ros_time_sec():
+    now_ros = rospy.Time.now().to_sec()
+    if now_ros > 0.0:
+      return now_ros
+    return time.time()
+
+  def _worker_loop(self):
+    while not rospy.is_shutdown():
+      with self.latest_frame_cv:
+        while not self.worker_shutdown and not self.latest_frame_buffer.has_pending():
+          self.latest_frame_cv.wait(timeout=0.1)
+        if self.worker_shutdown:
+          return
+        pick_mono = time.perf_counter()
+        pending_frame = self.latest_frame_buffer.take_latest(now_mono=pick_mono)
+
+      if pending_frame is None:
+        if self.latest_frame_buffer.last_stale_age_ms > 0.0:
+          rospy.logwarn_throttle(
+            2.0,
+            "[vision_node_py] Dropped stale frame age_ms=%.1f total=%d",
+            self.latest_frame_buffer.last_stale_age_ms,
+            self.latest_frame_buffer.stale_total,
+          )
+        continue
+
+      self._process_pending_frame(pending_frame, pick_mono)
+
+  def _process_pending_frame(self, pending_frame, pick_mono):
     try:
-      image = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
+      bgr = self.bridge.imgmsg_to_cv2(pending_frame.msg, desired_encoding="bgr8")
     except CvBridgeError as exc:
       rospy.logerr_throttle(5.0, "[vision_node_py] cv_bridge exception: %s", str(exc))
       return
 
-    self._process_frame(image, msg.header)
+    self._process_frame(bgr, pending_frame.msg.header, pending_frame.receive_mono, pick_mono)
 
-  def _process_frame(self, bgr, header):
+  def _process_frame(self, bgr, header, receive_mono, pick_mono):
     self.frame_count += 1
+    timing = FrameStageTiming(header_stamp_sec=header.stamp.to_sec(), receive_mono=receive_mono)
+    timing.mark_picked(pick_mono)
     quality_metrics = self._assess_quality(bgr)
     self._update_state(quality_metrics["overall"])
 
     enhanced = self._enhance_image(bgr, quality_metrics["overall"])
+    timing.mark_preprocess_done(time.perf_counter())
 
     model_detections = []
     inference_us = 0
@@ -305,24 +480,45 @@ class VisionNodePy:
     if not skip_model and self.backend_ready:
       t0 = time.perf_counter()
       model_detections = self._detect_onnx(enhanced, bgr.shape[1], bgr.shape[0])
-      inference_us = int((time.perf_counter() - t0) * 1e6)
+      inference_done_mono = time.perf_counter()
+      inference_us = int((inference_done_mono - t0) * 1e6)
+      timing.mark_inference_done(inference_done_mono)
+    else:
+      timing.mark_inference_done(time.perf_counter())
 
+    # Check if a newer frame is already waiting before doing heavy postprocess work.
+    newer_pending = self.skip_heavy_if_newer_pending and self.latest_frame_buffer.has_pending()
+    if newer_pending:
+      self.skipped_postprocess_newer_pending += 1
+
+    _t0_fallback = time.perf_counter()
     fallback_detections = []
-    if self.fallback_enabled:
+    _need_fallback = self.fallback_enabled and (
+      not self.backend_ready
+      or quality_metrics["overall"] == QUALITY_UNUSABLE
+      or self.state in (STATE_VISION_LOST, STATE_FALLBACK)
+    )
+    if _need_fallback:
       fallback_detections = self._detect_fallback_hsv(enhanced)
+    self.last_fallback_ms = (time.perf_counter() - _t0_fallback) * 1000.0
 
     detections = self._fuse_detections(
       model_detections, fallback_detections, quality_metrics["overall"], self.state
     )
 
-    if self.tracker_enabled:
+    _t0_tracker = time.perf_counter()
+    if self.tracker_enabled and not newer_pending:
       detections = self.tracker.update(detections)
+    self.last_tracker_ms = (time.perf_counter() - _t0_tracker) * 1000.0
 
     detections = self._filter_topk(detections, self.max_detections)
+    timing.mark_postprocess_done(time.perf_counter())
 
     self._publish_detections(detections, header, quality_metrics, inference_us)
-    if self.publish_debug_image:
+    if self.publish_debug_image and not newer_pending:
       self._publish_debug_image(enhanced, detections, header)
+    timing.mark_publish_done(time.perf_counter(), self._current_ros_time_sec())
+    self.last_stage_timing = timing.snapshot()
     self._publish_diagnostics(quality_metrics, len(detections), inference_us)
 
   def _assess_quality(self, bgr):
@@ -378,7 +574,7 @@ class VisionNodePy:
 
   def _enhance_image(self, bgr, quality):
     if quality in (QUALITY_GOOD, QUALITY_UNUSABLE):
-      return bgr.copy()
+      return bgr  # no-copy: callers never modify the array in place
 
     out = bgr.copy()
     cfg = self.enhancer_cfg
@@ -629,15 +825,14 @@ class VisionNodePy:
     self.detections_pub.publish(msg)
 
   def _publish_debug_image(self, bgr, detections, header):
+    if self.debug_image_pub.get_num_connections() == 0:
+      return
     now = rospy.Time.now()
     if self.last_debug_pub.to_sec() > 0.0 and self.debug_image_rate > 0.0:
       min_interval = 1.0 / self.debug_image_rate
       if (now - self.last_debug_pub).to_sec() < min_interval:
         return
     self.last_debug_pub = now
-
-    if self.debug_image_pub.get_num_connections() == 0:
-      return
 
     canvas = bgr.copy()
     for det in detections:
@@ -711,7 +906,36 @@ class VisionNodePy:
       KeyValue(key="tracker_enabled", value="1" if self.tracker_enabled else "0"),
       KeyValue(key="fallback_enabled", value="1" if self.fallback_enabled else "0"),
       KeyValue(key="model_path", value=self.model_path if self.model_path else "<empty>"),
+      KeyValue(key="stale_frame_age_sec", value=str(self.stale_frame_age_sec)),
+      KeyValue(key="frame_drop_replaced_total", value=str(self.latest_frame_buffer.replaced_total)),
+      KeyValue(key="frame_drop_stale_total", value=str(self.latest_frame_buffer.stale_total)),
+      KeyValue(key="pending_frame_depth", value=str(self.latest_frame_buffer.pending_depth())),
+      KeyValue(key="last_stale_age_ms", value=str(self.latest_frame_buffer.last_stale_age_ms)),
+      KeyValue(key="skipped_postprocess_newer_pending", value=str(self.skipped_postprocess_newer_pending)),
+      KeyValue(key="skip_heavy_if_newer_pending", value="1" if self.skip_heavy_if_newer_pending else "0"),
+      KeyValue(key="fallback_ms", value=str(self.last_fallback_ms)),
+      KeyValue(key="tracker_ms", value=str(self.last_tracker_ms)),
     ]
+
+    stage_timing = self.last_stage_timing or {}
+    kvs.extend(
+      [
+        KeyValue(key="receive_to_pick_ms", value=str(stage_timing.get("receive_to_pick_ms", 0.0))),
+        KeyValue(key="preprocess_ms", value=str(stage_timing.get("preprocess_ms", 0.0))),
+        KeyValue(
+          key="inference_stage_ms", value=str(stage_timing.get("inference_stage_ms", 0.0))
+        ),
+        KeyValue(key="postprocess_ms", value=str(stage_timing.get("postprocess_ms", 0.0))),
+        KeyValue(key="publish_ms", value=str(stage_timing.get("publish_ms", 0.0))),
+        KeyValue(
+          key="total_processing_ms", value=str(stage_timing.get("total_processing_ms", 0.0))
+        ),
+        KeyValue(
+          key="end_to_end_publish_lag_ms",
+          value=str(stage_timing.get("end_to_end_publish_lag_ms", 0.0)),
+        ),
+      ]
+    )
 
     status = DiagnosticStatus()
     status.name = "vision_node"

@@ -11,13 +11,15 @@ inline constexpr const char *kApproachingGoal = "planning/skidpad/approaching_go
 
 // ── Perception / Localization ───────────────────────────────────
 inline constexpr const char *kConeDetections = "perception/lidar_cluster/detections";
-inline constexpr const char *kFusedConeDetections = "perception/fusion/detections";
+inline constexpr const char *kFusedConeDetections = "/perception/fusion/detections";
+inline constexpr const char *kDecisionConeDetections = "perception/decision/detections";
+inline constexpr const char *kDecisionConeTrace = "perception/decision/trace";
 inline constexpr const char *kConeMap = "localization/cone_map";
 
 // ── Vision ────────────────────────────────────────────────────────
-inline constexpr const char *kVisionDetections = "perception/vision/detections";
-inline constexpr const char *kVisionDebugImage = "perception/vision/debug_image";
-inline constexpr const char *kVisionDiagnostics = "perception/vision/diagnostics";
+inline constexpr const char *kVisionDetections = "/perception/vision/detections";
+inline constexpr const char *kVisionDebugImage = "/perception/vision/debug_image";
+inline constexpr const char *kVisionDiagnostics = "/perception/vision/diagnostics";
 
 // ── Vehicle interface ───────────────────────────────────────────
 inline constexpr const char *kInsMsg = "sensors/ins";
@@ -25,7 +27,7 @@ inline constexpr const char *kVehicleStatus = "vehicle/status";
 
 // ── Diagnostics ─────────────────────────────────────────────────
 inline constexpr const char *kDiagnosticsGlobal = "/diagnostics";
-inline constexpr const char *kPerceptionDiagnostics = "perception/diagnostics";
+inline constexpr const char *kPerceptionDiagnostics = "/perception/diagnostics";
 inline constexpr const char *kControlDiagnostics = "control/diagnostics";
 inline constexpr const char *kLocalizationDiagnostics = "localization/diagnostics";
 inline constexpr const char *kPlanningDiagnostics = "planning/diagnostics";

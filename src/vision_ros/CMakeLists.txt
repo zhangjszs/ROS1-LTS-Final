@@ -34,5 +34,6 @@ catkin_install_python(PROGRAMS
 
 if(CATKIN_ENABLE_TESTING)
   find_package(rostest REQUIRED)
+  add_rostest(test/test_backlog_runtime.test)
   add_rostest(test/test_default_launch.test)
 endif()

@@ -1,0 +1,160 @@
+[
+  {
+    "bag": "/home/kerwin/2025huat/perf_reports/data/adapter_budget_sweep_20260308_190648/budget_0p12/raw_only/raw_only_results.bag",
+    "frames": 40,
+    "fused_frames": 0,
+    "fused_ratio": 0.0,
+    "output_gap_ms": {
+      "max": 100.63232421875,
+      "p99": 100.537509765625
+    },
+    "raw_fallback_frames": 40,
+    "raw_fallback_ratio": 1.0,
+    "reason_counts": {
+      "no_fused": 40
+    },
+    "scenario": "raw_only",
+    "wait_ms": {
+      "max": 122.466,
+      "p50": 121.78999999999999,
+      "p95": 122.3511,
+      "p99": 122.42192999999999
+    }
+  },
+  {
+    "bag": "/home/kerwin/2025huat/perf_reports/data/adapter_budget_sweep_20260308_190648/budget_0p12/same_stamp_normal_merge/same_stamp_normal_merge_results.bag",
+    "frames": 40,
+    "fused_frames": 40,
+    "fused_ratio": 1.0,
+    "output_gap_ms": {
+      "max": 100.891845703125,
+      "p99": 100.8739404296875
+    },
+    "raw_fallback_frames": 0,
+    "raw_fallback_ratio": 0.0,
+    "reason_counts": {
+      "normal_merge": 40
+    },
+    "scenario": "same_stamp_normal_merge",
+    "wait_ms": {
+      "max": 10.6562,
+      "p50": 10.156749999999999,
+      "p95": 10.595659999999999,
+      "p99": 10.638962
+    }
+  },
+  {
+    "bag": "/home/kerwin/2025huat/perf_reports/data/adapter_budget_sweep_20260308_190648/budget_0p12/late_fused_within_budget/late_fused_within_budget_results.bag",
+    "frames": 40,
+    "fused_frames": 0,
+    "fused_ratio": 0.0,
+    "output_gap_ms": {
+      "max": 100.671142578125,
+      "p99": 100.556103515625
+    },
+    "raw_fallback_frames": 40,
+    "raw_fallback_ratio": 1.0,
+    "reason_counts": {
+      "no_fused": 40
+    },
+    "scenario": "late_fused_within_budget",
+    "wait_ms": {
+      "max": 121.456,
+      "p50": 120.9485,
+      "p95": 121.327,
+      "p99": 121.42051
+    }
+  },
+  {
+    "bag": "/home/kerwin/2025huat/perf_reports/data/adapter_budget_sweep_20260308_190648/budget_0p12/late_fused_over_deadline/late_fused_over_deadline_results.bag",
+    "frames": 40,
+    "fused_frames": 0,
+    "fused_ratio": 0.0,
+    "output_gap_ms": {
+      "max": 100.2666015625,
+      "p99": 100.2475830078125
+    },
+    "raw_fallback_frames": 40,
+    "raw_fallback_ratio": 1.0,
+    "reason_counts": {
+      "no_fused": 40
+    },
+    "scenario": "late_fused_over_deadline",
+    "wait_ms": {
+      "max": 129.262,
+      "p50": 128.48149999999998,
+      "p95": 129.23845,
+      "p99": 129.25615000000002
+    }
+  },
+  {
+    "bag": "/home/kerwin/2025huat/perf_reports/data/adapter_budget_sweep_20260308_190648/budget_0p12/intermittent_drop_count_mismatch/intermittent_drop_count_mismatch_results.bag",
+    "frames": 48,
+    "fused_frames": 17,
+    "fused_ratio": 0.3541666666666667,
+    "output_gap_ms": {
+      "max": 200.443603515625,
+      "p99": 200.3817236328125
+    },
+    "raw_fallback_frames": 31,
+    "raw_fallback_ratio": 0.6458333333333334,
+    "reason_counts": {
+      "count_mismatch": 12,
+      "late_fused": 7,
+      "no_fused": 12,
+      "normal_merge": 17
+    },
+    "scenario": "intermittent_drop_count_mismatch",
+    "wait_ms": {
+      "max": 121.758,
+      "p50": 70.0856,
+      "p95": 121.60289999999999,
+      "p99": 121.75424
+    }
+  },
+  {
+    "bag": "/home/kerwin/2025huat/perf_reports/data/adapter_budget_sweep_20260308_190648/budget_0p12/duplicate_stale_finalize/duplicate_stale_finalize_results.bag",
+    "frames": 36,
+    "fused_frames": 18,
+    "fused_ratio": 0.5,
+    "output_gap_ms": {
+      "max": 200.3251953125,
+      "p99": 200.286845703125
+    },
+    "raw_fallback_frames": 18,
+    "raw_fallback_ratio": 0.5,
+    "reason_counts": {
+      "no_fused": 18,
+      "normal_merge": 18
+    },
+    "scenario": "duplicate_stale_finalize",
+    "wait_ms": {
+      "max": 125.599,
+      "p50": 72.5632,
+      "p95": 125.50399999999999,
+      "p99": 125.5983
+    }
+  },
+  {
+    "bag": "/home/kerwin/2025huat/perf_reports/data/adapter_budget_sweep_20260308_190648/budget_0p12/callback_timer_pressure/callback_timer_pressure_results.bag",
+    "frames": 80,
+    "fused_frames": 0,
+    "fused_ratio": 0.0,
+    "output_gap_ms": {
+      "max": 50.457763671875,
+      "p99": 50.3615966796875
+    },
+    "raw_fallback_frames": 80,
+    "raw_fallback_ratio": 1.0,
+    "reason_counts": {
+      "no_fused": 80
+    },
+    "scenario": "callback_timer_pressure",
+    "wait_ms": {
+      "max": 129.573,
+      "p50": 129.0765,
+      "p95": 129.50619999999998,
+      "p99": 129.57221
+    }
+  }
+]

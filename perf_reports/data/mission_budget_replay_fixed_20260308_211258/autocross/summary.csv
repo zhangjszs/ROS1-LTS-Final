@@ -1,0 +1,2 @@
+scenario,frames,fused_frames,raw_fallback_frames,fused_ratio,raw_fallback_ratio,reason_counts,wait_p50_ms,wait_p95_ms,wait_p99_ms,wait_max_ms,gap_p99_ms,gap_max_ms
+autocross_decision,172,0,172,0.000,1.000,"{""no_fused"": 172}",125.08,129.9383,131.1139,132.02,131.351123046875,141.546630859375

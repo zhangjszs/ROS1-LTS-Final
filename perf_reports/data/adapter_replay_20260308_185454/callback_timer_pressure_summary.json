@@ -1,0 +1,24 @@
+{
+  "bag": "/home/kerwin/2025huat/perf_reports/data/adapter_replay_20260308_185454/callback_timer_pressure/callback_timer_pressure_results.bag",
+  "frames": 80,
+  "fused_frames": 48,
+  "fused_ratio": 0.6,
+  "output_gap_ms": {
+    "max": 63.91259765625,
+    "p99": 63.8225244140625
+  },
+  "raw_fallback_frames": 32,
+  "raw_fallback_ratio": 0.4,
+  "reason_counts": {
+    "count_mismatch": 16,
+    "no_fused": 16,
+    "normal_merge": 48
+  },
+  "scenario": "callback_timer_pressure",
+  "wait_ms": {
+    "max": 203.619,
+    "p50": 189.998,
+    "p95": 203.1234,
+    "p99": 203.59688
+  }
+}

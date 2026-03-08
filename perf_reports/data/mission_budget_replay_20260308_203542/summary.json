@@ -1,0 +1,150 @@
+[
+  {
+    "adapter_stats": {
+      "cache_evicted": 0,
+      "count_mismatch": 0,
+      "duplicate_after_finalize": 0,
+      "late_fused": 0,
+      "no_fused": 721,
+      "pending_cache_size_max": 2,
+      "published_fused": 0,
+      "published_raw_fallback": 721,
+      "stale_fused": 0
+    },
+    "bag": "/home/kerwin/2025huat/perf_reports/data/mission_budget_replay_20260308_203542/acceleration/acceleration_decision.bag",
+    "metrics": {
+      "bag": "/home/kerwin/2025huat/perf_reports/data/mission_budget_replay_20260308_203542/acceleration/acceleration_decision.bag",
+      "frames": 712,
+      "fused_frames": 0,
+      "fused_ratio": 0.0,
+      "output_gap_ms": {
+        "max": 122.109130859375,
+        "p99": 121.2494873046875
+      },
+      "raw_fallback_frames": 712,
+      "raw_fallback_ratio": 1.0,
+      "reason_counts": {
+        "no_fused": 712
+      },
+      "scenario": "acceleration_decision",
+      "wait_ms": {
+        "max": 158.613,
+        "p50": 104.619,
+        "p95": 109.6517,
+        "p99": 110.75385
+      }
+    },
+    "mission": "acceleration"
+  },
+  {
+    "adapter_stats": {
+      "cache_evicted": 0,
+      "count_mismatch": 0,
+      "duplicate_after_finalize": 0,
+      "late_fused": 0,
+      "no_fused": 722,
+      "pending_cache_size_max": 3,
+      "published_fused": 0,
+      "published_raw_fallback": 722,
+      "stale_fused": 0
+    },
+    "bag": "/home/kerwin/2025huat/perf_reports/data/mission_budget_replay_20260308_203542/autocross/autocross_decision.bag",
+    "metrics": {
+      "bag": "/home/kerwin/2025huat/perf_reports/data/mission_budget_replay_20260308_203542/autocross/autocross_decision.bag",
+      "frames": 711,
+      "fused_frames": 0,
+      "fused_ratio": 0.0,
+      "output_gap_ms": {
+        "max": 172.4140625,
+        "p99": 120.71658203124984
+      },
+      "raw_fallback_frames": 711,
+      "raw_fallback_ratio": 1.0,
+      "reason_counts": {
+        "no_fused": 711
+      },
+      "scenario": "autocross_decision",
+      "wait_ms": {
+        "max": 175.704,
+        "p50": 125.115,
+        "p95": 129.814,
+        "p99": 131.3144
+      }
+    },
+    "mission": "autocross"
+  },
+  {
+    "adapter_stats": {
+      "cache_evicted": 0,
+      "count_mismatch": 0,
+      "duplicate_after_finalize": 0,
+      "late_fused": 0,
+      "no_fused": 722,
+      "pending_cache_size_max": 2,
+      "published_fused": 0,
+      "published_raw_fallback": 722,
+      "stale_fused": 0
+    },
+    "bag": "/home/kerwin/2025huat/perf_reports/data/mission_budget_replay_20260308_203542/skidpad/skidpad_decision.bag",
+    "metrics": {
+      "bag": "/home/kerwin/2025huat/perf_reports/data/mission_budget_replay_20260308_203542/skidpad/skidpad_decision.bag",
+      "frames": 710,
+      "fused_frames": 0,
+      "fused_ratio": 0.0,
+      "output_gap_ms": {
+        "max": 123.193115234375,
+        "p99": 114.6520703125
+      },
+      "raw_fallback_frames": 710,
+      "raw_fallback_ratio": 1.0,
+      "reason_counts": {
+        "no_fused": 710
+      },
+      "scenario": "skidpad_decision",
+      "wait_ms": {
+        "max": 161.545,
+        "p50": 154.906,
+        "p95": 159.5035,
+        "p99": 160.54297
+      }
+    },
+    "mission": "skidpad"
+  },
+  {
+    "adapter_stats": {
+      "cache_evicted": 0,
+      "count_mismatch": 0,
+      "duplicate_after_finalize": 0,
+      "late_fused": 0,
+      "no_fused": 713,
+      "pending_cache_size_max": 2,
+      "published_fused": 0,
+      "published_raw_fallback": 713,
+      "stale_fused": 0
+    },
+    "bag": "/home/kerwin/2025huat/perf_reports/data/mission_budget_replay_20260308_203542/trackdrive/trackdrive_decision.bag",
+    "metrics": {
+      "bag": "/home/kerwin/2025huat/perf_reports/data/mission_budget_replay_20260308_203542/trackdrive/trackdrive_decision.bag",
+      "frames": 704,
+      "fused_frames": 0,
+      "fused_ratio": 0.0,
+      "output_gap_ms": {
+        "max": 131.32568359375,
+        "p99": 114.305419921875
+      },
+      "raw_fallback_frames": 704,
+      "raw_fallback_ratio": 1.0,
+      "reason_counts": {
+        "no_fused": 704
+      },
+      "scenario": "trackdrive_decision",
+      "wait_ms": {
+        "max": 147.656,
+        "p50": 125.162,
+        "p95": 129.8389,
+        "p99": 130.93885
+      }
+    },
+    "mission": "trackdrive"
+  }
+]

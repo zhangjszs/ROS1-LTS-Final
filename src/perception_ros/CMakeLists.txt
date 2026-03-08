@@ -42,6 +42,7 @@ add_definitions(${PCL_DEFINITIONS})
 
 add_library(${PROJECT_NAME}
   src/lidar_cluster_ros.cpp
+  src/cone_detection_adapter.cpp
   src/imu_subscriber.cpp
   src/distortion_compensator_v2.cpp
   src/nodelets/lidar_cluster_nodelet.cc
@@ -67,6 +68,12 @@ target_link_libraries(${PROJECT_NAME}_node
   ${perception_core_LIBRARIES}
 )
 
+add_executable(cone_detection_adapter_node nodes/cone_detection_adapter_node.cpp)
+target_link_libraries(cone_detection_adapter_node
+  ${catkin_LIBRARIES}
+  ${PROJECT_NAME}
+)
+
 add_executable(test_conf test/confidence.cpp)
 target_link_libraries(test_conf ${catkin_LIBRARIES})
 
@@ -76,6 +83,12 @@ if(CATKIN_ENABLE_TESTING)
     target_link_libraries(perception_ros_perf_stats_test ${catkin_LIBRARIES})
   endif()
 
+  catkin_add_gtest(test_cone_detection_adapter test/test_cone_detection_adapter.cpp)
+  if(TARGET test_cone_detection_adapter)
+    target_link_libraries(test_cone_detection_adapter ${catkin_LIBRARIES} ${PROJECT_NAME})
+  endif()
+
   find_package(rostest REQUIRED)
   add_rostest(test/test_vision_inject_default.test)
+  add_rostest(test/test_mainline_adapter_launch_contract.test)
 endif()

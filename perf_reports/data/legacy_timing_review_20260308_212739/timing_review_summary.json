@@ -1,0 +1,194 @@
+{
+  "acceleration_baseline": {
+    "camera_related_topics": []
+  },
+  "autocross": {
+    "budget_sec": 0.12,
+    "decision_trace": {
+      "frames": 193,
+      "no_fused_ratio": 1.0,
+      "publish_modes": {
+        "raw_fallback": 193
+      },
+      "reason_counts": {
+        "no_fused": 193
+      },
+      "wait_ms": {
+        "max": 132.999,
+        "p50": 126.385,
+        "p95": 130.2346,
+        "p99": 131.43612000000002
+      }
+    },
+    "fusion_diagnostics": {
+      "fusion_frames_camera_missing": "0",
+      "fusion_frames_no_sync": "172",
+      "fusion_frames_tf_missing": "0",
+      "fusion_last_matched": "0",
+      "fusion_last_sync_delta_ms": "5.148954",
+      "fusion_last_unmatched": "0",
+      "fusion_messages_published": "1",
+      "fusion_pair_total": "1",
+      "fusion_pair_used": "1",
+      "fusion_sync_slop_sec": "0.120000"
+    },
+    "fusion_topic_msg_count": 0,
+    "record_window_sec": {
+      "duration": 19.234323024749756,
+      "end": 1662794084.3387961,
+      "start": 1662794065.104473
+    },
+    "stamp_distribution": {
+      "raw_frames_considered": 192,
+      "raw_frames_within_budget": 66,
+      "raw_frames_within_budget_ratio": 0.34375,
+      "raw_to_vision_ms": {
+        "max": 7748.218536376953,
+        "p50": 175.81236362457275,
+        "p95": 6791.279625892638,
+        "p99": 7556.848211288452
+      },
+      "vision_msgs_within_budget": 28,
+      "vision_msgs_within_budget_ratio": 0.6222222222222222,
+      "vision_to_raw_ms": {
+        "max": 7176.830530166626,
+        "p50": 33.15448760986328,
+        "p95": 6288.713455200194,
+        "p99": 6979.639005661012
+      }
+    },
+    "vision_hz": {
+      "avg_hz": 2.3737739168660017,
+      "count": 45,
+      "max_interval_ms": 558.9964389801025,
+      "p50_interval_ms": 416.0081148147583,
+      "p95_interval_ms": 442.05039739608765
+    }
+  },
+  "skidpad": {
+    "budget_sec": 0.15,
+    "decision_trace": {
+      "frames": 192,
+      "no_fused_ratio": 1.0,
+      "publish_modes": {
+        "raw_fallback": 192
+      },
+      "reason_counts": {
+        "no_fused": 192
+      },
+      "wait_ms": {
+        "max": 161.128,
+        "p50": 155.49900000000002,
+        "p95": 159.74,
+        "p99": 160.2374
+      }
+    },
+    "fusion_diagnostics": {
+      "fusion_frames_camera_missing": "0",
+      "fusion_frames_no_sync": "159",
+      "fusion_frames_tf_missing": "0",
+      "fusion_last_matched": "24",
+      "fusion_last_sync_delta_ms": "21.592000",
+      "fusion_last_unmatched": "18",
+      "fusion_messages_published": "8",
+      "fusion_pair_total": "8",
+      "fusion_pair_used": "8",
+      "fusion_sync_slop_sec": "0.150000"
+    },
+    "fusion_topic_msg_count": 0,
+    "record_window_sec": {
+      "duration": 19.176542043685913,
+      "end": 1682841064.5794113,
+      "start": 1682841045.4028692
+    },
+    "stamp_distribution": {
+      "raw_frames_considered": 191,
+      "raw_frames_within_budget": 82,
+      "raw_frames_within_budget_ratio": 0.4293193717277487,
+      "raw_to_vision_ms": {
+        "max": 10946.044445037842,
+        "p50": 1427.382469177246,
+        "p95": 9994.158029556274,
+        "p99": 10755.652856826782
+      },
+      "vision_msgs_within_budget": 28,
+      "vision_msgs_within_budget_ratio": 0.6829268292682927,
+      "vision_to_raw_ms": {
+        "max": 3396.210193634033,
+        "p50": 43.37286949157715,
+        "p95": 2862.060308456421,
+        "p99": 3288.636684417725
+      }
+    },
+    "vision_hz": {
+      "avg_hz": 2.1449031750473893,
+      "count": 41,
+      "max_interval_ms": 619.3079948425293,
+      "p50_interval_ms": 460.7565402984619,
+      "p95_interval_ms": 478.7358164787292
+    }
+  },
+  "trackdrive": {
+    "budget_sec": 0.12,
+    "decision_trace": {
+      "frames": 193,
+      "no_fused_ratio": 1.0,
+      "publish_modes": {
+        "raw_fallback": 193
+      },
+      "reason_counts": {
+        "no_fused": 193
+      },
+      "wait_ms": {
+        "max": 149.813,
+        "p50": 125.874,
+        "p95": 129.83,
+        "p99": 132.37588000000002
+      }
+    },
+    "fusion_diagnostics": {
+      "fusion_frames_camera_missing": "0",
+      "fusion_frames_no_sync": "166",
+      "fusion_frames_tf_missing": "0",
+      "fusion_last_matched": "0",
+      "fusion_last_sync_delta_ms": "16.292561",
+      "fusion_last_unmatched": "0",
+      "fusion_messages_published": "0",
+      "fusion_pair_total": "1",
+      "fusion_pair_used": "0",
+      "fusion_sync_slop_sec": "0.120000"
+    },
+    "fusion_topic_msg_count": 0,
+    "record_window_sec": {
+      "duration": 19.22359538078308,
+      "end": 1662794083.1452124,
+      "start": 1662794063.921617
+    },
+    "stamp_distribution": {
+      "raw_frames_considered": 192,
+      "raw_frames_within_budget": 57,
+      "raw_frames_within_budget_ratio": 0.296875,
+      "raw_to_vision_ms": {
+        "max": 8192.018032073975,
+        "p50": 194.37754154205322,
+        "p95": 7235.147726535796,
+        "p99": 8000.686707496643
+      },
+      "vision_msgs_within_budget": 26,
+      "vision_msgs_within_budget_ratio": 0.5909090909090909,
+      "vision_to_raw_ms": {
+        "max": 7070.52206993103,
+        "p50": 42.61338710784912,
+        "p95": 6508.706879615785,
+        "p99": 7050.10080575943
+      }
+    },
+    "vision_hz": {
+      "avg_hz": 2.2875680180374265,
+      "count": 44,
+      "max_interval_ms": 488.07764053344727,
+      "p50_interval_ms": 434.38720703125,
+      "p95_interval_ms": 458.75513553619385
+    }
+  }
+}

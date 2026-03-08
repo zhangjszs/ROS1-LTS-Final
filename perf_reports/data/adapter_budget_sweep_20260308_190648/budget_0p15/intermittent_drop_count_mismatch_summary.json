@@ -1,0 +1,24 @@
+{
+  "bag": "/home/kerwin/2025huat/perf_reports/data/adapter_budget_sweep_20260308_190648/budget_0p15/intermittent_drop_count_mismatch/intermittent_drop_count_mismatch_results.bag",
+  "frames": 48,
+  "fused_frames": 24,
+  "fused_ratio": 0.5,
+  "output_gap_ms": {
+    "max": 200.4140625,
+    "p99": 200.2470654296875
+  },
+  "raw_fallback_frames": 24,
+  "raw_fallback_ratio": 0.5,
+  "reason_counts": {
+    "count_mismatch": 12,
+    "no_fused": 12,
+    "normal_merge": 24
+  },
+  "scenario": "intermittent_drop_count_mismatch",
+  "wait_ms": {
+    "max": 152.441,
+    "p50": 70.1054,
+    "p95": 152.3092,
+    "p99": 152.40246000000002
+  }
+}

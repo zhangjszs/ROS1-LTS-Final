@@ -1,0 +1,22 @@
+{
+  "bag": "/home/kerwin/2025huat/perf_reports/data/mission_budget_replay_fixed_20260308_211258/acceleration/acceleration_decision.bag",
+  "frames": 173,
+  "fused_frames": 0,
+  "fused_ratio": 0.0,
+  "output_gap_ms": {
+    "max": 121.174072265625,
+    "p99": 112.05418701171874
+  },
+  "raw_fallback_frames": 173,
+  "raw_fallback_ratio": 1.0,
+  "reason_counts": {
+    "no_fused": 173
+  },
+  "scenario": "acceleration_decision",
+  "wait_ms": {
+    "max": 115.615,
+    "p50": 104.849,
+    "p95": 109.6258,
+    "p99": 111.0246
+  }
+}

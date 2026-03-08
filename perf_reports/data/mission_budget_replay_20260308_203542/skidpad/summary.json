@@ -1,0 +1,24 @@
+[
+  {
+    "bag": "/home/kerwin/2025huat/perf_reports/data/mission_budget_replay_20260308_203542/skidpad/skidpad_decision.bag",
+    "frames": 710,
+    "fused_frames": 0,
+    "fused_ratio": 0.0,
+    "output_gap_ms": {
+      "max": 123.193115234375,
+      "p99": 114.6520703125
+    },
+    "raw_fallback_frames": 710,
+    "raw_fallback_ratio": 1.0,
+    "reason_counts": {
+      "no_fused": 710
+    },
+    "scenario": "skidpad_decision",
+    "wait_ms": {
+      "max": 161.545,
+      "p50": 154.906,
+      "p95": 159.5035,
+      "p99": 160.54297
+    }
+  }
+]

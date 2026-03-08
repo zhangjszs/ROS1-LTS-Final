@@ -5,7 +5,7 @@
 <launch>
   <arg name="mission" default="track"/>
   <arg name="mode" default="standard"/>
-  <arg name="impl" default="cpp"/>
+  <arg name="impl" default="py"/>
   <arg name="debug" default="false"/>
   <arg name="image_topic" default="/camera/image_raw"/>
   <arg name="model_path" default=""/>

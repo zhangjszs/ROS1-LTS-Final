@@ -1,0 +1,132 @@
+{
+  "trackdrive": {
+    "budget_sec": 0.12,
+    "decision_trace": {
+      "frames": 573,
+      "no_fused_ratio": 0.984293,
+      "publish_modes": {
+        "raw_fallback": 564,
+        "fused": 9
+      },
+      "reason_counts": {
+        "no_fused": 564,
+        "normal_merge": 9
+      },
+      "wait_ms": {
+        "p50": 124.85,
+        "p95": 129.7214,
+        "p99": 131.00484,
+        "max": 134.044
+      }
+    },
+    "fusion_diagnostics": {
+      "fusion_enabled": "1",
+      "fusion_sync_policy": "approximate",
+      "fusion_sync_queue_size": "20",
+      "fusion_sync_slop_sec": "0.120000",
+      "fusion_pair_total": "140",
+      "fusion_pair_used": "140",
+      "fusion_pair_dropped_no_raw": "0",
+      "fusion_pair_cache_evicted": "0",
+      "fusion_raw_cache_evicted": "415",
+      "fusion_messages_published": "140",
+      "fusion_frames_no_sync": "415",
+      "fusion_frames_camera_missing": "0",
+      "fusion_frames_tf_missing": "0",
+      "fusion_assoc_matched_total": "41",
+      "fusion_assoc_unmatched_total": "1284",
+      "fusion_last_sync_delta_ms": "10.368365",
+      "fusion_last_matched": "0",
+      "fusion_last_unmatched": "1",
+      "fusion_camera_info_ready": "0",
+      "fusion_tf_available": "0"
+    },
+    "fusion_topic_msg_count_in_record": 127,
+    "raw_frames_in_record_window": 573,
+    "raw_frames_with_header_match_within_budget": 284,
+    "raw_frames_with_header_match_within_budget_ratio": 0.495637,
+    "vision_header_to_raw_ms": {
+      "p50": -1.204252,
+      "p95": 104.939032,
+      "max": 118.959665
+    },
+    "vision_publish_hz": 2.381,
+    "vision_publish_interval_ms": {
+      "count": 135,
+      "p50": 475.46792,
+      "p95": 506.616509,
+      "max": 560.195446
+    },
+    "vision_publish_lag_ms": {
+      "p50": 516.723394,
+      "p95": 556.384611,
+      "p99": 575.12754,
+      "max": 597.164869
+    }
+  },
+  "skidpad": {
+    "budget_sec": 0.15,
+    "decision_trace": {
+      "frames": 572,
+      "no_fused_ratio": 0.896853,
+      "publish_modes": {
+        "raw_fallback": 513,
+        "fused": 59
+      },
+      "reason_counts": {
+        "no_fused": 513,
+        "normal_merge": 59
+      },
+      "wait_ms": {
+        "p50": 155.1945,
+        "p95": 159.7788,
+        "p99": 161.46001,
+        "max": 167.092
+      }
+    },
+    "fusion_diagnostics": {
+      "fusion_enabled": "1",
+      "fusion_sync_policy": "approximate",
+      "fusion_sync_queue_size": "20",
+      "fusion_sync_slop_sec": "0.150000",
+      "fusion_pair_total": "159",
+      "fusion_pair_used": "159",
+      "fusion_pair_dropped_no_raw": "0",
+      "fusion_pair_cache_evicted": "0",
+      "fusion_raw_cache_evicted": "396",
+      "fusion_messages_published": "159",
+      "fusion_frames_no_sync": "396",
+      "fusion_frames_camera_missing": "0",
+      "fusion_frames_tf_missing": "0",
+      "fusion_assoc_matched_total": "1312",
+      "fusion_assoc_unmatched_total": "7342",
+      "fusion_last_sync_delta_ms": "16.263960",
+      "fusion_last_matched": "4",
+      "fusion_last_unmatched": "48",
+      "fusion_camera_info_ready": "0",
+      "fusion_tf_available": "0"
+    },
+    "fusion_topic_msg_count_in_record": 143,
+    "raw_frames_in_record_window": 572,
+    "raw_frames_with_header_match_within_budget": 421,
+    "raw_frames_with_header_match_within_budget_ratio": 0.736014,
+    "vision_header_to_raw_ms": {
+      "p50": -5.409956,
+      "p95": 128.789997,
+      "max": 149.718761
+    },
+    "vision_publish_hz": 2.529,
+    "vision_publish_interval_ms": {
+      "count": 143,
+      "p50": 457.121134,
+      "p95": 484.837556,
+      "max": 750.821114
+    },
+    "vision_publish_lag_ms": {
+      "p50": 554.487944,
+      "p95": 765.361857,
+      "p99": 794.415112,
+      "max": 818.553448
+    }
+  }
+}

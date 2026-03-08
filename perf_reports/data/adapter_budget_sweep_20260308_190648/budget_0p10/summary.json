@@ -1,0 +1,159 @@
+[
+  {
+    "bag": "/home/kerwin/2025huat/perf_reports/data/adapter_budget_sweep_20260308_190648/budget_0p10/raw_only/raw_only_results.bag",
+    "frames": 40,
+    "fused_frames": 0,
+    "fused_ratio": 0.0,
+    "output_gap_ms": {
+      "max": 100.678466796875,
+      "p99": 100.5791064453125
+    },
+    "raw_fallback_frames": 40,
+    "raw_fallback_ratio": 1.0,
+    "reason_counts": {
+      "no_fused": 40
+    },
+    "scenario": "raw_only",
+    "wait_ms": {
+      "max": 105.503,
+      "p50": 104.928,
+      "p95": 105.31775,
+      "p99": 105.48076999999999
+    }
+  },
+  {
+    "bag": "/home/kerwin/2025huat/perf_reports/data/adapter_budget_sweep_20260308_190648/budget_0p10/same_stamp_normal_merge/same_stamp_normal_merge_results.bag",
+    "frames": 40,
+    "fused_frames": 40,
+    "fused_ratio": 1.0,
+    "output_gap_ms": {
+      "max": 100.86474609375,
+      "p99": 100.8221630859375
+    },
+    "raw_fallback_frames": 0,
+    "raw_fallback_ratio": 0.0,
+    "reason_counts": {
+      "normal_merge": 40
+    },
+    "scenario": "same_stamp_normal_merge",
+    "wait_ms": {
+      "max": 10.6827,
+      "p50": 10.06505,
+      "p95": 10.50546,
+      "p99": 10.652553
+    }
+  },
+  {
+    "bag": "/home/kerwin/2025huat/perf_reports/data/adapter_budget_sweep_20260308_190648/budget_0p10/late_fused_within_budget/late_fused_within_budget_results.bag",
+    "frames": 40,
+    "fused_frames": 0,
+    "fused_ratio": 0.0,
+    "output_gap_ms": {
+      "max": 100.33154296875,
+      "p99": 100.3292236328125
+    },
+    "raw_fallback_frames": 40,
+    "raw_fallback_ratio": 1.0,
+    "reason_counts": {
+      "no_fused": 40
+    },
+    "scenario": "late_fused_within_budget",
+    "wait_ms": {
+      "max": 106.305,
+      "p50": 105.64750000000001,
+      "p95": 106.1888,
+      "p99": 106.28043000000001
+    }
+  },
+  {
+    "bag": "/home/kerwin/2025huat/perf_reports/data/adapter_budget_sweep_20260308_190648/budget_0p10/late_fused_over_deadline/late_fused_over_deadline_results.bag",
+    "frames": 40,
+    "fused_frames": 0,
+    "fused_ratio": 0.0,
+    "output_gap_ms": {
+      "max": 100.286865234375,
+      "p99": 100.275361328125
+    },
+    "raw_fallback_frames": 40,
+    "raw_fallback_ratio": 1.0,
+    "reason_counts": {
+      "no_fused": 40
+    },
+    "scenario": "late_fused_over_deadline",
+    "wait_ms": {
+      "max": 105.029,
+      "p50": 104.2045,
+      "p95": 104.77324999999999,
+      "p99": 104.97556999999999
+    }
+  },
+  {
+    "bag": "/home/kerwin/2025huat/perf_reports/data/adapter_budget_sweep_20260308_190648/budget_0p10/intermittent_drop_count_mismatch/intermittent_drop_count_mismatch_results.bag",
+    "frames": 48,
+    "fused_frames": 12,
+    "fused_ratio": 0.25,
+    "output_gap_ms": {
+      "max": 184.264404296875,
+      "p99": 184.1501904296875
+    },
+    "raw_fallback_frames": 36,
+    "raw_fallback_ratio": 0.75,
+    "reason_counts": {
+      "count_mismatch": 12,
+      "no_fused": 24,
+      "normal_merge": 12
+    },
+    "scenario": "intermittent_drop_count_mismatch",
+    "wait_ms": {
+      "max": 104.136,
+      "p50": 61.828500000000005,
+      "p95": 104.01375,
+      "p99": 104.10451
+    }
+  },
+  {
+    "bag": "/home/kerwin/2025huat/perf_reports/data/adapter_budget_sweep_20260308_190648/budget_0p10/duplicate_stale_finalize/duplicate_stale_finalize_results.bag",
+    "frames": 36,
+    "fused_frames": 18,
+    "fused_ratio": 0.5,
+    "output_gap_ms": {
+      "max": 188.9892578125,
+      "p99": 188.975146484375
+    },
+    "raw_fallback_frames": 18,
+    "raw_fallback_ratio": 0.5,
+    "reason_counts": {
+      "no_fused": 18,
+      "normal_merge": 18
+    },
+    "scenario": "duplicate_stale_finalize",
+    "wait_ms": {
+      "max": 108.776,
+      "p50": 64.056,
+      "p95": 108.63125,
+      "p99": 108.7424
+    }
+  },
+  {
+    "bag": "/home/kerwin/2025huat/perf_reports/data/adapter_budget_sweep_20260308_190648/budget_0p10/callback_timer_pressure/callback_timer_pressure_results.bag",
+    "frames": 80,
+    "fused_frames": 0,
+    "fused_ratio": 0.0,
+    "output_gap_ms": {
+      "max": 50.791259765625,
+      "p99": 50.742890625
+    },
+    "raw_fallback_frames": 80,
+    "raw_fallback_ratio": 1.0,
+    "reason_counts": {
+      "no_fused": 80
+    },
+    "scenario": "callback_timer_pressure",
+    "wait_ms": {
+      "max": 107.334,
+      "p50": 106.691,
+      "p95": 107.1943,
+      "p99": 107.32847
+    }
+  }
+]

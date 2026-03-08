@@ -6,6 +6,7 @@
   <arg name="mission" default="high_speed" doc="任务类型: line, acceleration, skidpad, high_speed, trackdrive, autocross"/>
   <arg name="output_pathlimits_topic" default="planning/pathlimits"/>
   <arg name="input_car_state_topic" default="localization/car_state"/>
+  <arg name="input_cone_topic" default="perception/lidar_cluster/detections"/>
   <arg name="output_approaching_goal_topic" default="planning/skidpad/approaching_goal"/>
   <arg name="diagnostics_topic" default="planning/diagnostics"/>
   <arg name="publish_global_diagnostics" default="true"/>
@@ -39,5 +40,8 @@
               command="load" file="$(find planning_ros)/config/high_speed_tracking.yaml"/>
     <rosparam if="$(eval arg('vehicle_config') != '')" command="load" file="$(arg vehicle_config)"/>
     <rosparam if="$(eval arg('vehicle_local_config') != '')" command="load" file="$(arg vehicle_local_config)"/>
+
+    <param if="$(eval arg('mission') in ('line', 'acceleration', 'skidpad'))"
+           name="topics/cone" value="$(arg input_cone_topic)"/>
   </node>
 </launch>

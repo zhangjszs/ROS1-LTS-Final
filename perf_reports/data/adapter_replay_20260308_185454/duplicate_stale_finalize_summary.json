@@ -1,0 +1,23 @@
+{
+  "bag": "/home/kerwin/2025huat/perf_reports/data/adapter_replay_20260308_185454/duplicate_stale_finalize/duplicate_stale_finalize_results.bag",
+  "frames": 36,
+  "fused_frames": 18,
+  "fused_ratio": 0.5,
+  "output_gap_ms": {
+    "max": 199.971435546875,
+    "p99": 199.89556640625
+  },
+  "raw_fallback_frames": 18,
+  "raw_fallback_ratio": 0.5,
+  "reason_counts": {
+    "no_fused": 18,
+    "normal_merge": 18
+  },
+  "scenario": "duplicate_stale_finalize",
+  "wait_ms": {
+    "max": 209.977,
+    "p50": 110.32935,
+    "p95": 209.802,
+    "p99": 209.94095
+  }
+}

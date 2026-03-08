@@ -1,0 +1,5 @@
+<launch>
+  <test test-name="test_mainline_adapter_launch_contract"
+        pkg="perception_ros"
+        type="test_mainline_adapter_launch_contract.py" />
+</launch>

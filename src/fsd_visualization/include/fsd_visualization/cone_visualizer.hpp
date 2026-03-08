@@ -3,6 +3,7 @@
 #include <ros/ros.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <autodrive_msgs/HUAT_ConeDetections.h>
+#include <autodrive_msgs/HUAT_FusedConeDetections.h>
 #include <autodrive_msgs/HUAT_ConeMap.h>
 #include <autodrive_msgs/topic_contract.hpp>
 #include <autodrive_msgs/diagnostics_helper.hpp>
@@ -19,6 +20,7 @@ public:
 
 private:
     void coneDetectionsCallback(const autodrive_msgs::HUAT_ConeDetections::ConstPtr& msg);
+    void fusedConeDetectionsCallback(const autodrive_msgs::HUAT_FusedConeDetections::ConstPtr& msg);
     void coneMapCallback(const autodrive_msgs::HUAT_ConeMap::ConstPtr& msg);
 
     // B8: TF timeout monitoring
@@ -27,7 +29,7 @@ private:
     visualization_msgs::Marker createConeMarker(
         double x, double y, double z,
         int id, int type, const std::string& ns, const std::string& frame_id,
-        float confidence = 1.0f);
+        float confidence = 1.0f, bool force_white = false);
 
     visualization_msgs::Marker createBoundingBoxMarker(
         const geometry_msgs::Point32& min_pt,
@@ -39,10 +41,12 @@ private:
         float distance, int id, const std::string& ns, const std::string& frame_id);
 
     ros::Subscriber sub_cone_detections_;
+    ros::Subscriber sub_fused_cone_detections_;
     ros::Subscriber sub_cone_map_;
     ros::Publisher pub_markers_;
 
     std::string cone_detections_topic_;
+    std::string fused_cone_detections_topic_;
     std::string cone_map_topic_;
     std::string markers_topic_;
 
@@ -54,6 +58,13 @@ private:
     bool use_mesh_;
     bool use_confidence_alpha_;
     bool publish_detection_markers_;
+    bool prefer_fused_detections_;
+    bool unmatched_as_white_;
+    double fused_stale_timeout_sec_;
+    ros::Time last_fused_msg_time_;
+    std::string last_detection_source_;
+    int last_fused_matched_count_;
+    int last_fused_unmatched_count_;
     float min_alpha_;
     std::string cone_mesh_type_;  // "fssim" or "gazebo"
     tf2_ros::Buffer tf_buffer_;

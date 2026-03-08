@@ -1,0 +1,22 @@
+{
+  "bag": "/home/kerwin/2025huat/perf_reports/data/adapter_replay_20260308_185454/late_fused_over_deadline/late_fused_over_deadline_results.bag",
+  "frames": 40,
+  "fused_frames": 0,
+  "fused_ratio": 0.0,
+  "output_gap_ms": {
+    "max": 100.25341796875,
+    "p99": 100.246923828125
+  },
+  "raw_fallback_frames": 40,
+  "raw_fallback_ratio": 1.0,
+  "reason_counts": {
+    "no_fused": 40
+  },
+  "scenario": "late_fused_over_deadline",
+  "wait_ms": {
+    "max": 202.017,
+    "p50": 201.392,
+    "p95": 201.84085,
+    "p99": 201.9546
+  }
+}

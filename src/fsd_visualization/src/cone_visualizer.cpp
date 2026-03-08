@@ -12,6 +12,9 @@ constexpr std::uint8_t kConeYellow = 1;
 constexpr std::uint8_t kConeOrangeSmall = 2;
 constexpr std::uint8_t kConeOrangeBig = 3;
 constexpr std::uint8_t kConeNone = 4;
+constexpr std::uint8_t kConeRed = 5;
+constexpr std::uint8_t kFusionMatched = 0;
+constexpr std::uint8_t kFusionLegacyHfovMatched = 8;
 
 int normalizeConeType(int raw_type) {
     switch (raw_type) {
@@ -20,6 +23,7 @@ int normalizeConeType(int raw_type) {
         case kConeOrangeSmall:
         case kConeOrangeBig:
         case kConeNone:
+        case kConeRed:
             return raw_type;
         default:
             return kConeNone;
@@ -47,11 +51,19 @@ ConeVisualizer::ConeVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh)
     pnh.param<bool>("use_mesh", use_mesh_, true);
     pnh.param<bool>("use_confidence_alpha", use_confidence_alpha_, true);
     pnh.param<bool>("publish_detection_markers", publish_detection_markers_, true);
+    pnh.param<bool>("cone/prefer_fused_detections", prefer_fused_detections_, true);
+    pnh.param<bool>("cone/unmatched_as_white", unmatched_as_white_, true);
+    pnh.param<double>("cone/fused_stale_timeout_sec", fused_stale_timeout_sec_, 0.35);
     pnh.param<float>("min_alpha", min_alpha_, 0.3f);
     pnh.param<std::string>("cone_mesh_type", cone_mesh_type_, "gazebo");
     pnh.param<std::string>("topics/cone_detections", cone_detections_topic_, autodrive_msgs::topic_contract::kConeDetections);
+    pnh.param<std::string>("topics/fused_cone_detections", fused_cone_detections_topic_,
+                           autodrive_msgs::topic_contract::kFusedConeDetections);
     pnh.param<std::string>("topics/cone_map", cone_map_topic_, autodrive_msgs::topic_contract::kConeMap);
     pnh.param<std::string>("topics/markers", markers_topic_, "fsd/viz/cones");
+    last_detection_source_ = "none";
+    last_fused_matched_count_ = 0;
+    last_fused_unmatched_count_ = 0;
 
     // B8: TF timeout monitoring parameters
     pnh.param<double>("tf_timeout_sec", tf_timeout_sec_, 0.1);
@@ -67,6 +79,8 @@ ConeVisualizer::ConeVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh)
     // 订阅
     sub_cone_detections_ = nh.subscribe(cone_detections_topic_, 1,
         &ConeVisualizer::coneDetectionsCallback, this);
+    sub_fused_cone_detections_ = nh.subscribe(
+        fused_cone_detections_topic_, 1, &ConeVisualizer::fusedConeDetectionsCallback, this);
     sub_cone_map_ = nh.subscribe(cone_map_topic_, 1,
         &ConeVisualizer::coneMapCallback, this);
 
@@ -79,7 +93,15 @@ ConeVisualizer::ConeVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh)
         publishDiagnostics();
     });
 
-    ROS_INFO("[ConeVisualizer] Initialized (tf_timeout=%.3f sec)", tf_timeout_sec_);
+    ROS_INFO("[ConeVisualizer] Initialized (tf_timeout=%.3f sec, prefer_fused=%s, "
+             "unmatched_as_white=%s)",
+             tf_timeout_sec_,
+             prefer_fused_detections_ ? "true" : "false",
+             unmatched_as_white_ ? "true" : "false");
+    ROS_INFO("[ConeVisualizer] topics: raw='%s' fused='%s' map='%s'",
+             cone_detections_topic_.c_str(),
+             fused_cone_detections_topic_.c_str(),
+             cone_map_topic_.c_str());
 }
 
 void ConeVisualizer::coneDetectionsCallback(
@@ -88,6 +110,13 @@ void ConeVisualizer::coneDetectionsCallback(
     if (!publish_detection_markers_) {
         return;
     }
+    if (prefer_fused_detections_ && last_fused_msg_time_.isValid()) {
+        const double fused_age = (ros::Time::now() - last_fused_msg_time_).toSec();
+        if (fused_age <= fused_stale_timeout_sec_) {
+            return;
+        }
+    }
+    last_detection_source_ = "raw";
 
     visualization_msgs::MarkerArray markers;
     const std::string source_frame =
@@ -207,6 +236,127 @@ void ConeVisualizer::coneDetectionsCallback(
     pub_markers_.publish(markers);
 }
 
+void ConeVisualizer::fusedConeDetectionsCallback(
+    const autodrive_msgs::HUAT_FusedConeDetections::ConstPtr& msg) {
+    if (!publish_detection_markers_ || !prefer_fused_detections_) {
+        return;
+    }
+
+    visualization_msgs::MarkerArray markers;
+    const std::string source_frame =
+        !msg->lidar_frame.empty() ? msg->lidar_frame
+                                  : (msg->header.frame_id.empty() ? frame_id_ : msg->header.frame_id);
+    const bool need_transform = source_frame != frame_id_;
+    std::string marker_frame = source_frame;
+    geometry_msgs::TransformStamped tf_msg;
+
+    if (need_transform) {
+        try {
+            tf_msg = tf_buffer_.lookupTransform(
+                frame_id_, source_frame, msg->header.stamp, ros::Duration(tf_timeout_sec_));
+        } catch (const tf2::TransformException& ex) {
+            if (std::string(ex.what()).find("extrapolation") != std::string::npos) {
+                ++tf_extrapolation_failure_count_;
+            }
+            try {
+                tf_msg = tf_buffer_.lookupTransform(
+                    frame_id_, source_frame, ros::Time(0), ros::Duration(tf_timeout_sec_));
+            } catch (const tf2::TransformException& ex2) {
+                ++tf_lookup_failure_count_;
+                last_tf_failure_time_ = ros::Time::now();
+                ROS_WARN_THROTTLE(1.0,
+                                  "[ConeVisualizer] TF %s->%s unavailable for fused detections: %s",
+                                  source_frame.c_str(), frame_id_.c_str(), ex2.what());
+                return;
+            }
+        }
+        marker_frame = frame_id_;
+    }
+
+    auto transform_point = [&](const geometry_msgs::Point32& in,
+                               geometry_msgs::Point32& out) -> bool {
+        if (!need_transform) {
+            out = in;
+            return true;
+        }
+        geometry_msgs::PointStamped in_stamped;
+        geometry_msgs::PointStamped out_stamped;
+        in_stamped.header.frame_id = source_frame;
+        in_stamped.header.stamp = msg->header.stamp;
+        in_stamped.point.x = in.x;
+        in_stamped.point.y = in.y;
+        in_stamped.point.z = in.z;
+        try {
+            tf2::doTransform(in_stamped, out_stamped, tf_msg);
+        } catch (const tf2::TransformException& ex) {
+            ROS_WARN_THROTTLE(1.0, "[ConeVisualizer] Fused point transform failed: %s", ex.what());
+            return false;
+        }
+        out.x = static_cast<float>(out_stamped.point.x);
+        out.y = static_cast<float>(out_stamped.point.y);
+        out.z = static_cast<float>(out_stamped.point.z);
+        return true;
+    };
+
+    std::size_t matched_count = 0;
+    std::size_t unmatched_count = 0;
+    for (size_t i = 0; i < msg->points.size(); ++i) {
+        geometry_msgs::Point32 point_world;
+        if (!transform_point(msg->points[i], point_world)) {
+            continue;
+        }
+
+        float confidence = 1.0f;
+        if (use_confidence_alpha_ && i < msg->lidar_confidences.size()) {
+            confidence = msg->lidar_confidences[i];
+        }
+
+        int color_type = kConeNone;
+        if (i < msg->fused_color_types.size()) {
+            color_type = normalizeConeType(static_cast<int>(msg->fused_color_types[i]));
+        } else if (i < msg->lidar_color_types.size()) {
+            color_type = normalizeConeType(static_cast<int>(msg->lidar_color_types[i]));
+        }
+
+        const std::uint8_t status =
+            i < msg->association_status.size() ? msg->association_status[i] : 1;
+        const bool matched =
+            (status == kFusionMatched || status == kFusionLegacyHfovMatched);
+        if (matched) {
+            ++matched_count;
+        } else {
+            ++unmatched_count;
+        }
+
+        auto marker = createConeMarker(
+            point_world.x, point_world.y, point_world.z,
+            static_cast<int>(i), color_type, "cone_detections", marker_frame,
+            confidence, unmatched_as_white_ && !matched);
+        marker.header.stamp = msg->header.stamp;
+        markers.markers.push_back(marker);
+    }
+
+    if (show_distance_label_ && msg->obj_dist.size() == msg->points.size()) {
+        for (size_t i = 0; i < msg->points.size(); ++i) {
+            geometry_msgs::Point32 point_world;
+            if (!transform_point(msg->points[i], point_world)) {
+                continue;
+            }
+            auto label = createDistanceLabel(
+                point_world.x, point_world.y, point_world.z,
+                msg->obj_dist[i], static_cast<int>(i), "cone_distance", marker_frame);
+            label.header.stamp = msg->header.stamp;
+            markers.markers.push_back(label);
+        }
+    }
+
+    last_fused_msg_time_ = ros::Time::now();
+    last_detection_source_ = "fused";
+    last_fused_matched_count_ = static_cast<int>(matched_count);
+    last_fused_unmatched_count_ = static_cast<int>(unmatched_count);
+    pub_markers_.publish(markers);
+}
+
 void ConeVisualizer::coneMapCallback(
     const autodrive_msgs::HUAT_ConeMap::ConstPtr& msg) {
     
@@ -235,7 +385,7 @@ void ConeVisualizer::coneMapCallback(
 visualization_msgs::Marker ConeVisualizer::createConeMarker(
     double x, double y, double z,
     int id, int type, const std::string& ns, const std::string& frame_id,
-    float confidence) {
+    float confidence, bool force_white) {
 
     visualization_msgs::Marker marker;
     marker.header.frame_id = frame_id;
@@ -294,8 +444,8 @@ visualization_msgs::Marker ConeVisualizer::createConeMarker(
     }
 
     // 颜色
-    if (use_mesh_ && cone_mesh_type_ == "gazebo") {
-        // Gazebo 锥桶使用纹理贴图，颜色设为白色不干扰纹理
+    if (force_white || (use_mesh_ && cone_mesh_type_ == "gazebo")) {
+        // Gazebo 纹理模型或显式未匹配高亮：统一白色
         marker.color.r = 1.0f;
         marker.color.g = 1.0f;
         marker.color.b = 1.0f;
@@ -440,6 +590,14 @@ void ConeVisualizer::publishDiagnostics() {
     kvs.push_back(DH::KV("tf_lookup_failure_count", std::to_string(tf_lookup_failure_count_)));
     kvs.push_back(DH::KV("tf_extrapolation_failure_count", std::to_string(tf_extrapolation_failure_count_)));
     kvs.push_back(DH::KV("target_frame", frame_id_));
+    kvs.push_back(DH::KV("prefer_fused_detections", prefer_fused_detections_ ? "1" : "0"));
+    kvs.push_back(DH::KV("unmatched_as_white", unmatched_as_white_ ? "1" : "0"));
+    kvs.push_back(DH::KV("last_detection_source", last_detection_source_));
+    kvs.push_back(DH::KV("last_fused_matched_count", std::to_string(last_fused_matched_count_)));
+    kvs.push_back(DH::KV("last_fused_unmatched_count", std::to_string(last_fused_unmatched_count_)));
+    if (last_fused_msg_time_.isValid()) {
+        kvs.push_back(DH::KV("fused_age_sec", std::to_string((ros::Time::now() - last_fused_msg_time_).toSec())));
+    }
 
     diag_helper_.PublishStatus("cone_visualizer", "fsd_visualization", level, message, kvs, ros::Time::now(), false);
 }

@@ -1,0 +1,2 @@
+scenario,frames,fused_frames,raw_fallback_frames,fused_ratio,raw_fallback_ratio,reason_counts,wait_p50_ms,wait_p95_ms,wait_p99_ms,wait_max_ms,gap_p99_ms,gap_max_ms
+skidpad_decision,710,0,710,0.000,1.000,"{""no_fused"": 710}",154.906,159.5035,160.54297,161.545,114.6520703125,123.193115234375

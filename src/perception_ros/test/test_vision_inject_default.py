@@ -16,12 +16,15 @@ class TestVisionInjectDefault(unittest.TestCase):
             config = yaml.safe_load(f)
 
         # Check vision_inject enabled flag
-        vision_inject_config = config.get('lidar_cluster_node', {}).get('vision_inject', {})
+        vision_inject_config = config.get('vision_inject', {})
         enabled = vision_inject_config.get('enabled', False)
 
         self.assertTrue(enabled, "vision_inject should be enabled by default in lidar_base.yaml")
         self.assertGreater(vision_inject_config.get('min_confidence', 0), 0, "min_confidence should be set")
         self.assertGreater(vision_inject_config.get('max_age_sec', 0), 0, "max_age_sec should be set")
+        self.assertAlmostEqual(
+            vision_inject_config.get('max_age_sec', 0.0), 0.15, places=6,
+            msg="max_age_sec should default to the replay-validated 0.15s legacy budget")
 
     def test_launch_file_enables_vision_inject(self):
         # Test that perception launch file doesn't disable vision_inject

@@ -1,0 +1,2 @@
+scenario,frames,fused_frames,raw_fallback_frames,fused_ratio,raw_fallback_ratio,reason_counts,wait_p50_ms,wait_p95_ms,wait_p99_ms,wait_max_ms,gap_p99_ms,gap_max_ms
+trackdrive_decision,173,0,173,0.000,1.000,"{""no_fused"": 173}",125.624,129.5878,130.65475999999998,132.57,111.5257568359375,113.11376953125

@@ -1,0 +1,23 @@
+{
+  "bag": "/home/kerwin/2025huat/perf_reports/data/adapter_budget_sweep_20260308_190648/budget_0p15/late_fused_within_budget/late_fused_within_budget_results.bag",
+  "frames": 40,
+  "fused_frames": 22,
+  "fused_ratio": 0.55,
+  "output_gap_ms": {
+    "max": 101.3779296875,
+    "p99": 101.2594580078125
+  },
+  "raw_fallback_frames": 18,
+  "raw_fallback_ratio": 0.45,
+  "reason_counts": {
+    "late_fused": 18,
+    "normal_merge": 22
+  },
+  "scenario": "late_fused_within_budget",
+  "wait_ms": {
+    "max": 150.987,
+    "p50": 149.92149999999998,
+    "p95": 150.5704,
+    "p99": 150.82749
+  }
+}

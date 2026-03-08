@@ -1,0 +1,158 @@
+{
+  "autocross": {
+    "budget_sec": 0.12,
+    "decision_trace": {
+      "frames": 192,
+      "no_fused_ratio": 1.0,
+      "publish_modes": {
+        "raw_fallback": 192
+      },
+      "reason_counts": {
+        "no_fused": 192
+      },
+      "wait_ms": {
+        "max": 133.491,
+        "p50": 125.15199999999999,
+        "p95": 129.30355,
+        "p99": 130.37862
+      }
+    },
+    "fusion_diagnostics": {
+      "fusion_frames_no_sync": "118",
+      "fusion_last_matched": "0",
+      "fusion_last_sync_delta_ms": "41.039746",
+      "fusion_last_unmatched": "8",
+      "fusion_messages_published": "59",
+      "fusion_pair_total": "59",
+      "fusion_pair_used": "59",
+      "fusion_sync_slop_sec": "0.120000"
+    },
+    "fusion_topic_msg_count_in_record": 41,
+    "raw_frames_in_record_window": 192,
+    "raw_frames_with_header_match_within_budget": 90,
+    "raw_frames_with_header_match_within_budget_ratio": 0.46875,
+    "vision_header_to_raw_ms": {
+      "max": 70.54591178894043,
+      "p50": 30.104637145996094,
+      "p95": 49.553632736206055,
+      "p99": 65.99926948547365
+    },
+    "vision_publish_hz": 2.174,
+    "vision_publish_interval_ms": {
+      "count": 41,
+      "max": 555.7916164398193,
+      "p50": 456.0856819152832,
+      "p95": 498.10576438903803
+    },
+    "vision_publish_lag_ms": {
+      "max": 578.9389610290527,
+      "p50": 489.42017555236816,
+      "p95": 545.1176166534424,
+      "p99": 566.5854454040527
+    }
+  },
+  "skidpad": {
+    "budget_sec": 0.15,
+    "decision_trace": {
+      "frames": 191,
+      "no_fused_ratio": 1.0,
+      "publish_modes": {
+        "raw_fallback": 191
+      },
+      "reason_counts": {
+        "no_fused": 191
+      },
+      "wait_ms": {
+        "max": 160.999,
+        "p50": 155.098,
+        "p95": 159.61599999999999,
+        "p99": 160.5586
+      }
+    },
+    "fusion_diagnostics": {
+      "fusion_frames_no_sync": "112",
+      "fusion_last_matched": "39",
+      "fusion_last_sync_delta_ms": "10.147735",
+      "fusion_last_unmatched": "21",
+      "fusion_messages_published": "55",
+      "fusion_pair_total": "55",
+      "fusion_pair_used": "55",
+      "fusion_sync_slop_sec": "0.150000"
+    },
+    "fusion_topic_msg_count_in_record": 40,
+    "raw_frames_in_record_window": 192,
+    "raw_frames_with_header_match_within_budget": 116,
+    "raw_frames_with_header_match_within_budget_ratio": 0.6041666666666666,
+    "vision_header_to_raw_ms": {
+      "max": 82.74388313293457,
+      "p50": 25.986790657043457,
+      "p95": 48.0605125427246,
+      "p99": 69.90884780883788
+    },
+    "vision_publish_hz": 2.105,
+    "vision_publish_interval_ms": {
+      "count": 40,
+      "max": 513.3779048919678,
+      "p50": 474.75361824035645,
+      "p95": 497.86388874053955
+    },
+    "vision_publish_lag_ms": {
+      "max": 830.838680267334,
+      "p50": 665.3546094894409,
+      "p95": 809.2887043952942,
+      "p99": 827.4954676628113
+    }
+  },
+  "trackdrive": {
+    "budget_sec": 0.12,
+    "decision_trace": {
+      "frames": 192,
+      "no_fused_ratio": 1.0,
+      "publish_modes": {
+        "raw_fallback": 192
+      },
+      "reason_counts": {
+        "no_fused": 192
+      },
+      "wait_ms": {
+        "max": 132.005,
+        "p50": 124.912,
+        "p95": 129.7764,
+        "p99": 130.93851
+      }
+    },
+    "fusion_diagnostics": {
+      "fusion_frames_no_sync": "108",
+      "fusion_last_matched": "0",
+      "fusion_last_sync_delta_ms": "41.452390",
+      "fusion_last_unmatched": "8",
+      "fusion_messages_published": "59",
+      "fusion_pair_total": "60",
+      "fusion_pair_used": "59",
+      "fusion_sync_slop_sec": "0.120000"
+    },
+    "fusion_topic_msg_count_in_record": 43,
+    "raw_frames_in_record_window": 192,
+    "raw_frames_with_header_match_within_budget": 99,
+    "raw_frames_with_header_match_within_budget_ratio": 0.515625,
+    "vision_header_to_raw_ms": {
+      "max": 58.762550354003906,
+      "p50": 23.740053176879883,
+      "p95": 47.052979469299316,
+      "p99": 54.9372625350952
+    },
+    "vision_publish_hz": 2.288,
+    "vision_publish_interval_ms": {
+      "count": 43,
+      "max": 579.7533988952637,
+      "p50": 429.2665719985962,
+      "p95": 467.5885558128357
+    },
+    "vision_publish_lag_ms": {
+      "max": 629.7719478607178,
+      "p50": 466.249942779541,
+      "p95": 545.7014799118042,
+      "p99": 628.7886142730713
+    }
+  }
+}

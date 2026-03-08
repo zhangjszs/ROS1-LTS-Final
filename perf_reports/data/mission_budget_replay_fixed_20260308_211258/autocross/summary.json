@@ -1,0 +1,24 @@
+[
+  {
+    "bag": "/home/kerwin/2025huat/perf_reports/data/mission_budget_replay_fixed_20260308_211258/autocross/autocross_decision.bag",
+    "frames": 172,
+    "fused_frames": 0,
+    "fused_ratio": 0.0,
+    "output_gap_ms": {
+      "max": 141.546630859375,
+      "p99": 131.351123046875
+    },
+    "raw_fallback_frames": 172,
+    "raw_fallback_ratio": 1.0,
+    "reason_counts": {
+      "no_fused": 172
+    },
+    "scenario": "autocross_decision",
+    "wait_ms": {
+      "max": 132.02,
+      "p50": 125.08,
+      "p95": 129.9383,
+      "p99": 131.1139
+    }
+  }
+]

@@ -1,0 +1,23 @@
+<launch>
+    <arg name="raw_topic" default="perception/lidar_cluster/detections"/>
+    <arg name="fused_topic" default="perception/fusion/detections"/>
+    <arg name="output_topic" default="perception/decision/detections"/>
+    <arg name="trace_topic" default="perception/decision/trace"/>
+    <arg name="legacy_budget_sec" default="0.15"/>
+    <arg name="flush_rate_hz" default="100.0"/>
+    <arg name="summary_period_sec" default="1.0"/>
+    <arg name="max_pending" default="100"/>
+
+    <param name="/perception/lidar_cluster/lidar_cluster_node/vision_inject/enabled" value="true"/>
+    <param name="/perception/lidar_cluster/lidar_cluster_node/vision_inject/max_age_sec" value="$(arg legacy_budget_sec)"/>
+
+    <node pkg="perception_ros" type="cone_detection_adapter_node" name="cone_detection_adapter" output="screen">
+        <param name="topics/raw_input" value="$(arg raw_topic)"/>
+        <param name="topics/fused_input" value="$(arg fused_topic)"/>
+        <param name="topics/output" value="$(arg output_topic)"/>
+        <param name="topics/trace" value="$(arg trace_topic)"/>
+        <param name="flush_rate_hz" value="$(arg flush_rate_hz)"/>
+        <param name="summary_period_sec" value="$(arg summary_period_sec)"/>
+        <param name="max_pending" value="$(arg max_pending)"/>
+    </node>
+</launch>

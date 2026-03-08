@@ -1,0 +1,22 @@
+{
+  "bag": "/home/kerwin/2025huat/perf_reports/data/adapter_budget_sweep_20260308_190648/budget_0p10/same_stamp_normal_merge/same_stamp_normal_merge_results.bag",
+  "frames": 40,
+  "fused_frames": 40,
+  "fused_ratio": 1.0,
+  "output_gap_ms": {
+    "max": 100.86474609375,
+    "p99": 100.8221630859375
+  },
+  "raw_fallback_frames": 0,
+  "raw_fallback_ratio": 0.0,
+  "reason_counts": {
+    "normal_merge": 40
+  },
+  "scenario": "same_stamp_normal_merge",
+  "wait_ms": {
+    "max": 10.6827,
+    "p50": 10.06505,
+    "p95": 10.50546,
+    "p99": 10.652553
+  }
+}

@@ -12,6 +12,10 @@
     <arg name="vehicle" default="A13" doc="车辆型谱ID"/>
     <arg name="vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/perception.yaml"/>
     <arg name="vehicle_local_config" default="" doc="本地覆盖参数文件（*.local.yaml）"/>
+    <arg name="decision_cone_topic" default="perception/decision/detections" doc="统一主链路锥桶输入话题"/>
+    <arg name="decision_fusion_budget_sec" default="0.15" doc="统一主链路融合等待预算"/>
+    <arg name="raw_cone_topic" default="perception/lidar_cluster/detections" doc="raw LiDAR锥桶话题"/>
+    <arg name="fused_cone_topic" default="perception/fusion/detections" doc="融合锥桶话题"/>
 
     <!-- LiDAR Cluster -->
     <include file="$(find perception_ros)/launch/lidar_cluster.launch">
@@ -20,8 +24,16 @@
         <arg name="carstate_topic" value="$(arg carstate_topic)"/>
         <arg name="launch_rviz" value="$(arg launch_rviz)"/>
         <arg name="mode" value="$(arg mode)"/>
+        <arg name="decision_fusion_budget_sec" value="$(arg decision_fusion_budget_sec)"/>
         <arg name="mission_config" value="$(arg mission_config)"/>
         <arg name="extra_config" value="$(arg vehicle_config)"/>
         <arg name="extra_local_config" value="$(arg vehicle_local_config)"/>
     </include>
+
+    <node pkg="perception_ros" type="cone_detection_adapter_node" name="cone_detection_adapter" output="screen">
+        <param name="topics/raw_input" value="$(arg raw_cone_topic)"/>
+        <param name="topics/fused_input" value="$(arg fused_cone_topic)"/>
+        <param name="topics/output" value="$(arg decision_cone_topic)"/>
+        <param name="topics/trace" value="perception/decision/trace"/>
+    </node>
 </launch>

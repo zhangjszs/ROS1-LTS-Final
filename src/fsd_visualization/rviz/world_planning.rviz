@@ -194,12 +194,11 @@ Visualization Manager:
           Marker Topic: /fsd/viz/path
           Name: Path
           Namespaces:
-            path_full_center: false
-            path_full_points: false
-            path_partial_center: false
-            path_partial_points: false
+            curvature_colored: true
             path_unified_center: true
             path_unified_points: true
+            speed_colored: true
+            speed_colored_line: true
           Queue Size: 100
           Value: true
         - Class: rviz/MarkerArray
@@ -218,7 +217,7 @@ Visualization Manager:
           Namespaces:
             vehicle_arrow: true
             vehicle_body: true
-            vehicle_trail: true
+            vehicle_state_text: true
             vehicle_wheels: true
           Queue Size: 100
           Value: true
@@ -227,11 +226,7 @@ Visualization Manager:
           Marker Topic: /fsd/viz/triangulation
           Name: Triangulation
           Namespaces:
-            boundary_left: true
-            boundary_right: true
-            computed_path: true
-            midpoints: true
-            triangulation_edges: true
+            {}
           Queue Size: 100
           Value: true
       Enabled: true
@@ -264,7 +259,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/ThirdPersonFollower
-      Distance: 96.8447494506836
+      Distance: 18.189821243286133
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -280,9 +275,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.7799996733665466
+      Pitch: 0.9747973680496216
       Target Frame: base_link
-      Yaw: 3.1900014877319336
+      Yaw: 3.0099942684173584
     Saved:
       - Class: rviz/Orbit
         Distance: 50
@@ -320,5 +315,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1768
-  X: 2804
-  Y: -5
+  X: 2738
+  Y: 206

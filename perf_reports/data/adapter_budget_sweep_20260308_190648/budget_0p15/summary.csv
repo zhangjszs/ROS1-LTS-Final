@@ -1,0 +1,8 @@
+scenario,frames,fused_frames,raw_fallback_frames,fused_ratio,raw_fallback_ratio,reason_counts,wait_p50_ms,wait_p95_ms,wait_p99_ms,wait_max_ms,gap_p99_ms,gap_max_ms
+raw_only,40,0,40,0.000,1.000,"{""no_fused"": 40}",152.3135,152.80435,152.88682,152.911,100.4619189453125,100.51953125
+same_stamp_normal_merge,40,40,0,1.000,0.000,"{""normal_merge"": 40}",10.0724,10.41772,10.52329,10.5541,101.02765625,101.054931640625
+late_fused_within_budget,40,22,18,0.550,0.450,"{""late_fused"": 18, ""normal_merge"": 22}",149.92149999999998,150.5704,150.82749,150.987,101.2594580078125,101.3779296875
+late_fused_over_deadline,40,0,40,0.000,1.000,"{""no_fused"": 40}",154.7365,155.21865,155.34229000000002,155.377,100.2631884765625,100.269775390625
+intermittent_drop_count_mismatch,48,24,24,0.500,0.500,"{""count_mismatch"": 12, ""no_fused"": 12, ""normal_merge"": 24}",70.1054,152.3092,152.40246000000002,152.441,200.2470654296875,200.4140625
+duplicate_stale_finalize,36,18,18,0.500,0.500,"{""no_fused"": 18, ""normal_merge"": 18}",88.16435,156.959,157.0006,157.023,199.578193359375,199.645263671875
+callback_timer_pressure,80,0,80,0.000,1.000,"{""no_fused"": 80}",157.514,158.04425,158.12745,158.163,50.479130859375,50.5107421875

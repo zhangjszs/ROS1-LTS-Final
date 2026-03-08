@@ -15,6 +15,7 @@ namespace fsd_viz {
 constexpr std::array<float, 4> CONE_BLUE    = {0.0f, 0.3f, 1.0f, 1.0f};   // 左边界（蓝）
 constexpr std::array<float, 4> CONE_YELLOW  = {1.0f, 0.9f, 0.0f, 1.0f};   // 右边界（黄）
 constexpr std::array<float, 4> CONE_ORANGE  = {1.0f, 0.5f, 0.0f, 1.0f};   // 大橙桶
+constexpr std::array<float, 4> CONE_RED     = {1.0f, 0.1f, 0.1f, 1.0f};   // 红锥桶
 constexpr std::array<float, 4> CONE_UNKNOWN = {0.6f, 0.6f, 0.6f, 0.8f};   // 未知（灰）
 
 // 路径颜色
@@ -67,13 +68,14 @@ const std::string FRAME_VEHICLE = autodrive_msgs::frame_contract::kVelodyne; // 
 
 // ============ 锥桶类型 ============
 // 与 HUAT_ConeDetections.color_types / HUAT_Cone.type 对齐:
-// 0=BLUE, 1=YELLOW, 2=ORANGE_SMALL, 3=ORANGE_BIG, 4=NONE
+// 0=BLUE, 1=YELLOW, 2=ORANGE_SMALL, 3=ORANGE_BIG, 4=NONE, 5=RED
 enum class ConeType : uint8_t {
     BLUE = 0,
     YELLOW = 1,
     ORANGE_SMALL = 2,
     ORANGE_BIG = 3,
-    NONE = 4
+    NONE = 4,
+    RED = 5
 };
 
 inline std::array<float, 4> getConeColor(ConeType type) {
@@ -82,6 +84,7 @@ inline std::array<float, 4> getConeColor(ConeType type) {
         case ConeType::YELLOW:     return CONE_YELLOW;
         case ConeType::ORANGE_SMALL:
         case ConeType::ORANGE_BIG: return CONE_ORANGE;
+        case ConeType::RED:        return CONE_RED;
         default:                   return CONE_UNKNOWN;
     }
 }
@@ -114,6 +117,7 @@ inline std::string getConeMeshURI(ConeType type) {
         case ConeType::YELLOW:     return MESH_CONE_YELLOW;
         case ConeType::ORANGE_SMALL: return MESH_CONE_ORANGE;
         case ConeType::ORANGE_BIG: return MESH_CONE_ORANGE_BIG;
+        case ConeType::RED:        return MESH_CONE_ORANGE;
         default:                   return MESH_CONE_ORANGE;  // NONE/未知类型回退到橙色
     }
 }
