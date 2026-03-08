@@ -441,6 +441,16 @@ void PlanningPipelineNode::HighSpeedSyncCallback(
       path_quality_violation_count_++;
     }
 
+    // B14: Set replan flag — true if path changed or loop-closure state changed
+    {
+      double checksum = 0.0;
+      for (const auto &pt : full_msg.path) { checksum += pt.x + pt.y; }
+      const bool loop_state_changed = (loop_closed_for_publish != last_path_was_loop_closed_);
+      full_msg.replan = (checksum != last_path_checksum_) || loop_state_changed;
+      last_path_checksum_ = checksum;
+      last_path_was_loop_closed_ = loop_closed_for_publish;
+    }
+
     if (debug_save_way_files_) DoWayFullMsg(full_msg);
     pathlimits_pub_.publish(full_msg);
     bytes_pub += ros::serialization::serializationLength(full_msg);
@@ -476,6 +486,16 @@ void PlanningPipelineNode::HighSpeedSyncCallback(
     {
       ROS_WARN_THROTTLE(1.0, "[planning_pipeline/high_speed] Path quality issues: %s", quality_warning.c_str());
       path_quality_violation_count_++;
+    }
+
+    // B14: Set replan flag — true if path changed or loop-closure state changed
+    {
+      double checksum = 0.0;
+      for (const auto &pt : partial_msg.path) { checksum += pt.x + pt.y; }
+      const bool loop_state_changed = (loop_closed_for_publish != last_path_was_loop_closed_);
+      partial_msg.replan = (checksum != last_path_checksum_) || loop_state_changed;
+      last_path_checksum_ = checksum;
+      last_path_was_loop_closed_ = loop_closed_for_publish;
     }
 
     if (debug_save_way_files_) DoWayMsg(partial_msg);

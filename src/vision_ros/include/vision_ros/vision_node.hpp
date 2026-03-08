@@ -49,6 +49,7 @@ private:
                           size_t n_detections,
                           uint32_t inference_us);
   void updateState(vision_core::ImageQuality quality);
+  void remapModelDetections(std::vector<vision_core::Detection>& model_dets) const;
   std::vector<vision_core::Detection> fuseDetections(
       const std::vector<vision_core::Detection>& model_dets,
       const std::vector<vision_core::Detection>& fallback_dets,
@@ -80,6 +81,7 @@ private:
   // Parameters
   std::string image_topic_;
   std::string backend_type_;
+  std::vector<uint8_t> class_to_color_map_;
   double loop_rate_ = 30.0;
   int max_detections_ = 20;
   float confidence_scale_ = 1000.0f;

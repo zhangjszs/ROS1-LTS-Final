@@ -1,0 +1,23 @@
+/home/kerwin/2025huat/src/control_ros/config/control_accel.yaml:82:#   rostopic echo /vehcileCMDMsg | grep delta
+/home/kerwin/2025huat/src/control_ros/config/control_accel.yaml:84:#   rostopic echo /Carstate | grep yaw
+/home/kerwin/2025huat/src/control_ros/config/control_skidpad.yaml:86:#   rostopic echo /vehcileCMDMsg | grep delta
+/home/kerwin/2025huat/src/control_ros/config/control_track.yaml:72:#   rostopic echo /vehcileCMDMsg | grep delta
+/home/kerwin/2025huat/src/control_ros/config/param.yaml:10:#   Input: 规划路径 (/path_global) + 车辆状态 (/Carstate)
+/home/kerwin/2025huat/src/control_ros/config/param.yaml:11:#   Output: 控制指令 (/vehcileCMDMsg) - 注意拼写错误是历史遗留
+/home/kerwin/2025huat/src/control_ros/config/param.yaml:181:#   rostopic echo /vehcileCMDMsg | grep delta
+/home/kerwin/2025huat/src/control_ros/config/param.yaml:182:#   rostopic echo /Carstate | grep yaw
+/home/kerwin/2025huat/src/control_ros/launch/controler.launch:12:  <arg name="legacy_cmd_topic" default="vehcileCMDMsg" doc="legacy 控制命令话题"/>
+/home/kerwin/2025huat/src/control_ros/launch/controler.launch:14:  <arg name="legacy_carstate_topic" default="/Carstate" doc="legacy 车体状态话题"/>
+/home/kerwin/2025huat/src/control_ros/launch/controler.launch:15:  <arg name="legacy_approaching_goal_topic" default="/skidpad_detection_node/approaching_goal" doc="legacy 八字接近终点话题"/>
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:443:  std::string legacy_carstate_topic_{"/Carstate"};
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:444:  std::string legacy_approaching_goal_topic_{"/skidpad_detection_node/approaching_goal"};
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:447:  std::string legacy_cmd_topic_{"vehcileCMDMsg"};
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:83:    pnh_.param<std::string>("legacy_cmd_topic", legacy_cmd_topic_, "vehcileCMDMsg");
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:87:    pnh_.param<std::string>("legacy_carstate_topic", legacy_carstate_topic_, "/Carstate");
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:89:                            "/skidpad_detection_node/approaching_goal");
+/home/kerwin/2025huat/src/fsd_launch/launch/subsystems/control.launch:26:    <arg name="legacy_cmd_topic" default="vehcileCMDMsg" doc="legacy 控制命令话题"/>
+/home/kerwin/2025huat/src/fsd_launch/launch/subsystems/control.launch:28:    <arg name="legacy_carstate_topic" default="/Carstate" doc="legacy 车体状态话题"/>
+/home/kerwin/2025huat/src/fsd_launch/launch/subsystems/control.launch:29:    <arg name="legacy_approaching_goal_topic" default="/skidpad_detection_node/approaching_goal" doc="legacy 八字接近终点话题"/>
+/home/kerwin/2025huat/src/fsd_launch/reference/vcu_mapping.md:25:| Control -> VCU bridge | `vehcileCMDMsg` | `autodrive_msgs/HUAT_VehicleCmd` |
+/home/kerwin/2025huat/src/fsd_visualization/rviz/README.md:188:| `/coneMap` | `autodrive_msgs/HUAT_map` | Global cone map |
+/home/kerwin/2025huat/src/vehicle_interface_ros/include/vehicle_interface_ros/Node.h:25:#define MSG_TOPIC_VEHICLE_CMD_LEGACY       "vehcileCMDMsg"

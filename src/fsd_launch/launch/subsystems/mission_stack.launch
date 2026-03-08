@@ -12,12 +12,13 @@
     <arg name="control_mode_profile" default="track"/>
     <arg name="control_mode" default="4"/>
     <arg name="enable_perception" default="true"/>
-    <arg name="enable_vision" default="false" doc="Enable camera-based vision module"/>
+    <arg name="enable_vision" default="true" doc="Enable camera-based vision module"/>
     <arg name="enable_localization" default="true"/>
     <arg name="enable_planning" default="true"/>
     <arg name="enable_control" default="true"/>
 
     <arg name="vision_mode" default="standard" doc="standard | lightweight | fallback_only"/>
+    <arg name="vision_impl" default="py" doc="py | cpp"/>
     <arg name="vision_debug" default="false"/>
 
     <arg name="vehicle" default="A13"/>
@@ -83,6 +84,7 @@
              file="$(find fsd_launch)/launch/subsystems/vision.launch">
         <arg name="mission" value="$(arg perception_mode)"/>
         <arg name="mode" value="$(arg vision_mode)"/>
+        <arg name="impl" value="$(arg vision_impl)"/>
         <arg name="debug" value="$(arg vision_debug)"/>
         <arg name="vehicle" value="$(arg vehicle)"/>
     </include>

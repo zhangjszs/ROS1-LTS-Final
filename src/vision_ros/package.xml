@@ -14,4 +14,5 @@
   <depend>fsd_common</depend>
   <depend>vision_core</depend>
   <depend>diagnostic_msgs</depend>
+  <exec_depend>rospy</exec_depend>
 </package>

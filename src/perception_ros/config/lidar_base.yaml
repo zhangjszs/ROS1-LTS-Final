@@ -658,7 +658,7 @@ loop_closure_optimization:
 # with camera-based color classification (BLUE/YELLOW/RED).
 # When disabled or no vision data available, falls back to geometry-only typing.
 vision_inject:
-  enabled: false
+  enabled: true
   max_age_sec: 0.2
   min_confidence: 300
   match_angle_deg: 5.0

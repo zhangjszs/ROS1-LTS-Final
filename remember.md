@@ -59,7 +59,7 @@ roslaunch fsd_launch ebs_test.launch simulation:=true bag:=/path/to.bag enable_e
 
 ### 4.2 任务与控制模式映射（需和车端协议统一）
 - `trackdrive -> control_mode=4`
-- `accel -> control_mode=2`
+- `acceleration -> control_mode=1`（当前 launch 默认值，对应 `TestController`，是否保持该映射需与控制/车端协议再次确认）
 - `skidpad -> control_mode=3`
 - `ebs_test -> control_mode=5 (placeholder)`
 
@@ -95,10 +95,11 @@ roslaunch fsd_launch ebs_test.launch simulation:=true bag:=/path/to.bag enable_e
   - 定位因子图中的颜色权重项当前仍应保持关闭（`w_color=0.0`）。
 
 ### 6.2 补救与接入顺序（后续执行）
-- `TODO_COLOR_FUSION_NODE`：新增 `cone_color_fusion_node`，输入 `HUAT_ConeDetections + Image + CameraInfo`，输出 `detections_fused`。
-- `TODO_COLOR_TOPIC_SWITCH`：定位输入话题切换到 `perception/lidar_cluster/detections_fused`（保留原话题回退开关）。
+- `VISION_INJECT_BASE`：`vision_ros` + `perception_ros vision_inject` 基础设施已存在，当前输出为 `perception/vision/detections`，由 `lidar_cluster_ros` 在发布 `color_types[]` 时按角度匹配注入颜色。
+- `TODO_COLOR_PIPELINE_E2E_VERIFY`：完成带图像 bag 的端到端回放验证，确认 `vision_inject` 在 `track/skidpad/accel` 下的时序、置信度和降级行为。
 - `TODO_COLOR_WEIGHT_RAMP`：`w_color` 从 `0.0` 逐步升至 `0.2~0.4`，每步做 rosbag 回归。
 - `TODO_COLOR_FAILSAFE`：相机掉线/低置信度时自动回退 `NONE` 与 LiDAR-only 流程，不中断主链路。
+- `TODO_COLOR_OUTPUT_CONTRACT`：如后续仍需要 `detections_fused` 独立话题，需先明确是否保留“内联注入”还是新增“显式融合输出”的单一真值实现，避免双源并存。
 
 ## 7) Planning 参数调优记录（先冻结，后续再调）
 

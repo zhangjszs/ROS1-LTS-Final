@@ -7,6 +7,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/imgproc.hpp>
 #include <diagnostic_msgs/DiagnosticStatus.h>
+#include <xmlrpcpp/XmlRpcValue.h>
 
 namespace vision_ros {
 
@@ -103,6 +104,33 @@ void VisionNode::loadParams() {
   private_nh_.param<bool>("inference/use_fp16", inference_cfg_.use_fp16, true);
   private_nh_.param<int>("inference/num_threads", inference_cfg_.num_threads, 2);
 
+  // Optional class remap for custom-trained models.
+  // Example: class names [red, blue, yellow] => [5, 0, 1].
+  class_to_color_map_.clear();
+  XmlRpc::XmlRpcValue class_map_param;
+  if (private_nh_.getParam("inference/class_to_color", class_map_param)) {
+    if (class_map_param.getType() == XmlRpc::XmlRpcValue::TypeArray) {
+      for (int i = 0; i < class_map_param.size(); ++i) {
+        if (class_map_param[i].getType() != XmlRpc::XmlRpcValue::TypeInt) {
+          ROS_WARN("[vision_node] inference/class_to_color[%d] is not int, ignored", i);
+          continue;
+        }
+        int mapped = static_cast<int>(class_map_param[i]);
+        if (mapped < 0 || mapped > 5) {
+          ROS_WARN("[vision_node] inference/class_to_color[%d]=%d out of range [0,5], ignored",
+                   i, mapped);
+          continue;
+        }
+        class_to_color_map_.push_back(static_cast<uint8_t>(mapped));
+      }
+      if (!class_to_color_map_.empty()) {
+        ROS_INFO("[vision_node] Loaded class remap entries: %zu", class_to_color_map_.size());
+      }
+    } else {
+      ROS_WARN("[vision_node] inference/class_to_color must be an int array");
+    }
+  }
+
   // Quality thresholds (YAML: quality/)
   private_nh_.param<float>("quality/blur_threshold", quality_thresholds_.blur_good, 200.0f);
   private_nh_.param<float>("quality/blur_degraded", quality_thresholds_.blur_degraded, 100.0f);
@@ -165,6 +193,7 @@ void VisionNode::processFrame(const cv::Mat& bgr, const std_msgs::Header& header
   if (!skip_model && backend_ && backend_->isReady()) {
     auto t0 = std::chrono::steady_clock::now();
     model_dets = backend_->detect(enhanced);
+    remapModelDetections(model_dets);
     auto t1 = std::chrono::steady_clock::now();
     inference_us = static_cast<uint32_t>(
         std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count());
@@ -191,6 +220,17 @@ void VisionNode::processFrame(const cv::Mat& bgr, const std_msgs::Header& header
     publishDebugImage(enhanced, final_dets, header);
   }
   publishDiagnostics(qm, final_dets.size(), inference_us);
+}
+
+void VisionNode::remapModelDetections(
+    std::vector<vision_core::Detection>& model_dets) const {
+  if (model_dets.empty()) {
+    return;
+  }
+  for (auto& det : model_dets) {
+    det.color_type = static_cast<uint8_t>(
+        vision_core::modelClassToColorType(det.class_id, class_to_color_map_));
+  }
 }
 
 // ── Detection Fusion ─────────────────────────────────────────────

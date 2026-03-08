@@ -26,3 +26,13 @@ target_link_libraries(${PROJECT_NAME}
 add_executable(vision_node src/vision_main.cpp)
 target_link_libraries(vision_node ${PROJECT_NAME}
   ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+
+catkin_install_python(PROGRAMS
+  scripts/vision_node_py.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+if(CATKIN_ENABLE_TESTING)
+  find_package(rostest REQUIRED)
+  add_rostest(test/test_default_launch.test)
+endif()

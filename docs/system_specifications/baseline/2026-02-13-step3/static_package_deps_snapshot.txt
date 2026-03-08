@@ -1,0 +1,137 @@
+# Static Package Dependencies (2026-02-13-step3)
+
+## autodrive_msgs
+geometry_msgs
+message_generation
+message_runtime
+roscpp
+rospy
+sensor_msgs
+std_msgs
+
+## control_core
+
+## control_ros
+autodrive_msgs
+control_core
+diagnostic_msgs
+eigen_conversions
+geometry_msgs
+roscpp
+roslib
+std_msgs
+tf
+
+## fsd_launch
+control_ros
+diagnostic_aggregator
+localization_ros
+perception_ros
+planning_ros
+race_rviz_viz
+rosbag
+roslaunch
+rviz
+vehicle_interface_ros
+
+## fsd_visualization
+autodrive_msgs
+geometry_msgs
+nav_msgs
+roscpp
+rviz
+std_msgs
+tf2
+tf2_ros
+visualization_msgs
+
+## ins
+autodrive_msgs
+message_generation
+message_runtime
+rospy
+std_msgs
+
+## localization_core
+eigen
+libpcl-dev
+
+## localization_ros
+autodrive_msgs
+diagnostic_msgs
+geometry_msgs
+localization_core
+nav_msgs
+pcl_conversions
+pcl_ros
+roscpp
+roslib
+sensor_msgs
+std_msgs
+tf2_ros
+
+## perception_core
+eigen
+libpcl-dev
+
+## perception_ros
+autodrive_msgs
+geometry_msgs
+nav_msgs
+nodelet
+pcl_conversions
+pcl_ros
+perception_core
+pluginlib
+roscpp
+sensor_msgs
+std_msgs
+visualization_msgs
+
+## planning_core
+eigen
+libpcl-dev
+
+## planning_ros
+autodrive_msgs
+diagnostic_msgs
+eigen_conversions
+geometry_msgs
+message_filters
+nav_msgs
+planning_core
+roscpp
+roslib
+std_msgs
+tf
+
+## simulation_core
+eigen
+yaml-cpp
+
+## simulation_ros
+autodrive_msgs
+geometry_msgs
+nav_msgs
+roscpp
+simulation_core
+std_msgs
+tf2
+tf2_ros
+visualization_msgs
+
+## vehicle_interface_core
+
+## vehicle_interface_ros
+autodrive_msgs
+roscpp
+std_msgs
+vehicle_interface_core
+
+## vehicle_racing_num_core
+
+## vehicle_racing_num_ros
+autodrive_msgs
+roscpp
+vehicle_racing_num_core
+

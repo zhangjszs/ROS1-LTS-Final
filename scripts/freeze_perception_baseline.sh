@@ -134,21 +134,29 @@ fi
 echo "[INFO] generating perception metrics for baseline freeze"
 "${EVAL_CMD[@]}"
 
-python3 - "${TMP_JSON}" "${OUTPUT_BASELINE}" "${MODE}" <<'PY'
+python3 - "${TMP_JSON}" "${OUTPUT_BASELINE}" "${MODE}" "${GT_FILE:-}" <<'PY'
 import json
 import sys
 
-tmp_json, output_json, mode = sys.argv[1], sys.argv[2], sys.argv[3]
+tmp_json, output_json, mode, gt_file = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
 
 with open(tmp_json, "r", encoding="utf-8") as f:
     payload = json.load(f)
 
 payload["mode"] = mode
 payload["baseline_ready"] = True
+payload["has_gt"] = bool(gt_file)
 
 with open(output_json, "w", encoding="utf-8") as f:
     json.dump(payload, f, indent=2, ensure_ascii=False)
     f.write("\n")
 PY
+
+# 输出提示信息
+if [[ -n "${GT_FILE}" ]]; then
+    echo "[INFO] Baseline includes full GT metrics (precision/recall/F1/RMSE)"
+else
+    echo "[INFO] Baseline is PROXY-ONLY (no GT metrics), only contains stability/quality indicators"
+fi
 
 echo "[OK] baseline frozen: ${OUTPUT_BASELINE}"

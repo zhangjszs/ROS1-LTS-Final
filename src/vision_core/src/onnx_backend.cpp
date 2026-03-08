@@ -65,10 +65,15 @@ std::vector<Detection> OnnxBackend::detect(const cv::Mat& bgr) {
 
   auto& out_tensor = outputs[0];
   auto shape = out_tensor.GetTensorTypeAndShapeInfo().GetShape();
+  if (shape.size() < 3 || shape[1] <= 4 || shape[2] <= 0) {
+    return {};
+  }
+  const int rows = static_cast<int>(shape[1]);  // 4 + num_classes
   const int cols = static_cast<int>(shape[2]);
+  const int num_classes = rows - 4;
   const float* data = out_tensor.GetTensorData<float>();
 
-  auto raw = postprocess(data, cols);
+  auto raw = postprocess(data, cols, num_classes);
 
   const float sx = static_cast<float>(bgr.cols) / config_.input_width;
   const float sy = static_cast<float>(bgr.rows) / config_.input_height;
@@ -84,8 +89,11 @@ std::vector<Detection> OnnxBackend::detect(const cv::Mat& bgr) {
 }
 
 std::vector<Detection> OnnxBackend::postprocess(
-    const float* data, int num_proposals) const {
-  const int nc = config_.num_classes;
+    const float* data, int num_proposals, int num_classes) const {
+  if (num_classes <= 0 || num_proposals <= 0) {
+    return {};
+  }
+
   std::vector<cv::Rect> boxes;
   std::vector<float> scores;
   std::vector<int> class_ids;
@@ -98,7 +106,7 @@ std::vector<Detection> OnnxBackend::postprocess(
 
     float max_score = 0.0f;
     int max_cls = 0;
-    for (int c = 0; c < nc; ++c) {
+    for (int c = 0; c < num_classes; ++c) {
       float s = data[(4 + c) * num_proposals + i];
       if (s > max_score) { max_score = s; max_cls = c; }
     }

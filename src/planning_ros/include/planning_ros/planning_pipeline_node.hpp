@@ -117,6 +117,11 @@ private:
   // B5: Path quality violation counter
   int path_quality_violation_count_ = 0;
 
+  // B14: replan flag — track whether path changed between frames
+  // Checksum is the sum of (x+y) for all path points, cheap approximate path-change detector
+  double last_path_checksum_ = 0.0;
+  bool last_path_was_loop_closed_ = false;
+
   // B29: Mission state machine
   planning_core::MissionStateMachine mission_fsm_;
 };

@@ -113,41 +113,49 @@ test/
 
 ---
 
-## 三、未完成项 (Perception 审计 G4/G17/G18)
+## 三、状态更新 (Perception 审计 G4/G17/G18)
 
-原始审计在对话中产生，未保存为文件。以下 3 项未实现：
+> 2026-03-06 代码对齐说明：本节已按当前仓库状态修订。原先写成“未完成”的 G4/G17 已在代码中落地；G18 已有脚手架，但还没有形成可用于门禁的基线闭环。
 
-### G4: 输入边界防御 (建议优先级: 中)
+### G4: 输入边界防御 — ✅ 已实现
 
-**问题**: `pointCallback` 对空点云、全 NaN 点云、点数异常暴增等边界情况缺少显式防御。
+`lidar_cluster_ros.cpp` 已增加以下防御：
+- `input_guard/enable`
+- `input_guard/max_points`
+- `input_guard/filter_invalid_points`
+- 空点云、超大点云、全无效点云直接丢弃并告警
+- 相关计数已写入 diagnostics
 
-**建议实现**:
-- 在 `pointCallback` 入口检查 `cloud->empty()`
-- 检查点云尺寸是否超过合理上限 (如 >500k 点发出告警)
-- 对 NaN/Inf 点做快速扫描或依赖 PCL `removeNaNFromPointCloud`
-- 改动范围: `lidar_cluster_ros.cpp:pointCallback()`, 约 10-15 行
+### G17: perception_core 单元测试补全 — ✅ 关键模块已补齐
 
-### G17: perception_core 单元测试补全 (建议优先级: 中)
+`perception_core` 当前已具备以下测试目标：
+1. `test_confidence_scorer.cpp`
+2. `test_cone_tracker.cpp`
+3. `test_topology_repair.cpp`
+4. `test_cluster_feature_extractor.cpp`
+5. `test_ground_segmentation_perf.cpp`
+6. `test_point_cloud_pool.cpp`
 
-**问题**: 14 个 core 算法文件仅有 2 个测试 (`test_ground_segmentation_perf.cpp`, `test_point_cloud_pool.cpp`)。关键模块缺少测试:
+剩余工作不再是“从 0 到 1 补测试”，而是按标准 bag 场景继续扩展算法正确性覆盖，尤其是：
+- `fast_ground_segmentation` 的构造场景正确性
+- 多模式/长时序回放下的鲁棒性回归
 
-**建议补全顺序**:
-1. `confidence_scorer` — 输入已知特征，验证评分范围和单调性
-2. `cone_tracker` — 模拟多帧检测序列，验证关联/确认/删除逻辑
-3. `topology_repair` — 构造缺口场景，验证插值和离群剔除
-4. `fast_ground_segmentation` — 构造平面+障碍物点云，验证分割正确性
-5. `cluster_feature_extractor` — 已知几何体验证特征提取
+### G18: 端到端 bag 回放回归测试 — 🚧 框架已在，闭环未收口
 
-### G18: 端到端 bag 回放回归测试 (建议优先级: 低)
+当前已具备：
+- `perf_reports/scripts/evaluate_perception_metrics.py`
+- `scripts/check_perception_regression.sh`
+- `scripts/check_perception_regression_mode.sh`
+- `scripts/freeze_perception_baseline.sh`
+- `perf_reports/baselines/perception/`
 
-**问题**: 缺少自动化的 bag 回放 → 指标对比 → pass/fail 判定流程。
+当前仍未完成：
+- `track/accel/skidpad` 三套真实 baseline 尚未冻结（`baseline_ready=false`）
+- 缺少标准测试 bag / GT CSV 的统一资产管理
+- ✅ 模式包装脚本与底层脚本的 CLI 已统一，可直接作为稳定门禁使用
+- ⚠️ 现有标准 bag 仅包含原始点云，冻结基线时需要启动感知节点在线处理检测话题
 
-**建议实现**:
-- 基于 `evaluate_perception_metrics.py` 构建
-- 选取 1-2 个标准 bag 作为 baseline
-- 脚本: 回放 bag → 录制输出 → 计算指标 → 与 baseline 对比 → 超阈值则 fail
-- 可集成到 `scripts/check_perception_regression.sh`
-- 依赖: 需要一个可用的标准测试 bag 文件
+权威剩余事项请见：`docs/remaining_work_audit_2026-03-06.md`
 
 ---
 
@@ -223,12 +231,11 @@ python3 perf_reports/scripts/evaluate_perception_metrics.py <bag_file> \
 3. 用 `debug/publish_markers:=true` 在 RViz 中可视化检测质量
 
 ### 中期 (稳定性)
-4. 实现 G4 输入边界防御 (约 1 小时工作量)
-5. 补全 G17 核心模块单元测试 (confidence_scorer 和 cone_tracker 优先)
+4. 冻结 `track/accel/skidpad` 三套真实 baseline，并将 `baseline_ready` 切为 `true`
+5. 统一 `check_perception_regression*.sh` 的 CLI，并用标准 bag 完成一次端到端演练
 6. 制作 1-2 个标准测试 bag 的 GT CSV，启用精度评估
 
 ### 长期 (能力提升)
-7. 实现 G18 自动化回归测试流水线
-8. 考虑相机融合路径 (color_types 字段已预留 BLUE/YELLOW/RED)
-9. 多帧累积 (`cluster/multi_frame`) 目前默认关闭，可在远距离检测不足时启用评估
-
+7. 收口 RED/BLUE 颜色语义在 planning/high-speed/visualization 全链路的一致性
+8. 完成 EBS 实车 VCU 映射、台架验证和故障安全策略
+9. 继续评估相机融合路径；`vision_ros + perception_ros vision_inject` 已有基础设施，可在模型/标定就绪后接入

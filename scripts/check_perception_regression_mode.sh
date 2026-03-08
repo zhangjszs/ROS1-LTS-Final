@@ -98,7 +98,7 @@ fi
 
 CMD=(
   "${ROOT_DIR}/scripts/check_perception_regression.sh"
-  --bag "${BAG_FILE}"
+  "${BAG_FILE}"
   --baseline "${BASELINE_JSON}"
   --topic "${TOPIC}"
 )

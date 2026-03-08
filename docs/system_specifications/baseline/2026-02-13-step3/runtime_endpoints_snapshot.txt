@@ -1,0 +1,646 @@
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:105:    pub_cmd_ = nh_.advertise<autodrive_msgs::HUAT_VehicleCmd>(cmd_topic_, 1000);
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:108:      pub_cmd_legacy_ = nh_.advertise<autodrive_msgs::HUAT_VehicleCmd>(legacy_cmd_topic_, 1000);
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:114:    pub_diag_local_ = nh_.advertise<diagnostic_msgs::DiagnosticArray>(diagnostics_topic_, 1, true);
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:117:      pub_diag_global_ = nh_.advertise<diagnostic_msgs::DiagnosticArray>(global_diagnostics_topic_, 1);
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:193:    nh_.param(ns + "/angle_kp", params.angle_kp, 1.0);
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:194:    nh_.param(ns + "/angle_ki", params.angle_ki, 0.0);
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:195:    nh_.param(ns + "/angle_kd", params.angle_kd, 0.0);
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:196:    nh_.param(ns + "/steering_delta_max", params.steering_delta_max, 0.5);
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:197:    nh_.param(ns + "/angle_kv", params.angle_kv, 0.0);
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:198:    nh_.param(ns + "/angle_kl", params.angle_kl, 2.0);
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:199:    nh_.param("car_arg/length", params.car_length, 1.55);
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:202:    nh_.param("car_arg/cg_to_front", params.cg_to_front, 0.77);
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:203:    nh_.param("car_arg/cg_to_rear", params.cg_to_rear, 0.78);
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:204:    nh_.param("car_arg/mass", params.mass, 190.0);
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:205:    nh_.param(ns + "/enable_slip_compensation", params.enable_slip_compensation, true);
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:206:    nh_.param(ns + "/slip_gain", params.slip_gain, 0.5);
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:207:    nh_.param(ns + "/min_lookahead", params.min_lookahead, 2.0);
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:208:    nh_.param(ns + "/max_lookahead", params.max_lookahead, 10.0);
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:218:    sub_pose_ = nh_.subscribe(carstate_topic_, 10, &ControlNode::PoseCallback, this);
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:219:    sub_last_ = nh_.subscribe(approaching_goal_topic_, 100, &ControlNode::LastCallback, this);
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:228:        sub_pose_legacy_ = nh_.subscribe(legacy_carstate_topic_, 10, &ControlNode::PoseCallback, this);
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:233:            nh_.subscribe(legacy_approaching_goal_topic_, 100, &ControlNode::LastCallback, this);
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:243:      pnh_.param<std::string>("pathlimits_topic", pathlimits_topic, "planning/pathlimits");
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:244:      sub_pathlimits_ = nh_.subscribe(pathlimits_topic, 100, &ControlNode::PathLimitsCallback, this);
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:486:  private_nh.param("enable_file_mode_fallback", enable_file_mode_fallback, false);
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:487:  private_nh.param<std::string>("mode_file_path", mode_file_path, control_ros::DefaultCommandPath());
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:489:  if (private_nh.getParam("mode", mode))
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:78:    nh_.param("/use_sim_time", simulation_, false);
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:79:    pnh_.param("enable_external_stop_file", enable_external_stop_file_, false);
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:80:    pnh_.param<std::string>("external_stop_file_path", external_stop_file_path_, DefaultCommandPath());
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:81:    pnh_.param<std::string>("cmd_topic", cmd_topic_, "vehicle/cmd");
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:82:    pnh_.param("publish_legacy_cmd_topic", publish_legacy_cmd_topic_, true);
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:83:    pnh_.param<std::string>("legacy_cmd_topic", legacy_cmd_topic_, "vehcileCMDMsg");
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:84:    pnh_.param<std::string>("carstate_topic", carstate_topic_, "localization/car_state");
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:85:    pnh_.param<std::string>("approaching_goal_topic", approaching_goal_topic_, "planning/skidpad/approaching_goal");
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:86:    pnh_.param("subscribe_legacy_topics", subscribe_legacy_topics_, true);
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:87:    pnh_.param<std::string>("legacy_carstate_topic", legacy_carstate_topic_, "/Carstate");
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:88:    pnh_.param<std::string>("legacy_approaching_goal_topic", legacy_approaching_goal_topic_,
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:90:    pnh_.param("diagnostics_rate_hz", diagnostics_rate_hz_, 1.0);
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:91:    pnh_.param<std::string>("diagnostics_topic", diagnostics_topic_, "control/diagnostics");
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:92:    pnh_.param("publish_global_diagnostics", publish_global_diagnostics_, true);
+/home/kerwin/2025huat/src/control_ros/src/control_node.cpp:93:    pnh_.param<std::string>("global_diagnostics_topic", global_diagnostics_topic_, "/diagnostics");
+/home/kerwin/2025huat/src/fsd_visualization/src/cone_visualizer.cpp:40:    pnh.param<std::string>("frame_id", frame_id_, FRAME_GLOBAL);
+/home/kerwin/2025huat/src/fsd_visualization/src/cone_visualizer.cpp:41:    pnh.param<double>("cone_radius", cone_radius_, CONE_RADIUS);
+/home/kerwin/2025huat/src/fsd_visualization/src/cone_visualizer.cpp:42:    pnh.param<double>("cone_height", cone_height_, CONE_HEIGHT);
+/home/kerwin/2025huat/src/fsd_visualization/src/cone_visualizer.cpp:43:    pnh.param<bool>("show_bounding_box", show_bounding_box_, true);
+/home/kerwin/2025huat/src/fsd_visualization/src/cone_visualizer.cpp:44:    pnh.param<bool>("show_distance_label", show_distance_label_, true);
+/home/kerwin/2025huat/src/fsd_visualization/src/cone_visualizer.cpp:45:    pnh.param<bool>("use_mesh", use_mesh_, true);
+/home/kerwin/2025huat/src/fsd_visualization/src/cone_visualizer.cpp:46:    pnh.param<bool>("use_confidence_alpha", use_confidence_alpha_, true);
+/home/kerwin/2025huat/src/fsd_visualization/src/cone_visualizer.cpp:47:    pnh.param<bool>("publish_detection_markers", publish_detection_markers_, true);
+/home/kerwin/2025huat/src/fsd_visualization/src/cone_visualizer.cpp:48:    pnh.param<float>("min_alpha", min_alpha_, 0.3f);
+/home/kerwin/2025huat/src/fsd_visualization/src/cone_visualizer.cpp:49:    pnh.param<std::string>("cone_mesh_type", cone_mesh_type_, "gazebo");
+/home/kerwin/2025huat/src/fsd_visualization/src/cone_visualizer.cpp:50:    pnh.param<std::string>("topics/cone_detections", cone_detections_topic_, "perception/lidar_cluster/detections");
+/home/kerwin/2025huat/src/fsd_visualization/src/cone_visualizer.cpp:51:    pnh.param<std::string>("topics/cone_map", cone_map_topic_, "localization/cone_map");
+/home/kerwin/2025huat/src/fsd_visualization/src/cone_visualizer.cpp:52:    pnh.param<std::string>("topics/markers", markers_topic_, "fsd/viz/cones");
+/home/kerwin/2025huat/src/fsd_visualization/src/cone_visualizer.cpp:55:    sub_cone_detections_ = nh.subscribe(cone_detections_topic_, 1, 
+/home/kerwin/2025huat/src/fsd_visualization/src/cone_visualizer.cpp:57:    sub_cone_map_ = nh.subscribe(cone_map_topic_, 1,
+/home/kerwin/2025huat/src/fsd_visualization/src/cone_visualizer.cpp:62:    pub_markers_ = nh.advertise<visualization_msgs::MarkerArray>(markers_topic_, 1, true);
+/home/kerwin/2025huat/src/fsd_visualization/src/cone_visualizer.cpp:83:            tf_msg = tf_buffer_.lookupTransform(
+/home/kerwin/2025huat/src/fsd_visualization/src/cone_visualizer.cpp:87:                tf_msg = tf_buffer_.lookupTransform(
+/home/kerwin/2025huat/src/fsd_visualization/src/fsd_viz_node.cpp:26:    pnh.param<bool>("enable_cones", enable_cones, true);
+/home/kerwin/2025huat/src/fsd_visualization/src/fsd_viz_node.cpp:27:    pnh.param<bool>("enable_path", enable_path, true);
+/home/kerwin/2025huat/src/fsd_visualization/src/fsd_viz_node.cpp:28:    pnh.param<bool>("enable_vehicle", enable_vehicle, true);
+/home/kerwin/2025huat/src/fsd_visualization/src/fsd_viz_node.cpp:29:    pnh.param<bool>("enable_triangulation", enable_triangulation, true);
+/home/kerwin/2025huat/src/fsd_visualization/src/path_visualizer.cpp:10:    pnh.param<bool>("compat/enable_legacy_partial_full", enable_legacy_partial_full_, false);
+/home/kerwin/2025huat/src/fsd_visualization/src/path_visualizer.cpp:11:    pnh.param<std::string>("topics/pathlimits", unified_path_topic_, "planning/pathlimits");
+/home/kerwin/2025huat/src/fsd_visualization/src/path_visualizer.cpp:12:    pnh.param<std::string>("topics/path_partial", partial_path_topic_, "planning/high_speed_tracking/pathlimits/partial");
+/home/kerwin/2025huat/src/fsd_visualization/src/path_visualizer.cpp:13:    pnh.param<std::string>("topics/path_full", full_path_topic_, "planning/high_speed_tracking/pathlimits/full");
+/home/kerwin/2025huat/src/fsd_visualization/src/path_visualizer.cpp:14:    pnh.param<std::string>("topics/nav_path", nav_path_topic_, "planning/line_detection/path");
+/home/kerwin/2025huat/src/fsd_visualization/src/path_visualizer.cpp:15:    pnh.param<std::string>("topics/markers", markers_topic_, "fsd/viz/path");
+/home/kerwin/2025huat/src/fsd_visualization/src/path_visualizer.cpp:16:    pnh.param<std::string>("topics/boundaries", boundaries_topic_, "fsd/viz/boundaries");
+/home/kerwin/2025huat/src/fsd_visualization/src/path_visualizer.cpp:19:    sub_path_unified_ = nh.subscribe(unified_path_topic_, 1,
+/home/kerwin/2025huat/src/fsd_visualization/src/path_visualizer.cpp:22:        sub_path_partial_ = nh.subscribe(partial_path_topic_, 1,
+/home/kerwin/2025huat/src/fsd_visualization/src/path_visualizer.cpp:24:        sub_path_full_ = nh.subscribe(full_path_topic_, 1,
+/home/kerwin/2025huat/src/fsd_visualization/src/path_visualizer.cpp:28:    sub_nav_path_ = nh.subscribe(nav_path_topic_, 1,
+/home/kerwin/2025huat/src/fsd_visualization/src/path_visualizer.cpp:33:    pub_path_markers_ = nh.advertise<visualization_msgs::MarkerArray>(markers_topic_, 1, true);
+/home/kerwin/2025huat/src/fsd_visualization/src/path_visualizer.cpp:34:    pub_boundary_markers_ = nh.advertise<visualization_msgs::MarkerArray>(boundaries_topic_, 1, true);
+/home/kerwin/2025huat/src/fsd_visualization/src/path_visualizer.cpp:7:    pnh.param<std::string>("frame_id", frame_id_, FRAME_GLOBAL);
+/home/kerwin/2025huat/src/fsd_visualization/src/path_visualizer.cpp:8:    pnh.param<double>("path_width", path_width_, PATH_WIDTH);
+/home/kerwin/2025huat/src/fsd_visualization/src/path_visualizer.cpp:9:    pnh.param<double>("point_size", point_size_, PATH_POINT_SIZE);
+/home/kerwin/2025huat/src/fsd_visualization/src/triangulation_visualizer.cpp:10:    pnh.param<bool>("show_circumcenters", show_circumcenters_, false);
+/home/kerwin/2025huat/src/fsd_visualization/src/triangulation_visualizer.cpp:11:    pnh.param<bool>("show_midpoints", show_midpoints_, true);
+/home/kerwin/2025huat/src/fsd_visualization/src/triangulation_visualizer.cpp:12:    pnh.param<bool>("show_computed_path", show_computed_path_, true);
+/home/kerwin/2025huat/src/fsd_visualization/src/triangulation_visualizer.cpp:14:    sub_viz_ = nh.subscribe(viz_topic_, 1, &TriangulationVisualizer::vizCallback, this);
+/home/kerwin/2025huat/src/fsd_visualization/src/triangulation_visualizer.cpp:16:    pub_markers_ = nh.advertise<visualization_msgs::MarkerArray>(markers_topic_, 1, true);
+/home/kerwin/2025huat/src/fsd_visualization/src/triangulation_visualizer.cpp:6:    pnh.param<std::string>("frame_id", frame_id_, FRAME_GLOBAL);
+/home/kerwin/2025huat/src/fsd_visualization/src/triangulation_visualizer.cpp:7:    pnh.param<std::string>("topics/high_speed_viz", viz_topic_, "planning/high_speed_tracking/viz");
+/home/kerwin/2025huat/src/fsd_visualization/src/triangulation_visualizer.cpp:8:    pnh.param<std::string>("topics/triangulation_markers", markers_topic_, "fsd/viz/triangulation");
+/home/kerwin/2025huat/src/fsd_visualization/src/triangulation_visualizer.cpp:9:    pnh.param<bool>("show_triangulation", show_triangulation_, true);
+/home/kerwin/2025huat/src/fsd_visualization/src/vehicle_visualizer.cpp:10:    pnh.param<bool>("show_trail", show_trail_, true);
+/home/kerwin/2025huat/src/fsd_visualization/src/vehicle_visualizer.cpp:11:    pnh.param<bool>("show_velocity", show_velocity_, true);
+/home/kerwin/2025huat/src/fsd_visualization/src/vehicle_visualizer.cpp:12:    pnh.param<bool>("show_steering", show_steering_, true);
+/home/kerwin/2025huat/src/fsd_visualization/src/vehicle_visualizer.cpp:13:    pnh.param<bool>("use_mesh", use_mesh_, true);
+/home/kerwin/2025huat/src/fsd_visualization/src/vehicle_visualizer.cpp:14:    pnh.param<std::string>("topics/car_state", car_state_topic_, "localization/car_state");
+/home/kerwin/2025huat/src/fsd_visualization/src/vehicle_visualizer.cpp:15:    pnh.param<std::string>("topics/sim_state", sim_state_topic_, "/simulation/state");
+/home/kerwin/2025huat/src/fsd_visualization/src/vehicle_visualizer.cpp:16:    pnh.param<std::string>("topics/markers", markers_topic_, "fsd/viz/vehicle");
+/home/kerwin/2025huat/src/fsd_visualization/src/vehicle_visualizer.cpp:19:    sub_car_state_ = nh.subscribe(car_state_topic_, 1,
+/home/kerwin/2025huat/src/fsd_visualization/src/vehicle_visualizer.cpp:21:    sub_sim_state_ = nh.subscribe(sim_state_topic_, 1,
+/home/kerwin/2025huat/src/fsd_visualization/src/vehicle_visualizer.cpp:26:    pub_markers_ = nh.advertise<visualization_msgs::MarkerArray>(markers_topic_, 1, true);
+/home/kerwin/2025huat/src/fsd_visualization/src/vehicle_visualizer.cpp:8:    pnh.param<std::string>("frame_id", frame_id_, FRAME_GLOBAL);
+/home/kerwin/2025huat/src/fsd_visualization/src/vehicle_visualizer.cpp:9:    pnh.param<int>("trail_length", trail_max_size_, 200);
+/home/kerwin/2025huat/src/localization_ros/src/location.cpp:17:  if (pnh.param(key, out, default_value))
+/home/kerwin/2025huat/src/localization_ros/src/location.cpp:21:  if (nh.param(key, out, default_value))
+/home/kerwin/2025huat/src/localization_ros/src/location.cpp:405:  tf_broadcaster_.sendTransform(tf_msg);
+/home/kerwin/2025huat/src/localization_ros/src/location.cpp:61:  carstate_pub_ = nh_.advertise<autodrive_msgs::HUAT_CarState>(carstate_out_topic_, 10);
+/home/kerwin/2025huat/src/localization_ros/src/location.cpp:62:  map_pub_ = nh_.advertise<autodrive_msgs::HUAT_ConeMap>(cone_map_topic_, 10);
+/home/kerwin/2025huat/src/localization_ros/src/location.cpp:63:  global_map_pub_ = nh_.advertise<sensor_msgs::PointCloud2>(global_map_topic_, 10);
+/home/kerwin/2025huat/src/localization_ros/src/location.cpp:64:  pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>(pose_topic_, 10);
+/home/kerwin/2025huat/src/localization_ros/src/location.cpp:65:  odom_pub_ = nh_.advertise<nav_msgs::Odometry>(odom_topic_, 10);
+/home/kerwin/2025huat/src/localization_ros/src/location.cpp:69:  status_pub_ = nh_.advertise<std_msgs::String>(status_topic_, 10);
+/home/kerwin/2025huat/src/localization_ros/src/location.cpp:78:  diag_pub_local_ = nh_.advertise<diagnostic_msgs::DiagnosticArray>(diagnostics_topic_, 10, true);
+/home/kerwin/2025huat/src/localization_ros/src/location.cpp:81:    diag_pub_global_ = nh_.advertise<diagnostic_msgs::DiagnosticArray>(global_diagnostics_topic_, 10);
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:16:    pnh_.param<std::string>("topics/ins", imu_topic_, "sensors/ins");
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:17:    pnh_.param<std::string>("topics/car_state", carstate_topic_, "localization/car_state");
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:18:    pnh_.param<std::string>("frames/world", world_frame_, "world");
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:20:    imu_sub_ = nh_.subscribe(imu_topic_, 50, &StateEstimatorNode::ImuCallback, this);
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:21:    carstate_pub_ = nh_.advertise<autodrive_msgs::HUAT_CarState>(carstate_topic_, 10);
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:29:    pnh_.param("use_gnss", params.use_gnss, true);
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:30:    pnh_.param("use_velocity", params.use_velocity, true);
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:31:    pnh_.param("use_yaw", params.use_yaw, true);
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:33:    pnh_.param("accel_noise", params.accel_noise, 1.0);
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:34:    pnh_.param("gyro_noise", params.gyro_noise, 0.05);
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:36:    pnh_.param("meas_pos_noise", params.meas_pos_noise, 0.5);
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:37:    pnh_.param("meas_vel_noise", params.meas_vel_noise, 0.2);
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:38:    pnh_.param("meas_yaw_noise", params.meas_yaw_noise, 0.05);
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:40:    pnh_.param("init_pos_var", params.init_pos_var, 1.0);
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:41:    pnh_.param("init_vel_var", params.init_vel_var, 1.0);
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:42:    pnh_.param("init_yaw_var", params.init_yaw_var, 0.1);
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:44:    pnh_.param("min_dt", params.min_dt, 0.001);
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:45:    pnh_.param("max_dt", params.max_dt, 0.1);
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:47:    pnh_.param("accel_gravity", params.accel_gravity, 9.79);
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:48:    pnh_.param("gyro_scale", params.gyro_scale, 1.0);
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:50:    if (!pnh_.param("length/frontToIMUdistanceX", params.front_to_imu_x, 0.0))
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:52:      nh_.param("length/frontToIMUdistanceX", params.front_to_imu_x, 0.0);
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:54:    if (!pnh_.param("length/frontToIMUdistanceY", params.front_to_imu_y, 0.0))
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:56:      nh_.param("length/frontToIMUdistanceY", params.front_to_imu_y, 0.0);
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:58:    if (!pnh_.param("length/frontToIMUdistanceZ", params.front_to_imu_z, 0.0))
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:60:      nh_.param("length/frontToIMUdistanceZ", params.front_to_imu_z, 0.0);
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:62:    if (!pnh_.param("length/rearToIMUdistanceX", params.rear_to_imu_x, 0.0))
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:64:      nh_.param("length/rearToIMUdistanceX", params.rear_to_imu_x, 0.0);
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:66:    if (!pnh_.param("length/rearToIMUdistanceY", params.rear_to_imu_y, 0.0))
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:68:      nh_.param("length/rearToIMUdistanceY", params.rear_to_imu_y, 0.0);
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:70:    if (!pnh_.param("length/rearToIMUdistanceZ", params.rear_to_imu_z, 0.0))
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:72:      nh_.param("length/rearToIMUdistanceZ", params.rear_to_imu_z, 0.0);
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:76:    pnh_.param("kinematic_correction/enable", params.enable_kinematic_correction, true);
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:77:    pnh_.param("kinematic_correction/wheelbase", params.wheelbase, 1.55);
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:78:    pnh_.param("kinematic_correction/cg_to_rear", params.cg_to_rear, 0.775);
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:79:    pnh_.param("kinematic_correction/blend_speed", params.kinematic_blend_speed, 1.5);
+/home/kerwin/2025huat/src/localization_ros/src/state_estimator_node.cpp:80:    pnh_.param("kinematic_correction/blend_range", params.kinematic_blend_range, 1.0);
+/home/kerwin/2025huat/src/perception_ros/include/perception_ros/param_loader.hpp:12:  if (!nh.param<T>(name, value, default_value)) {
+/home/kerwin/2025huat/src/perception_ros/include/perception_ros/param_loader.hpp:22:  if (!nh.getParam(name, list)) {
+/home/kerwin/2025huat/src/perception_ros/src/distortion_compensator.cpp:100:  nh.param<float>("imu/distortion/scan_period", config.scan_period, 0.1f);
+/home/kerwin/2025huat/src/perception_ros/src/distortion_compensator.cpp:101:  nh.param<std::string>("imu/distortion/mode", config.mode, "velocity_only");
+/home/kerwin/2025huat/src/perception_ros/src/distortion_compensator.cpp:102:  nh.param<bool>("imu/distortion/enable", config.enable, config.enable);  // 兼容旧配置
+/home/kerwin/2025huat/src/perception_ros/src/distortion_compensator.cpp:103:  nh.param<bool>("imu/debug/log_imu_data", config.log_imu_data, false);
+/home/kerwin/2025huat/src/perception_ros/src/distortion_compensator.cpp:104:  nh.param<bool>("imu/debug/log_compensation", config.log_compensation, false);
+/home/kerwin/2025huat/src/perception_ros/src/distortion_compensator.cpp:97:  nh.param<bool>("imu/enable", config.enable, false);
+/home/kerwin/2025huat/src/perception_ros/src/distortion_compensator.cpp:98:  nh.param<std::string>("imu/topic", config.imu_topic, "/pbox_pub/Ins");
+/home/kerwin/2025huat/src/perception_ros/src/distortion_compensator.cpp:99:  nh.param<int>("imu/buffer_size", config.buffer_size, 200);
+/home/kerwin/2025huat/src/perception_ros/src/distortion_compensator_v2.cpp:110:    imu_sub_ = nh.subscribe(config_.imu_topic, config_.imu_buffer_size,
+/home/kerwin/2025huat/src/perception_ros/src/distortion_compensator_v2.cpp:115:        debug_pub_ = nh.advertise<std_msgs::String>("distortion_debug", 10);
+/home/kerwin/2025huat/src/perception_ros/src/distortion_compensator_v2.cpp:27:    nh.param<bool>("imu/enable", config.enable, false);
+/home/kerwin/2025huat/src/perception_ros/src/distortion_compensator_v2.cpp:28:    nh.param<std::string>("imu/topic", config.imu_topic, "/pbox_pub/Ins");
+/home/kerwin/2025huat/src/perception_ros/src/distortion_compensator_v2.cpp:29:    nh.param<int>("imu/buffer_size", config.imu_buffer_size, 200);
+/home/kerwin/2025huat/src/perception_ros/src/distortion_compensator_v2.cpp:31:    nh.param<double>("imu/distortion/scan_period", config.scan_period, 0.1);
+/home/kerwin/2025huat/src/perception_ros/src/distortion_compensator_v2.cpp:32:    nh.param<std::string>("imu/distortion/mode", config.mode, "velocity_accel");
+/home/kerwin/2025huat/src/perception_ros/src/distortion_compensator_v2.cpp:33:    nh.param<std::string>("imu/distortion/point_time_source", config.point_time_source, "auto");
+/home/kerwin/2025huat/src/perception_ros/src/distortion_compensator_v2.cpp:34:    nh.param<std::string>("imu/distortion/ref_time", config.ref_time, "scan_end");
+/home/kerwin/2025huat/src/perception_ros/src/distortion_compensator_v2.cpp:37:    nh.param<bool>("imu/sensor/extrinsics/enable", config.extrinsics_enable, false);
+/home/kerwin/2025huat/src/perception_ros/src/distortion_compensator_v2.cpp:38:    nh.param<double>("imu/sensor/extrinsics/tx", config.extrinsics_tx, 0.0);
+/home/kerwin/2025huat/src/perception_ros/src/distortion_compensator_v2.cpp:39:    nh.param<double>("imu/sensor/extrinsics/ty", config.extrinsics_ty, 0.0);
+/home/kerwin/2025huat/src/perception_ros/src/distortion_compensator_v2.cpp:40:    nh.param<double>("imu/sensor/extrinsics/tz", config.extrinsics_tz, 0.0);
+/home/kerwin/2025huat/src/perception_ros/src/distortion_compensator_v2.cpp:41:    nh.param<double>("imu/sensor/extrinsics/roll", config.extrinsics_roll, 0.0);
+/home/kerwin/2025huat/src/perception_ros/src/distortion_compensator_v2.cpp:42:    nh.param<double>("imu/sensor/extrinsics/pitch", config.extrinsics_pitch, 0.0);
+/home/kerwin/2025huat/src/perception_ros/src/distortion_compensator_v2.cpp:43:    nh.param<double>("imu/sensor/extrinsics/yaw", config.extrinsics_yaw, 0.0);
+/home/kerwin/2025huat/src/perception_ros/src/distortion_compensator_v2.cpp:46:    nh.param<bool>("imu/distortion/debug/enable", config.debug_output, false);
+/home/kerwin/2025huat/src/perception_ros/src/distortion_compensator_v2.cpp:47:    nh.param<bool>("imu/distortion/debug/publish_debug_info", config.publish_debug_info, false);
+/home/kerwin/2025huat/src/perception_ros/src/imu_subscriber.cpp:4:    subscriber_ = nh_.subscribe(topic_name, buff_size, &IMUSubscriber::msg_callback, this);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:113:  sub_point_cloud_ = nh_.subscribe(input_topic_, 2, &LidarClusterRos::pointCallback, this);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:115:  passthrough_pub_ = nh_.advertise<sensor_msgs::PointCloud2>(passthrough_topic_, 1);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:116:  no_ground_pub_ = nh_.advertise<sensor_msgs::PointCloud2>(no_ground_topic_, 1);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:117:  cones_pub_ = nh_.advertise<sensor_msgs::PointCloud2>(cones_topic_, 1);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:118:  detections_pub_ = nh_.advertise<autodrive_msgs::HUAT_ConeDetections>(detections_topic_, 10);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:141:  if (!private_nh_.param<std::string>("topics/input", input_topic_, "points/raw"))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:145:  if (!private_nh_.param<std::string>("topics/points/passthrough", passthrough_topic_, "points/passthrough"))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:149:  if (!private_nh_.param<std::string>("topics/points/no_ground", no_ground_topic_, "points/no_ground"))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:153:  if (!private_nh_.param<std::string>("topics/points/cones", cones_topic_, "points/cones"))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:157:  if (!private_nh_.param<std::string>("topics/detections", detections_topic_, "detections"))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:163:  if (!private_nh_.param<bool>("use_point_cloud_pool", use_point_cloud_pool_, false))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:172:  if (!private_nh_.param<std::string>("pipeline_mode", pipeline_mode_, "event_driven"))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:181:  if (!private_nh_.param<double>("legacy_poll_hz", legacy_poll_hz_, 10.0))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:191:  if (!private_nh_.param<double>("sensor_height", config_.sensor_height, 0.135))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:195:  if (!private_nh_.param<int>("sensor_model", config_.sensor_model, 16))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:199:  if (!private_nh_.param<int>("ransac/num_iter", config_.ransac.num_iter, 3))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:203:  if (!private_nh_.param<int>("ransac/num_lpr", config_.ransac.num_lpr, 5))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:207:  if (!private_nh_.param<double>("ransac/th_seeds", config_.ransac.th_seeds, 0.03))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:211:  if (!private_nh_.param<double>("ransac/th_dist", config_.ransac.th_dist, 0.03))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:216:  private_nh_.param<bool>("ransac/enable_zone", config_.ransac.enable_zone, true);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:221:  private_nh_.param<bool>("ransac/adaptive_threshold", config_.ransac.adaptive_threshold, true);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:222:  private_nh_.param<double>("ransac/th_dist_far_scale", config_.ransac.th_dist_far_scale, 2.0);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:223:  private_nh_.param<double>("ransac/min_normal_z", config_.ransac.min_normal_z, 0.8);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:224:  private_nh_.param<bool>("ransac/progressive_iteration", config_.ransac.progressive_iteration, true);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:225:  if (!private_nh_.param<int>("road_type", config_.road_type, 2))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:229:  if (!private_nh_.param<std::string>("ground_method", config_.ground_method, "ransac"))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:233:  if (!private_nh_.param<bool>("force_fgs_fast_path", force_fgs_fast_path_, true))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:243:  if (!private_nh_.param<bool>("ground_watchdog/enable", ground_watchdog_enable_, true))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:247:  if (!private_nh_.param<double>("ground_watchdog/warn_ms", ground_watchdog_warn_ms_, 8.0))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:251:  if (!private_nh_.param<int>("ground_watchdog/warn_consecutive_frames", ground_watchdog_warn_frames_, 5))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:262:  if (!private_nh_.param<std::string>("roi/mode", config_.roi.mode, "track"))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:266:  if (!private_nh_.param<bool>("roi/use_point_clip", config_.roi.use_point_clip, false))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:270:  if (!private_nh_.param<double>("roi/z_min", config_.roi.z_min, -1.0))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:274:  if (!private_nh_.param<double>("roi/z_max", config_.roi.z_max, 0.7))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:278:  if (!private_nh_.param<double>("roi/skidpad/x_min", config_.roi.skidpad.x_min, 0.0))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:282:  if (!private_nh_.param<double>("roi/skidpad/x_max", config_.roi.skidpad.x_max, 10.0))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:286:  if (!private_nh_.param<double>("roi/skidpad/y_min", config_.roi.skidpad.y_min, -3.0))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:290:  if (!private_nh_.param<double>("roi/skidpad/y_max", config_.roi.skidpad.y_max, 3.0))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:294:  if (!private_nh_.param<double>("roi/accel/x_min", config_.roi.accel.x_min, 0.0))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:298:  if (!private_nh_.param<double>("roi/accel/x_max", config_.roi.accel.x_max, 100.0))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:302:  if (!private_nh_.param<double>("roi/accel/y_min", config_.roi.accel.y_min, -3.0))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:306:  if (!private_nh_.param<double>("roi/accel/y_max", config_.roi.accel.y_max, 3.0))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:310:  if (!private_nh_.param<double>("roi/track/x_min", config_.roi.track.x_min, 0.0))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:314:  if (!private_nh_.param<double>("roi/track/x_max", config_.roi.track.x_max, 20.0))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:318:  if (!private_nh_.param<double>("roi/track/y_min", config_.roi.track.y_min, -3.0))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:322:  if (!private_nh_.param<double>("roi/track/y_max", config_.roi.track.y_max, 3.0))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:326:  if (!private_nh_.param<double>("roi/custom/x_min", config_.roi.custom.x_min, 0.0))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:330:  if (!private_nh_.param<double>("roi/custom/x_max", config_.roi.custom.x_max, 20.0))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:334:  if (!private_nh_.param<double>("roi/custom/y_min", config_.roi.custom.y_min, -3.0))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:338:  if (!private_nh_.param<double>("roi/custom/y_max", config_.roi.custom.y_max, 3.0))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:342:  if (!private_nh_.param<bool>("filters/sor/enable", config_.filters.sor.enable, false))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:346:  if (!private_nh_.param<int>("filters/sor/mean_k", config_.filters.sor.mean_k, 50))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:350:  if (!private_nh_.param<double>("filters/sor/stddev_mul", config_.filters.sor.stddev_mul, 1.0))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:354:  if (!private_nh_.param<bool>("filters/voxel/enable", config_.filters.voxel.enable, true))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:358:  if (!private_nh_.param<double>("filters/voxel/leaf_size", config_.filters.voxel.leaf_size, 0.05))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:362:  if (!private_nh_.param<bool>("filters/adaptive_voxel/enable", config_.filters.adaptive_voxel.enable, false))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:366:  if (!private_nh_.param<double>("filters/adaptive_voxel/leaf_size", config_.filters.adaptive_voxel.leaf_size, 0.1))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:370:  if (!private_nh_.param<int>("filters/adaptive_voxel/density_thr", config_.filters.adaptive_voxel.density_thr, 50))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:375:  if (!private_nh_.param<bool>("filters/distance_adaptive_voxel/enable", config_.filters.distance_adaptive_voxel.enable, false))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:379:  if (!private_nh_.param<double>("filters/distance_adaptive_voxel/near_leaf", config_.filters.distance_adaptive_voxel.near_leaf, 0.08))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:383:  if (!private_nh_.param<double>("filters/distance_adaptive_voxel/far_leaf", config_.filters.distance_adaptive_voxel.far_leaf, 0.03))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:387:  if (!private_nh_.param<double>("filters/distance_adaptive_voxel/dist_threshold", config_.filters.distance_adaptive_voxel.dist_threshold, 10.0))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:392:  if (!private_nh_.param<bool>("filters/intensity/enable", config_.filters.intensity.enable, false))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:398:    if (!private_nh_.param<double>("filters/intensity/min_intensity", min_intensity_d, 5.0))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:405:  if (!private_nh_.param<bool>("filters/use_cropbox", config_.filters.use_cropbox, true))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:410:  private_nh_.param<bool>("filters/obstacle_height/enable", config_.filters.obstacle_height.enable, true);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:411:  private_nh_.param<double>("filters/obstacle_height/grid_size", config_.filters.obstacle_height.grid_size, 0.5);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:412:  private_nh_.param<double>("filters/obstacle_height/max_z_span", config_.filters.obstacle_height.max_z_span, 0.5);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:413:  private_nh_.param<int>("filters/obstacle_height/min_points_to_judge", config_.filters.obstacle_height.min_points_to_judge, 3);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:414:  private_nh_.param<double>("filters/obstacle_height/min_distance", config_.filters.obstacle_height.min_distance, 10.0);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:417:  private_nh_.param<int>("fgs/num_sectors", config_.fgs.num_sectors, 32);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:418:  private_nh_.param<int>("fgs/num_bins", config_.fgs.num_bins, 80);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:419:  private_nh_.param<double>("fgs/max_range", config_.fgs.max_range, 80.0);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:420:  private_nh_.param<double>("fgs/min_range", config_.fgs.min_range, 0.1);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:421:  private_nh_.param<double>("fgs/sensor_height", config_.fgs.sensor_height, 0.135);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:422:  private_nh_.param<double>("fgs/th_ground", config_.fgs.th_ground, 0.08);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:423:  private_nh_.param<double>("fgs/th_ground_far", config_.fgs.th_ground_far, 0.15);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:424:  private_nh_.param<double>("fgs/far_distance", config_.fgs.far_distance, 20.0);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:426:  private_nh_.param<double>("fgs/near_distance", config_.fgs.near_distance, 2.0);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:427:  private_nh_.param<double>("fgs/th_ground_near", config_.fgs.th_ground_near, 0.12);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:428:  private_nh_.param<double>("fgs/max_slope", config_.fgs.max_slope, 0.3);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:429:  private_nh_.param<double>("fgs/min_normal_z", config_.fgs.min_normal_z, 0.85);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:430:  private_nh_.param<double>("fgs/max_height_diff", config_.fgs.max_height_diff, 0.3);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:431:  private_nh_.param<bool>("fgs/use_neighbor_model", config_.fgs.use_neighbor_model, true);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:433:  private_nh_.param<int>("fgs/max_segments_per_sector", config_.fgs.max_segments_per_sector, 4);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:434:  private_nh_.param<double>("fgs/segment_merge_dist", config_.fgs.segment_merge_dist, 0.05);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:436:  private_nh_.param<bool>("fgs/enable_refinement", config_.fgs.enable_refinement, false);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:438:  private_nh_.param<bool>("fgs/use_lowest_n_mean", config_.fgs.use_lowest_n_mean, true);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:439:  private_nh_.param<int>("fgs/lowest_n", config_.fgs.lowest_n, 3);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:441:  private_nh_.param<bool>("fgs/enable_sector_smoothing", config_.fgs.enable_sector_smoothing, true);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:443:  private_nh_.param<bool>("fgs/enable_temporal_smoothing", config_.fgs.enable_temporal_smoothing, true);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:444:  private_nh_.param<double>("fgs/temporal_alpha", config_.fgs.temporal_alpha, 0.3);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:446:  private_nh_.param<double>("fgs/ground_below_factor", config_.fgs.ground_below_factor, 1.5);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:448:  private_nh_.param<bool>("fgs/enable_adaptive_alpha", config_.fgs.enable_adaptive_alpha, true);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:449:  private_nh_.param<double>("fgs/adaptive_alpha_max", config_.fgs.adaptive_alpha_max, 0.9);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:450:  private_nh_.param<double>("fgs/adaptive_alpha_threshold", config_.fgs.adaptive_alpha_threshold, 0.05);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:452:  if (!private_nh_.param<bool>("patchworkpp/enable_rnr", config_.patchworkpp.enable_rnr, true))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:456:  if (!private_nh_.param<bool>("patchworkpp/enable_rvpf", config_.patchworkpp.enable_rvpf, true))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:460:  if (!private_nh_.param<bool>("patchworkpp/enable_tgr", config_.patchworkpp.enable_tgr, true))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:464:  if (!private_nh_.param<int>("patchworkpp/num_iter", config_.patchworkpp.num_iter, 3))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:468:  if (!private_nh_.param<int>("patchworkpp/num_lpr", config_.patchworkpp.num_lpr, 20))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:46:  if (!nh.getParam(key, value))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:472:  if (!private_nh_.param<int>("patchworkpp/num_min_pts", config_.patchworkpp.num_min_pts, 10))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:476:  if (!private_nh_.param<int>("patchworkpp/num_zones", config_.patchworkpp.num_zones, 4))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:480:  if (!private_nh_.param<int>("patchworkpp/num_rings_of_interest", config_.patchworkpp.num_rings_of_interest, 4))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:484:  if (!private_nh_.param<double>("patchworkpp/rnr_ver_angle_thr", config_.patchworkpp.rnr_ver_angle_thr, -15.0))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:488:  if (!private_nh_.param<double>("patchworkpp/rnr_intensity_thr", config_.patchworkpp.rnr_intensity_thr, 0.2))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:492:  if (!private_nh_.param<double>("patchworkpp/th_seeds", config_.patchworkpp.th_seeds, 0.125))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:496:  if (!private_nh_.param<double>("patchworkpp/th_dist", config_.patchworkpp.th_dist, 0.125))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:500:  if (!private_nh_.param<double>("patchworkpp/th_seeds_v", config_.patchworkpp.th_seeds_v, 0.25))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:504:  if (!private_nh_.param<double>("patchworkpp/th_dist_v", config_.patchworkpp.th_dist_v, 0.1))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:508:  if (!private_nh_.param<double>("patchworkpp/max_range", config_.patchworkpp.max_range, 80.0))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:512:  if (!private_nh_.param<double>("patchworkpp/min_range", config_.patchworkpp.min_range, 2.7))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:516:  if (!private_nh_.param<double>("patchworkpp/uprightness_thr", config_.patchworkpp.uprightness_thr, 0.707))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:520:  if (!private_nh_.param<double>("patchworkpp/adaptive_seed_selection_margin", config_.patchworkpp.adaptive_seed_selection_margin, -1.2))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:524:  if (!private_nh_.param<int>("patchworkpp/max_flatness_storage", config_.patchworkpp.max_flatness_storage, 1000))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:528:  if (!private_nh_.param<int>("patchworkpp/max_elevation_storage", config_.patchworkpp.max_elevation_storage, 1000))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:549:  if (!private_nh_.param<double>("patchworkpp/th_dist_far_scale", config_.patchworkpp.th_dist_far_scale, 1.5))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:553:  if (!private_nh_.param<double>("patchworkpp/min_normal_z", config_.patchworkpp.min_normal_z, 0.7))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:557:  if (!private_nh_.param<double>("patchworkpp/far_zone_min_pts_scale", config_.patchworkpp.far_zone_min_pts_scale, 2.0))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:561:  if (!private_nh_.param<std::string>("str_range", config_.str_range, "15,30,45,60"))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:565:  if (!private_nh_.param<std::string>("str_seg_distance", config_.str_seg_distance, "0.5,1.1,1.6,2.1,2.6"))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:579:  if (!private_nh_.param<bool>("cluster/adaptive_size/enable", config_.cluster.adaptive_size.enable, true))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:583:  if (!private_nh_.param<int>("cluster/adaptive_size/near_min_size", config_.cluster.adaptive_size.near_min_size, 3))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:587:  if (!private_nh_.param<int>("cluster/adaptive_size/near_max_size", config_.cluster.adaptive_size.near_max_size, 100))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:591:  if (!private_nh_.param<int>("cluster/adaptive_size/far_min_size", config_.cluster.adaptive_size.far_min_size, 1))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:595:  if (!private_nh_.param<int>("cluster/adaptive_size/far_max_size", config_.cluster.adaptive_size.far_max_size, 30))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:599:  if (!private_nh_.param<int>("cluster/min_cluster_size", config_.cluster.min_cluster_size, 1))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:603:  if (!private_nh_.param<int>("cluster/max_cluster_size", config_.cluster.max_cluster_size, 50))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:608:  if (!private_nh_.param<std::string>("cluster/method", config_.cluster.method, "euclidean"))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:613:  if (!private_nh_.param<double>("cluster/dbscan/eps", config_.cluster.dbscan.eps, 0.3))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:617:  if (!private_nh_.param<int>("cluster/dbscan/min_pts", config_.cluster.dbscan.min_pts, 3))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:621:  if (!private_nh_.param<bool>("cluster/dbscan/adaptive_eps", config_.cluster.dbscan.adaptive_eps, true))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:625:  if (!private_nh_.param<double>("cluster/dbscan/eps_near", config_.cluster.dbscan.eps_near, 0.15))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:629:  if (!private_nh_.param<double>("cluster/dbscan/eps_far", config_.cluster.dbscan.eps_far, 0.5))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:634:  if (!private_nh_.param<double>("cluster/vlp16/cluster_tolerance", config_.cluster.vlp16.cluster_tolerance, 0.3))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:638:  if (!private_nh_.param<double>("cluster/vlp16/max_bbox_x", config_.cluster.vlp16.max_bbox_x, 0.4))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:642:  if (!private_nh_.param<double>("cluster/vlp16/max_bbox_y", config_.cluster.vlp16.max_bbox_y, 0.4))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:646:  if (!private_nh_.param<double>("cluster/vlp16/max_bbox_z", config_.cluster.vlp16.max_bbox_z, 0.5))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:651:  if (!private_nh_.param<double>("cluster/point_clip/min_distance", config_.cluster.point_clip.min_distance, 1.0))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:655:  if (!private_nh_.param<double>("cluster/point_clip/max_distance", config_.cluster.point_clip.max_distance, 15.0))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:660:  if (!private_nh_.param<bool>("cluster/fec/enable", config_.cluster.fec.enable, true))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:664:  if (!private_nh_.param<double>("cluster/fec/quality", config_.cluster.fec.quality, 0.3))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:669:  if (!private_nh_.param<bool>("cluster/multi_frame/enable", config_.cluster.multi_frame.enable, true))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:673:  if (!private_nh_.param<int>("cluster/multi_frame/num_frames", config_.cluster.multi_frame.num_frames, 2))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:677:  if (!private_nh_.param<double>("cluster/multi_frame/max_distance", config_.cluster.multi_frame.max_distance, 10.0))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:682:  if (!private_nh_.param<double>("min_height", config_.min_height, -1))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:686:  if (!private_nh_.param<double>("max_height", config_.max_height, -1))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:690:  if (!private_nh_.param<double>("min_area", config_.min_area, -1))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:694:  if (!private_nh_.param<double>("max_area", config_.max_area, -1))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:699:  if (!private_nh_.param<double>("max_box_altitude", config_.max_box_altitude, 0))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:705:  private_nh_.param<double>("confidence/min_height", config_.confidence.min_height, 0.15);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:706:  private_nh_.param<double>("confidence/max_height", config_.confidence.max_height, 0.5);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:707:  private_nh_.param<double>("confidence/min_area", config_.confidence.min_area, 0.01);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:708:  private_nh_.param<double>("confidence/max_area", config_.confidence.max_area, 0.15);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:709:  private_nh_.param<double>("confidence/max_box_altitude", config_.confidence.max_box_altitude, 0.5);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:710:  private_nh_.param<double>("confidence/min_aspect_ratio", config_.confidence.min_aspect_ratio, 1.5);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:711:  private_nh_.param<double>("confidence/min_verticality", config_.confidence.min_verticality, 0.8);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:712:  private_nh_.param<double>("confidence/max_linearity", config_.confidence.max_linearity, 0.85);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:713:  private_nh_.param<double>("confidence/min_density_near", config_.confidence.min_density_near, 50.0);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:714:  private_nh_.param<double>("confidence/min_density_far", config_.confidence.min_density_far, 10.0);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:715:  private_nh_.param<double>("confidence/distance_threshold", config_.confidence.distance_threshold, 5.0);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:716:  private_nh_.param<double>("confidence/min_intensity_mean", config_.confidence.min_intensity_mean, 30.0);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:717:  private_nh_.param<double>("confidence/weight_size", config_.confidence.weight_size, 0.3);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:718:  private_nh_.param<double>("confidence/weight_shape", config_.confidence.weight_shape, 0.25);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:719:  private_nh_.param<double>("confidence/weight_density", config_.confidence.weight_density, 0.2);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:720:  private_nh_.param<double>("confidence/weight_intensity", config_.confidence.weight_intensity, 0.15);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:721:  private_nh_.param<double>("confidence/weight_position", config_.confidence.weight_position, 0.1);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:722:  private_nh_.param<bool>("confidence/enable_model_fitting", config_.confidence.enable_model_fitting, true);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:723:  private_nh_.param<double>("confidence/model_fit_bonus", config_.confidence.model_fit_bonus, 0.2);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:724:  private_nh_.param<double>("confidence/model_fit_penalty", config_.confidence.model_fit_penalty, 0.15);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:726:  private_nh_.param<double>("confidence/min_confidence_near", config_.confidence.min_confidence_near, 0.0);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:727:  private_nh_.param<double>("confidence/min_confidence_far", config_.confidence.min_confidence_far, 0.3);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:728:  private_nh_.param<double>("confidence/confidence_ramp_start", config_.confidence.confidence_ramp_start, 10.0);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:729:  private_nh_.param<double>("confidence/confidence_ramp_end", config_.confidence.confidence_ramp_end, 30.0);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:732:  private_nh_.param<bool>("confidence/track_semantic/enable", config_.confidence.track_semantic.enable, false);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:733:  private_nh_.param<double>("confidence/track_semantic/weight", config_.confidence.track_semantic.weight, 0.0);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:734:  private_nh_.param<double>("confidence/track_semantic/expected_track_width", config_.confidence.track_semantic.expected_track_width, 3.0);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:735:  private_nh_.param<double>("confidence/track_semantic/expected_cone_spacing", config_.confidence.track_semantic.expected_cone_spacing, 5.0);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:736:  private_nh_.param<double>("confidence/track_semantic/spacing_tolerance", config_.confidence.track_semantic.spacing_tolerance, 2.0);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:737:  private_nh_.param<double>("confidence/track_semantic/width_tolerance", config_.confidence.track_semantic.width_tolerance, 1.0);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:738:  private_nh_.param<double>("confidence/track_semantic/isolation_radius", config_.confidence.track_semantic.isolation_radius, 8.0);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:740:  private_nh_.param<int>("confidence/track_semantic/min_neighbors_hard", config_.confidence.track_semantic.min_neighbors_hard, 0);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:741:  private_nh_.param<double>("confidence/track_semantic/max_isolation_distance", config_.confidence.track_semantic.max_isolation_distance, 12.0);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:744:  private_nh_.param<bool>("cone_size_typing/enable", enable_cone_size_typing_, true);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:745:  private_nh_.param<double>("cone_size_typing/big_height_threshold", big_cone_height_threshold_, 0.45);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:746:  private_nh_.param<double>("cone_size_typing/big_area_threshold", big_cone_area_threshold_, 0.09);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:749:  private_nh_.param<bool>("tracker/enable", config_.tracker.enable, false);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:750:  private_nh_.param<double>("tracker/association_threshold", config_.tracker.association_threshold, 0.5);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:751:  private_nh_.param<int>("tracker/confirm_frames", config_.tracker.confirm_frames, 3);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:752:  private_nh_.param<int>("tracker/delete_frames", config_.tracker.delete_frames, 5);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:753:  private_nh_.param<double>("tracker/process_noise", config_.tracker.process_noise, 0.1);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:754:  private_nh_.param<double>("tracker/measurement_noise", config_.tracker.measurement_noise, 0.05);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:755:  private_nh_.param<bool>("tracker/only_output_confirmed", config_.tracker.only_output_confirmed, true);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:756:  private_nh_.param<double>("tracker/confirmed_confidence_boost", config_.tracker.confirmed_confidence_boost, 0.1);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:759:  private_nh_.param<bool>("topology/enable", config_.topology.enable, false);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:760:  private_nh_.param<double>("topology/max_same_side_spacing", config_.topology.max_same_side_spacing, 5.0);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:761:  private_nh_.param<double>("topology/min_track_width", config_.topology.min_track_width, 2.5);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:762:  private_nh_.param<double>("topology/max_track_width", config_.topology.max_track_width, 4.0);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:763:  private_nh_.param<double>("topology/max_repair_range", config_.topology.max_repair_range, 15.0);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:764:  private_nh_.param<double>("topology/outlier_lateral_threshold", config_.topology.outlier_lateral_threshold, 5.0);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:765:  private_nh_.param<double>("topology/interpolated_confidence", config_.topology.interpolated_confidence, 0.2);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:768:  private_nh_.param<bool>("dedup/enable", config_.dedup.enable, true);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:769:  private_nh_.param<double>("dedup/radius", config_.dedup.radius, 0.5);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:772:  private_nh_.param<bool>("stacked_cone_detection/enabled", config_.dedup.stacked_enable, false);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:773:  private_nh_.param<double>("stacked_cone_detection/vertical_layers/layer_height", config_.dedup.layer_height, 0.25);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:774:  private_nh_.param<int>("stacked_cone_detection/vertical_layers/max_layers", config_.dedup.max_layers, 3);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:775:  private_nh_.param<double>("stacked_cone_detection/identification/max_xy_distance", config_.dedup.stacked_xy_threshold, 0.4);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:776:  private_nh_.param<double>("stacked_cone_detection/identification/height_variation_threshold", config_.dedup.z_height_threshold, 0.3);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:779:  private_nh_.param<bool>("roi/adaptive_y/enable", config_.roi.adaptive_y.enable, false);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:77:  if (!nh.getParam(key, value))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:780:  private_nh_.param<double>("roi/adaptive_y/near_y_half", config_.roi.adaptive_y.near_y_half, 5.0);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:781:  private_nh_.param<double>("roi/adaptive_y/far_y_half", config_.roi.adaptive_y.far_y_half, 2.0);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:782:  private_nh_.param<double>("roi/adaptive_y/ramp_start_x", config_.roi.adaptive_y.ramp_start_x, 5.0);
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:871:  if (!private_nh_.param<bool>("perf_stats_enable", perf_enabled_, true))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:876:  if (!private_nh_.param<int>("perf_stats_window", perf_window, 300))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:882:  if (!private_nh_.param<int>("perf_stats_log_every", perf_log_every, 30))
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:910:  private_nh_.param<double>(prefix + "/confidence/min_confidence_near",
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:913:  private_nh_.param<double>(prefix + "/confidence/min_confidence_far",
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:916:  private_nh_.param<double>(prefix + "/confidence/confidence_ramp_start",
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:919:  private_nh_.param<double>(prefix + "/confidence/confidence_ramp_end",
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:924:  private_nh_.param<bool>(prefix + "/adaptive_y/enable",
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:928:    private_nh_.param<double>(prefix + "/adaptive_y/near_y_half",
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:931:    private_nh_.param<double>(prefix + "/adaptive_y/far_y_half",
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:934:    private_nh_.param<double>(prefix + "/adaptive_y/ramp_start_x",
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:940:  private_nh_.param<bool>(prefix + "/confidence/track_semantic/enable",
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:943:  private_nh_.param<double>(prefix + "/confidence/track_semantic/weight",
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:946:  private_nh_.param<double>(prefix + "/confidence/track_semantic/expected_track_width",
+/home/kerwin/2025huat/src/perception_ros/src/lidar_cluster_ros.cpp:949:  private_nh_.param<double>(prefix + "/confidence/track_semantic/expected_cone_spacing",
+/home/kerwin/2025huat/src/perception_ros/test/confidence.cpp:24:    ros::Subscriber cone_msg_sub = nh.subscribe("/perception/lidar_cluster/detections", 1, coneMsgCallback);
+/home/kerwin/2025huat/src/planning_ros/nodes/line_detection_node.cpp:14:  pnh.param("loop_rate", rate, 10);
+/home/kerwin/2025huat/src/planning_ros/nodes/planning_pipeline_node.cpp:12:  pnh.param<std::string>("mission", mission, "high_speed");
+/home/kerwin/2025huat/src/planning_ros/nodes/planning_pipeline_node.cpp:17:  pnh.param("loop_rate", rate, 20);
+/home/kerwin/2025huat/src/planning_ros/nodes/skidpad_detection_node.cpp:14:  pnh.param("loop_rate", rate, 10);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/main.cpp:333:  pnh.param("wait_full_before_stop", waitFullBeforeStop, true);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/main.cpp:334:  pnh.param("finish_grace_frames", finishGraceFrames, 300);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/main.cpp:335:  pnh.param("enable_loop_fallback_by_lap_counter", enableLoopFallbackByLapCounter, true);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/main.cpp:336:  pnh.param("loop_fallback_min_laps", loopFallbackMinLaps, 1);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/main.cpp:337:  pnh.param("perf_stats_enable", perf_enabled, true);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/main.cpp:338:  pnh.param("perf_stats_window", perf_window, 300);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/main.cpp:339:  pnh.param("perf_stats_log_every", perf_log_every, 30);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/main.cpp:352:  ros::Subscriber subCones = nh->subscribe(params->main.input_cones_topic, 1, callback_ccat);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/main.cpp:353:  ros::Subscriber subPose = nh->subscribe(params->main.input_pose_topic, 1, &WayComputer::stateCallback, wayComputer);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/main.cpp:356:  pnh.param<std::string>("output_pathlimits_topic", pathlimits_topic, "planning/pathlimits");
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/main.cpp:357:  pubPathlimits = nh->advertise<autodrive_msgs::HUAT_PathLimits>(pathlimits_topic, 1);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/main.cpp:358:  stopPub = nh->advertise<autodrive_msgs::HUAT_Stop>(params->main.stop_topic, 1);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/modules/Visualization.cpp:31:    viz_pub_ = nh->advertise<autodrive_msgs::HUAT_HighSpeedViz>(params_.viz_topic, 1, true);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:22:  pnh.param<std::string>("input_cones_topic", main.input_cones_topic, "localization/cone_map");
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:23:  pnh.param<std::string>("input_pose_topic", main.input_pose_topic, "localization/car_state");
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:24:  pnh.param<std::string>("stop_topic", main.stop_topic, "planning/high_speed_tracking/stop");
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:25:  pnh.param<bool>("shutdown_on_loop_closure", main.shutdown_on_loop_closure, true);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:26:  pnh.param<bool>("debug_save_way_files", main.debug_save_way_files, false);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:27:  pnh.param<float>("min_cone_confidence", main.min_cone_confidence, 0.0);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:28:  pnh.param<int>("number_of_stopped_turns", main.number_of_stopped_turns, 3);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:29:  pnh.param<int>("the_mode_of_partial_path", main.the_mode_of_partial_path, 2);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:30:  pnh.param<int>("the_mode_of_full_path", main.the_mode_of_full_path, 3);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:33:  pnh.param<double>("max_triangle_edge_len", wayComputer.max_triangle_edge_len, 9.0);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:34:  pnh.param<double>("min_triangle_angle", wayComputer.min_triangle_angle, 0.25);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:35:  pnh.param<double>("max_dist_circum_midPoint", wayComputer.max_dist_circum_midPoint, 1.0);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:36:  pnh.param<int>("failsafe_max_way_horizon_size", wayComputer.failsafe_max_way_horizon_size, 6);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:37:  pnh.param<bool>("general_failsafe", wayComputer.general_failsafe, true);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:38:  pnh.param<double>("general_failsafe_safetyFactor", wayComputer.general_failsafe_safetyFactor, 1.4);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:40:  pnh.param<int>("max_way_horizon_size", wayComputer.search.max_way_horizon_size, 0);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:41:  pnh.param<int>("max_search_tree_height", wayComputer.search.max_search_tree_height, 5);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:42:  pnh.param<double>("search_radius", wayComputer.search.search_radius, 5.0);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:43:  pnh.param<double>("max_angle_diff", wayComputer.search.max_angle_diff, 0.6);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:44:  pnh.param<double>("edge_len_diff_factor", wayComputer.search.edge_len_diff_factor, 0.5);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:45:  pnh.param<int>("max_search_options", wayComputer.search.max_search_options, 2);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:46:  pnh.param<double>("max_next_heuristic", wayComputer.search.max_next_heuristic, 3.0);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:47:  pnh.param<float>("heur_dist_ponderation", wayComputer.search.heur_dist_ponderation, 0.6);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:48:  pnh.param<bool>("allow_intersection", wayComputer.search.allow_intersection, false);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:49:  pnh.param<float>("max_treeSearch_time", wayComputer.search.max_treeSearch_time, 0.05);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:51:  pnh.param<double>("max_dist_loop_closure", wayComputer.way.max_dist_loop_closure, 1.0);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:52:  pnh.param<double>("max_angle_diff_loop_closure", wayComputer.way.max_angle_diff_loop_closure, 0.6);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:53:  pnh.param<int>("vital_num_midpoints", wayComputer.way.vital_num_midpoints, 5);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:55:  pnh.param<double>("speed_cap_safe", wayComputer.speed.speed_cap_safe, 11.11);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:56:  pnh.param<double>("speed_cap_fast", wayComputer.speed.speed_cap_fast, 13.33);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:57:  pnh.param<double>("max_lateral_acc", wayComputer.speed.max_lateral_acc, 6.5);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:58:  pnh.param<double>("max_accel", wayComputer.speed.max_accel, 2.5);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:59:  pnh.param<double>("max_brake", wayComputer.speed.max_brake, 4.0);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:60:  pnh.param<double>("min_speed", wayComputer.speed.min_speed, 1.0);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:61:  pnh.param<double>("curvature_epsilon", wayComputer.speed.curvature_epsilon, 1e-3);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:62:  pnh.param<int>("mode_transition_frames", wayComputer.speed.mode_transition_frames, 40);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:63:  pnh.param<double>("curvature_limit", wayComputer.speed.curvature_limit, 0.222);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:64:  pnh.param<double>("curvature_warn_limit_scale", wayComputer.speed.curvature_warn_limit_scale, 1.08);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:65:  pnh.param<bool>("curvature_smoothing_enable", wayComputer.speed.curvature_smoothing_enable, true);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:66:  pnh.param<int>("curvature_smoothing_max_iters", wayComputer.speed.curvature_smoothing_max_iters, 4);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:67:  pnh.param<double>("curvature_smoothing_alpha", wayComputer.speed.curvature_smoothing_alpha, 0.25);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:68:  pnh.param<double>("curvature_warn_ratio", wayComputer.speed.curvature_warn_ratio, 0.12);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:69:  pnh.param<int>("curvature_warn_min_points", wayComputer.speed.curvature_warn_min_points, 8);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:70:  pnh.param<int>("min_publish_path_size", wayComputer.speed.min_publish_path_size, 12);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:71:  pnh.param<int>("short_path_stable_relax_points", wayComputer.speed.short_path_stable_relax_points, 3);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:72:  pnh.param<bool>("hold_last_valid_path", wayComputer.speed.hold_last_valid_path, true);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:73:  pnh.param<int>("hold_last_valid_max_frames", wayComputer.speed.hold_last_valid_max_frames, 25);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:74:  pnh.param<int>("loop_close_debounce_frames", wayComputer.speed.loop_close_debounce_frames, 5);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:75:  pnh.param<int>("loop_open_debounce_frames", wayComputer.speed.loop_open_debounce_frames, 15);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:76:  pnh.param<bool>("loop_allow_reopen", wayComputer.speed.loop_allow_reopen, false);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:77:  pnh.param<int>("mode_min_hold_frames", wayComputer.speed.mode_min_hold_frames, 30);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:78:  pnh.param<bool>("search_adaptive_enable", wayComputer.speed.search_adaptive_enable, true);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:79:  pnh.param<int>("search_adaptive_trigger_frames", wayComputer.speed.search_adaptive_trigger_frames, 1);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:80:  pnh.param<int>("search_adaptive_step_frames", wayComputer.speed.search_adaptive_step_frames, 1);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:81:  pnh.param<int>("search_adaptive_max_level", wayComputer.speed.search_adaptive_max_level, 8);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:82:  pnh.param<int>("search_adaptive_bootstrap_level", wayComputer.speed.search_adaptive_bootstrap_level, 4);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:83:  pnh.param<double>("search_adaptive_radius_step", wayComputer.speed.search_adaptive_radius_step, 3.0);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:84:  pnh.param<double>("search_adaptive_heuristic_step", wayComputer.speed.search_adaptive_heuristic_step, 1.0);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:85:  pnh.param<double>("search_adaptive_radius_max", wayComputer.speed.search_adaptive_radius_max, 40.0);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:86:  pnh.param<double>("search_adaptive_heuristic_max", wayComputer.speed.search_adaptive_heuristic_max, 14.0);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:87:  pnh.param<bool>("search_adaptive_retry_on_short", wayComputer.speed.search_adaptive_retry_on_short, true);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:88:  pnh.param<bool>("loop_diag_enable", wayComputer.speed.loop_diag_enable, false);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:91:  pnh.param<bool>("publish_viz_data", visualization.publish_viz_data, true);
+/home/kerwin/2025huat/src/planning_ros/src/high_speed_tracking/utils/Params.cpp:92:  pnh.param<std::string>("viz_topic", visualization.viz_topic, "planning/high_speed_tracking/viz");
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:31:  cone_sub_.subscribe(nh_, cone_topic_, 1);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:32:  car_state_sub_.subscribe(nh_, car_state_topic_, 1);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:38:  pathlimits_pub_ = nh_.advertise<autodrive_msgs::HUAT_PathLimits>(pathlimits_topic_, 1);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:39:  finish_pub_ = nh_.advertise<std_msgs::Bool>(finish_topic_, 1);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:41:  pnh_.param("max_data_age", max_data_age_, 0.5);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:48:  pnh_.param("hough/rho_resolution", params_.hough_rho_resolution, 0.1);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:49:  pnh_.param("hough/theta_resolution", params_.hough_theta_resolution, 0.01);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:50:  pnh_.param("hough/min_votes", params_.hough_min_votes, 3);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:51:  pnh_.param("hough/theta_tolerance", params_.theta_tolerance, 0.2);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:53:  pnh_.param("cones/max_distance", params_.max_cone_distance, 50.0);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:54:  pnh_.param("cones/min_distance", params_.min_cone_distance, 2.0);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:55:  pnh_.param("cones/max_lateral_distance", params_.max_cone_lateral_distance, 10.0);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:56:  pnh_.param("cones/min_valid_count", params_.min_valid_cones, 2);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:57:  pnh_.param("cones/hold_on_sparse_cones", params_.hold_on_sparse_cones, true);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:59:  pnh_.param("hough/min_rho_diff", params_.min_rho_diff, 2.0);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:60:  pnh_.param("hough/max_rho_diff", params_.max_rho_diff, 20.0);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:61:  pnh_.param("hough/max_lines_to_check", params_.max_lines_to_check, 10);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:63:  pnh_.param("path/interval", params_.path_interval, 0.1);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:64:  pnh_.param("path/max_distance", params_.max_path_distance, 175.0);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:65:  pnh_.param("path/start_x", params_.path_start_x, 1.0);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:66:  pnh_.param("path/accel_distance", params_.accel_distance, 75.0);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:67:  pnh_.param("path/brake_distance", params_.brake_distance, 100.0);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:69:  pnh_.param("vehicle/imu_offset_x", params_.imu_offset_x, 1.88);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:71:  pnh_.param("finish/threshold", params_.finish_line_threshold, 2.0);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:73:  pnh_.param<std::string>("topics/cone", cone_topic_, "perception/lidar_cluster/detections");
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:74:  pnh_.param<std::string>("topics/car_state", car_state_topic_, "localization/car_state");
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:75:  pnh_.param<std::string>("topics/pathlimits", pathlimits_topic_, "planning/line_detection/pathlimits");
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:76:  pnh_.param<std::string>("topics/finish", finish_topic_, "planning/line_detection/finish_signal");
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:78:  pnh_.param<std::string>("frames/expected_cone", expected_cone_frame_, "velodyne");
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:79:  pnh_.param<std::string>("frames/output", output_frame_, "world");
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:81:  pnh_.param("speed/speed_cap", speed_cap_, 20.0);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:82:  pnh_.param("speed/max_lateral_acc", max_lateral_acc_, 6.5);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:83:  pnh_.param("speed/max_accel", max_accel_, 3.0);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:84:  pnh_.param("speed/max_brake", max_brake_, 4.0);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:85:  pnh_.param("speed/min_speed", min_speed_, 1.0);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:86:  pnh_.param("speed/curvature_epsilon", curvature_epsilon_, 1e-3);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:87:  pnh_.param("speed/accel_zone_length", accel_zone_length_, 75.0);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:88:  pnh_.param("speed/brake_zone_length", brake_zone_length_, 100.0);
+/home/kerwin/2025huat/src/planning_ros/src/line_detection_node.cpp:89:  pnh_.param("speed/timing_start_offset", timing_start_offset_, 0.3);
+/home/kerwin/2025huat/src/planning_ros/src/planning_pipeline_node.cpp:123:  hs_cone_sub_ = nh.subscribe(hs_params_->main.input_cones_topic, 1,
+/home/kerwin/2025huat/src/planning_ros/src/planning_pipeline_node.cpp:125:  hs_pose_sub_ = nh.subscribe(hs_params_->main.input_pose_topic, 1,
+/home/kerwin/2025huat/src/planning_ros/src/planning_pipeline_node.cpp:129:  pnh.param<std::string>("output_pathlimits_topic", pathlimits_topic,
+/home/kerwin/2025huat/src/planning_ros/src/planning_pipeline_node.cpp:131:  pathlimits_pub_ = nh.advertise<autodrive_msgs::HUAT_PathLimits>(pathlimits_topic, 1);
+/home/kerwin/2025huat/src/planning_ros/src/planning_pipeline_node.cpp:132:  hs_stop_pub_ = nh.advertise<autodrive_msgs::HUAT_Stop>(hs_params_->main.stop_topic, 1);
+/home/kerwin/2025huat/src/planning_ros/src/planning_pipeline_node.cpp:27:  pnh.param("diagnostics_rate_hz", diagnostics_rate_hz_, 1.0);
+/home/kerwin/2025huat/src/planning_ros/src/planning_pipeline_node.cpp:28:  pnh.param<std::string>("diagnostics_topic", diagnostics_topic_, "planning/diagnostics");
+/home/kerwin/2025huat/src/planning_ros/src/planning_pipeline_node.cpp:29:  pnh.param("publish_global_diagnostics", publish_global_diagnostics_, true);
+/home/kerwin/2025huat/src/planning_ros/src/planning_pipeline_node.cpp:30:  pnh.param<std::string>("global_diagnostics_topic", global_diagnostics_topic_, "/diagnostics");
+/home/kerwin/2025huat/src/planning_ros/src/planning_pipeline_node.cpp:31:  pnh.param("enable_internal_viz_side_channel", enable_internal_viz_side_channel_, false);
+/home/kerwin/2025huat/src/planning_ros/src/planning_pipeline_node.cpp:37:  diag_pub_local_ = nh.advertise<diagnostic_msgs::DiagnosticArray>(diagnostics_topic_, 1, true);
+/home/kerwin/2025huat/src/planning_ros/src/planning_pipeline_node.cpp:40:    diag_pub_global_ = nh.advertise<diagnostic_msgs::DiagnosticArray>(global_diagnostics_topic_, 1);
+/home/kerwin/2025huat/src/planning_ros/src/planning_pipeline_node.cpp:69:  pnh.param<std::string>("output_pathlimits_topic", output_topic, "planning/pathlimits");
+/home/kerwin/2025huat/src/planning_ros/src/planning_pipeline_node.cpp:80:  pnh.param<std::string>("output_pathlimits_topic", output_topic, "planning/pathlimits");
+/home/kerwin/2025huat/src/planning_ros/src/planning_pipeline_node.cpp:90:  pnh.param("wait_full_before_stop", waitFullBeforeStop_, true);
+/home/kerwin/2025huat/src/planning_ros/src/planning_pipeline_node.cpp:91:  pnh.param("finish_grace_frames", finishGraceFrames_, 300);
+/home/kerwin/2025huat/src/planning_ros/src/planning_pipeline_node.cpp:92:  pnh.param("enable_loop_fallback_by_lap_counter", enableLoopFallbackByLapCounter_, true);
+/home/kerwin/2025huat/src/planning_ros/src/planning_pipeline_node.cpp:93:  pnh.param("loop_fallback_min_laps", loopFallbackMinLaps_, 1);
+/home/kerwin/2025huat/src/planning_ros/src/planning_pipeline_node.cpp:94:  pnh.param("perf_stats_enable", perf_enabled_, true);
+/home/kerwin/2025huat/src/planning_ros/src/planning_pipeline_node.cpp:95:  pnh.param("perf_stats_window", perf_window_, 300);
+/home/kerwin/2025huat/src/planning_ros/src/planning_pipeline_node.cpp:96:  pnh.param("perf_stats_log_every", perf_log_every_, 30);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:100:  pnh_.param("phase_speed/entry", params_.speed_entry, 6.0);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:101:  pnh_.param("phase_speed/warmup", params_.speed_warmup, 7.0);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:102:  pnh_.param("phase_speed/timed", params_.speed_timed, 8.0);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:103:  pnh_.param("phase_speed/crossover", params_.speed_crossover, 6.5);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:104:  pnh_.param("phase_speed/exit", params_.speed_exit, 5.0);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:105:  pnh_.param("passthrough/x_min", params_.passthrough_x_min, 0.1);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:106:  pnh_.param("passthrough/x_max", params_.passthrough_x_max, 15.0);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:107:  pnh_.param("passthrough/y_min", params_.passthrough_y_min, -3.0);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:108:  pnh_.param("passthrough/y_max", params_.passthrough_y_max, 3.0);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:110:  if (!pnh_.param<std::string>("topics/cone", cone_topic_, "perception/lidar_cluster/detections"))
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:114:  if (!pnh_.param<std::string>("topics/car_state", car_state_topic_, "localization/car_state"))
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:118:  if (!pnh_.param<std::string>("topics/pathlimits", pathlimits_topic_, "planning/skidpad/pathlimits"))
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:122:  if (!pnh_.param<std::string>("topics/approaching_goal", approaching_goal_topic_, "planning/skidpad/approaching_goal"))
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:126:  pnh_.param<std::string>("frames/expected_cone", expected_cone_frame_, "velodyne");
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:127:  pnh_.param<std::string>("frames/output", output_frame_, "world");
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:129:  pnh_.param("speed/speed_cap", speed_cap_, 8.0);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:130:  pnh_.param("speed/max_lateral_acc", max_lateral_acc_, 6.5);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:131:  pnh_.param("speed/max_accel", max_accel_, 2.5);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:132:  pnh_.param("speed/max_brake", max_brake_, 4.0);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:133:  pnh_.param("speed/min_speed", min_speed_, 1.0);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:134:  pnh_.param("speed/curvature_epsilon", curvature_epsilon_, 1e-3);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:21:  cone_sub_.subscribe(nh_, cone_topic_, 10);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:22:  car_state_sub_.subscribe(nh_, car_state_topic_, 10);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:28:  pathlimits_pub_ = nh_.advertise<autodrive_msgs::HUAT_PathLimits>(pathlimits_topic_, 10, true);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:29:  approaching_goal_pub_ = nh_.advertise<std_msgs::Bool>(approaching_goal_topic_, 10);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:31:  pnh_.param("max_data_age", max_data_age_, 0.5);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:37:  if (!pnh_.param("length/circle2lidar", params_.circle2lidar, 15.0))
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:43:  if (!pnh_.param("length/targetX", params_.targetX, 16.0))
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:48:  if (!pnh_.param("length/targetY", params_.targetY, -1.0))
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:53:  if (!pnh_.param("length/FinTargetX", params_.FinTargetX, 40.0))
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:58:  if (!pnh_.param("length/FinTargetY", params_.FinTargetY, 0.0))
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:63:  if (!pnh_.param("length/distanceThreshold", params_.distanceThreshold, 0.5))
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:68:  if (!pnh_.param("length/leavedistanceThreshold", params_.leavedistanceThreshold, 1.0))
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:73:  if (!pnh_.param("inverse_flag", params_.inverse_flag, 1))
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:78:  if (!pnh_.param("length/stopdistance", params_.stopdistance, 5.0))
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:83:  pnh_.param("circle/radius", params_.circle_radius, 9.125);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:84:  pnh_.param("circle/car_length", params_.car_length, 1.87);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:85:  pnh_.param("circle/path_interval", params_.path_interval, 0.05);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:86:  pnh_.param("circle/center_distance_nominal", params_.center_distance_nominal, 18.25);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:87:  pnh_.param("circle/center_distance_tolerance", params_.center_distance_tolerance, 6.0);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:89:  pnh_.param("fit/ransac_iterations", params_.fit_ransac_iterations, 120);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:90:  pnh_.param("fit/inlier_threshold", params_.fit_inlier_threshold, 0.35);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:91:  pnh_.param("fit/min_inliers", params_.fit_min_inliers, 4);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:92:  pnh_.param("fit/radius_min", params_.fit_radius_min, 5.0);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:93:  pnh_.param("fit/radius_max", params_.fit_radius_max, 20.0);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:95:  pnh_.param("phase/min_dwell_frames", params_.phase_min_dwell_frames, 5);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:96:  pnh_.param("phase/entry_switch_dist", params_.phase_entry_switch_dist, 1.2);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:97:  pnh_.param("phase/crossover_switch_dist", params_.phase_crossover_switch_dist, 1.5);
+/home/kerwin/2025huat/src/planning_ros/src/skidpad_detection_node.cpp:98:  pnh_.param("phase/exit_switch_dist", params_.phase_exit_switch_dist, 2.0);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:110:        sim_nh.param<double>("vehicle/mass", vp.mass, 250.0);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:111:        sim_nh.param<double>("vehicle/wheelbase", vp.wheelbase, 1.55);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:112:        sim_nh.param<double>("vehicle/track_width", vp.track_width, 1.2);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:113:        sim_nh.param<double>("vehicle/cg_height", vp.cg_height, 0.3);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:114:        sim_nh.param<double>("vehicle/cg_to_front", vp.cg_to_front, 0.775);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:115:        sim_nh.param<double>("vehicle/cg_to_rear", vp.cg_to_rear, 0.775);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:116:        sim_nh.param<double>("vehicle/inertia_z", vp.inertia_z, 150.0);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:117:        sim_nh.param<double>("vehicle/wheel_radius", vp.wheel_radius, 0.23);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:118:        sim_nh.param<double>("vehicle/max_steering", vp.max_steering, 0.5);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:119:        sim_nh.param<double>("vehicle/max_torque", vp.max_torque, 200.0);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:120:        sim_nh.param<double>("vehicle/max_brake_torque", vp.max_brake_torque, 500.0);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:121:        sim_nh.param<double>("aero/drag_coeff", vp.drag_coeff, 0.8);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:122:        sim_nh.param<double>("aero/downforce_coeff", vp.downforce_coeff, 2.5);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:123:        sim_nh.param<double>("aero/frontal_area", vp.frontal_area, 1.0);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:124:        sim_nh.param<double>("aero/air_density", vp.air_density, 1.225);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:129:        sim_nh.param<double>("tire/B", tp.B, 10.0);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:130:        sim_nh.param<double>("tire/C", tp.C, 1.65);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:131:        sim_nh.param<double>("tire/D", tp.D, 1.0);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:132:        sim_nh.param<double>("tire/E", tp.E, -0.5);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:133:        sim_nh.param<double>("tire/friction", tp.friction, 1.0);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:138:        sim_nh.param<double>("lidar/max_range", sp.lidar_max_range, 20.0);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:139:        sim_nh.param<double>("lidar/fov", sp.lidar_fov, M_PI);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:140:        sim_nh.param<double>("lidar/noise_radial", sp.lidar_noise_radial, 0.05);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:141:        sim_nh.param<double>("lidar/noise_angular", sp.lidar_noise_angular, 0.007);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:142:        sim_nh.param<double>("lidar/detection_rate", sp.lidar_detection_rate, 0.95);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:143:        sim_nh.param<double>("camera/max_range", sp.camera_max_range, 15.0);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:144:        sim_nh.param<double>("camera/color_accuracy", sp.camera_color_accuracy, 0.9);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:145:        sim_nh.param<double>("camera/delay", sp.camera_delay, 0.1);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:280:        tf_broadcaster_.sendTransform(tf);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:32:        pub_car_state_ = nh_.advertise<autodrive_msgs::HUAT_CarState>(
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:33:            pnh_.param<std::string>("car_state_topic", "~car_state"), 10);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:34:        pub_sim_state_ = nh_.advertise<autodrive_msgs::HUAT_SimState>(
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:35:            pnh_.param<std::string>("sim_state_topic", "~sim_state"), 10);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:36:        pub_cone_map_ = nh_.advertise<autodrive_msgs::HUAT_ConeMap>(
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:37:            pnh_.param<std::string>("cone_map_topic", "~cone_map"), 10);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:38:        pub_track_markers_ = nh_.advertise<visualization_msgs::MarkerArray>(
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:42:        sub_cmd_ = nh_.subscribe(pnh_.param<std::string>("cmd_topic", "~cmd"), 1,
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:89:        pnh_.param<int>("sim_rate", sim_rate_, 100);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:90:        pnh_.param<bool>("publish_tf", publish_tf_, true);
+/home/kerwin/2025huat/src/simulation_ros/src/simulation_node.cpp:94:        pnh_.param<std::string>("track_file", track_file, "");
+/home/kerwin/2025huat/src/vehicle_interface_ros/src/Node.cpp:56:    pnh.param<std::string>("cmd_topic", cmd_topic, cmd_topic);
+/home/kerwin/2025huat/src/vehicle_interface_ros/src/Node.cpp:57:    pnh.param("subscribe_legacy_cmd_topic", subscribe_legacy_cmd_topic, true);
+/home/kerwin/2025huat/src/vehicle_interface_ros/src/Node.cpp:58:    pnh.param<std::string>("legacy_cmd_topic", legacy_cmd_topic, legacy_cmd_topic);
+/home/kerwin/2025huat/src/vehicle_racing_num_ros/src/vehicle_racing_num_node.cpp:11:    pnh.param<std::string>("output_file", output_file_, vehicle_racing_num_core::DefaultOutputPath());
+/home/kerwin/2025huat/src/vehicle_racing_num_ros/src/vehicle_racing_num_node.cpp:12:    pnh.param<std::string>("topic", topic_, "vehicleStatusMsg");
+/home/kerwin/2025huat/src/vehicle_racing_num_ros/src/vehicle_racing_num_node.cpp:13:    pnh.param("queue_size", queue_size_, 1);
+/home/kerwin/2025huat/src/vehicle_racing_num_ros/src/vehicle_racing_num_node.cpp:14:    pnh.param("exit_on_nonzero", exit_on_nonzero_, true);
+/home/kerwin/2025huat/src/vehicle_racing_num_ros/src/vehicle_racing_num_node.cpp:16:    sub_ = nh.subscribe(topic_, queue_size_, &RacingNumWriterNode::handleStatus, this);

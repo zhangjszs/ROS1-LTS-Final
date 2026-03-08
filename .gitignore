@@ -6,6 +6,7 @@ logs/
 log/
 .catkin_workspace
 .catkin_tools/
+.omc/
 *.rosinstall
 CATKIN_IGNORE
 
@@ -101,8 +102,20 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 
-# Documentation builds
+# Documentation builds (ignore generated artifacts, keep source files)
 docs/
+# Unignore plans directory and all markdown files
+!docs/
+!docs/plans/**
+!docs/**/*.md
+# Ignore built documentation artifacts inside docs
+docs/_build/
+docs/site/
+docs/*.html
+docs/*.pdf
+docs/*.css
+docs/*.js
+.worktrees/
 
 # Demo files
 demo/

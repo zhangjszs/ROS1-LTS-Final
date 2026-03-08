@@ -45,4 +45,18 @@ inline ConeColorType modelClassToColorType(uint8_t cls) {
   return (cls < 5) ? kMap[cls] : NONE;
 }
 
+// Optional model-specific remap: class_id -> ConeColorType enum value.
+// Example for classes [red, blue, yellow]: [5, 0, 1].
+inline ConeColorType modelClassToColorType(
+    uint8_t cls, const std::vector<uint8_t>& class_to_color_map) {
+  if (!class_to_color_map.empty()) {
+    if (cls < class_to_color_map.size()) {
+      const auto mapped = class_to_color_map[cls];
+      return (mapped <= RED) ? static_cast<ConeColorType>(mapped) : NONE;
+    }
+    return NONE;
+  }
+  return modelClassToColorType(cls);
+}
+
 }  // namespace vision_core

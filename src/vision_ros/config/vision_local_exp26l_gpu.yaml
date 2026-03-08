@@ -1,0 +1,6 @@
+# Local override for exp26l_gpu (classes: 0=cone_red, 1=cone_blue, 2=cone_yellow)
+inference:
+  backend_type: "onnx"
+  model_path: "/home/kerwin/2025huat/src/vision_ros/models/exp26l_gpu/best.onnx"
+  # class_id -> color enum (0:BLUE,1:YELLOW,2:ORANGE_SMALL,3:ORANGE_BIG,4:NONE,5:RED)
+  class_to_color: [5, 0, 1]

@@ -71,4 +71,7 @@ if(CATKIN_ENABLE_TESTING)
   if(TARGET perception_ros_perf_stats_test)
     target_link_libraries(perception_ros_perf_stats_test ${catkin_LIBRARIES})
   endif()
+
+  find_package(rostest REQUIRED)
+  add_rostest(test/test_vision_inject_default.test)
 endif()

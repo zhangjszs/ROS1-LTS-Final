@@ -31,6 +31,11 @@ BAG_FILE=""
 BASELINE_FILE=""
 USE_LATEST_BASELINE=false
 GENERATE_BASELINE=false
+TOPIC="/perception/lidar_cluster/detections"
+GT_FILE=""
+GT_THRESHOLD="1.0"
+GT_MAX_RANGE="50.0"
+OUTPUT_JSON=""
 
 usage() {
     local exit_code="${1:-0}"
@@ -42,6 +47,12 @@ Options:
     -l, --latest-baseline     使用最新的 baseline 文件
     -g, --generate-baseline   生成新的 baseline (不进行对比)
     -t, --threshold <file>    指定阈值配置文件 (默认: ${THRESHOLD_FILE})
+    --topic <topic>           Detection topic (default: /perception/lidar_cluster/detections)
+    --gt <gt_csv>             GT csv path
+    --gt-threshold <meters>   GT matching threshold (default: 1.0)
+    --gt-max-range <meters>   GT max range (default: 50.0)
+    -o, --output <path>       Current run output json path
+    --output-json <path>      Alias for --output
     -h, --help                显示帮助
 
 Examples:
@@ -53,6 +64,10 @@ Examples:
 
     # 使用最新 baseline
     $(basename "$0") /data/bags/test_track.bag --latest-baseline
+
+    # 带 GT 对比
+    $(basename "$0") /data/bags/test_track.bag --baseline /path/to/baseline.json \
+        --gt /path/to/gt.csv --gt-threshold 1.0 --gt-max-range 50.0
 EOF
     exit "${exit_code}"
 }
@@ -86,6 +101,54 @@ while [[ $# -gt 0 ]]; do
                 usage 1
             fi
             THRESHOLD_FILE="$2"
+            shift 2
+            ;;
+        -t|--threshold)
+            if [[ $# -lt 2 ]]; then
+                echo "ERROR: --threshold requires a file path"
+                usage 1
+            fi
+            THRESHOLD_FILE="$2"
+            shift 2
+            ;;
+        --topic)
+            if [[ $# -lt 2 ]]; then
+                echo "ERROR: --topic requires a topic name"
+                usage 1
+            fi
+            TOPIC="$2"
+            shift 2
+            ;;
+        --gt)
+            if [[ $# -lt 2 ]]; then
+                echo "ERROR: --gt requires a csv file path"
+                usage 1
+            fi
+            GT_FILE="$2"
+            shift 2
+            ;;
+        --gt-threshold)
+            if [[ $# -lt 2 ]]; then
+                echo "ERROR: --gt-threshold requires a value in meters"
+                usage 1
+            fi
+            GT_THRESHOLD="$2"
+            shift 2
+            ;;
+        --gt-max-range)
+            if [[ $# -lt 2 ]]; then
+                echo "ERROR: --gt-max-range requires a value in meters"
+                usage 1
+            fi
+            GT_MAX_RANGE="$2"
+            shift 2
+            ;;
+        -o|--output|--output-json)
+            if [[ $# -lt 2 ]]; then
+                echo "ERROR: --output requires a file path"
+                usage 1
+            fi
+            OUTPUT_JSON="$2"
             shift 2
             ;;
         -h|--help)
@@ -166,11 +229,30 @@ if [[ ! -f "${EVAL_SCRIPT}" ]]; then
 fi
 
 # 运行评估
-RESULT_FILE="${RESULTS_DIR}/${BAG_NAME}_$(date +%Y%m%d_%H%M%S).json"
+if [[ -n "${OUTPUT_JSON}" ]]; then
+    RESULT_FILE="${OUTPUT_JSON}"
+else
+    RESULT_FILE="${RESULTS_DIR}/${BAG_NAME}_$(date +%Y%m%d_%H%M%S).json"
+fi
 echo "[INFO] Running perception evaluation..."
 echo "       Bag: ${BAG_FILE}"
+echo "       Topic: ${TOPIC}"
+if [[ -n "${GT_FILE}" ]]; then
+    echo "       GT: ${GT_FILE} (threshold=${GT_THRESHOLD}m, max_range=${GT_MAX_RANGE}m)"
+fi
+echo "       Output: ${RESULT_FILE}"
 
-python3 "${EVAL_SCRIPT}" "${BAG_FILE}" -o "${RESULT_FILE}"
+EVAL_CMD=(
+    python3 "${EVAL_SCRIPT}"
+    "${BAG_FILE}"
+    --topic "${TOPIC}"
+    -o "${RESULT_FILE}"
+)
+if [[ -n "${GT_FILE}" ]]; then
+    EVAL_CMD+=(--gt "${GT_FILE}" --gt-threshold "${GT_THRESHOLD}" --gt-max-range "${GT_MAX_RANGE}")
+fi
+
+"${EVAL_CMD[@]}"
 
 if [[ ! -f "${RESULT_FILE}" ]]; then
     echo "ERROR: Evaluation failed, no result file generated"
@@ -225,8 +307,18 @@ gt_thresholds = {
 r_metrics = result.get("metrics", {})
 b_metrics = baseline.get("metrics", {})
 
+# 检查 GT 状态一致性
+r_has_gt = result.get("has_gt", False) or any(k in r_metrics for k in ["precision", "recall", "f1", "rmse_m"])
+b_has_gt = baseline.get("has_gt", False) or any(k in b_metrics for k in ["precision", "recall", "f1", "rmse_m"])
+
 violations = []
 warnings = []
+
+if r_has_gt != b_has_gt:
+    if b_has_gt and not r_has_gt:
+        warnings.append("Baseline has GT metrics but current run does not - GT metrics will not be compared")
+    elif not b_has_gt and r_has_gt:
+        warnings.append("Current run has GT metrics but baseline does not - GT metrics will not be compared")
 
 def check_metric(name, current, baseline_val, thresh):
     if current is None or baseline_val is None:

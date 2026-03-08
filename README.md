@@ -202,10 +202,10 @@ rosrun tf tf_echo velodyne base_link
 ## 文档
 
 - **CLAUDE.md** - Claude Code 开发指南（英文）
-- **REFACTOR_REPORT.md** - 重构详细报告
-- **EXECUTIVE_SUMMARY.md** - 重构执行摘要
-- **docs/CODECOV_SETUP.md** - Codecov 配置指南
-- **docs/GIT_HISTORY_CLEANUP.md** - Git 历史清理指南
+- **HANDOFF.md** - 当前代码状态与阶段性交接说明
+- **RESTRUCTURE_PLAN.md** - 规整化重构规划与实施记录
+- **docs/README.md** - 文档导航索引
+- **docs/remaining_work_audit_2026-03-06.md** - 当前未完成事项、未实现功能与缺失依赖审计
 - 各包 README - 查看 `src/*/README.md`
 
 ## 项目状态

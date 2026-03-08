@@ -1,0 +1,46 @@
+# Regression gate configuration for localization system.
+# Used by perf_reports/scripts/check_regression_gate.py
+# Reference: docs/LOCALIZATION_M4_VALIDATION_PLAN.md §4 & §6.3
+
+gates:
+  # ─── Accuracy metrics ──────────────────────────────────────
+  position_rms_m:
+    regression_pct: 10        # allow at most 10% degradation vs baseline
+    absolute_max: 1.0         # hard ceiling (TrackDrive pass threshold)
+
+  heading_rms_deg:
+    regression_pct: 10
+    absolute_max: 5.0
+
+  cumulative_drift_m:
+    regression_pct: 15
+    absolute_max: 2.0         # per lap
+
+  recovery_time_mean_s:
+    regression_pct: 20
+    absolute_max: 5.0
+
+  map_consistency:
+    regression_pct: 10
+    absolute_min: 0.80        # IoU lower bound
+
+  association_accuracy:
+    regression_pct: 10
+    absolute_min: 0.80
+
+  # ─── Latency metrics ───────────────────────────────────────
+  opt_time_ms:
+    regression_pct: 15
+    absolute_max: 8.0         # p99 single keyframe total
+
+  preintegration_time_ms:
+    regression_pct: 15
+    absolute_max: 0.1
+
+  association_time_ms:
+    regression_pct: 15
+    absolute_max: 2.0
+
+  pruning_time_ms:
+    regression_pct: 15
+    absolute_max: 2.0

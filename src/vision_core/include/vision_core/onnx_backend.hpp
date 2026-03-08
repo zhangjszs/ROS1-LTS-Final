@@ -18,7 +18,8 @@ public:
 
 private:
   cv::Mat preprocess(const cv::Mat& bgr) const;
-  std::vector<Detection> postprocess(const float* output, int num_proposals) const;
+  std::vector<Detection> postprocess(
+      const float* output, int num_proposals, int num_classes) const;
 
   InferenceConfig config_;
   bool ready_ = false;
