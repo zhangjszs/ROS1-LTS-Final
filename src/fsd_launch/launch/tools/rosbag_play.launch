@@ -10,7 +10,7 @@
 
     <!-- 参数校验：确保bag路径不为空 -->
     <group unless="$(eval bag != '')">
-        <node pkg="rospy" type="message" name="error_check" output="screen" args="错误：仿真模式必须指定bag文件路径！使用参数 bag:=/path/to/bag.bag"/>
+        <node pkg="rospy" type="message" name="error_check_rosbag_play" output="screen" args="错误：仿真模式必须指定bag文件路径！使用参数 bag:=/path/to/bag.bag"/>
     </group>
 
     <!-- INS Message Bridge (autodrive_msgs/HUAT_Asensing -> autodrive_msgs/HUAT_InsP2) -->
