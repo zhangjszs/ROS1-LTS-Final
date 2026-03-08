@@ -291,13 +291,13 @@ bool SkidpadDetectionCore::EstimateGeometry(GeometryModel *geometry)
     {
       right_pts.push_back(p);
     }
-    else if (color == 1 || color == 5)  // YELLOW or RED = left boundary
+    else if (color == 1 || color == 2 || color == 3)  // YELLOW_SMALL, YELLOW_BIG, or RED = left boundary
     {
       left_pts.push_back(p);
     }
     else
     {
-      // NONE/ORANGE: fall back to geometric split
+      // NONE: fall back to geometric split
       if (p.y() < 0.0)
       {
         right_pts.push_back(p);

@@ -17,8 +17,10 @@ namespace perception_ros {
 
 namespace {
 
-constexpr std::uint8_t kConeOrangeSmall = 2;
-constexpr std::uint8_t kConeOrangeBig = 3;
+// Updated cone type constants: Removed ORANGE, replaced with YELLOW_SMALL/YELLOW_BIG
+// 0=BLUE, 1=YELLOW_SMALL, 2=YELLOW_BIG, 3=RED, 4=NONE
+constexpr std::uint8_t kConeYellowSmall = 1;
+constexpr std::uint8_t kConeYellowBig = 2;
 constexpr std::uint8_t kConeNone = 4;
 
 std::uint8_t classifyConeTypeBySize(const ConeDetection &det,
@@ -26,8 +28,8 @@ std::uint8_t classifyConeTypeBySize(const ConeDetection &det,
                                     double big_height_threshold,
                                     double big_area_threshold)
 {
-  // LiDAR-only pipeline: geometry typing emits ORANGE_SMALL/ORANGE_BIG/NONE.
-  // BLUE/YELLOW/RED are reserved for future camera-fused color outputs.
+  // LiDAR-only pipeline: geometry typing emits YELLOW_SMALL/YELLOW_BIG/NONE.
+  // BLUE/RED are reserved for camera-fused color outputs.
   if (!enable_size_typing)
   {
     return kConeNone;
@@ -40,9 +42,9 @@ std::uint8_t classifyConeTypeBySize(const ConeDetection &det,
 
   if (height >= big_height_threshold || footprint_area >= big_area_threshold)
   {
-    return kConeOrangeBig;
+    return kConeYellowBig;
   }
-  return kConeOrangeSmall;
+  return kConeYellowSmall;
 }
 
 bool LoadIntVector(const ros::NodeHandle &nh, const std::string &key, std::vector<int> &out)
@@ -2145,6 +2147,29 @@ void LidarClusterRos::publishFusedDetections(
             matched_conf = vision_msg->confidences[idx];
             status = AssociationStatus::MATCHED;
             score = std::max(0.0f, 1.0f - best_dist / static_cast<float>(fusion_max_pixel_distance_));
+
+            // If vision detects unified YELLOW (1), classify by LiDAR size
+            // YELLOW_SMALL (1) vs YELLOW_BIG (2) based on height/footprint
+            if (fused_color == 1)  // YELLOW unified
+            {
+              const double height = (i < raw_detections.maxPoints.size() && i < raw_detections.minPoints.size())
+                  ? static_cast<double>(raw_detections.maxPoints[i].z - raw_detections.minPoints[i].z)
+                  : 0.0;
+              const double width_x = (i < raw_detections.maxPoints.size() && i < raw_detections.minPoints.size())
+                  ? static_cast<double>(raw_detections.maxPoints[i].x - raw_detections.minPoints[i].x)
+                  : 0.0;
+              const double width_y = (i < raw_detections.maxPoints.size() && i < raw_detections.minPoints.size())
+                  ? static_cast<double>(raw_detections.maxPoints[i].y - raw_detections.minPoints[i].y)
+                  : 0.0;
+              const double footprint_area = width_x * width_y;
+
+              // Use same thresholds as LiDAR-only classification
+              if (height >= big_cone_height_threshold_ || footprint_area >= big_cone_area_threshold_)
+              {
+                fused_color = 2;  // YELLOW_BIG
+              }
+              // else remains 1 (YELLOW_SMALL)
+            }
           }
           else
           {

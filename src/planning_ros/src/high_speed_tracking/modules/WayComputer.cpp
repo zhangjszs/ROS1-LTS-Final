@@ -126,34 +126,6 @@ void smoothPathSpatialBlend(std::vector<geometry_msgs::Point> &path,
   }
 }
 
-int countCurvatureViolations(const std::vector<geometry_msgs::Point> &path,
-                             const double curvature_limit) {
-  const size_t n = path.size();
-  if (n < 3 || curvature_limit <= 0.0) {
-    return 0;
-  }
-
-  std::vector<double> curvatures(n, 0.0);
-  for (size_t i = 1; i + 1 < n; ++i) {
-    curvatures[i] = signedCurvature(path[i - 1], path[i], path[i + 1]);
-  }
-  curvatures.front() = curvatures[1];
-  curvatures.back() = curvatures[n - 2];
-
-  std::vector<double> smoothed = curvatures;
-  for (size_t i = 1; i + 1 < n; ++i) {
-    smoothed[i] = (curvatures[i - 1] + curvatures[i] + curvatures[i + 1]) / 3.0;
-  }
-
-  int violations = 0;
-  for (size_t i = 0; i < n; ++i) {
-    if (std::abs(smoothed[i]) > curvature_limit) {
-      ++violations;
-    }
-  }
-  return violations;
-}
-
 int countCurvatureViolations(const std::vector<Point> &path,
                              const double curvature_limit) {
   const size_t n = path.size();
@@ -479,7 +451,7 @@ size_t WayComputer::treeSearch(std::vector<HeurInd> &nextEdges, const KDTree &mi
     bool trace_at_max_height = false;
   //通过检查当前路径的长度是否达到了设置的最大搜索树高度，
   //可以决定是否需要停止在当前子树中进一步探索，而是直接将当前路径视为完成，并进行下一步的处理。
-    if (t.size() >= params.max_search_tree_height)
+    if (t.size() >= static_cast<size_t>(params.max_search_tree_height))
       trace_at_max_height = true;
     else
       this->findNextEdges(nextEdges, &t, midpointsKDT, edges, params);
@@ -552,7 +524,7 @@ void WayComputer::computeWay(const std::vector<Edge> &edges, const Params::WayCo
 
   // Main outer loop, every iteration of this loop will involve adding one
   // midpoint to the path.
-  while (ros::ok() and not nextEdges.empty() and (!params.max_way_horizon_size or this->way_.sizeAheadOfCar() <= params.max_way_horizon_size)) {
+  while (ros::ok() and not nextEdges.empty() and (!params.max_way_horizon_size or this->way_.sizeAheadOfCar() <= static_cast<uint32_t>(params.max_way_horizon_size))) {
     // nextEdges 各种删除条件后备选的边   
     // midpointsKDT 存放各种中点边的kdt
     // edges 三角剖分去除这个过大角度和边长的边

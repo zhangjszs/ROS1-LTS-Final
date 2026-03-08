@@ -7,7 +7,8 @@ float32 quality_score            # 0.0~1.0 composite quality
 
 float64[] x                      # bbox center x (pixels)
 float64[] y                      # bbox center y (pixels)
-uint8[] color_types              # same enum as HUAT_ConeDetections: 0=BLUE,1=YELLOW,2=ORANGE_SMALL,3=ORANGE_BIG,4=NONE,5=RED
+uint8[] color_types              # same enum as HUAT_ConeDetections: 0=BLUE,1=YELLOW_SMALL,2=YELLOW_BIG,3=RED,4=NONE
+                                 # Note: ORANGE types removed, replaced with YELLOW_SMALL/YELLOW_BIG
 int32[] confidences              # 0~1000 (scaled, consistent with LiDAR side)
 float32[] bbox_widths            # pixels
 float32[] bbox_heights           # pixels

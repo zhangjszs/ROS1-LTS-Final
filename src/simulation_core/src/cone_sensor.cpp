@@ -49,49 +49,32 @@ void ConeSensor::observe(const VehicleState& state,
             continue;
         }
 
-        // FSSIM-style distance-dependent detection probability
-        double prob = detectionProbability(obs.distance);
-        if (uniform_(rng_) > prob) {
-            continue;
-        }
-
-        // Add noise (FSSIM-style radial/angular noise)
+        // Apply noise
         addNoise(obs);
 
-        // FSSIM-style color classification with probabilities
+        // Compute color probabilities
         computeColorProbabilities(cone.color, obs.distance, obs);
 
         // Set confidence based on distance
-        obs.confidence = std::max(0.5, 1.0 - obs.distance / params_.lidar_max_range);
+        double detection_prob = params_.lidar_detection_rate;
+        if (obs.distance > params_.distance_dependent_detection) {
+            detection_prob *= std::max(0.0, 1.0 - (obs.distance - params_.distance_dependent_detection) /
+                                                   (params_.lidar_max_range - params_.distance_dependent_detection));
+        }
+        obs.confidence = detection_prob;
 
         observations.push_back(obs);
     }
 }
 
-void ConeSensor::setSeed(unsigned int seed) {
-    rng_.seed(seed);
-}
-
-double ConeSensor::detectionProbability(double distance) const {
-    // FSSIM-style: linear decrease with distance
-    // P = base_rate * max(0, 1 - d / distance_dependent_detection)
-    double factor = std::max(0.0, 1.0 - distance / params_.distance_dependent_detection);
-    return params_.lidar_detection_rate * factor;
-}
-
 void ConeSensor::addNoise(ConeObservation& obs) {
-    // FSSIM-style radial and angular noise
-    double theta = std::atan2(obs.y, obs.x);
-    double dr = noise_radial_(rng_);
-    double dtheta = noise_angular_(rng_);
+    // Add radial and angular noise
+    double radial_noise = noise_radial_(rng_);
+    double angular_noise = noise_angular_(rng_);
 
-    // Apply radial noise
-    double new_distance = std::max(0.1, obs.distance + dr);
+    double new_distance = std::max(0.0, obs.distance + radial_noise);
+    double new_theta = obs.angle + angular_noise;
 
-    // Apply angular noise
-    double new_theta = theta + dtheta;
-
-    // Update observation
     obs.distance = new_distance;
     obs.angle = new_theta;
     obs.x = new_distance * std::cos(new_theta);
@@ -100,20 +83,20 @@ void ConeSensor::addNoise(ConeObservation& obs) {
 
 void ConeSensor::computeColorProbabilities(ConeColor true_color, double distance,
                                             ConeObservation& obs) {
-    // FSSIM-style color probability computation
-    // Within color_observation_radius: high accuracy
-    // Beyond: accuracy decreases linearly
+    // Updated color probability computation
+    // New cone types: BLUE=0, YELLOW_SMALL=1, YELLOW_BIG=2, RED=3, UNKNOWN=255
+    // Note: ORANGE types removed, replaced with YELLOW_SMALL/YELLOW_BIG
 
     double color_accuracy = params_.camera_color_accuracy;
 
-    // Distance-dependent color accuracy (FSSIM style)
+    // Distance-dependent color accuracy
     double misclass_factor = std::max(0.0, 1.0 - distance / params_.distance_dependent_misclass);
     color_accuracy *= misclass_factor;
 
-    // Initialize probabilities
+    // Initialize probabilities (updated for new cone types)
     obs.prob_blue = 0.0f;
     obs.prob_yellow = 0.0f;
-    obs.prob_orange = 0.0f;
+    obs.prob_orange = 0.0f;  // Kept for backward compatibility, always 0 now
     obs.prob_unknown = 0.0f;
 
     if (distance <= params_.camera_max_range) {
@@ -125,22 +108,21 @@ void ConeSensor::computeColorProbabilities(ConeColor true_color, double distance
             switch (true_color) {
                 case ConeColor::BLUE:
                     obs.prob_blue = static_cast<float>(color_accuracy);
-                    obs.prob_yellow = static_cast<float>((1.0 - color_accuracy) / 2.0);
-                    obs.prob_orange = static_cast<float>((1.0 - color_accuracy) / 2.0);
+                    obs.prob_yellow = static_cast<float>(1.0 - color_accuracy);
                     obs.color = ConeColor::BLUE;
                     break;
-                case ConeColor::YELLOW:
+                case ConeColor::YELLOW_SMALL:
+                case ConeColor::YELLOW_BIG:
+                    // Both yellow types classified as yellow
                     obs.prob_yellow = static_cast<float>(color_accuracy);
-                    obs.prob_blue = static_cast<float>((1.0 - color_accuracy) / 2.0);
-                    obs.prob_orange = static_cast<float>((1.0 - color_accuracy) / 2.0);
-                    obs.color = ConeColor::YELLOW;
+                    obs.prob_blue = static_cast<float>(1.0 - color_accuracy);
+                    obs.color = ConeColor::YELLOW_SMALL;
                     break;
-                case ConeColor::ORANGE:
-                case ConeColor::ORANGE_BIG:
-                    obs.prob_orange = static_cast<float>(color_accuracy);
+                case ConeColor::RED:
+                    // Red cones - treat as a distinct type
                     obs.prob_blue = static_cast<float>((1.0 - color_accuracy) / 2.0);
                     obs.prob_yellow = static_cast<float>((1.0 - color_accuracy) / 2.0);
-                    obs.color = ConeColor::ORANGE;
+                    obs.color = ConeColor::RED;
                     break;
                 default:
                     obs.prob_unknown = 1.0f;
@@ -151,27 +133,30 @@ void ConeSensor::computeColorProbabilities(ConeColor true_color, double distance
             if (true_color == ConeColor::BLUE) {
                 obs.prob_yellow = static_cast<float>(color_accuracy);
                 obs.prob_blue = static_cast<float>((1.0 - color_accuracy));
-                obs.color = ConeColor::YELLOW;
-            } else if (true_color == ConeColor::YELLOW) {
+                obs.color = ConeColor::YELLOW_SMALL;
+            } else if (true_color == ConeColor::YELLOW_SMALL || true_color == ConeColor::YELLOW_BIG) {
                 obs.prob_blue = static_cast<float>(color_accuracy);
                 obs.prob_yellow = static_cast<float>((1.0 - color_accuracy));
                 obs.color = ConeColor::BLUE;
+            } else if (true_color == ConeColor::RED) {
+                // Red rarely misclassified, but may be confused with yellow
+                obs.prob_yellow = static_cast<float>(color_accuracy * 0.5);
+                obs.prob_blue = static_cast<float>(color_accuracy * 0.5);
+                obs.color = ConeColor::RED;
             } else {
-                // Orange cones rarely misclassified
-                obs.prob_orange = static_cast<float>(color_accuracy);
-                obs.color = ConeColor::ORANGE;
+                obs.prob_unknown = 1.0f;
+                obs.color = ConeColor::UNKNOWN;
             }
         }
     } else {
         // Beyond color detection range - uniform probability
-        // FSSIM style: probability decreases linearly to unknown
         double d_after_color = distance - params_.camera_max_range;
         double d_range = params_.lidar_max_range - params_.camera_max_range;
         double lik_others = std::max(0.0, 1.0 - d_after_color / d_range);
 
-        obs.prob_blue = static_cast<float>((1.0 - lik_others) / 3.0);
-        obs.prob_yellow = static_cast<float>((1.0 - lik_others) / 3.0);
-        obs.prob_orange = static_cast<float>((1.0 - lik_others) / 3.0);
+        obs.prob_blue = static_cast<float>((1.0 - lik_others) / 2.0);
+        obs.prob_yellow = static_cast<float>((1.0 - lik_others) / 2.0);
+        obs.prob_orange = 0.0f;  // No orange cones anymore
         obs.prob_unknown = static_cast<float>(lik_others);
         obs.color = ConeColor::UNKNOWN;
     }
@@ -180,8 +165,10 @@ void ConeSensor::computeColorProbabilities(ConeColor true_color, double distance
 bool ConeSensor::colorMisclassify(ConeColor true_color, ConeColor& observed_color) {
     observed_color = true_color;
 
-    // Only misclassify blue/yellow
-    if (true_color != ConeColor::BLUE && true_color != ConeColor::YELLOW) {
+    // Only misclassify blue/yellow (not red)
+    if (true_color != ConeColor::BLUE &&
+        true_color != ConeColor::YELLOW_SMALL &&
+        true_color != ConeColor::YELLOW_BIG) {
         return false;
     }
 
@@ -189,7 +176,7 @@ bool ConeSensor::colorMisclassify(ConeColor true_color, ConeColor& observed_colo
     if (uniform_(rng_) > params_.camera_color_accuracy) {
         // Swap blue and yellow
         if (true_color == ConeColor::BLUE) {
-            observed_color = ConeColor::YELLOW;
+            observed_color = ConeColor::YELLOW_SMALL;
         } else {
             observed_color = ConeColor::BLUE;
         }
@@ -212,19 +199,16 @@ bool ConeSensor::transformToVehicleFrame(const Cone& cone, const VehicleState& s
     obs.y = dx * sin_yaw + dy * cos_yaw;
 
     // Calculate distance and angle
-    obs.distance = std::hypot(obs.x, obs.y);
+    obs.distance = std::sqrt(obs.x * obs.x + obs.y * obs.y);
     obs.angle = std::atan2(obs.y, obs.x);
 
-    // Check if within FOV (front half-plane + FOV angle)
-    double half_fov = params_.lidar_fov / 2.0;
-    if (std::abs(obs.angle) > half_fov) {
+    // Check FOV
+    if (std::abs(obs.angle) > params_.lidar_fov / 2.0) {
         return false;
     }
 
-    // Must be in front of vehicle
-    if (obs.x < 0) {
-        return false;
-    }
+    // Set true color
+    obs.color = cone.color;
 
     return true;
 }

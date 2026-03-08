@@ -12,9 +12,12 @@ struct HsvRange {
 };
 
 struct FallbackConfig {
-  HsvRange blue   = {{100, 80, 50},  {130, 255, 255}};
-  HsvRange yellow = {{15, 80, 50},   {45, 255, 255}};
-  HsvRange orange = {{5, 100, 100},  {20, 255, 255}};
+  // Vision outputs unified YELLOW, size classification done by LiDAR
+  // Note: YELLOW_SMALL and YELLOW_BIG use same HSV range, LiDAR distinguishes by size
+  HsvRange blue         = {{100, 100, 70},  {130, 255, 255}};  // Blue: higher S/V threshold
+  HsvRange yellow       = {{20, 100, 80},   {35, 255, 255}};  // Unified yellow (vision only)
+  HsvRange red_low      = {{0, 120, 80},    {5, 255, 255}};   // Red low hue (0-5)
+  HsvRange red_high     = {{170, 120, 80},  {180, 255, 255}}; // Red high hue (170-180)
   double min_area = 200.0;
   double max_area = 50000.0;
   float min_aspect = 0.3f;

@@ -61,7 +61,8 @@ class Node {
   const Point pointGlobal_;
 
   /**
-   * @brief Cone type from the cone map (0=BLUE,1=YELLOW,2=ORANGE_SMALL,3=ORANGE_BIG,4=NONE,5=RED).
+   * @brief Cone type from the cone map (0=BLUE,1=YELLOW_SMALL,2=YELLOW_BIG,3=RED,4=NONE).
+   * Note: ORANGE types removed, replaced with YELLOW_SMALL/YELLOW_BIG.
    */
   uint32_t type_ = 4;
 
@@ -173,7 +174,8 @@ Node(const autodrive_msgs::HUAT_Cone &c);
   autodrive_msgs::HUAT_Cone cone() const;
 
   /**
-   * @brief Returns the cone type (0=BLUE,1=YELLOW,2=ORANGE_SMALL,3=ORANGE_BIG,4=NONE,5=RED).
+   * @brief Returns the cone type (0=BLUE,1=YELLOW_SMALL,2=YELLOW_BIG,3=RED,4=NONE).
+   * Note: ORANGE types removed, replaced with YELLOW_SMALL/YELLOW_BIG.
    */
   uint32_t type() const { return type_; }
 

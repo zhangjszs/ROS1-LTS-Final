@@ -43,35 +43,35 @@ bool TrackLoader::load(const std::string& filepath, Track& track) {
                 }
             }
 
-            // Yellow cones (left boundary)
+            // Yellow small cones (left boundary - was 'yellow')
             if (cones_node["yellow"]) {
                 for (const auto& pos : cones_node["yellow"]) {
                     Cone cone;
                     cone.x = pos[0].as<double>();
                     cone.y = pos[1].as<double>();
-                    cone.color = ConeColor::YELLOW;
+                    cone.color = ConeColor::YELLOW_SMALL;
                     track.cones.push_back(cone);
                 }
             }
 
-            // Orange cones (start/finish)
-            if (cones_node["orange"]) {
-                for (const auto& pos : cones_node["orange"]) {
+            // Yellow small cones (was orange - start/finish markers)
+            if (cones_node["yellow_small"]) {
+                for (const auto& pos : cones_node["yellow_small"]) {
                     Cone cone;
                     cone.x = pos[0].as<double>();
                     cone.y = pos[1].as<double>();
-                    cone.color = ConeColor::ORANGE;
+                    cone.color = ConeColor::YELLOW_SMALL;
                     track.cones.push_back(cone);
                 }
             }
 
-            // Big orange cones
-            if (cones_node["orange_big"]) {
-                for (const auto& pos : cones_node["orange_big"]) {
+            // Yellow big cones (was orange_big - large start/finish markers)
+            if (cones_node["yellow_big"]) {
+                for (const auto& pos : cones_node["yellow_big"]) {
                     Cone cone;
                     cone.x = pos[0].as<double>();
                     cone.y = pos[1].as<double>();
-                    cone.color = ConeColor::ORANGE_BIG;
+                    cone.color = ConeColor::YELLOW_BIG;
                     track.cones.push_back(cone);
                 }
             }
@@ -107,13 +107,12 @@ bool TrackLoader::save(const std::string& filepath, const Track& track) {
         out << YAML::Key << "cones" << YAML::Value << YAML::BeginMap;
 
         // Collect cones by color
-        std::vector<Cone> blue, yellow, orange, orange_big;
+        std::vector<Cone> blue, yellow, yellow_small, yellow_big;
         for (const auto& cone : track.cones) {
             switch (cone.color) {
                 case ConeColor::BLUE: blue.push_back(cone); break;
-                case ConeColor::YELLOW: yellow.push_back(cone); break;
-                case ConeColor::ORANGE: orange.push_back(cone); break;
-                case ConeColor::ORANGE_BIG: orange_big.push_back(cone); break;
+                case ConeColor::YELLOW_SMALL: yellow_small.push_back(cone); break;
+                case ConeColor::YELLOW_BIG: yellow_big.push_back(cone); break;
                 default: break;
             }
         }
@@ -129,9 +128,8 @@ bool TrackLoader::save(const std::string& filepath, const Track& track) {
         };
 
         writeCones("blue", blue);
-        writeCones("yellow", yellow);
-        writeCones("orange", orange);
-        writeCones("orange_big", orange_big);
+        writeCones("yellow_small", yellow_small);
+        writeCones("yellow_big", yellow_big);
 
         out << YAML::EndMap;  // cones
         out << YAML::EndMap;  // track
@@ -170,18 +168,18 @@ Track TrackLoader::createOvalTrack(double length, double width, double cone_spac
         blue.color = ConeColor::BLUE;
         track.cones.push_back(blue);
 
-        // Left side (yellow)
-        Cone yellow;
-        yellow.x = x;
-        yellow.y = half_width;
-        yellow.color = ConeColor::YELLOW;
-        track.cones.push_back(yellow);
+        // Left side (yellow_small)
+        Cone yellow_small;
+        yellow_small.x = x;
+        yellow_small.y = half_width;
+        yellow_small.color = ConeColor::YELLOW_SMALL;
+        track.cones.push_back(yellow_small);
 
         // Back straight
         blue.x = -x;
         track.cones.push_back(blue);
-        yellow.x = -x;
-        track.cones.push_back(yellow);
+        yellow_small.x = -x;
+        track.cones.push_back(yellow_small);
     }
 
     // Turn sections (semicircles at each end)
@@ -191,35 +189,35 @@ Track TrackLoader::createOvalTrack(double length, double width, double cone_spac
 
         // Front turn (right side)
         double cx = straight_length;
-        Cone blue, yellow;
+        Cone blue, yellow_small;
 
         blue.x = cx + turn_radius * std::sin(angle);
         blue.y = -turn_radius * std::cos(angle);
         blue.color = ConeColor::BLUE;
         track.cones.push_back(blue);
 
-        yellow.x = cx + (turn_radius + width) * std::sin(angle);
-        yellow.y = -(turn_radius + width) * std::cos(angle) + width;
-        yellow.color = ConeColor::YELLOW;
-        track.cones.push_back(yellow);
+        yellow_small.x = cx + (turn_radius + width) * std::sin(angle);
+        yellow_small.y = -(turn_radius + width) * std::cos(angle) + width;
+        yellow_small.color = ConeColor::YELLOW_SMALL;
+        track.cones.push_back(yellow_small);
 
         // Back turn
         blue.x = -cx - turn_radius * std::sin(angle);
         track.cones.push_back(blue);
-        yellow.x = -cx - (turn_radius + width) * std::sin(angle);
-        track.cones.push_back(yellow);
+        yellow_small.x = -cx - (turn_radius + width) * std::sin(angle);
+        track.cones.push_back(yellow_small);
     }
 
-    // Start/finish cones
-    Cone orange1, orange2;
-    orange1.x = 0.0;
-    orange1.y = -half_width - 0.5;
-    orange1.color = ConeColor::ORANGE;
-    orange2.x = 0.0;
-    orange2.y = half_width + 0.5;
-    orange2.color = ConeColor::ORANGE;
-    track.cones.push_back(orange1);
-    track.cones.push_back(orange2);
+    // Start/finish cones (yellow_small)
+    Cone sf1, sf2;
+    sf1.x = 0.0;
+    sf1.y = -half_width - 0.5;
+    sf1.color = ConeColor::YELLOW_SMALL;
+    sf2.x = 0.0;
+    sf2.y = half_width + 0.5;
+    sf2.color = ConeColor::YELLOW_SMALL;
+    track.cones.push_back(sf1);
+    track.cones.push_back(sf2);
 
     return track;
 }
@@ -247,24 +245,24 @@ Track TrackLoader::createSkidpadTrack(double radius, double cone_spacing) {
         blue.color = ConeColor::BLUE;
         track.cones.push_back(blue);
 
-        // Outer circle (yellow - left boundary)
-        Cone yellow;
-        yellow.x = radius + outer_radius * std::cos(angle);
-        yellow.y = outer_radius * std::sin(angle);
-        yellow.color = ConeColor::YELLOW;
-        track.cones.push_back(yellow);
+        // Outer circle (yellow_small - left boundary)
+        Cone yellow_small;
+        yellow_small.x = radius + outer_radius * std::cos(angle);
+        yellow_small.y = outer_radius * std::sin(angle);
+        yellow_small.color = ConeColor::YELLOW_SMALL;
+        track.cones.push_back(yellow_small);
     }
 
     // Left circle (centered at (-radius, 0))
     for (int i = 0; i < num_cones; ++i) {
         double angle = 2 * M_PI * i / num_cones;
 
-        // Inner circle (yellow - left boundary for this circle)
-        Cone yellow;
-        yellow.x = -radius + inner_radius * std::cos(angle);
-        yellow.y = inner_radius * std::sin(angle);
-        yellow.color = ConeColor::YELLOW;
-        track.cones.push_back(yellow);
+        // Inner circle (yellow_small - left boundary for this circle)
+        Cone yellow_small;
+        yellow_small.x = -radius + inner_radius * std::cos(angle);
+        yellow_small.y = inner_radius * std::sin(angle);
+        yellow_small.color = ConeColor::YELLOW_SMALL;
+        track.cones.push_back(yellow_small);
 
         // Outer circle (blue - right boundary for this circle)
         Cone blue;
@@ -274,16 +272,16 @@ Track TrackLoader::createSkidpadTrack(double radius, double cone_spacing) {
         track.cones.push_back(blue);
     }
 
-    // Entry/exit cones
-    Cone orange1, orange2;
-    orange1.x = 0.0;
-    orange1.y = -track_width / 2.0 - 0.5;
-    orange1.color = ConeColor::ORANGE;
-    orange2.x = 0.0;
-    orange2.y = track_width / 2.0 + 0.5;
-    orange2.color = ConeColor::ORANGE;
-    track.cones.push_back(orange1);
-    track.cones.push_back(orange2);
+    // Entry/exit cones (yellow_small)
+    Cone entry1, entry2;
+    entry1.x = 0.0;
+    entry1.y = -track_width / 2.0 - 0.5;
+    entry1.color = ConeColor::YELLOW_SMALL;
+    entry2.x = 0.0;
+    entry2.y = track_width / 2.0 + 0.5;
+    entry2.color = ConeColor::YELLOW_SMALL;
+    track.cones.push_back(entry1);
+    track.cones.push_back(entry2);
 
     return track;
 }
@@ -306,33 +304,33 @@ Track TrackLoader::createAccelerationTrack(double length, double width, double c
         blue.color = ConeColor::BLUE;
         track.cones.push_back(blue);
 
-        // Left side (yellow)
-        Cone yellow;
-        yellow.x = x;
-        yellow.y = half_width;
-        yellow.color = ConeColor::YELLOW;
-        track.cones.push_back(yellow);
+        // Left side (yellow_small)
+        Cone yellow_small;
+        yellow_small.x = x;
+        yellow_small.y = half_width;
+        yellow_small.color = ConeColor::YELLOW_SMALL;
+        track.cones.push_back(yellow_small);
     }
 
-    // Start cones (orange)
+    // Start cones (yellow_small)
     Cone start1, start2;
     start1.x = 0.0;
     start1.y = -half_width - 0.5;
-    start1.color = ConeColor::ORANGE;
+    start1.color = ConeColor::YELLOW_SMALL;
     start2.x = 0.0;
     start2.y = half_width + 0.5;
-    start2.color = ConeColor::ORANGE;
+    start2.color = ConeColor::YELLOW_SMALL;
     track.cones.push_back(start1);
     track.cones.push_back(start2);
 
-    // Finish cones (orange)
+    // Finish cones (yellow_big)
     Cone finish1, finish2;
     finish1.x = length;
     finish1.y = -half_width - 0.5;
-    finish1.color = ConeColor::ORANGE;
+    finish1.color = ConeColor::YELLOW_BIG;
     finish2.x = length;
     finish2.y = half_width + 0.5;
-    finish2.color = ConeColor::ORANGE;
+    finish2.color = ConeColor::YELLOW_BIG;
     track.cones.push_back(finish1);
     track.cones.push_back(finish2);
 

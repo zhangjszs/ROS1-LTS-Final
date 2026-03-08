@@ -19,12 +19,14 @@ except ImportError:
   ort = None
 
 
+# Cone color types
+# Note: Vision outputs unified YELLOW (1), LiDAR classifies by size into YELLOW_SMALL/YELLOW_BIG
 BLUE = 0
-YELLOW = 1
-ORANGE_SMALL = 2
-ORANGE_BIG = 3
+YELLOW = 1        # Unified yellow (vision output)
+YELLOW_SMALL = 1  # Alias for compatibility
+YELLOW_BIG = 2
+RED = 3
 NONE = 4
-RED = 5
 
 QUALITY_GOOD = 0
 QUALITY_DEGRADED = 1
@@ -222,6 +224,7 @@ class VisionNodePy:
     self.last_debug_pub = rospy.Time(0)
     self.last_diag_pub = rospy.Time(0)
     self.last_stage_timing = None
+    self.skipped_inference_newer_pending = 0
     self.skipped_postprocess_newer_pending = 0
     self.last_fallback_ms = 0.0
     self.last_tracker_ms = 0.0
@@ -471,7 +474,15 @@ class VisionNodePy:
 
     model_detections = []
     inference_us = 0
+    newer_pending_before_inference = self.skip_heavy_if_newer_pending and self.latest_frame_buffer.has_pending()
+    skip_model_for_freshness = (
+      newer_pending_before_inference and self.fallback_enabled and self.backend_ready
+    )
+    if skip_model_for_freshness:
+      self.skipped_inference_newer_pending += 1
     skip_model = (
+      skip_model_for_freshness
+      or
       quality_metrics["overall"] == QUALITY_UNUSABLE
       or self.state == STATE_VISION_LOST
       or self.state == STATE_FALLBACK
@@ -487,7 +498,9 @@ class VisionNodePy:
       timing.mark_inference_done(time.perf_counter())
 
     # Check if a newer frame is already waiting before doing heavy postprocess work.
-    newer_pending = self.skip_heavy_if_newer_pending and self.latest_frame_buffer.has_pending()
+    newer_pending = newer_pending_before_inference or (
+      self.skip_heavy_if_newer_pending and self.latest_frame_buffer.has_pending()
+    )
     if newer_pending:
       self.skipped_postprocess_newer_pending += 1
 
@@ -783,6 +796,10 @@ class VisionNodePy:
     return detections
 
   def _model_class_to_color_type(self, cls):
+    """Map model class to color type.
+    
+    Vision outputs unified YELLOW (1), size classification done by LiDAR.
+    """
     if self.class_to_color_map:
       if 0 <= cls < len(self.class_to_color_map):
         mapped = int(self.class_to_color_map[cls])
@@ -790,7 +807,9 @@ class VisionNodePy:
           return mapped
       return NONE
 
-    default_map = [BLUE, YELLOW, ORANGE_SMALL, ORANGE_BIG, RED]
+    # Default map for vision model: 0=red, 1=blue, 2=yellow
+    # Note: Vision outputs unified YELLOW, LiDAR classifies by size
+    default_map = [RED, BLUE, YELLOW]
     if 0 <= cls < len(default_map):
       return default_map[cls]
     return NONE
@@ -911,6 +930,7 @@ class VisionNodePy:
       KeyValue(key="frame_drop_stale_total", value=str(self.latest_frame_buffer.stale_total)),
       KeyValue(key="pending_frame_depth", value=str(self.latest_frame_buffer.pending_depth())),
       KeyValue(key="last_stale_age_ms", value=str(self.latest_frame_buffer.last_stale_age_ms)),
+      KeyValue(key="skipped_inference_newer_pending", value=str(self.skipped_inference_newer_pending)),
       KeyValue(key="skipped_postprocess_newer_pending", value=str(self.skipped_postprocess_newer_pending)),
       KeyValue(key="skip_heavy_if_newer_pending", value="1" if self.skip_heavy_if_newer_pending else "0"),
       KeyValue(key="fallback_ms", value=str(self.last_fallback_ms)),

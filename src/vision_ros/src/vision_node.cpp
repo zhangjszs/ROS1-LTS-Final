@@ -272,6 +272,7 @@ void VisionNode::remapModelDetections(
   if (model_dets.empty()) {
     return;
   }
+  // Vision outputs unified YELLOW (1), size classification done by LiDAR
   for (auto& det : model_dets) {
     det.color_type = static_cast<uint8_t>(
         vision_core::modelClassToColorType(det.class_id, class_to_color_map_));
@@ -388,13 +389,14 @@ void VisionNode::publishDebugImage(
   cv::Mat canvas = bgr.clone();
   for (const auto& d : dets) {
     cv::Scalar color;
+    // Updated cone types: BLUE=0, YELLOW_SMALL=1, YELLOW_BIG=2, RED=3, NONE=4
+    // Note: ORANGE types removed, replaced with YELLOW_SMALL/YELLOW_BIG
     switch (d.color_type) {
-      case vision_core::BLUE:         color = cv::Scalar(255, 0, 0);     break;
-      case vision_core::YELLOW:       color = cv::Scalar(0, 255, 255);   break;
-      case vision_core::ORANGE_SMALL: color = cv::Scalar(0, 165, 255);   break;
-      case vision_core::ORANGE_BIG:   color = cv::Scalar(0, 100, 255);   break;
-      case vision_core::RED:          color = cv::Scalar(0, 0, 255);     break;
-      default:                        color = cv::Scalar(200, 200, 200); break;
+      case vision_core::BLUE:         color = cv::Scalar(255, 0, 0);     break;  // Blue
+      case vision_core::YELLOW_SMALL: color = cv::Scalar(0, 230, 255);   break;  // Yellow (light)
+      case vision_core::YELLOW_BIG:   color = cv::Scalar(0, 217, 255);   break;  // Yellow (dark)
+      case vision_core::RED:          color = cv::Scalar(0, 0, 255);     break;  // Red
+      default:                        color = cv::Scalar(200, 200, 200); break;  // Gray
     }
     int x1 = static_cast<int>(d.x - d.w * 0.5f);
     int y1 = static_cast<int>(d.y - d.h * 0.5f);

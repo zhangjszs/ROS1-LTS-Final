@@ -39,9 +39,9 @@ track:
       - [65.0, 1.5]
       - [70.0, 1.5]
       - [75.0, 1.5]
-    orange:  # Start line
+    yellow_small:  # Start line (was orange)
       - [0.0, -2.0]
       - [0.0, 2.0]
-    orange_big:  # Finish line
+    yellow_big:    # Finish line (was orange_big)
       - [75.0, -2.0]
       - [75.0, 2.0]

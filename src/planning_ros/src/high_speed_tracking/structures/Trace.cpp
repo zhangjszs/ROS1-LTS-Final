@@ -13,7 +13,7 @@
 /* ----------------------------- Private Methods ---------------------------- */
 
 Trace::Connection::Connection(const size_t &edgeInd, const double &heur, const double &edgeLen, const bool &loopClosed, std::shared_ptr<Connection> before)
-    : edgeInd(edgeInd), before(before), heur(heur), size(before ? (before->size + 1) : 1), avgEdgeLen(before ? before->avgEdgeLen + ((edgeLen - before->avgEdgeLen) / before->size + 1) : edgeLen), loopClosed(before ? (before->loopClosed or loopClosed) : loopClosed) {}
+    : edgeInd(edgeInd), before(before), size(before ? (before->size + 1) : 1), heur(heur), avgEdgeLen(before ? before->avgEdgeLen + ((edgeLen - before->avgEdgeLen) / before->size + 1) : edgeLen), loopClosed(before ? (before->loopClosed or loopClosed) : loopClosed) {}
 
 bool Trace::Connection::containsEdge(const size_t &_edgeInd) const {
   return edgeInd == _edgeInd || (before ? before->containsEdge(_edgeInd) : false);

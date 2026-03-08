@@ -23,7 +23,7 @@ double Edge::computeLen(const Node &n0, const Node &n1) {
 /* ----------------------------- Public Methods ----------------------------- */
 
 Edge::Edge(const Node &n0, const Node &n1)
-    : n0(n0), n1(n1), hash_(computeHash(n0, n1)), len(computeLen(n0, n1)) {}
+    : hash_(computeHash(n0, n1)), n0(n0), n1(n1), len(computeLen(n0, n1)) {}
 
 bool Edge::operator==(const Edge &e) const {
   return this->hash_ == e.hash_;

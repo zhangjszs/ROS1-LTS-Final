@@ -63,7 +63,8 @@ struct Cone {
   Point3 position_global;
   std::uint32_t id = 0;
   std::uint32_t confidence = 0;  // 置信度，scaled 0–1000 (0.0–1.0 * 1000)
-  std::uint32_t type = 4;  // 0=BLUE,1=YELLOW,2=ORANGE_SMALL,3=ORANGE_BIG,4=NONE,5=RED
+  std::uint32_t type = 4;  // 0=BLUE,1=YELLOW_SMALL,2=YELLOW_BIG,3=RED,4=NONE
+                           // Note: ORANGE types removed, use YELLOW_SMALL/YELLOW_BIG
 };
 
 struct ConeMap {
@@ -76,7 +77,8 @@ struct ConeDetection {
   Point3 bbox_max;
   double confidence = 0.0;
   double distance = 0.0;
-  std::uint8_t color_type = 4;  // 0=BLUE,1=YELLOW,2=ORANGE_SMALL,3=ORANGE_BIG,4=NONE,5=RED
+  std::uint8_t color_type = 4;  // 0=BLUE,1=YELLOW_SMALL,2=YELLOW_BIG,3=RED,4=NONE
+                                // Note: ORANGE types removed, use YELLOW_SMALL/YELLOW_BIG
 };
 
 struct ConeDetections {

@@ -226,6 +226,8 @@ class Way {
    */
   Way &operator=(const Way &way);
 
+  Way(const Way &way) = default;
+
   /**
    * @brief Comparison operator. Two Way(s) will be equal if both contain
    * the same Edge(s).

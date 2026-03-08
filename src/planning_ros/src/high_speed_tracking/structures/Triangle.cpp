@@ -23,10 +23,10 @@ uint64_t Triangle::computeHash(const Node &n0, const Node &n1, const Node &n2) {
 /* ----------------------------- Public Methods ----------------------------- */
 
 Triangle::Triangle(const Node &n0, const Node &n1, const Node &n2)
-    : nodes{n0, n1, n2}, circumCircle_(n0, n1, n2), edges{Edge(n0, n1), Edge(n1, n2), Edge(n0, n2)}, hash_(computeHash(n0, n1, n2)) {}
+    : circumCircle_(n0, n1, n2), hash_(computeHash(n0, n1, n2)), nodes{n0, n1, n2}, edges{Edge(n0, n1), Edge(n1, n2), Edge(n0, n2)} {}
 
 Triangle::Triangle(const Edge &e, const Node &n)
-    : nodes{e.n0, e.n1, n}, circumCircle_(e.n0, e.n1, n), edges{Edge(e.n0, e.n1), Edge(e.n1, n), Edge(e.n0, n)}, hash_(computeHash(e.n0, e.n1, n)) {}
+    : circumCircle_(e.n0, e.n1, n), hash_(computeHash(e.n0, e.n1, n)), nodes{e.n0, e.n1, n}, edges{Edge(e.n0, e.n1), Edge(e.n1, n), Edge(e.n0, n)} {}
 
 bool Triangle::operator==(const Triangle &t) const {
   return this->hash_ == t.hash_;

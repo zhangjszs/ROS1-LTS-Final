@@ -98,7 +98,7 @@ void doWayMsg(const autodrive_msgs::HUAT_PathLimits &msgs)
     return;
   }
   std::stringstream ss;
-  for (int i = 0; i < msgs.path.size(); i++)
+  for (size_t i = 0; i < msgs.path.size(); i++)
   {
     ss << msgs.path[i].x << "\t" << msgs.path[i].y << "\t" << std::endl;
   }
@@ -123,7 +123,7 @@ void doWayFullMsg(const autodrive_msgs::HUAT_PathLimits &msgs)
     return;
   }
   std::stringstream ss;
-  for (int i = 0; i < msgs.path.size(); i++)
+  for (size_t i = 0; i < msgs.path.size(); i++)
   {
     ss << msgs.path[i].x << "\t" << msgs.path[i].y << "\t" << std::endl;
   }

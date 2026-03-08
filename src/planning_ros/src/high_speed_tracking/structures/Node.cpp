@@ -16,7 +16,7 @@ uint32_t Node::superTriangleNodeNum = 0;
 /* ----------------------------- Private Methods ---------------------------- */
 
 Node::Node(const double &x, const double &y)
-    : point_(x, y), id(SUPERTRIANGLE_BASEID + superTriangleNodeNum), belongsToSuperTriangle_(true) {
+    : belongsToSuperTriangle_(true), point_(x, y), id(SUPERTRIANGLE_BASEID + superTriangleNodeNum) {
   superTriangleNodeNum++;
   superTriangleNodeNum %= 3;
 }
@@ -24,7 +24,7 @@ Node::Node(const double &x, const double &y)
 /* ----------------------------- Public Methods ----------------------------- */
 
 Node::Node(const double &x, const double &y, const double &xGlobal, const double &yGlobal, const uint32_t &id)
-    : point_(x, y), pointGlobal_(xGlobal, yGlobal), id(id), belongsToSuperTriangle_(false) {
+    : belongsToSuperTriangle_(false), point_(x, y), pointGlobal_(xGlobal, yGlobal), id(id) {
   if (this->id >= (1 << HASH_SHIFT_NUM) - 3) ROS_ERROR("[high_speed_tracking] Cone ID is above the allowed threshold, see utils/constants.hpp/HASH_SHIFT_NUM");
 }
 

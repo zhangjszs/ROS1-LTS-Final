@@ -10,9 +10,13 @@ std::vector<Detection> FallbackDetector::detect(const cv::Mat& bgr) const {
   cv::Mat hsv;
   cv::cvtColor(bgr, hsv, cv::COLOR_BGR2HSV);
   std::vector<Detection> results;
-  detectByColor(hsv, results, config_.blue,   ConeColorType::BLUE);
-  detectByColor(hsv, results, config_.yellow, ConeColorType::YELLOW);
-  detectByColor(hsv, results, config_.orange, ConeColorType::ORANGE_SMALL);
+  // Vision outputs unified YELLOW (1), size classification done by LiDAR
+  // Cone types: BLUE=0, YELLOW=1, RED=3, NONE=4
+  // Red is detected in two hue ranges (wraps around 0/180)
+  detectByColor(hsv, results, config_.blue,    ConeColorType::BLUE);
+  detectByColor(hsv, results, config_.yellow,  ConeColorType::YELLOW);
+  detectByColor(hsv, results, config_.red_low, ConeColorType::RED);
+  detectByColor(hsv, results, config_.red_high,ConeColorType::RED);
   return results;
 }
 

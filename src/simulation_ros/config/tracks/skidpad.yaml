@@ -51,9 +51,9 @@ track:
       - [-15.25, -5.625]
       - [-10.5, -5.5]
       - [-7.5, -3.5]
-    orange:  # Entry/exit
+    yellow_small:  # Entry/exit (was orange)
       - [0.0, -1.5]
       - [0.0, 1.5]
-    orange_big:
+    yellow_big:    # Large entry/exit markers (was orange_big)
       - [-1.0, -2.5]
       - [-1.0, 2.5]

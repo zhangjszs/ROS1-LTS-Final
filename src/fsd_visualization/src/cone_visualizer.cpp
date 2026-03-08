@@ -7,33 +7,53 @@
 namespace fsd_viz {
 
 namespace {
+// 新锥桶类型定义（已移除橙色，改为大小黄色）
+// 0=BLUE, 1=YELLOW_SMALL, 2=YELLOW_BIG, 3=RED, 4=NONE
 constexpr std::uint8_t kConeBlue = 0;
-constexpr std::uint8_t kConeYellow = 1;
-constexpr std::uint8_t kConeOrangeSmall = 2;
-constexpr std::uint8_t kConeOrangeBig = 3;
+constexpr std::uint8_t kConeYellowSmall = 1;
+constexpr std::uint8_t kConeYellowBig = 2;
+constexpr std::uint8_t kConeRed = 3;
 constexpr std::uint8_t kConeNone = 4;
-constexpr std::uint8_t kConeRed = 5;
 constexpr std::uint8_t kFusionMatched = 0;
 constexpr std::uint8_t kFusionLegacyHfovMatched = 8;
 
+// 旧类型常量（用于识别遗留数据）
+// 旧定义: 0=BLUE, 1=YELLOW, 2=ORANGE_SMALL, 3=ORANGE_BIG, 4=NONE, 5=RED
+constexpr std::uint8_t kLegacyYellow = 1;       // 旧黄色 -> 新小黄色
+constexpr std::uint8_t kLegacyOrangeSmall = 2;  // 旧小橙色 -> 新大黄色
+constexpr std::uint8_t kLegacyOrangeBig = 3;    // 旧大橙色 -> 新大黄色
+constexpr std::uint8_t kLegacyNone = 4;         // 保持不变
+constexpr std::uint8_t kLegacyRed = 5;          // 旧红色 -> 新红色
+
 int normalizeConeType(int raw_type) {
+    // 首先检查是否是新类型范围内的值
+    if (raw_type == kConeBlue || raw_type == kConeYellowSmall || 
+        raw_type == kConeYellowBig || raw_type == kConeRed || raw_type == kConeNone) {
+        return raw_type;
+    }
+    
+    // 处理遗留类型值（旧消息可能包含的值）
     switch (raw_type) {
-        case kConeBlue:
-        case kConeYellow:
-        case kConeOrangeSmall:
-        case kConeOrangeBig:
-        case kConeNone:
-        case kConeRed:
-            return raw_type;
+        case kLegacyYellow:
+            return kConeYellowSmall;   // 旧黄色 -> 新小黄色
+        case kLegacyOrangeSmall:
+        case kLegacyOrangeBig:
+            return kConeYellowBig;     // 旧橙色 -> 新大黄色
+        case kLegacyRed:
+            return kConeRed;           // 旧红色 -> 新红色
+        case kLegacyNone:
+            return kConeNone;          // 保持不变
         default:
-            return kConeNone;
+            return kConeNone;          // 未知类型 -> NONE
     }
 }
 
 int parseLegacyColorChar(char c) {
     if (c == 'b' || c == 'B') return kConeBlue;
-    if (c == 'y' || c == 'Y') return kConeYellow;
-    if (c == 'r' || c == 'R' || c == 'o' || c == 'O') return kConeOrangeSmall;
+    if (c == 'y' || c == 'Y') return kConeYellowSmall;  // 黄色统一映射到小黄色
+    if (c == 'r' || c == 'R') return kConeRed;
+    // 旧橙色字符映射到黄色（向后兼容）
+    if (c == 'o' || c == 'O') return kConeYellowSmall;
     return kConeNone;
 }
 }  // namespace
@@ -401,9 +421,9 @@ visualization_msgs::Marker ConeVisualizer::createConeMarker(
             // Gazebo construction_cone：带纹理贴图，所有锥桶用同一模型
             marker.mesh_resource = MESH_CONE_GAZEBO;
             marker.mesh_use_embedded_materials = true;
-            // DAE 单位 inch，scale=10 约 0.3m；大橙桶放大以区分大小锥桶
+            // DAE 单位 inch，scale=10 约 0.3m；大黄色锥桶放大以区分大小
             double mesh_scale = CONE_GAZEBO_SCALE;
-            if (type == static_cast<int>(ConeType::ORANGE_BIG)) {
+            if (type == static_cast<int>(ConeType::YELLOW_BIG)) {
                 mesh_scale *= 1.6;
             }
             marker.scale.x = mesh_scale;
@@ -435,7 +455,7 @@ visualization_msgs::Marker ConeVisualizer::createConeMarker(
         marker.scale.x = cone_radius_ * 2.0;
         marker.scale.y = cone_radius_ * 2.0;
         marker.scale.z = cone_height_;
-        if (type == static_cast<int>(ConeType::ORANGE_BIG)) {
+        if (type == static_cast<int>(ConeType::YELLOW_BIG)) {
             marker.scale.x *= 1.3;
             marker.scale.y *= 1.3;
             marker.scale.z *= 1.6;

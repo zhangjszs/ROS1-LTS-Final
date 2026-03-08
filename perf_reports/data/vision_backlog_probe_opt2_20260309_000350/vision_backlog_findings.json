@@ -1,0 +1,78 @@
+{
+  "trackdrive": {
+    "frame_count_start_end": [
+      16,
+      150
+    ],
+    "inference_time_ms": {
+      "p50": 458.589,
+      "p95": 502.756,
+      "p99": 531.6997,
+      "max": 559.3
+    },
+    "input_image_hz_assumed": 19.8,
+    "publish_lag_ms": {
+      "p50": 497.015476,
+      "p95": 549.740458,
+      "p99": 575.197573,
+      "max": 587.979555
+    },
+    "vision_output_hz": 2.41584,
+    "vision_processed_fps_from_frame_count": {
+      "p50": 2.170174,
+      "p95": 2.313536,
+      "p99": 10.658185,
+      "max": 21.787388
+    },
+    "skipped_postprocess_newer_pending_delta": 123,
+    "skip_ratio": 0.9179,
+    "fallback_ms_dist": {
+      "p50": 0.001889,
+      "p95": 0.003171,
+      "max": 3.353906
+    },
+    "tracker_ms_dist": {
+      "p50": 0.0003,
+      "p95": 0.000614,
+      "max": 0.064532
+    }
+  },
+  "skidpad": {
+    "frame_count_start_end": [
+      12,
+      151
+    ],
+    "inference_time_ms": {
+      "p50": 469.74,
+      "p95": 498.451,
+      "p99": 525.807,
+      "max": 527.08
+    },
+    "input_image_hz_assumed": 3.32,
+    "publish_lag_ms": {
+      "p50": 559.581041,
+      "p95": 803.1214,
+      "p99": 833.246913,
+      "max": 865.551949
+    },
+    "vision_output_hz": 2.450796,
+    "vision_processed_fps_from_frame_count": {
+      "p50": 2.058504,
+      "p95": 3.708565,
+      "p99": 4.735777,
+      "max": 5.853606
+    },
+    "skipped_postprocess_newer_pending_delta": 80,
+    "skip_ratio": 0.5755,
+    "fallback_ms_dist": {
+      "p50": 0.002174,
+      "p95": 14.589205,
+      "max": 16.570459
+    },
+    "tracker_ms_dist": {
+      "p50": 0.000441,
+      "p95": 23.639776,
+      "max": 31.060798
+    }
+  }
+}

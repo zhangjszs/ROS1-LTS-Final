@@ -47,13 +47,14 @@ struct SimulationState {
 
 /**
  * @brief Cone color enumeration
+ * Updated: Removed ORANGE types, replaced with YELLOW_SMALL/YELLOW_BIG
  */
 enum class ConeColor : uint8_t {
-    BLUE = 0,      // Right boundary
-    YELLOW = 1,    // Left boundary
-    ORANGE = 2,    // Start/finish
-    ORANGE_BIG = 3,// Large orange cone
-    UNKNOWN = 255
+    BLUE = 0,         // Blue cone
+    YELLOW_SMALL = 1, // Small yellow cone
+    YELLOW_BIG = 2,   // Big yellow cone
+    RED = 3,          // Red cone
+    UNKNOWN = 255     // Unknown cone type
 };
 
 /**

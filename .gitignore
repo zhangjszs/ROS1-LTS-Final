@@ -7,6 +7,7 @@ log/
 .catkin_workspace
 .catkin_tools/
 .omc/
+.worktrees/
 *.rosinstall
 CATKIN_IGNORE
 

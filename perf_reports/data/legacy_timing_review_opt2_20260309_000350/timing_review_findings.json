@@ -1,0 +1,168 @@
+{
+  "trackdrive": {
+    "budget_sec": 0.12,
+    "decision_trace": {
+      "frames": 0,
+      "no_fused_ratio": 0.0,
+      "publish_modes": {},
+      "reason_counts": {},
+      "wait_ms": {
+        "p50": 0.0,
+        "p95": 0.0,
+        "p99": 0.0
+      }
+    },
+    "fusion_diagnostics": {},
+    "fusion_topic_msg_count_in_record": 0,
+    "raw_frames_in_record_window": 0,
+    "raw_frames_with_header_match_within_budget": 0,
+    "raw_frames_with_header_match_within_budget_ratio": 0.0,
+    "vision_header_to_raw_ms": {
+      "p50": 0.0,
+      "p95": 0.0
+    },
+    "vision_publish_hz": 2.416,
+    "vision_publish_interval_ms": {
+      "count": 137,
+      "p50": 457.616687,
+      "p95": 502.634704,
+      "max": 558.878899
+    },
+    "vision_publish_lag_ms": {
+      "p50": 497.015476,
+      "p95": 549.740458,
+      "p99": 575.197573,
+      "max": 587.979555
+    }
+  },
+  "autocross": {
+    "budget_sec": 0.12,
+    "decision_trace": {
+      "frames": 570,
+      "no_fused_ratio": 0.994737,
+      "publish_modes": {
+        "raw_fallback": 567,
+        "fused": 3
+      },
+      "reason_counts": {
+        "no_fused": 567,
+        "normal_merge": 3
+      },
+      "wait_ms": {
+        "p50": 125.201,
+        "p95": 129.9192,
+        "p99": 130.76675,
+        "max": 133.147
+      }
+    },
+    "fusion_diagnostics": {
+      "fusion_enabled": "1",
+      "fusion_sync_policy": "approximate",
+      "fusion_sync_queue_size": "20",
+      "fusion_sync_slop_sec": "0.120000",
+      "fusion_pair_total": "129",
+      "fusion_pair_used": "129",
+      "fusion_pair_dropped_no_raw": "0",
+      "fusion_pair_cache_evicted": "0",
+      "fusion_raw_cache_evicted": "427",
+      "fusion_messages_published": "129",
+      "fusion_frames_no_sync": "427",
+      "fusion_frames_camera_missing": "0",
+      "fusion_frames_tf_missing": "0",
+      "fusion_assoc_matched_total": "36",
+      "fusion_assoc_unmatched_total": "1243",
+      "fusion_last_sync_delta_ms": "10.368365",
+      "fusion_last_matched": "0",
+      "fusion_last_unmatched": "1",
+      "fusion_camera_info_ready": "0",
+      "fusion_tf_available": "0"
+    },
+    "fusion_topic_msg_count_in_record": 116,
+    "raw_frames_in_record_window": 570,
+    "raw_frames_with_header_match_within_budget": 269,
+    "raw_frames_with_header_match_within_budget_ratio": 0.47193,
+    "vision_header_to_raw_ms": {
+      "p50": -3.380775,
+      "p95": 103.192806,
+      "max": 118.959665
+    },
+    "vision_publish_hz": 2.119,
+    "vision_publish_interval_ms": {
+      "count": 120,
+      "p50": 495.719194,
+      "p95": 548.082685,
+      "max": 695.338011
+    },
+    "vision_publish_lag_ms": {
+      "p50": 542.364359,
+      "p95": 593.502963,
+      "p99": 657.92625,
+      "max": 753.54147
+    }
+  },
+  "skidpad": {
+    "budget_sec": 0.15,
+    "decision_trace": {
+      "frames": 569,
+      "no_fused_ratio": 0.899824,
+      "publish_modes": {
+        "raw_fallback": 512,
+        "fused": 57
+      },
+      "reason_counts": {
+        "no_fused": 512,
+        "normal_merge": 57
+      },
+      "wait_ms": {
+        "p50": 154.683,
+        "p95": 159.7648,
+        "p99": 162.19956,
+        "max": 175.979
+      }
+    },
+    "fusion_diagnostics": {
+      "fusion_enabled": "1",
+      "fusion_sync_policy": "approximate",
+      "fusion_sync_queue_size": "20",
+      "fusion_sync_slop_sec": "0.150000",
+      "fusion_pair_total": "150",
+      "fusion_pair_used": "150",
+      "fusion_pair_dropped_no_raw": "0",
+      "fusion_pair_cache_evicted": "0",
+      "fusion_raw_cache_evicted": "393",
+      "fusion_messages_published": "150",
+      "fusion_frames_no_sync": "393",
+      "fusion_frames_camera_missing": "0",
+      "fusion_frames_tf_missing": "0",
+      "fusion_assoc_matched_total": "1306",
+      "fusion_assoc_unmatched_total": "6877",
+      "fusion_last_sync_delta_ms": "7.870133",
+      "fusion_last_matched": "3",
+      "fusion_last_unmatched": "61",
+      "fusion_camera_info_ready": "0",
+      "fusion_tf_available": "0"
+    },
+    "fusion_topic_msg_count_in_record": 139,
+    "raw_frames_in_record_window": 569,
+    "raw_frames_with_header_match_within_budget": 409,
+    "raw_frames_with_header_match_within_budget_ratio": 0.718805,
+    "vision_header_to_raw_ms": {
+      "p50": -7.725716,
+      "p95": 130.753994,
+      "max": 149.811745
+    },
+    "vision_publish_hz": 2.451,
+    "vision_publish_interval_ms": {
+      "count": 139,
+      "p50": 479.183316,
+      "p95": 518.711758,
+      "max": 784.817934
+    },
+    "vision_publish_lag_ms": {
+      "p50": 559.581041,
+      "p95": 803.1214,
+      "p99": 833.246913,
+      "max": 865.551949
+    }
+  }
+}

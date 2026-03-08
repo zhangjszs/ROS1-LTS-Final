@@ -40,7 +40,7 @@ class KDTData {
 
  public:
   KDTData() : valid(false) {}
-  KDTData(const T &_value) : value(_value), valid(true) {}
+  KDTData(const T &_value) : valid(true), value(_value) {}
   KDTData &operator=(const T &_value) {
     valid = true;
     value = _value;

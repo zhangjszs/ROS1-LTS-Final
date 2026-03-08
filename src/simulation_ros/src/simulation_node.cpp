@@ -323,28 +323,31 @@ private:
             marker.scale.y = 0.228;
             marker.scale.z = 0.325;
 
-            // Color based on cone type
+            // Color based on cone type (Updated: ORANGE types removed)
+            // New types: BLUE=0, YELLOW_SMALL=1, YELLOW_BIG=2, RED=3, UNKNOWN=255
             switch (cone.color) {
                 case ConeColor::BLUE:
                     marker.color.r = 0.0;
                     marker.color.g = 0.0;
                     marker.color.b = 1.0;
                     break;
-                case ConeColor::YELLOW:
+                case ConeColor::YELLOW_SMALL:
                     marker.color.r = 1.0;
-                    marker.color.g = 1.0;
+                    marker.color.g = 0.9;
                     marker.color.b = 0.0;
                     break;
-                case ConeColor::ORANGE:
-                case ConeColor::ORANGE_BIG:
+                case ConeColor::YELLOW_BIG:
                     marker.color.r = 1.0;
-                    marker.color.g = 0.5;
+                    marker.color.g = 0.85;
                     marker.color.b = 0.0;
-                    if (cone.color == ConeColor::ORANGE_BIG) {
-                        marker.scale.x = 0.285;
-                        marker.scale.y = 0.285;
-                        marker.scale.z = 0.505;
-                    }
+                    marker.scale.x = 0.285;
+                    marker.scale.y = 0.285;
+                    marker.scale.z = 0.505;
+                    break;
+                case ConeColor::RED:
+                    marker.color.r = 1.0;
+                    marker.color.g = 0.1;
+                    marker.color.b = 0.1;
                     break;
                 default:
                     marker.color.r = 0.5;

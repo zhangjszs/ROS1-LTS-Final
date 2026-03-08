@@ -5,7 +5,8 @@
 inference:
   backend_type: "onnx"          # "onnx" | "tensorrt" | "fallback_only"
   model_path: ""                # empty = fallback-only mode
-  class_to_color: []            # optional class_id->color enum map (0:BLUE,1:YELLOW,2:ORANGE_S,3:ORANGE_B,4:NONE,5:RED)
+  class_to_color: []            # optional class_id->color enum map (0:BLUE,1:YELLOW_SMALL,2:YELLOW_BIG,3:RED,4:NONE)
+                                # Note: ORANGE types removed, replaced with YELLOW_SMALL/YELLOW_BIG
   input_width: 640
   input_height: 640
   use_fp16: true
@@ -13,7 +14,7 @@ inference:
 
 # --- Detection ---
 detection:
-  conf_threshold: 0.5
+  conf_threshold: 0.65  # Increased from 0.5 to reduce false positives
   nms_threshold: 0.45
   max_detections: 50
 

@@ -630,10 +630,10 @@ std::vector<geometry_msgs::Point> Way::getPathInterpolation(double x, double y)
     Eigen::MatrixXd A(3, 3); // 使用Eigen库创建一个3x3的矩阵A，用于构建线性方程组
     Eigen::VectorXd b(3);    // 创建一个3维向量b，作为线性方程组的右侧
     // 下面也都是对选择使用在xoy或者使用yox的判断
-    bool start_x = false, start_y = false, turn_y = false, bend = true, turn_y2 = false, use_x = true;
-    if (x > helpmidass_x && helpmidass_x > it->midPointGlobal().x || x < helpmidass_x && helpmidass_x < it->midPointGlobal().x)
+    bool start_x = false, start_y = false, turn_y = false, turn_y2 = false, use_x = true;
+    if ((x > helpmidass_x && helpmidass_x > it->midPointGlobal().x) || (x < helpmidass_x && helpmidass_x < it->midPointGlobal().x))
       start_x = true;
-    if (y < helpmidass_y && helpmidass_y < it->midPointGlobal().y || y > helpmidass_y && helpmidass_y > it->midPointGlobal().y)
+    if ((y < helpmidass_y && helpmidass_y < it->midPointGlobal().y) || (y > helpmidass_y && helpmidass_y > it->midPointGlobal().y))
       start_y = true;
     if (abs(it->midPointGlobal().x - helpmidass_x) * 2 < abs(it->midPointGlobal().y - helpmidass_y))
       turn_y = true;
@@ -649,7 +649,7 @@ std::vector<geometry_msgs::Point> Way::getPathInterpolation(double x, double y)
     double b_1 = 0;
     double b_2 = 0;
     // 判定,选择什么样的坐标系拟合,对需要的点的信息区别赋值
-    if ((start_x) && !(start_y && turn_y) || turn_y2)
+    if (((start_x) && !(start_y && turn_y)) || turn_y2)
     {
       A_0 = x;
       A_1 = helpmidass_x;
@@ -768,7 +768,7 @@ std::vector<geometry_msgs::Point> Way::getPathInterpolation(double x, double y)
       if (it == this->path_.cend())
         break;
 
-        if ((increasing_x && !decreasing_x || !increasing_x && decreasing_x) && !((increasing_y && !decreasing_y || !increasing_y && decreasing_y) && turn_y) || turn_y2)
+      if ((((increasing_x && !decreasing_x) || (!increasing_x && decreasing_x)) && !(((increasing_y && !decreasing_y) || (!increasing_y && decreasing_y)) && turn_y)) || turn_y2)
         {
           Eigen::MatrixXd A(3, 3);
           Eigen::VectorXd b(3);
@@ -939,7 +939,7 @@ std::vector<geometry_msgs::Point> Way::getPathFullInterpolation()
   it++;
   if (path_.size() > 3)
   {
-    for (int i = 0; i < path_.size() - 2; i++)
+    for (size_t i = 0; i < path_.size() - 2; i++)
     {
       if (change == this->path_.cend())
         break;
@@ -976,12 +976,12 @@ std::vector<geometry_msgs::Point> Way::getPathFullInterpolation()
       if (it == this->path_.cend())
         break;
 
-      if ((increasing_x && !decreasing_x || !increasing_x && decreasing_x) && !((increasing_y && !decreasing_y || !increasing_y && decreasing_y) && turn_y))
+      if (((increasing_x && !decreasing_x) || (!increasing_x && decreasing_x)) && !(((increasing_y && !decreasing_y) || (!increasing_y && decreasing_y)) && turn_y))
       {
         Eigen::MatrixXd A(3, 3);
         Eigen::VectorXd b(3);
         int n = 0;
-        for (int j = i; j <= i + 2; j++)
+        for (size_t j = i; j <= i + 2; j++)
         {
           b(n) = lastIt->midPointGlobal().y;
           for (int m = 0; m < 3; m++)

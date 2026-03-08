@@ -88,6 +88,9 @@ def run_mission_replay(mission: dict, outdir: str) -> Optional[str]:
     Launch one mission with rosbag playback and record the combined topics.
     Returns path to recorded bag on success, None on failure.
     """
+    # Clear leftover ROS processes before starting the next mission replay.
+    _kill_ros_procs()
+
     os.makedirs(outdir, exist_ok=True)
     ros_log_dir = os.path.join(outdir, "roslog")
     ros_home_dir = os.path.join(outdir, "ros_home")

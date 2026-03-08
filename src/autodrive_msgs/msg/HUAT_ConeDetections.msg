@@ -11,5 +11,8 @@ int32[] track_ids # per-cone tracker ID (-1 = untracked)
 std_msgs/String color # B15: [DEPRECATED] 旧版全局颜色字段, 仅visualization兼容回退使用
                        # 新代码请使用 color_types[] (per-cone枚举)
 uint8[] color_types # B15: per-cone颜色枚举 (统一标准):
-                    # 0=BLUE, 1=YELLOW, 2=ORANGE_SMALL, 3=ORANGE_BIG, 4=NONE, 5=RED
-                    # LiDAR-only管线仅输出 2/3/4; 0/1/5 保留给相机融合
+                    # 0=BLUE, 1=YELLOW_SMALL, 2=YELLOW_BIG, 3=RED, 4=NONE
+                    # 注意：
+                    # - 视觉端输出统一的YELLOW (1)，不区分大小
+                    # - LiDAR根据几何尺寸将YELLOW细分为YELLOW_SMALL (1)或YELLOW_BIG (2)
+                    # - 融合时，视觉YELLOW + LiDAR尺寸 -> YELLOW_SMALL/YELLOW_BIG

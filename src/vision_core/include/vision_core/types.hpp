@@ -6,13 +6,15 @@
 namespace vision_core {
 
 // Color type enum — mirrors autodrive_msgs/HUAT_ConeDetections color_types
+// Updated: Removed ORANGE types, replaced with YELLOW_SMALL/YELLOW_BIG
+// Note: Vision outputs unified YELLOW (1), LiDAR classifies into YELLOW_SMALL/YELLOW_BIG by size
 enum ConeColorType : uint8_t {
-  BLUE = 0,
-  YELLOW = 1,
-  ORANGE_SMALL = 2,
-  ORANGE_BIG = 3,
-  NONE = 4,
-  RED = 5
+  BLUE = 0,          // Blue cone
+  YELLOW = 1,        // Unified yellow cone (vision output)
+  YELLOW_SMALL = 1,  // Small yellow cone (alias for compatibility)
+  YELLOW_BIG = 2,    // Big yellow cone
+  RED = 3,           // Red cone
+  NONE = 4           // Unknown/None
 };
 
 struct Detection {
@@ -38,21 +40,24 @@ struct QualityMetrics {
   ImageQuality overall;
 };
 
-// Model class_id (0-4) → ConeColorType mapping
-// model: 0=blue, 1=yellow, 2=orange_small, 3=orange_big, 4=red
+// Model class_id (0-2) → ConeColorType mapping
+// Vision model: 0=blue, 1=yellow, 2=red (unified yellow, no size distinction)
+// Note: Vision outputs unified YELLOW (1), size classification done by LiDAR
 inline ConeColorType modelClassToColorType(uint8_t cls) {
-  constexpr ConeColorType kMap[] = {BLUE, YELLOW, ORANGE_SMALL, ORANGE_BIG, RED};
-  return (cls < 5) ? kMap[cls] : NONE;
+  constexpr ConeColorType kMap[] = {BLUE, YELLOW, RED};
+  return (cls < 3) ? kMap[cls] : NONE;
 }
 
 // Optional model-specific remap: class_id -> ConeColorType enum value.
-// Example for classes [red, blue, yellow]: [5, 0, 1].
+// Example for classes [red, blue, yellow_small]: [3, 0, 1].
+// Note: Max valid enum value is now 4 (NONE), previously was 5 (RED at old value).
 inline ConeColorType modelClassToColorType(
     uint8_t cls, const std::vector<uint8_t>& class_to_color_map) {
   if (!class_to_color_map.empty()) {
     if (cls < class_to_color_map.size()) {
       const auto mapped = class_to_color_map[cls];
-      return (mapped <= RED) ? static_cast<ConeColorType>(mapped) : NONE;
+      // Validate mapped value is within valid enum range (0-4)
+      return (mapped <= static_cast<uint8_t>(NONE)) ? static_cast<ConeColorType>(mapped) : NONE;
     }
     return NONE;
   }

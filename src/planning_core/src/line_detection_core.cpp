@@ -69,7 +69,7 @@ std::vector<Pose> LineDetectionCore::GenerateFallbackPathFromSparseCones(const s
     int n_left = 0, n_right = 0;
     for (const ConePoint &c : cones)
     {
-      if (c.color_type == 1 || c.color_type == 5)  // YELLOW or RED = left boundary
+      if (c.color_type == 1 || c.color_type == 2 || c.color_type == 3)  // YELLOW_SMALL, YELLOW_BIG, or RED = left boundary
       {
         sum_left_y += c.y;
         ++n_left;
