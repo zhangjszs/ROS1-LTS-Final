@@ -10,6 +10,10 @@ find_package(catkin REQUIRED COMPONENTS
   nav_msgs
   nodelet
   pluginlib
+  message_filters
+  image_geometry
+  tf2_ros
+  tf2_geometry_msgs
   pcl_ros
   pcl_conversions
   visualization_msgs
@@ -23,7 +27,7 @@ find_package(PCL REQUIRED)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
-  CATKIN_DEPENDS roscpp sensor_msgs geometry_msgs nav_msgs nodelet pluginlib pcl_ros pcl_conversions visualization_msgs autodrive_msgs fsd_common perception_core
+  CATKIN_DEPENDS roscpp sensor_msgs geometry_msgs nav_msgs nodelet pluginlib message_filters image_geometry tf2_ros tf2_geometry_msgs pcl_ros pcl_conversions visualization_msgs autodrive_msgs fsd_common perception_core
 )
 
 include_directories(

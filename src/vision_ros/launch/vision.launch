@@ -10,9 +10,11 @@
 <launch>
   <arg name="mission" default="track"/>
   <arg name="mode" default="standard"/>
-  <arg name="impl" default="py" doc="vision implementation: cpp|py"/>
+  <arg name="impl" default="cpp" doc="vision implementation: cpp|py"/>
   <arg name="debug" default="false"/>
-  <arg name="image_topic" default="/resize_img_out"/>
+  <arg name="image_topic" default="/camera/image_raw"/>
+  <arg name="model_path" default="$(find vision_ros)/models/exp26l_gpu/best.onnx"/>
+  <arg name="require_model" default="true"/>
   <arg name="ns" default="perception/vision"/>
   <arg name="extra_config" default="" doc="Vehicle overlay config"/>
   <arg name="extra_local_config" default="" doc="Local override config"/>
@@ -34,10 +36,16 @@
       <!-- Mode overrides -->
       <param name="inference/backend_type" value="fallback_only"
              if="$(eval arg('mode') == 'fallback_only')"/>
+      <param name="node/require_model" value="false"
+             if="$(eval arg('mode') == 'fallback_only')"/>
       <param name="inference/input_width" value="320"
              if="$(eval arg('mode') == 'lightweight')"/>
       <param name="inference/input_height" value="320"
              if="$(eval arg('mode') == 'lightweight')"/>
+
+      <param name="inference/model_path" value="$(arg model_path)"
+             if="$(eval arg('model_path') != '')"/>
+      <param name="node/require_model" value="$(arg require_model)"/>
 
       <!-- Debug -->
       <param name="output/publish_debug_image" value="true"
@@ -63,10 +71,16 @@
       <!-- Mode overrides -->
       <param name="inference/backend_type" value="fallback_only"
              if="$(eval arg('mode') == 'fallback_only')"/>
+      <param name="node/require_model" value="false"
+             if="$(eval arg('mode') == 'fallback_only')"/>
       <param name="inference/input_width" value="320"
              if="$(eval arg('mode') == 'lightweight')"/>
       <param name="inference/input_height" value="320"
              if="$(eval arg('mode') == 'lightweight')"/>
+
+      <param name="inference/model_path" value="$(arg model_path)"
+             if="$(eval arg('model_path') != '')"/>
+      <param name="node/require_model" value="$(arg require_model)"/>
 
       <!-- Debug -->
       <param name="output/publish_debug_image" value="true"

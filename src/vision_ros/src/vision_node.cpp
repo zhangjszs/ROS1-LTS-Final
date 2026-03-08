@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cmath>
 #include <algorithm>
+#include <stdexcept>
 
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/imgproc.hpp>
@@ -29,17 +30,39 @@ VisionNode::VisionNode(ros::NodeHandle& nh, ros::NodeHandle& private_nh)
     : nh_(nh), private_nh_(private_nh) {
   loadParams();
 
+  const bool fallback_only = (backend_type_ == "fallback_only");
+  if (!fallback_only && require_model_ && inference_cfg_.model_path.empty()) {
+    ROS_FATAL("[vision_node] inference/model_path is empty while node/require_model=true. "
+              "Set model_path or launch with mode:=fallback_only.");
+    throw std::runtime_error("vision_node requires non-empty inference/model_path");
+  }
+
   // Initialize inference backend (graceful fallback if model missing)
-  backend_ = vision_core::createBackend(backend_type_);
-  if (backend_) {
-    if (!backend_->initialize(inference_cfg_)) {
-      ROS_WARN("[vision_node] Backend '%s' failed to initialize — running fallback only",
+  if (!fallback_only) {
+    backend_ = vision_core::createBackend(backend_type_);
+    if (backend_) {
+      if (!backend_->initialize(inference_cfg_)) {
+        if (require_model_) {
+          ROS_FATAL("[vision_node] Backend '%s' failed to initialize with model='%s' and "
+                    "require_model=true",
+                    backend_type_.c_str(), inference_cfg_.model_path.c_str());
+          throw std::runtime_error("vision_node backend initialization failed");
+        }
+        ROS_WARN("[vision_node] Backend '%s' failed to initialize — running fallback only",
+                 backend_type_.c_str());
+        backend_.reset();
+      }
+    } else {
+      if (require_model_) {
+        ROS_FATAL("[vision_node] Unsupported backend type '%s' with require_model=true",
+                  backend_type_.c_str());
+        throw std::runtime_error("vision_node backend type unsupported");
+      }
+      ROS_WARN("[vision_node] Unknown backend type '%s' — running fallback only",
                backend_type_.c_str());
-      backend_.reset();
     }
   } else {
-    ROS_WARN("[vision_node] Unknown backend type '%s' — running fallback only",
-             backend_type_.c_str());
+    backend_.reset();
   }
 
   // Initialize core components
@@ -66,9 +89,16 @@ VisionNode::VisionNode(ros::NodeHandle& nh, ros::NodeHandle& private_nh)
   image_sub_ = it_sub.subscribe(image_topic_, 1,
       &VisionNode::imageCallback, this);
 
-  ROS_INFO("[vision_node] Initialized — backend=%s, topic=%s",
+  const std::string runtime_mode =
+      (backend_ && backend_->isReady()) ? "onnx_inference" : "fallback_only";
+  ROS_INFO("[vision_node] Initialized — mode=%s backend=%s model_path='%s' image_topic=%s "
+           "tracker=%s fallback=%s",
+           runtime_mode.c_str(),
            backend_ ? backend_->backendName().c_str() : "none",
-           image_topic_.c_str());
+           inference_cfg_.model_path.c_str(),
+           image_topic_.c_str(),
+           tracker_enabled_ ? "on" : "off",
+           fallback_enabled_ ? "on" : "off");
 }
 
 void VisionNode::spin() {
@@ -81,6 +111,7 @@ void VisionNode::loadParams() {
   // Node params (YAML: node/)
   private_nh_.param<std::string>("node/image_topic", image_topic_, "/resize_img_out");
   private_nh_.param<double>("node/loop_rate", loop_rate_, 30.0);
+  private_nh_.param<bool>("node/require_model", require_model_, true);
   private_nh_.param<int>("detection/max_detections", max_detections_, 20);
   private_nh_.param<bool>("output/publish_debug_image", publish_debug_image_, true);
   private_nh_.param<double>("output/debug_image_rate", debug_image_rate_, 5.0);
@@ -151,12 +182,23 @@ void VisionNode::loadParams() {
   private_nh_.param<double>("fallback/min_contour_area", fallback_cfg_.min_area, 200.0);
   private_nh_.param<double>("fallback/max_contour_area", fallback_cfg_.max_area, 50000.0);
 
-  // Tracker config
+  // Tracker config (YAML: tracker/)
+  private_nh_.param<bool>("tracker/enabled", tracker_enabled_, true);
   float iou_thresh;
-  private_nh_.param<float>("tracker_iou_threshold", iou_thresh, 0.3f);
+  private_nh_.param<float>("tracker/iou_threshold", iou_thresh, 0.3f);
+  if (!private_nh_.hasParam("tracker/iou_threshold")) {
+    // Backward-compatible key
+    private_nh_.param<float>("tracker_iou_threshold", iou_thresh, iou_thresh);
+  }
   tracker_cfg_.iou_threshold = iou_thresh;
-  private_nh_.param<int>("tracker_max_miss", tracker_cfg_.max_miss_frames, 1);
-  private_nh_.param<int>("tracker_min_hits", tracker_cfg_.min_hits_to_output, 2);
+  private_nh_.param<int>("tracker/max_miss", tracker_cfg_.max_miss_frames, 1);
+  if (!private_nh_.hasParam("tracker/max_miss")) {
+    private_nh_.param<int>("tracker_max_miss", tracker_cfg_.max_miss_frames, tracker_cfg_.max_miss_frames);
+  }
+  private_nh_.param<int>("tracker/min_hits", tracker_cfg_.min_hits_to_output, 2);
+  if (!private_nh_.hasParam("tracker/min_hits")) {
+    private_nh_.param<int>("tracker_min_hits", tracker_cfg_.min_hits_to_output, tracker_cfg_.min_hits_to_output);
+  }
 }
 
 // ── Image Callback ───────────────────────────────────────────────
@@ -209,7 +251,10 @@ void VisionNode::processFrame(const cv::Mat& bgr, const std_msgs::Header& header
   auto fused = fuseDetections(model_dets, fallback_dets, qm.overall, state_);
 
   // 6. Temporal tracking
-  auto tracked = tracker_->update(fused);
+  std::vector<vision_core::Detection> tracked = fused;
+  if (tracker_enabled_) {
+    tracked = tracker_->update(fused);
+  }
 
   // 7. Top-K filter
   auto final_dets = vision_core::filterTopK(tracked, max_detections_);
@@ -411,6 +456,14 @@ void VisionNode::publishDiagnostics(
       "frame_count", std::to_string(frame_count_)));
   kvs.push_back(fsd_common::DiagnosticsHelper::KV(
       "backend", backend_ ? backend_->backendName() : "none"));
+  kvs.push_back(fsd_common::DiagnosticsHelper::KV(
+      "require_model", require_model_ ? "1" : "0"));
+  kvs.push_back(fsd_common::DiagnosticsHelper::KV(
+      "tracker_enabled", tracker_enabled_ ? "1" : "0"));
+  kvs.push_back(fsd_common::DiagnosticsHelper::KV(
+      "fallback_enabled", fallback_enabled_ ? "1" : "0"));
+  kvs.push_back(fsd_common::DiagnosticsHelper::KV(
+      "model_path", inference_cfg_.model_path.empty() ? "<empty>" : inference_cfg_.model_path));
 
   diag_helper_.PublishStatus("vision_node", "camera", level, message, kvs);
 }

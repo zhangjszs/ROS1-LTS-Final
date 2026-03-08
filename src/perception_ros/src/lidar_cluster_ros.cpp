@@ -3,10 +3,14 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <numeric>
 #include <ros/serialization.h>
 #include <xmlrpcpp/XmlRpcValue.h>
+#include <opencv2/core/types.hpp>
 #include <pcl_conversions/pcl_conversions.h>
+#include <tf2/exceptions.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <utility>
 
 namespace perception_ros {
@@ -106,7 +110,9 @@ bool LoadDoubleVector(const ros::NodeHandle &nh, const std::string &key, std::ve
 }  // namespace
 
 LidarClusterRos::LidarClusterRos(ros::NodeHandle nh, ros::NodeHandle private_nh)
-    : nh_(std::move(nh)), private_nh_(std::move(private_nh))
+    : nh_(std::move(nh)),
+      private_nh_(std::move(private_nh)),
+      tf_listener_(tf_buffer_)
 {
   loadParams();
   core_.Configure(config_);
@@ -117,6 +123,8 @@ LidarClusterRos::LidarClusterRos(ros::NodeHandle nh, ros::NodeHandle private_nh)
   no_ground_pub_ = nh_.advertise<sensor_msgs::PointCloud2>(no_ground_topic_, 1);
   cones_pub_ = nh_.advertise<sensor_msgs::PointCloud2>(cones_topic_, 1);
   detections_pub_ = nh_.advertise<autodrive_msgs::HUAT_ConeDetections>(detections_topic_, 10);
+  fused_detections_pub_ = nh_.advertise<autodrive_msgs::HUAT_FusedConeDetections>(
+      fused_detections_topic_, 10);
 
   // G6: Debug visualization (optional, default off)
   private_nh_.param<bool>("debug/publish_markers", debug_publish_markers_, false);
@@ -126,13 +134,42 @@ LidarClusterRos::LidarClusterRos(ros::NodeHandle nh, ros::NodeHandle private_nh)
     ROS_INFO("Debug cone markers enabled on perception/debug/cone_markers");
   }
 
-  // Vision color injection subscriber
-  if (vision_inject_enabled_) {
-    vision_sub_ = nh_.subscribe(
-        fsd_common::topic_contract::kVisionDetections, 1,
-        &LidarClusterRos::visionCallback, this);
-    ROS_INFO("[perception] Vision color injection enabled, subscribing to '%s'",
-             fsd_common::topic_contract::kVisionDetections);
+  if (fusion_enabled_) {
+    camera_info_sub_ = nh_.subscribe(
+        fusion_camera_info_topic_, 1, &LidarClusterRos::cameraInfoCallback, this);
+
+    fusion_cloud_sub_ = std::make_unique<message_filters::Subscriber<sensor_msgs::PointCloud2>>(
+        nh_, input_topic_, fusion_sync_queue_size_);
+    fusion_vision_sub_ = std::make_unique<
+        message_filters::Subscriber<autodrive_msgs::HUAT_VisionDetections>>(
+        nh_, fusion_vision_topic_, fusion_sync_queue_size_);
+
+    if (fusion_sync_policy_ == "exact") {
+      fusion_sync_exact_ =
+          std::make_unique<message_filters::Synchronizer<ExactFusionSyncPolicy>>(
+              ExactFusionSyncPolicy(fusion_sync_queue_size_),
+              *fusion_cloud_sub_,
+              *fusion_vision_sub_);
+      fusion_sync_exact_->registerCallback(
+          boost::bind(&LidarClusterRos::syncPairCallback, this, _1, _2));
+    } else {
+      fusion_sync_approx_ =
+          std::make_unique<message_filters::Synchronizer<ApproxFusionSyncPolicy>>(
+              ApproxFusionSyncPolicy(fusion_sync_queue_size_),
+              *fusion_cloud_sub_,
+              *fusion_vision_sub_);
+      fusion_sync_approx_->setMaxIntervalDuration(ros::Duration(fusion_sync_slop_sec_));
+      fusion_sync_approx_->registerCallback(
+          boost::bind(&LidarClusterRos::syncPairCallback, this, _1, _2));
+    }
+
+    ROS_INFO("[perception] Fusion enabled: topic='%s' camera_info='%s' policy=%s "
+             "queue=%d slop=%.3fs",
+             fusion_vision_topic_.c_str(),
+             fusion_camera_info_topic_.c_str(),
+             fusion_sync_policy_.c_str(),
+             fusion_sync_queue_size_,
+             fusion_sync_slop_sec_);
   }
 
   // Initialize distortion compensator V2 (支持time字段、预积分、外参)
@@ -201,6 +238,10 @@ void LidarClusterRos::loadParams()
   {
     ROS_DEBUG_STREAM("Did not load topics/detections. Standard value is: " << detections_topic_);
   }
+  private_nh_.param<std::string>(
+      "topics/fused_detections",
+      fused_detections_topic_,
+      std::string(fsd_common::topic_contract::kFusedConeDetections));
 
   // 性能优化选项
   if (!private_nh_.param<bool>("use_point_cloud_pool", use_point_cloud_pool_, false))
@@ -810,13 +851,76 @@ void LidarClusterRos::loadParams()
   private_nh_.param<double>("cone_size_typing/big_height_threshold", big_cone_height_threshold_, 0.45);
   private_nh_.param<double>("cone_size_typing/big_area_threshold", big_cone_area_threshold_, 0.09);
 
-  // Vision color injection params
-  private_nh_.param<bool>("vision_inject/enabled", vision_inject_enabled_, false);
-  private_nh_.param<double>("vision_inject/max_age_sec", vision_max_age_sec_, 0.2);
-  private_nh_.param<float>("vision_inject/min_confidence", vision_min_confidence_, 300.0f);
-  private_nh_.param<double>("vision_inject/match_angle_deg", vision_match_angle_deg_, 5.0);
-  private_nh_.param<double>("vision_inject/camera_hfov_deg", camera_hfov_deg_, 60.0);
-  private_nh_.param<int>("vision_inject/camera_width_px", camera_width_px_, 640);
+  // Fusion params (new contract). Legacy vision_inject keys are still supported.
+  const bool has_fusion_cfg = private_nh_.hasParam("fusion/enabled");
+  if (has_fusion_cfg) {
+    private_nh_.param<bool>("fusion/enabled", fusion_enabled_, true);
+    private_nh_.param<std::string>(
+        "fusion/topics/vision_detections", fusion_vision_topic_,
+        std::string(fsd_common::topic_contract::kVisionDetections));
+    private_nh_.param<std::string>(
+        "fusion/topics/camera_info", fusion_camera_info_topic_, "/camera/camera_info");
+    private_nh_.param<std::string>("fusion/camera_frame", fusion_camera_frame_, "");
+
+    private_nh_.param<std::string>("fusion/sync/policy", fusion_sync_policy_, "approximate");
+    private_nh_.param<int>("fusion/sync/queue_size", fusion_sync_queue_size_, 20);
+    private_nh_.param<double>("fusion/sync/slop_sec", fusion_sync_slop_sec_, 0.08);
+    private_nh_.param<int>("fusion/sync/max_cache_size", fusion_max_cache_size_, 100);
+
+    private_nh_.param<float>("fusion/projection/min_confidence", fusion_min_vision_confidence_, 300.0f);
+    private_nh_.param<double>("fusion/projection/max_pixel_distance", fusion_max_pixel_distance_, 80.0);
+    private_nh_.param<double>("fusion/projection/tf_timeout_sec", fusion_tf_timeout_sec_, 0.03);
+    private_nh_.param<bool>("fusion/projection/require_camera_info", fusion_require_camera_info_, true);
+    private_nh_.param<bool>("fusion/projection/require_tf", fusion_require_tf_, true);
+    private_nh_.param<bool>(
+        "fusion/projection/fallback_to_lidar_color", fusion_fallback_to_lidar_color_, true);
+
+    private_nh_.param<bool>(
+        "fusion/legacy_hfov_fallback/enable", fusion_legacy_hfov_fallback_enable_, false);
+    private_nh_.param<double>(
+        "fusion/legacy_hfov_fallback/match_angle_deg", fusion_legacy_match_angle_deg_, 5.0);
+    private_nh_.param<double>(
+        "fusion/legacy_hfov_fallback/camera_hfov_deg", fusion_legacy_camera_hfov_deg_, 60.0);
+    private_nh_.param<int>(
+        "fusion/legacy_hfov_fallback/camera_width_px", fusion_legacy_camera_width_px_, 640);
+  } else {
+    // Legacy compatibility: map old vision_inject parameters to fusion behavior.
+    private_nh_.param<bool>("vision_inject/enabled", fusion_enabled_, false);
+    private_nh_.param<float>("vision_inject/min_confidence", fusion_min_vision_confidence_, 300.0f);
+    private_nh_.param<double>("vision_inject/match_angle_deg", fusion_legacy_match_angle_deg_, 5.0);
+    private_nh_.param<double>(
+        "vision_inject/camera_hfov_deg", fusion_legacy_camera_hfov_deg_, 60.0);
+    private_nh_.param<int>(
+        "vision_inject/camera_width_px", fusion_legacy_camera_width_px_, 640);
+    fusion_sync_policy_ = "approximate";
+    fusion_sync_queue_size_ = 20;
+    fusion_sync_slop_sec_ = 0.2;
+    fusion_max_cache_size_ = 100;
+    fusion_vision_topic_ = fsd_common::topic_contract::kVisionDetections;
+    fusion_camera_info_topic_ = "/camera/camera_info";
+    fusion_require_camera_info_ = false;
+    fusion_require_tf_ = false;
+    fusion_fallback_to_lidar_color_ = true;
+    fusion_legacy_hfov_fallback_enable_ = true;
+    ROS_WARN_THROTTLE(5.0,
+        "[perception] Legacy vision_inject config detected. "
+        "Please migrate to fusion/* for calibrated projection fusion.");
+  }
+
+  if (fusion_sync_policy_ != "approximate" && fusion_sync_policy_ != "exact") {
+    ROS_WARN_STREAM("Invalid fusion/sync/policy='" << fusion_sync_policy_
+                    << "', fallback to approximate");
+    fusion_sync_policy_ = "approximate";
+  }
+  if (fusion_sync_queue_size_ < 1) {
+    fusion_sync_queue_size_ = 1;
+  }
+  if (fusion_max_cache_size_ < 10) {
+    fusion_max_cache_size_ = 10;
+  }
+  if (fusion_sync_slop_sec_ < 0.0) {
+    fusion_sync_slop_sec_ = 0.0;
+  }
 
   // ---- Cone Tracker 参数加载 ----
   private_nh_.param<bool>("tracker/enable", config_.tracker.enable, false);
@@ -1335,19 +1439,7 @@ void LidarClusterRos::publishOutput(const LidarClusterOutput &output)
         enable_cone_size_typing_,
         big_cone_height_threshold_,
         big_cone_area_threshold_);
-
-    if (vision_inject_enabled_) {
-      float angle_deg = static_cast<float>(
-          std::atan2(det.centroid.y, det.centroid.x) * 180.0 / M_PI);
-      uint8_t vision_color = matchVisionColor(angle_deg);
-      if (vision_color != 4) {  // 4 = NONE
-        detections.color_types.push_back(vision_color);
-      } else {
-        detections.color_types.push_back(geo_color);
-      }
-    } else {
-      detections.color_types.push_back(geo_color);
-    }
+    detections.color_types.push_back(geo_color);
 
     if (det.cluster)
     {
@@ -1360,6 +1452,12 @@ void LidarClusterRos::publishOutput(const LidarClusterOutput &output)
 
   detections_pub_.publish(detections);
   bytes_pub += ros::serialization::serializationLength(detections);
+
+  // Fused topic is published independently after raw detections are cached.
+  if (fusion_enabled_) {
+    pushRawFrame(detections);
+    tryPublishFusedForStamp(detections.header.stamp);
+  }
 
   // G3: Array length invariant — all parallel arrays must match
   {
@@ -1619,6 +1717,42 @@ void LidarClusterRos::publishDiagnostics(const LidarClusterOutput &output,
     kvs.push_back(DH::KV("perf_bytes_mean", std::to_string(snap.bytes_pub.mean)));
   }
 
+  // Fusion observability
+  kvs.push_back(DH::KV("fusion_enabled", fusion_enabled_ ? "1" : "0"));
+  if (fusion_enabled_) {
+    kvs.push_back(DH::KV("fusion_sync_policy", fusion_sync_policy_));
+    kvs.push_back(DH::KV("fusion_sync_queue_size", std::to_string(fusion_sync_queue_size_)));
+    kvs.push_back(DH::KV("fusion_sync_slop_sec", std::to_string(fusion_sync_slop_sec_)));
+    kvs.push_back(DH::KV("fusion_pair_total",
+        std::to_string(fusion_sync_pair_total_.load(std::memory_order_relaxed))));
+    kvs.push_back(DH::KV("fusion_pair_used",
+        std::to_string(fusion_sync_pair_used_.load(std::memory_order_relaxed))));
+    kvs.push_back(DH::KV("fusion_pair_dropped_no_raw",
+        std::to_string(fusion_sync_pair_dropped_no_raw_.load(std::memory_order_relaxed))));
+    kvs.push_back(DH::KV("fusion_pair_cache_evicted",
+        std::to_string(fusion_sync_pair_cache_evicted_.load(std::memory_order_relaxed))));
+    kvs.push_back(DH::KV("fusion_raw_cache_evicted",
+        std::to_string(fusion_raw_cache_evicted_.load(std::memory_order_relaxed))));
+    kvs.push_back(DH::KV("fusion_messages_published",
+        std::to_string(fusion_messages_published_.load(std::memory_order_relaxed))));
+    kvs.push_back(DH::KV("fusion_frames_no_sync",
+        std::to_string(fusion_frames_no_sync_.load(std::memory_order_relaxed))));
+    kvs.push_back(DH::KV("fusion_frames_camera_missing",
+        std::to_string(fusion_frames_camera_missing_.load(std::memory_order_relaxed))));
+    kvs.push_back(DH::KV("fusion_frames_tf_missing",
+        std::to_string(fusion_frames_tf_missing_.load(std::memory_order_relaxed))));
+    kvs.push_back(DH::KV("fusion_assoc_matched_total",
+        std::to_string(fusion_association_matched_total_.load(std::memory_order_relaxed))));
+    kvs.push_back(DH::KV("fusion_assoc_unmatched_total",
+        std::to_string(fusion_association_unmatched_total_.load(std::memory_order_relaxed))));
+    kvs.push_back(DH::KV("fusion_last_sync_delta_ms",
+        std::to_string(fusion_last_sync_delta_sec_ * 1000.0)));
+    kvs.push_back(DH::KV("fusion_last_matched", std::to_string(fusion_last_matched_count_)));
+    kvs.push_back(DH::KV("fusion_last_unmatched", std::to_string(fusion_last_unmatched_count_)));
+    kvs.push_back(DH::KV("fusion_camera_info_ready", fusion_last_camera_info_available_ ? "1" : "0"));
+    kvs.push_back(DH::KV("fusion_tf_available", fusion_last_tf_available_ ? "1" : "0"));
+  }
+
   diag_helper_.PublishStatus("perception_lidar", "perception_ros/lidar_cluster",
                              level, msg, kvs, last_header_.stamp);
 }
@@ -1665,40 +1799,409 @@ void LidarClusterRos::publishDebugMarkers(const LidarClusterOutput &output)
   debug_marker_pub_.publish(markers);
 }
 
-void LidarClusterRos::visionCallback(
-    const autodrive_msgs::HUAT_VisionDetections::ConstPtr& msg) {
-  std::lock_guard<std::mutex> lock(vision_mutex_);
-  last_vision_msg_ = msg;
+void LidarClusterRos::cameraInfoCallback(const sensor_msgs::CameraInfoConstPtr &msg)
+{
+  std::lock_guard<std::mutex> lock(fusion_mutex_);
+  fusion_camera_info_msg_ = msg;
+  fusion_camera_model_.fromCameraInfo(*msg);
+  fusion_camera_model_ready_ = true;
 }
 
-uint8_t LidarClusterRos::matchVisionColor(float cone_angle_deg) const {
-  std::lock_guard<std::mutex> lock(vision_mutex_);
-  if (!last_vision_msg_) return 4;  // NONE
+void LidarClusterRos::syncPairCallback(
+    const sensor_msgs::PointCloud2ConstPtr &cloud_msg,
+    const autodrive_msgs::HUAT_VisionDetections::ConstPtr &vision_msg)
+{
+  SyncedPairCacheEntry entry;
+  entry.cloud_stamp = cloud_msg->header.stamp;
+  entry.vision_stamp = vision_msg->header.stamp;
+  entry.sync_delta_sec = std::abs((entry.cloud_stamp - entry.vision_stamp).toSec());
+  entry.vision_msg = vision_msg;
 
-  double age = (ros::Time::now() - last_vision_msg_->header.stamp).toSec();
-  if (age > vision_max_age_sec_) return 4;
-
-  if (last_vision_msg_->image_quality >= 3) return 4;  // UNUSABLE
-
-  float best_angle_diff = static_cast<float>(vision_match_angle_deg_);
-  uint8_t best_color = 4;  // NONE
-
-  for (size_t i = 0; i < last_vision_msg_->x.size(); ++i) {
-    if (last_vision_msg_->confidences[i] < static_cast<int32_t>(vision_min_confidence_))
-      continue;
-
-    float px = static_cast<float>(last_vision_msg_->x[i]);
-    // 图像左侧 = 车辆左侧 = +Y = atan2正角，所以用 (0.5 - px/width) 保持符号一致
-    float vision_angle = (0.5f - px / camera_width_px_)
-                         * static_cast<float>(camera_hfov_deg_);
-
-    float diff = std::abs(vision_angle - cone_angle_deg);
-    if (diff < best_angle_diff) {
-      best_angle_diff = diff;
-      best_color = last_vision_msg_->color_types[i];
+  {
+    std::lock_guard<std::mutex> lock(fusion_mutex_);
+    fusion_synced_pairs_.push_back(entry);
+    while (fusion_synced_pairs_.size() > static_cast<size_t>(fusion_max_cache_size_))
+    {
+      fusion_synced_pairs_.pop_front();
+      fusion_sync_pair_cache_evicted_.fetch_add(1, std::memory_order_relaxed);
+      fusion_sync_pair_dropped_no_raw_.fetch_add(1, std::memory_order_relaxed);
     }
   }
+
+  fusion_sync_pair_total_.fetch_add(1, std::memory_order_relaxed);
+  fusion_last_sync_delta_sec_ = entry.sync_delta_sec;
+  tryPublishFusedForStamp(entry.cloud_stamp);
+}
+
+void LidarClusterRos::pushRawFrame(const autodrive_msgs::HUAT_ConeDetections &detections)
+{
+  RawFrameCacheEntry entry;
+  entry.stamp = detections.header.stamp;
+  entry.detections = detections;
+
+  std::lock_guard<std::mutex> lock(fusion_mutex_);
+  fusion_raw_cache_.push_back(std::move(entry));
+  while (fusion_raw_cache_.size() > static_cast<size_t>(fusion_max_cache_size_))
+  {
+    fusion_raw_cache_.pop_front();
+    fusion_raw_cache_evicted_.fetch_add(1, std::memory_order_relaxed);
+    fusion_frames_no_sync_.fetch_add(1, std::memory_order_relaxed);
+  }
+}
+
+void LidarClusterRos::tryPublishFusedForStamp(const ros::Time &stamp)
+{
+  RawFrameCacheEntry raw_entry;
+  SyncedPairCacheEntry sync_entry;
+  bool has_raw = false;
+  bool has_sync = false;
+
+  {
+    std::lock_guard<std::mutex> lock(fusion_mutex_);
+    auto raw_it = std::find_if(fusion_raw_cache_.begin(), fusion_raw_cache_.end(),
+                               [&stamp](const RawFrameCacheEntry &entry) {
+                                 return entry.stamp == stamp;
+                               });
+    if (raw_it != fusion_raw_cache_.end())
+    {
+      raw_entry = *raw_it;
+      has_raw = true;
+    }
+
+    auto sync_it = std::find_if(fusion_synced_pairs_.begin(), fusion_synced_pairs_.end(),
+                                [&stamp](const SyncedPairCacheEntry &entry) {
+                                  return entry.cloud_stamp == stamp;
+                                });
+    if (sync_it != fusion_synced_pairs_.end())
+    {
+      sync_entry = *sync_it;
+      has_sync = true;
+    }
+
+    if (!(has_raw && has_sync))
+    {
+      return;
+    }
+
+    fusion_raw_cache_.erase(raw_it);
+    fusion_synced_pairs_.erase(sync_it);
+  }
+
+  publishFusedDetections(raw_entry.detections, &sync_entry);
+  fusion_sync_pair_used_.fetch_add(1, std::memory_order_relaxed);
+}
+
+std::string LidarClusterRos::statusToReason(AssociationStatus status) const
+{
+  switch (status)
+  {
+    case AssociationStatus::MATCHED:
+      return "projected_bbox_match";
+    case AssociationStatus::NO_SYNC_PAIR:
+      return "sync_pair_missing";
+    case AssociationStatus::CAMERA_INFO_MISSING:
+      return "camera_info_missing";
+    case AssociationStatus::TF_MISSING:
+      return "tf_lookup_failed";
+    case AssociationStatus::BEHIND_CAMERA:
+      return "point_behind_camera";
+    case AssociationStatus::OUT_OF_IMAGE:
+      return "projection_out_of_image";
+    case AssociationStatus::LOW_VISION_CONFIDENCE:
+      return "vision_conf_below_threshold";
+    case AssociationStatus::NO_BBOX_MATCH:
+      return "no_bbox_match_after_projection";
+    case AssociationStatus::LEGACY_HFOV_MATCH:
+      return "legacy_hfov_match";
+  }
+  return "unknown";
+}
+
+uint8_t LidarClusterRos::matchLegacyHfovColor(
+    const autodrive_msgs::HUAT_VisionDetections &vision_msg,
+    const geometry_msgs::Point32 &cone_point,
+    int32_t *vision_confidence) const
+{
+  const size_t n = std::min(
+      std::min(vision_msg.x.size(), vision_msg.color_types.size()),
+      vision_msg.confidences.size());
+  if (n == 0 || fusion_legacy_camera_width_px_ <= 0)
+  {
+    return 4;
+  }
+
+  const float cone_angle_deg = static_cast<float>(
+      std::atan2(cone_point.y, cone_point.x) * 180.0 / M_PI);
+  float best_angle_diff = static_cast<float>(fusion_legacy_match_angle_deg_);
+  uint8_t best_color = 4;
+  int32_t best_conf = 0;
+
+  for (size_t i = 0; i < n; ++i)
+  {
+    const int32_t conf = vision_msg.confidences[i];
+    if (conf < static_cast<int32_t>(fusion_min_vision_confidence_))
+    {
+      continue;
+    }
+
+    const float px = static_cast<float>(vision_msg.x[i]);
+    const float vision_angle = (0.5f - px / static_cast<float>(fusion_legacy_camera_width_px_))
+                               * static_cast<float>(fusion_legacy_camera_hfov_deg_);
+    const float diff = std::abs(vision_angle - cone_angle_deg);
+    if (diff < best_angle_diff)
+    {
+      best_angle_diff = diff;
+      best_color = vision_msg.color_types[i];
+      best_conf = conf;
+    }
+  }
+
+  if (vision_confidence != nullptr)
+  {
+    *vision_confidence = best_conf;
+  }
   return best_color;
+}
+
+void LidarClusterRos::publishFusedDetections(
+    const autodrive_msgs::HUAT_ConeDetections &raw_detections,
+    const SyncedPairCacheEntry *sync_pair)
+{
+  autodrive_msgs::HUAT_FusedConeDetections fused;
+  fused.header = raw_detections.header;
+  fused.lidar_frame = raw_detections.header.frame_id.empty()
+      ? fsd_common::frame_contract::kVelodyne
+      : raw_detections.header.frame_id;
+  fused.lidar_stamp = raw_detections.header.stamp;
+
+  if (sync_pair != nullptr)
+  {
+    fused.vision_stamp = sync_pair->vision_stamp;
+    fused.sync_delta_sec = static_cast<float>(sync_pair->sync_delta_sec);
+  }
+  else
+  {
+    fused.vision_stamp = ros::Time(0);
+    fused.sync_delta_sec = 0.0f;
+  }
+
+  sensor_msgs::CameraInfoConstPtr camera_info_msg;
+  image_geometry::PinholeCameraModel camera_model;
+  bool camera_model_ready = false;
+  {
+    std::lock_guard<std::mutex> lock(fusion_mutex_);
+    camera_info_msg = fusion_camera_info_msg_;
+    camera_model = fusion_camera_model_;
+    camera_model_ready = fusion_camera_model_ready_;
+  }
+  fused.camera_info_available = camera_model_ready;
+  fusion_last_camera_info_available_ = camera_model_ready;
+
+  fused.camera_frame = fusion_camera_frame_;
+  if (fused.camera_frame.empty() && camera_info_msg)
+  {
+    fused.camera_frame = camera_info_msg->header.frame_id;
+  }
+  if (fused.camera_frame.empty())
+  {
+    fused.camera_frame = "camera";
+  }
+
+  geometry_msgs::TransformStamped lidar_to_camera_tf;
+  bool tf_available = false;
+  if (camera_model_ready)
+  {
+    try
+    {
+      lidar_to_camera_tf = tf_buffer_.lookupTransform(
+          fused.camera_frame, fused.lidar_frame, raw_detections.header.stamp,
+          ros::Duration(fusion_tf_timeout_sec_));
+      tf_available = true;
+    }
+    catch (const tf2::TransformException &ex)
+    {
+      ROS_WARN_THROTTLE(1.0, "[perception] fusion TF unavailable: %s", ex.what());
+      tf_available = false;
+    }
+  }
+  fused.tf_available = tf_available;
+  fusion_last_tf_available_ = tf_available;
+
+  const autodrive_msgs::HUAT_VisionDetections *vision_msg =
+      (sync_pair != nullptr) ? sync_pair->vision_msg.get() : nullptr;
+  const size_t vision_n = (vision_msg == nullptr)
+      ? 0
+      : std::min(std::min(vision_msg->x.size(), vision_msg->y.size()),
+                 std::min(vision_msg->color_types.size(), vision_msg->confidences.size()));
+  std::vector<bool> vision_used(vision_n, false);
+
+  const size_t n = raw_detections.points.size();
+  fused.points.reserve(n);
+  fused.obj_dist.reserve(n);
+  fused.lidar_confidences.reserve(n);
+  fused.lidar_color_types.reserve(n);
+  fused.track_ids.reserve(n);
+  fused.fused_color_types.reserve(n);
+  fused.vision_confidences.reserve(n);
+  fused.association_status.reserve(n);
+  fused.association_scores.reserve(n);
+  fused.association_reasons.reserve(n);
+
+  uint32_t matched_count = 0;
+  uint32_t unmatched_count = 0;
+
+  for (size_t i = 0; i < n; ++i)
+  {
+    fused.points.push_back(raw_detections.points[i]);
+    fused.obj_dist.push_back(i < raw_detections.obj_dist.size() ? raw_detections.obj_dist[i] : 0.0f);
+    fused.lidar_confidences.push_back(i < raw_detections.confidence.size() ? raw_detections.confidence[i] : 0.0f);
+    const uint8_t raw_color = i < raw_detections.color_types.size() ? raw_detections.color_types[i] : 4;
+    fused.lidar_color_types.push_back(raw_color);
+    fused.track_ids.push_back(i < raw_detections.track_ids.size() ? raw_detections.track_ids[i] : -1);
+
+    uint8_t fused_color = raw_color;
+    int32_t matched_conf = -1;
+    float score = 0.0f;
+    AssociationStatus status = AssociationStatus::NO_SYNC_PAIR;
+
+    if (vision_msg == nullptr)
+    {
+      status = AssociationStatus::NO_SYNC_PAIR;
+      fusion_frames_no_sync_.fetch_add(1, std::memory_order_relaxed);
+    }
+    else if (!camera_model_ready && fusion_require_camera_info_)
+    {
+      status = AssociationStatus::CAMERA_INFO_MISSING;
+      fusion_frames_camera_missing_.fetch_add(1, std::memory_order_relaxed);
+    }
+    else if (!tf_available && fusion_require_tf_)
+    {
+      status = AssociationStatus::TF_MISSING;
+      fusion_frames_tf_missing_.fetch_add(1, std::memory_order_relaxed);
+    }
+    else if (camera_model_ready && tf_available)
+    {
+      geometry_msgs::PointStamped point_lidar;
+      geometry_msgs::PointStamped point_camera;
+      point_lidar.header = raw_detections.header;
+      point_lidar.header.frame_id = fused.lidar_frame;
+      point_lidar.point.x = raw_detections.points[i].x;
+      point_lidar.point.y = raw_detections.points[i].y;
+      point_lidar.point.z = raw_detections.points[i].z;
+      tf2::doTransform(point_lidar, point_camera, lidar_to_camera_tf);
+
+      if (point_camera.point.z <= 0.0)
+      {
+        status = AssociationStatus::BEHIND_CAMERA;
+      }
+      else
+      {
+        const cv::Point2d uv = camera_model.project3dToPixel(
+            cv::Point3d(point_camera.point.x, point_camera.point.y, point_camera.point.z));
+        const int image_width = static_cast<int>(camera_model.fullResolution().width);
+        const int image_height = static_cast<int>(camera_model.fullResolution().height);
+        if (uv.x < 0.0 || uv.y < 0.0 ||
+            uv.x >= static_cast<double>(image_width) ||
+            uv.y >= static_cast<double>(image_height))
+        {
+          status = AssociationStatus::OUT_OF_IMAGE;
+        }
+        else
+        {
+          float best_dist = std::numeric_limits<float>::max();
+          int best_idx = -1;
+          bool saw_low_conf_candidate = false;
+          for (size_t j = 0; j < vision_n; ++j)
+          {
+            if (vision_used[j])
+            {
+              continue;
+            }
+            const double dx = static_cast<double>(vision_msg->x[j]) - uv.x;
+            const double dy = static_cast<double>(vision_msg->y[j]) - uv.y;
+            const float dist = static_cast<float>(std::sqrt(dx * dx + dy * dy));
+            if (dist > fusion_max_pixel_distance_)
+            {
+              continue;
+            }
+            const int32_t conf = vision_msg->confidences[j];
+            if (conf < static_cast<int32_t>(fusion_min_vision_confidence_))
+            {
+              saw_low_conf_candidate = true;
+              continue;
+            }
+            if (dist < best_dist)
+            {
+              best_dist = dist;
+              best_idx = static_cast<int>(j);
+            }
+          }
+
+          if (best_idx >= 0)
+          {
+            const size_t idx = static_cast<size_t>(best_idx);
+            vision_used[idx] = true;
+            fused_color = vision_msg->color_types[idx];
+            matched_conf = vision_msg->confidences[idx];
+            status = AssociationStatus::MATCHED;
+            score = std::max(0.0f, 1.0f - best_dist / static_cast<float>(fusion_max_pixel_distance_));
+          }
+          else
+          {
+            status = saw_low_conf_candidate
+                ? AssociationStatus::LOW_VISION_CONFIDENCE
+                : AssociationStatus::NO_BBOX_MATCH;
+          }
+        }
+      }
+    }
+
+    if (status != AssociationStatus::MATCHED &&
+        status != AssociationStatus::LEGACY_HFOV_MATCH &&
+        fusion_legacy_hfov_fallback_enable_ &&
+        vision_msg != nullptr)
+    {
+      const uint8_t legacy_color = matchLegacyHfovColor(*vision_msg, raw_detections.points[i], &matched_conf);
+      if (legacy_color != 4)
+      {
+        fused_color = legacy_color;
+        status = AssociationStatus::LEGACY_HFOV_MATCH;
+        score = 0.1f;
+      }
+    }
+
+    if (!fusion_fallback_to_lidar_color_ &&
+        status != AssociationStatus::MATCHED &&
+        status != AssociationStatus::LEGACY_HFOV_MATCH)
+    {
+      fused_color = 4;
+    }
+
+    if (status == AssociationStatus::MATCHED || status == AssociationStatus::LEGACY_HFOV_MATCH)
+    {
+      ++matched_count;
+      fusion_association_matched_total_.fetch_add(1, std::memory_order_relaxed);
+    }
+    else
+    {
+      ++unmatched_count;
+      fusion_association_unmatched_total_.fetch_add(1, std::memory_order_relaxed);
+    }
+
+    fused.fused_color_types.push_back(fused_color);
+    fused.vision_confidences.push_back(matched_conf);
+    fused.association_status.push_back(static_cast<uint8_t>(status));
+    fused.association_scores.push_back(score);
+    fused.association_reasons.push_back(statusToReason(status));
+  }
+
+  fused.matched_count = matched_count;
+  fused.unmatched_count = unmatched_count;
+  fusion_last_matched_count_ = static_cast<int>(matched_count);
+  fusion_last_unmatched_count_ = static_cast<int>(unmatched_count);
+
+  fused_detections_pub_.publish(fused);
+  fusion_messages_published_.fetch_add(1, std::memory_order_relaxed);
 }
 
 }  // namespace perception_ros

@@ -4,13 +4,24 @@
 #include <cstdint>
 #include <atomic>
 #include <mutex>
+#include <deque>
+#include <memory>
 
 #include <ros/ros.h>
 #include <autodrive_msgs/HUAT_ConeDetections.h>
+#include <autodrive_msgs/HUAT_FusedConeDetections.h>
 #include <autodrive_msgs/HUAT_VisionDetections.h>
+#include <sensor_msgs/CameraInfo.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <std_msgs/Header.h>
 #include <visualization_msgs/MarkerArray.h>
+#include <image_geometry/pinhole_camera_model.h>
+#include <message_filters/subscriber.h>
+#include <message_filters/synchronizer.h>
+#include <message_filters/sync_policies/approximate_time.h>
+#include <message_filters/sync_policies/exact_time.h>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
 
 #include <perception_core/lidar_cluster_core.hpp>
 #include <perception_ros/perf_stats.hpp>
@@ -36,6 +47,35 @@ class LidarClusterRos {
   double LegacyPollHz() const;
 
  private:
+  using ApproxFusionSyncPolicy = message_filters::sync_policies::ApproximateTime<
+      sensor_msgs::PointCloud2, autodrive_msgs::HUAT_VisionDetections>;
+  using ExactFusionSyncPolicy = message_filters::sync_policies::ExactTime<
+      sensor_msgs::PointCloud2, autodrive_msgs::HUAT_VisionDetections>;
+
+  struct SyncedPairCacheEntry {
+    ros::Time cloud_stamp;
+    ros::Time vision_stamp;
+    double sync_delta_sec = 0.0;
+    autodrive_msgs::HUAT_VisionDetections::ConstPtr vision_msg;
+  };
+
+  struct RawFrameCacheEntry {
+    ros::Time stamp;
+    autodrive_msgs::HUAT_ConeDetections detections;
+  };
+
+  enum class AssociationStatus : uint8_t {
+    MATCHED = 0,
+    NO_SYNC_PAIR = 1,
+    CAMERA_INFO_MISSING = 2,
+    TF_MISSING = 3,
+    BEHIND_CAMERA = 4,
+    OUT_OF_IMAGE = 5,
+    LOW_VISION_CONFIDENCE = 6,
+    NO_BBOX_MATCH = 7,
+    LEGACY_HFOV_MATCH = 8,
+  };
+
   void loadParams();
   void applyModePreset();
   void pointCallback(const sensor_msgs::PointCloud2ConstPtr &msg);
@@ -47,6 +87,18 @@ class LidarClusterRos {
   void publishDebugMarkers(const LidarClusterOutput &output);
   void validateStamp(std_msgs::Header &header);
 
+  void cameraInfoCallback(const sensor_msgs::CameraInfoConstPtr &msg);
+  void syncPairCallback(const sensor_msgs::PointCloud2ConstPtr &cloud_msg,
+                        const autodrive_msgs::HUAT_VisionDetections::ConstPtr &vision_msg);
+  void pushRawFrame(const autodrive_msgs::HUAT_ConeDetections &detections);
+  void tryPublishFusedForStamp(const ros::Time &stamp);
+  void publishFusedDetections(const autodrive_msgs::HUAT_ConeDetections &raw_detections,
+                              const SyncedPairCacheEntry *sync_pair);
+  std::string statusToReason(AssociationStatus status) const;
+  uint8_t matchLegacyHfovColor(const autodrive_msgs::HUAT_VisionDetections &vision_msg,
+                               const geometry_msgs::Point32 &cone_point,
+                               int32_t *vision_confidence) const;
+
   ros::NodeHandle nh_;
   ros::NodeHandle private_nh_;
   ros::Subscriber sub_point_cloud_;
@@ -55,6 +107,8 @@ class LidarClusterRos {
   ros::Publisher no_ground_pub_;
   ros::Publisher cones_pub_;
   ros::Publisher detections_pub_;
+  ros::Publisher fused_detections_pub_;
+  ros::Subscriber camera_info_sub_;
 
   LidarClusterConfig config_;
   lidar_cluster core_;
@@ -77,6 +131,7 @@ class LidarClusterRos {
   std::string no_ground_topic_;
   std::string cones_topic_;
   std::string detections_topic_;
+  std::string fused_detections_topic_;
 
   bool perf_enabled_ = true;
   size_t perf_window_ = 300;
@@ -130,19 +185,57 @@ class LidarClusterRos {
   bool debug_publish_markers_ = false;         // G6: 调试标记发布开关
   ros::Publisher debug_marker_pub_;            // G6: bbox marker publisher
 
-  // ── Vision color injection ──────────────────────────────────────
-  bool vision_inject_enabled_ = false;
-  ros::Subscriber vision_sub_;
-  autodrive_msgs::HUAT_VisionDetections::ConstPtr last_vision_msg_;
-  mutable std::mutex vision_mutex_;
-  double vision_max_age_sec_ = 0.2;
-  float vision_min_confidence_ = 300.0f;
-  double vision_match_angle_deg_ = 5.0;
-  double camera_hfov_deg_ = 60.0;
-  int camera_width_px_ = 640;
+  // ── LiDAR-Vision fusion (timestamp sync + calibrated projection) ──
+  bool fusion_enabled_ = true;
+  bool fusion_require_camera_info_ = true;
+  bool fusion_require_tf_ = true;
+  bool fusion_fallback_to_lidar_color_ = true;
+  bool fusion_legacy_hfov_fallback_enable_ = false;
+  std::string fusion_vision_topic_ = fsd_common::topic_contract::kVisionDetections;
+  std::string fusion_camera_info_topic_ = "/camera/camera_info";
+  std::string fusion_camera_frame_;
+  std::string fusion_sync_policy_ = "approximate";
+  int fusion_sync_queue_size_ = 20;
+  int fusion_max_cache_size_ = 100;
+  double fusion_sync_slop_sec_ = 0.08;
+  double fusion_tf_timeout_sec_ = 0.03;
+  double fusion_max_pixel_distance_ = 80.0;
+  float fusion_min_vision_confidence_ = 300.0f;
+  double fusion_legacy_match_angle_deg_ = 5.0;
+  double fusion_legacy_camera_hfov_deg_ = 60.0;
+  int fusion_legacy_camera_width_px_ = 640;
 
-  void visionCallback(const autodrive_msgs::HUAT_VisionDetections::ConstPtr& msg);
-  uint8_t matchVisionColor(float cone_angle_deg) const;
+  std::unique_ptr<message_filters::Subscriber<sensor_msgs::PointCloud2>> fusion_cloud_sub_;
+  std::unique_ptr<message_filters::Subscriber<autodrive_msgs::HUAT_VisionDetections>> fusion_vision_sub_;
+  std::unique_ptr<message_filters::Synchronizer<ApproxFusionSyncPolicy>> fusion_sync_approx_;
+  std::unique_ptr<message_filters::Synchronizer<ExactFusionSyncPolicy>> fusion_sync_exact_;
+
+  std::deque<SyncedPairCacheEntry> fusion_synced_pairs_;
+  std::deque<RawFrameCacheEntry> fusion_raw_cache_;
+  sensor_msgs::CameraInfoConstPtr fusion_camera_info_msg_;
+  image_geometry::PinholeCameraModel fusion_camera_model_;
+  bool fusion_camera_model_ready_ = false;
+  mutable std::mutex fusion_mutex_;
+
+  tf2_ros::Buffer tf_buffer_;
+  tf2_ros::TransformListener tf_listener_;
+
+  std::atomic<uint64_t> fusion_sync_pair_total_{0};
+  std::atomic<uint64_t> fusion_sync_pair_used_{0};
+  std::atomic<uint64_t> fusion_sync_pair_dropped_no_raw_{0};
+  std::atomic<uint64_t> fusion_sync_pair_cache_evicted_{0};
+  std::atomic<uint64_t> fusion_raw_cache_evicted_{0};
+  std::atomic<uint64_t> fusion_messages_published_{0};
+  std::atomic<uint64_t> fusion_frames_no_sync_{0};
+  std::atomic<uint64_t> fusion_frames_camera_missing_{0};
+  std::atomic<uint64_t> fusion_frames_tf_missing_{0};
+  std::atomic<uint64_t> fusion_association_matched_total_{0};
+  std::atomic<uint64_t> fusion_association_unmatched_total_{0};
+  double fusion_last_sync_delta_sec_ = 0.0;
+  int fusion_last_matched_count_ = 0;
+  int fusion_last_unmatched_count_ = 0;
+  bool fusion_last_camera_info_available_ = false;
+  bool fusion_last_tf_available_ = false;
 };
 
 }  // namespace perception_ros

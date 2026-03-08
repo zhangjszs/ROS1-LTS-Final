@@ -1,0 +1,7 @@
+# Copy to vision.local.yaml and set local machine paths/topics.
+
+inference:
+  model_path: "/abs/path/to/your_model.onnx"
+
+node:
+  image_topic: "/camera/image_raw"

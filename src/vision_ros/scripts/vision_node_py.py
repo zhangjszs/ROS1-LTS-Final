@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import sys
 import time
 
 import cv2
@@ -48,6 +49,54 @@ class Detection:
     self.color_type = color_type
 
 
+class TemporalTracker:
+  def __init__(self, iou_threshold, max_miss, min_hits):
+    self.iou_threshold = float(iou_threshold)
+    self.max_miss = int(max_miss)
+    self.min_hits = int(min_hits)
+    self.tracks = []
+
+  @staticmethod
+  def _iou(a, b):
+    ax1, ay1 = a.x - a.w * 0.5, a.y - a.h * 0.5
+    ax2, ay2 = a.x + a.w * 0.5, a.y + a.h * 0.5
+    bx1, by1 = b.x - b.w * 0.5, b.y - b.h * 0.5
+    bx2, by2 = b.x + b.w * 0.5, b.y + b.h * 0.5
+    ix1, iy1 = max(ax1, bx1), max(ay1, by1)
+    ix2, iy2 = min(ax2, bx2), min(ay2, by2)
+    inter = max(0.0, ix2 - ix1) * max(0.0, iy2 - iy1)
+    union = a.w * a.h + b.w * b.h - inter
+    return inter / union if union > 0.0 else 0.0
+
+  def update(self, detections):
+    for track in self.tracks:
+      track["misses"] += 1
+
+    matched = [False] * len(detections)
+    for track in self.tracks:
+      best_iou = 0.0
+      best_idx = -1
+      for idx, det in enumerate(detections):
+        if matched[idx]:
+          continue
+        iou = self._iou(track["det"], det)
+        if iou > best_iou:
+          best_iou = iou
+          best_idx = idx
+      if best_idx >= 0 and best_iou >= self.iou_threshold:
+        track["det"] = detections[best_idx]
+        track["hits"] += 1
+        track["misses"] = 0
+        matched[best_idx] = True
+
+    for idx, det in enumerate(detections):
+      if not matched[idx]:
+        self.tracks.append({"det": det, "hits": 1, "misses": 0})
+
+    self.tracks = [t for t in self.tracks if t["misses"] <= self.max_miss]
+    return [t["det"] for t in self.tracks if t["hits"] >= self.min_hits]
+
+
 class VisionNodePy:
   def __init__(self):
     self.bridge = CvBridge()
@@ -64,6 +113,11 @@ class VisionNodePy:
 
     self._load_params()
     self._init_backend()
+    if not self.backend_ready and self.fallback_enabled:
+      self.backend_name = "fallback_hsv"
+    self.tracker = TemporalTracker(
+      self.tracker_iou_threshold, self.tracker_max_miss, self.tracker_min_hits
+    )
 
     self.detections_pub = rospy.Publisher(
       "/perception/vision/detections", HUAT_VisionDetections, queue_size=1
@@ -79,14 +133,18 @@ class VisionNodePy:
     self.image_sub = rospy.Subscriber(self.image_topic, Image, self._image_callback, queue_size=1)
 
     rospy.loginfo(
-      "[vision_node_py] Initialized - backend=%s, topic=%s",
+      "[vision_node_py] Initialized - backend=%s, mode=%s, topic=%s, tracker=%s, fallback=%s",
       self.backend_name,
+      "onnx_inference" if self.backend_ready else "fallback_only",
       self.image_topic,
+      "on" if self.tracker_enabled else "off",
+      "on" if self.fallback_enabled else "off",
     )
 
   def _load_params(self):
-    self.image_topic = rospy.get_param("~node/image_topic", "/resize_img_out")
+    self.image_topic = rospy.get_param("~node/image_topic", "/camera/image_raw")
     self.max_detections = int(rospy.get_param("~detection/max_detections", 20))
+    self.require_model = bool(rospy.get_param("~node/require_model", True))
 
     self.backend_type = rospy.get_param("~inference/backend_type", "onnx")
     self.model_path = rospy.get_param("~inference/model_path", "")
@@ -101,6 +159,15 @@ class VisionNodePy:
     self.diag_rate_hz = 2.0
 
     self.confidence_scale = 1000.0
+    self.fallback_enabled = bool(rospy.get_param("~fallback/enabled", True))
+    self.model_confidence_floor = float(rospy.get_param("~fallback/model_confidence_floor", 0.3))
+    self.fallback_min_area = float(rospy.get_param("~fallback/min_contour_area", 200.0))
+    self.fallback_max_area = float(rospy.get_param("~fallback/max_contour_area", 50000.0))
+
+    self.tracker_enabled = bool(rospy.get_param("~tracker/enabled", True))
+    self.tracker_iou_threshold = float(rospy.get_param("~tracker/iou_threshold", 0.3))
+    self.tracker_max_miss = int(rospy.get_param("~tracker/max_miss", 1))
+    self.tracker_min_hits = int(rospy.get_param("~tracker/min_hits", 2))
 
     self.degraded_frame_count = int(rospy.get_param("~node/degraded_frame_count", 3))
     self.poor_frame_count = int(rospy.get_param("~node/poor_frame_count", 5))
@@ -158,18 +225,33 @@ class VisionNodePy:
     self.input_name = ""
     self.output_name = ""
 
+    if self.backend_type == "fallback_only":
+      self.backend_name = "fallback_hsv"
+      return
+
     if self.backend_type != "onnx":
-      rospy.logwarn(
-        "[vision_node_py] backend_type=%s is not supported in Python node, running fallback only",
-        self.backend_type,
-      )
+      if self.require_model:
+        rospy.logfatal(
+          "[vision_node_py] Unsupported backend_type=%s with node/require_model=true",
+          self.backend_type,
+        )
+        raise RuntimeError("unsupported backend for required-model mode")
+      rospy.logwarn("[vision_node_py] backend_type=%s unsupported, fallback_only", self.backend_type)
       return
 
     if ort is None:
+      if self.require_model:
+        rospy.logfatal("[vision_node_py] onnxruntime not installed with node/require_model=true")
+        raise RuntimeError("onnxruntime missing")
       rospy.logwarn("[vision_node_py] onnxruntime not installed, running fallback only")
       return
 
     if not self.model_path:
+      if self.require_model:
+        rospy.logfatal(
+          "[vision_node_py] inference/model_path is empty while node/require_model=true"
+        )
+        raise RuntimeError("model_path required but empty")
       rospy.logwarn("[vision_node_py] model_path is empty, running fallback only")
       return
 
@@ -188,6 +270,9 @@ class VisionNodePy:
       self.backend_ready = True
       self.backend_name = "onnx"
     except Exception as exc:
+      if self.require_model:
+        rospy.logfatal("[vision_node_py] Failed to initialize ONNX backend: %s", str(exc))
+        raise
       rospy.logwarn("[vision_node_py] Failed to initialize ONNX backend: %s", str(exc))
 
   def spin(self):
@@ -209,7 +294,7 @@ class VisionNodePy:
 
     enhanced = self._enhance_image(bgr, quality_metrics["overall"])
 
-    detections = []
+    model_detections = []
     inference_us = 0
     skip_model = (
       quality_metrics["overall"] == QUALITY_UNUSABLE
@@ -219,8 +304,19 @@ class VisionNodePy:
 
     if not skip_model and self.backend_ready:
       t0 = time.perf_counter()
-      detections = self._detect_onnx(enhanced, bgr.shape[1], bgr.shape[0])
+      model_detections = self._detect_onnx(enhanced, bgr.shape[1], bgr.shape[0])
       inference_us = int((time.perf_counter() - t0) * 1e6)
+
+    fallback_detections = []
+    if self.fallback_enabled:
+      fallback_detections = self._detect_fallback_hsv(enhanced)
+
+    detections = self._fuse_detections(
+      model_detections, fallback_detections, quality_metrics["overall"], self.state
+    )
+
+    if self.tracker_enabled:
+      detections = self.tracker.update(detections)
 
     detections = self._filter_topk(detections, self.max_detections)
 
@@ -320,6 +416,88 @@ class VisionNodePy:
         out = cv2.addWeighted(out, 1.5, blurred, -0.5, 0)
 
     return out
+
+  def _detect_fallback_hsv(self, bgr):
+    if bgr is None or bgr.size == 0:
+      return []
+
+    hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
+    results = []
+    kernels = (
+      cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)),
+      cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)),
+    )
+    # HSV bounds are intentionally broad for degraded-light fallback.
+    ranges = [
+      (BLUE, np.array([90, 60, 60], dtype=np.uint8), np.array([140, 255, 255], dtype=np.uint8)),
+      (
+        YELLOW,
+        np.array([15, 60, 60], dtype=np.uint8),
+        np.array([40, 255, 255], dtype=np.uint8),
+      ),
+      (
+        ORANGE_SMALL,
+        np.array([5, 80, 80], dtype=np.uint8),
+        np.array([20, 255, 255], dtype=np.uint8),
+      ),
+    ]
+    for color_type, lower, upper in ranges:
+      mask = cv2.inRange(hsv, lower, upper)
+      mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernels[0])
+      mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernels[1])
+      contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+      for contour in contours:
+        area = float(cv2.contourArea(contour))
+        if area < self.fallback_min_area or area > self.fallback_max_area:
+          continue
+        x, y, w, h = cv2.boundingRect(contour)
+        if w <= 0 or h <= 0:
+          continue
+        aspect = float(w) / float(h)
+        if aspect < 0.25 or aspect > 2.5:
+          continue
+        fill_ratio = area / float(w * h)
+        if fill_ratio < 0.2:
+          continue
+        confidence = min(1.0, max(0.2, 0.3 * fill_ratio + 0.2))
+        results.append(
+          Detection(
+            x=float(x) + float(w) * 0.5,
+            y=float(y) + float(h) * 0.5,
+            w=float(w),
+            h=float(h),
+            confidence=confidence,
+            class_id=int(color_type),
+            color_type=int(color_type),
+          )
+        )
+    return results
+
+  @staticmethod
+  def _fuse_detections(model_dets, fallback_dets, quality, state):
+    if state in (STATE_VISION_LOST, STATE_FALLBACK):
+      return fallback_dets
+
+    if quality == QUALITY_GOOD and model_dets and state == STATE_NORMAL:
+      return model_dets
+
+    if quality == QUALITY_UNUSABLE:
+      return fallback_dets
+
+    merged = list(model_dets)
+    for fallback_det in fallback_dets:
+      overlap = False
+      for model_det in model_dets:
+        dx = fallback_det.x - model_det.x
+        dy = fallback_det.y - model_det.y
+        dist = float(np.hypot(dx, dy))
+        avg_size = (model_det.w + model_det.h + fallback_det.w + fallback_det.h) * 0.25
+        if dist < avg_size * 0.5:
+          overlap = True
+          break
+      if not overlap:
+        merged.append(fallback_det)
+    return merged
 
   def _detect_onnx(self, image_bgr, src_w, src_h):
     if not self.backend_ready or self.session is None:
@@ -529,6 +707,10 @@ class VisionNodePy:
       KeyValue(key="brightness", value=str(float(quality_metrics["brightness"]))),
       KeyValue(key="frame_count", value=str(self.frame_count)),
       KeyValue(key="backend", value=self.backend_name),
+      KeyValue(key="require_model", value="1" if self.require_model else "0"),
+      KeyValue(key="tracker_enabled", value="1" if self.tracker_enabled else "0"),
+      KeyValue(key="fallback_enabled", value="1" if self.fallback_enabled else "0"),
+      KeyValue(key="model_path", value=self.model_path if self.model_path else "<empty>"),
     ]
 
     status = DiagnosticStatus()
@@ -620,7 +802,11 @@ class VisionNodePy:
 
 def main():
   rospy.init_node("vision_node")
-  node = VisionNodePy()
+  try:
+    node = VisionNodePy()
+  except Exception as exc:
+    rospy.logfatal("[vision_node_py] startup failed: %s", str(exc))
+    sys.exit(2)
   node.spin()
 
 

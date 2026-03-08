@@ -48,5 +48,13 @@ output:
 
 # --- Node ---
 node:
-  image_topic: "/resize_img_out"
+  image_topic: "/camera/image_raw"
   loop_rate: 30
+  require_model: true           # fail-fast when backend requires model_path but it's empty
+
+# --- Tracker ---
+tracker:
+  enabled: true
+  iou_threshold: 0.3
+  max_miss: 1
+  min_hits: 2

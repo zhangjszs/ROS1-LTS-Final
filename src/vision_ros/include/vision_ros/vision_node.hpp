@@ -87,8 +87,10 @@ private:
   float confidence_scale_ = 1000.0f;
   bool publish_debug_image_ = true;
   double debug_image_rate_ = 5.0;
+  bool require_model_ = true;
   bool fallback_enabled_ = true;
   float model_confidence_floor_ = 0.3f;
+  bool tracker_enabled_ = true;
   int degraded_frame_count_ = 3;
   int poor_frame_count_ = 5;
   int unusable_frame_count_ = 10;

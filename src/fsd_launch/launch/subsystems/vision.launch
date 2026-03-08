@@ -5,11 +5,13 @@
 <launch>
   <arg name="mission" default="track"/>
   <arg name="mode" default="standard"/>
-  <arg name="impl" default="py"/>
+  <arg name="impl" default="cpp"/>
   <arg name="debug" default="false"/>
-  <arg name="image_topic" default="/resize_img_out"/>
+  <arg name="image_topic" default="/camera/image_raw"/>
+  <arg name="model_path" default=""/>
+  <arg name="require_model" default="true"/>
   <arg name="vehicle" default="A13"/>
-  <arg name="vehicle_config" default="" doc="Vehicle overlay"/>
+  <arg name="vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/vision.yaml" doc="Vehicle overlay"/>
   <arg name="vehicle_local_config" default="" doc="Local override"/>
 
   <include file="$(find vision_ros)/launch/vision.launch">
@@ -18,6 +20,8 @@
     <arg name="impl" value="$(arg impl)"/>
     <arg name="debug" value="$(arg debug)"/>
     <arg name="image_topic" value="$(arg image_topic)"/>
+    <arg name="model_path" value="$(arg model_path)"/>
+    <arg name="require_model" value="$(arg require_model)"/>
     <arg name="extra_config" value="$(arg vehicle_config)"/>
     <arg name="extra_local_config" value="$(arg vehicle_local_config)"/>
   </include>

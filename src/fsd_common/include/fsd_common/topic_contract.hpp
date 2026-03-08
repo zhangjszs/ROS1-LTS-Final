@@ -11,6 +11,7 @@ inline constexpr const char *kApproachingGoal = "planning/skidpad/approaching_go
 
 // ── Perception / Localization ───────────────────────────────────
 inline constexpr const char *kConeDetections = "perception/lidar_cluster/detections";
+inline constexpr const char *kFusedConeDetections = "perception/fusion/detections";
 inline constexpr const char *kConeMap = "localization/cone_map";
 
 // ── Vision ────────────────────────────────────────────────────────

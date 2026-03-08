@@ -19,6 +19,7 @@ add_message_files(  # Tell catkin which custom message files to include
   HUAT_CarState.msg
   HUAT_Cone.msg
   HUAT_ConeDetections.msg
+  HUAT_FusedConeDetections.msg
   HUAT_ConeMap.msg
   HUAT_HighSpeedViz.msg
   HUAT_InsP2.msg

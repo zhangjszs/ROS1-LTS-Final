@@ -1,0 +1,16 @@
+# Vehicle-specific vision overlay for A13.
+# Loaded after vision_ros/config/vision_base.yaml + mission overlay.
+
+inference:
+  # class_id -> color enum (0:BLUE,1:YELLOW,2:ORANGE_SMALL,3:ORANGE_BIG,4:NONE,5:RED)
+  class_to_color: [5, 0, 1]
+
+detection:
+  conf_threshold: 0.45
+  max_detections: 50
+
+tracker:
+  enabled: true
+  iou_threshold: 0.3
+  max_miss: 1
+  min_hits: 2
