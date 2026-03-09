@@ -1,24 +1,22 @@
 #ifndef CONTROL_CORE_CONTROLLER_BASE_HPP_
 #define CONTROL_CORE_CONTROLLER_BASE_HPP_
 
+#include "control_core/types.hpp"
+
 #include <cmath>
 #include <vector>
 
-#include "control_core/types.hpp"
+namespace control_core {
 
-namespace control_core
-{
-
-class ControllerBase
-{
-public:
+class ControllerBase {
+ public:
   virtual ~ControllerBase() = default;
 
-  void SetParams(const ControlParams &params);
-  virtual void UpdateCarState(const CarState &state);
-  void UpdatePath(const std::vector<Position> &path);
-  void UpdateTargetSpeeds(const std::vector<double> &speeds);
-  void UpdateCurvatures(const std::vector<double> &curvatures);
+  void SetParams(const ControlParams& params);
+  virtual void UpdateCarState(const CarState& state);
+  void UpdatePath(const std::vector<Position>& path);
+  void UpdateTargetSpeeds(const std::vector<double>& speeds);
+  void UpdateCurvatures(const std::vector<double>& curvatures);
   void SetFinishSignal(bool finish_signal);
 
   ControlOutput ComputeOutput();
@@ -26,7 +24,7 @@ public:
 
   bool HasPath() const { return !path_coordinate_.empty(); }
 
-protected:
+ protected:
   virtual int ComputeSteering() = 0;
   virtual int ComputePedal() = 0;
   virtual int ComputeBrake() = 0;
@@ -155,11 +153,11 @@ protected:
   double default_high_speed_threshold_{2.0};
 
   // B27: active braking tuning constants
-  double brake_kp_{40.0};            // 制动比例增益
-  double brake_max_{80.0};           // 最大制动力
-  double brake_speed_margin_{0.5};   // 超速容忍量 [m/s]
+  double brake_kp_{40.0};           // 制动比例增益
+  double brake_max_{80.0};          // 最大制动力
+  double brake_speed_margin_{0.5};  // 超速容忍量 [m/s]
 };
 
-} // namespace control_core
+}  // namespace control_core
 
-#endif // CONTROL_CORE_CONTROLLER_BASE_HPP_
+#endif  // CONTROL_CORE_CONTROLLER_BASE_HPP_

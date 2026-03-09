@@ -1,5 +1,6 @@
-#include <ros/ros.h>
 #include "vision_ros/vision_node.hpp"
+
+#include <ros/ros.h>
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "vision_node");

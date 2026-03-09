@@ -1,26 +1,21 @@
-#include <localization_core/imu_state_estimator.hpp>
-
 #include <cmath>
+
+#include <localization_core/imu_state_estimator.hpp>
 
 namespace localization_core {
 namespace {
 constexpr double kDegToRad = M_PI / 180.0;
 }
 
-ImuStateEstimator::ImuStateEstimator(const ImuStateEstimatorParams &params)
-    : params_(params)
-{
+ImuStateEstimator::ImuStateEstimator(const ImuStateEstimatorParams& params) : params_(params) {
   x_.setZero();
   P_.setZero();
 }
 
-bool ImuStateEstimator::Process(const Asensing &msg, double stamp_sec, CarState *out)
-{
-  if (!initialized_)
-  {
+bool ImuStateEstimator::Process(const Asensing& msg, double stamp_sec, CarState* out) {
+  if (!initialized_) {
     Initialize(msg, stamp_sec);
-    if (out)
-    {
+    if (out) {
       out->car_state.x = x_(0);
       out->car_state.y = x_(1);
       out->car_state.theta = NormalizeAngle(x_(4));
@@ -32,10 +27,10 @@ bool ImuStateEstimator::Process(const Asensing &msg, double stamp_sec, CarState 
       out->A = std::sqrt(msg.x_acc * msg.x_acc + msg.y_acc * msg.y_acc + msg.z_acc * msg.z_acc);
 
       // FSSIM风格扩展状态
-      out->Vy = 0.0;                         // 初始横向速度为0
-      out->Wz = msg.z_angular_velocity;      // 偏航角速度
-      out->Ax = msg.x_acc;                   // 纵向加速度
-      out->Ay = msg.y_acc;                   // 横向加速度
+      out->Vy = 0.0;                     // 初始横向速度为0
+      out->Wz = msg.z_angular_velocity;  // 偏航角速度
+      out->Ax = msg.x_acc;               // 纵向加速度
+      out->Ay = msg.y_acc;               // 横向加速度
 
       double front_dx = 0.0;
       double front_dy = 0.0;
@@ -56,16 +51,12 @@ bool ImuStateEstimator::Process(const Asensing &msg, double stamp_sec, CarState 
   }
 
   double dt = stamp_sec - last_time_sec_;
-  if (dt <= 0.0)
-  {
+  if (dt <= 0.0) {
     return false;
   }
-  if (dt < params_.min_dt)
-  {
+  if (dt < params_.min_dt) {
     dt = params_.min_dt;
-  }
-  else if (dt > params_.max_dt)
-  {
+  } else if (dt > params_.max_dt) {
     dt = params_.max_dt;
   }
 
@@ -83,8 +74,7 @@ bool ImuStateEstimator::Process(const Asensing &msg, double stamp_sec, CarState 
 
   // FSSIM-style low-speed kinematic correction
   // 从角速度和速度估计转向角: delta ≈ atan(L * r / vx)
-  if (params_.enable_kinematic_correction)
-  {
+  if (params_.enable_kinematic_correction) {
     const double speed = std::hypot(x_(2), x_(3));
     if (speed > 0.1)  // 避免除零
     {
@@ -96,21 +86,17 @@ bool ImuStateEstimator::Process(const Asensing &msg, double stamp_sec, CarState 
   }
 
   int meas_dim = 0;
-  if (params_.use_gnss)
-  {
+  if (params_.use_gnss) {
     meas_dim += 2;
   }
-  if (params_.use_velocity)
-  {
+  if (params_.use_velocity) {
     meas_dim += 2;
   }
-  if (params_.use_yaw)
-  {
+  if (params_.use_yaw) {
     meas_dim += 1;
   }
 
-  if (meas_dim > 0)
-  {
+  if (meas_dim > 0) {
     Eigen::VectorXd z(meas_dim);
     Eigen::MatrixXd H = Eigen::MatrixXd::Zero(meas_dim, 5);
     Eigen::MatrixXd R = Eigen::MatrixXd::Zero(meas_dim, meas_dim);
@@ -118,20 +104,12 @@ bool ImuStateEstimator::Process(const Asensing &msg, double stamp_sec, CarState 
     int idx = 0;
     int yaw_index = -1;
 
-    if (params_.use_gnss)
-    {
+    if (params_.use_gnss) {
       double east = 0.0;
       double north = 0.0;
       double up = 0.0;
-      GeoDeticToENU(msg.latitude * kDegToRad,
-                    msg.longitude * kDegToRad,
-                    msg.altitude,
-                    origin_lat_,
-                    origin_lon_,
-                    origin_alt_,
-                    east,
-                    north,
-                    up);
+      GeoDeticToENU(msg.latitude * kDegToRad, msg.longitude * kDegToRad, msg.altitude, origin_lat_,
+                    origin_lon_, origin_alt_, east, north, up);
       last_up_ = up;
       double meas_x = 0.0;
       double meas_y = 0.0;
@@ -148,8 +126,7 @@ bool ImuStateEstimator::Process(const Asensing &msg, double stamp_sec, CarState 
       idx++;
     }
 
-    if (params_.use_velocity)
-    {
+    if (params_.use_velocity) {
       double vel_x = 0.0;
       double vel_y = 0.0;
       ToMapFrame(msg.east_velocity, msg.north_velocity, vel_x, vel_y);
@@ -165,8 +142,7 @@ bool ImuStateEstimator::Process(const Asensing &msg, double stamp_sec, CarState 
       idx++;
     }
 
-    if (params_.use_yaw)
-    {
+    if (params_.use_yaw) {
       const double diff = -(msg.azimuth - standard_azimuth_deg_);
       const double meas_yaw = NormalizeAngle(diff * kDegToRad);
       yaw_index = idx;
@@ -182,8 +158,7 @@ bool ImuStateEstimator::Process(const Asensing &msg, double stamp_sec, CarState 
 
   last_time_sec_ = stamp_sec;
 
-  if (out)
-  {
+  if (out) {
     out->car_state.x = x_(0);
     out->car_state.y = x_(1);
     out->car_state.theta = NormalizeAngle(x_(4));
@@ -226,8 +201,7 @@ bool ImuStateEstimator::Process(const Asensing &msg, double stamp_sec, CarState 
   return true;
 }
 
-void ImuStateEstimator::Initialize(const Asensing &msg, double stamp_sec)
-{
+void ImuStateEstimator::Initialize(const Asensing& msg, double stamp_sec) {
   origin_lat_ = msg.latitude * kDegToRad;
   origin_lon_ = msg.longitude * kDegToRad;
   origin_alt_ = msg.altitude;
@@ -256,8 +230,7 @@ void ImuStateEstimator::Initialize(const Asensing &msg, double stamp_sec)
   initialized_ = true;
 }
 
-void ImuStateEstimator::Predict(double dt, double ax, double ay, double gyro_z)
-{
+void ImuStateEstimator::Predict(double dt, double ax, double ay, double gyro_z) {
   const double yaw = x_(4);
   const double cos_yaw = std::cos(yaw);
   const double sin_yaw = std::sin(yaw);
@@ -290,48 +263,40 @@ void ImuStateEstimator::Predict(double dt, double ax, double ay, double gyro_z)
   const double dt4 = dt2 * dt2;
 
   Eigen::Matrix<double, 5, 5> Q = Eigen::Matrix<double, 5, 5>::Zero();
-  Q(0, 0) = sa2 * dt4 * 0.25;   // pos_x
-  Q(1, 1) = sa2 * dt4 * 0.25;   // pos_y
-  Q(2, 2) = sa2 * dt2;           // vel_x
-  Q(3, 3) = sa2 * dt2;           // vel_y
-  Q(0, 2) = sa2 * dt3 * 0.5;    // pos_x - vel_x 交叉项
+  Q(0, 0) = sa2 * dt4 * 0.25;  // pos_x
+  Q(1, 1) = sa2 * dt4 * 0.25;  // pos_y
+  Q(2, 2) = sa2 * dt2;         // vel_x
+  Q(3, 3) = sa2 * dt2;         // vel_y
+  Q(0, 2) = sa2 * dt3 * 0.5;   // pos_x - vel_x 交叉项
   Q(2, 0) = sa2 * dt3 * 0.5;
-  Q(1, 3) = sa2 * dt3 * 0.5;    // pos_y - vel_y 交叉项
+  Q(1, 3) = sa2 * dt3 * 0.5;  // pos_y - vel_y 交叉项
   Q(3, 1) = sa2 * dt3 * 0.5;
-  Q(4, 4) = sg2 * dt2;           // yaw
+  Q(4, 4) = sg2 * dt2;  // yaw
 
   P_ = F * P_ * F.transpose() + Q;
 
   // 协方差健康检查：NaN时重置为初始值，否则限制对角线范围
-  if (P_.hasNaN() || !P_.allFinite())
-  {
+  if (P_.hasNaN() || !P_.allFinite()) {
     P_.setZero();
     P_(0, 0) = params_.init_pos_var;
     P_(1, 1) = params_.init_pos_var;
     P_(2, 2) = params_.init_vel_var;
     P_(3, 3) = params_.init_vel_var;
     P_(4, 4) = params_.init_yaw_var;
-  }
-  else
-  {
+  } else {
     // 限制对角线元素范围，防止协方差爆炸或收缩到零
     constexpr double kMinVar = 1e-6;
     constexpr double kMaxVar = 1e4;
-    for (int i = 0; i < 5; ++i)
-    {
+    for (int i = 0; i < 5; ++i) {
       P_(i, i) = std::fmax(kMinVar, std::fmin(kMaxVar, P_(i, i)));
     }
   }
 }
 
-void ImuStateEstimator::Update(const Eigen::VectorXd &z,
-                               const Eigen::MatrixXd &H,
-                               const Eigen::MatrixXd &R,
-                               int yaw_index)
-{
+void ImuStateEstimator::Update(const Eigen::VectorXd& z, const Eigen::MatrixXd& H,
+                               const Eigen::MatrixXd& R, int yaw_index) {
   Eigen::VectorXd y = z - H * x_;
-  if (yaw_index >= 0)
-  {
+  if (yaw_index >= 0) {
     y(yaw_index) = NormalizeAngle(y(yaw_index));
   }
 
@@ -343,8 +308,7 @@ void ImuStateEstimator::Update(const Eigen::VectorXd &z,
   Eigen::MatrixXd K = (S.ldlt().solve(H * P_)).transpose();
 
   x_ = x_ + K * y;
-  if (yaw_index >= 0)
-  {
+  if (yaw_index >= 0) {
     x_(4) = NormalizeAngle(x_(4));
   }
 
@@ -352,8 +316,7 @@ void ImuStateEstimator::Update(const Eigen::VectorXd &z,
   Eigen::Matrix<double, 5, 5> I_KH = I - K * H;
   P_ = I_KH * P_ * I_KH.transpose() + K * R * K.transpose();
 
-  if (P_.hasNaN() || !P_.allFinite())
-  {
+  if (P_.hasNaN() || !P_.allFinite()) {
     P_.setZero();
     P_(0, 0) = params_.init_pos_var;
     P_(1, 1) = params_.init_pos_var;
@@ -363,10 +326,8 @@ void ImuStateEstimator::Update(const Eigen::VectorXd &z,
   }
 }
 
-void ImuStateEstimator::GeoDeticToENU(double lat, double lon, double h,
-                                      double lat0, double lon0, double h0,
-                                      double &east, double &north, double &up) const
-{
+void ImuStateEstimator::GeoDeticToENU(double lat, double lon, double h, double lat0, double lon0,
+                                      double h0, double& east, double& north, double& up) const {
   const double a = 6378137.0;
   const double b = 6356752.3142;
   const double f = (a - b) / a;
@@ -401,26 +362,21 @@ void ImuStateEstimator::GeoDeticToENU(double lat, double lon, double h,
   up = cos_lat0 * cos_lon0 * dx + cos_lat0 * sin_lon0 * dy + sin_lat0 * dz;
 }
 
-double ImuStateEstimator::NormalizeAngle(double angle) const
-{
+double ImuStateEstimator::NormalizeAngle(double angle) const {
   angle = std::fmod(angle + M_PI, 2.0 * M_PI);
-  if (angle < 0.0)
-  {
+  if (angle < 0.0) {
     angle += 2.0 * M_PI;
   }
   return angle - M_PI;
 }
 
-void ImuStateEstimator::ToMapFrame(double east, double north, double &x, double &y) const
-{
+void ImuStateEstimator::ToMapFrame(double east, double north, double& x, double& y) const {
   x = east * cos_origin_ - north * sin_origin_;
   y = east * sin_origin_ + north * cos_origin_;
 }
 
-void ImuStateEstimator::ApplyKinematicCorrection(double steering)
-{
-  if (!params_.enable_kinematic_correction)
-  {
+void ImuStateEstimator::ApplyKinematicCorrection(double steering) {
+  if (!params_.enable_kinematic_correction) {
     return;
   }
 
@@ -443,8 +399,7 @@ void ImuStateEstimator::ApplyKinematicCorrection(double steering)
   const double v_blend = (speed - params_.kinematic_blend_speed) / params_.kinematic_blend_range;
   const double blend = std::fmax(std::fmin(v_blend, 1.0), 0.0);
 
-  if (blend >= 1.0)
-  {
+  if (blend >= 1.0) {
     // 高速：不需要修正，使用动力学模型结果
     return;
   }

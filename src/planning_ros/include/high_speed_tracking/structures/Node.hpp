@@ -13,16 +13,17 @@
 // #include <as_msgs/Cone.h>
 #include "autodrive_msgs/HUAT_Cone.h"
 #include "autodrive_msgs/HUAT_ConeMap.h"
-#include <geometry_msgs/Point.h>
-#include <ros/ros.h>
-
-#include <Eigen/Geometry>
-#include <cmath>
-#include <iostream>
-
 #include "structures/Point.hpp"
 #include "structures/Vector.hpp"
 #include "utils/constants.hpp"
+
+#include <ros/ros.h>
+
+#include <cmath>
+#include <iostream>
+
+#include <Eigen/Geometry>
+#include <geometry_msgs/Point.h>
 
 /**
  * @brief Represents a node, i.e. the useful part of an as_msgs::Cone
@@ -72,7 +73,7 @@ class Node {
    * @param[in] x
    * @param[in] y
    */
-  Node(const double &x, const double &y);
+  Node(const double& x, const double& y);
 
  public:
   /**
@@ -89,38 +90,39 @@ class Node {
    * @param[in] yGlobal
    * @param[in] id
    */
-  Node(const double &x, const double &y, const double &xGlobal, const double &yGlobal, const uint32_t &id);
+  Node(const double& x, const double& y, const double& xGlobal, const double& yGlobal,
+       const uint32_t& id);
 
   /**
    * @brief Construct a new Node object from an as_msgs::Cone.
    *
    * @param[in] c
    */
-Node(const autodrive_msgs::HUAT_Cone &c);
+  Node(const autodrive_msgs::HUAT_Cone& c);
 
   /**
    * @brief Returns the Node x local coordinate.
    */
-  const double &x() const;
+  const double& x() const;
 
   /**
    * @brief Returns the Node y local coordinate.
    */
-  const double &y() const;
+  const double& y() const;
 
   /**
    * @brief Comparison operator. Two nodes will be equal iff their id is same.
    *
    * @param[in] n
    */
-  bool operator==(const Node &n) const;
+  bool operator==(const Node& n) const;
 
   /**
    * @brief Negation of the comparison operator.
    *
    * @param[in] n
    */
-  bool operator!=(const Node &n) const;
+  bool operator!=(const Node& n) const;
 
   /**
    * @brief Returns a supertriangle Node with local coordinates \a (x, y).
@@ -128,36 +130,36 @@ Node(const autodrive_msgs::HUAT_Cone &c);
    * @param[in] x
    * @param[in] y
    */
-  static Node superTriangleNode(const double &x, const double &y);
+  static Node superTriangleNode(const double& x, const double& y);
 
   /**
    * @brief Checks if the Node belongs to a supertriangle.
    */
-  const bool &belongsToSuperTriangle() const;
+  const bool& belongsToSuperTriangle() const;
 
   /**
    * @brief Updates the local coordinates of the Node.
    *
    * @param[in] tf
    */
-  void updateLocal(const Eigen::Affine3d &tf) const;
+  void updateLocal(const Eigen::Affine3d& tf) const;
 
   /**
    * @brief Returns the point in local coordinates.
    */
-  const Point &point() const;
+  const Point& point() const;
 
   /**
    * @brief Returns the point in global coordinates.
    */
-  const Point &pointGlobal() const;
+  const Point& pointGlobal() const;
 
   /**
    * @brief Returns the distance squared from the Node's local point to \a p.
    *
    * @param[in] p
    */
-  double distSq(const Point &p) const;
+  double distSq(const Point& p) const;
 
   /**
    * @brief Returns the angle that the Node makes with the Node(s) \a n0
@@ -166,7 +168,7 @@ Node(const autodrive_msgs::HUAT_Cone &c);
    * @param[in] n0
    * @param[in] n1
    */
-  double angleWith(const Node &n0, const Node &n1) const;
+  double angleWith(const Node& n0, const Node& n1) const;
 
   /**
    * @brief Converts (and returns) the Node as an as_msgs::Cone.
@@ -185,5 +187,5 @@ Node(const autodrive_msgs::HUAT_Cone &c);
    * @param[in,out] os
    * @param[in] n
    */
-  friend std::ostream &operator<<(std::ostream &os, const Node &n);
+  friend std::ostream& operator<<(std::ostream& os, const Node& n);
 };

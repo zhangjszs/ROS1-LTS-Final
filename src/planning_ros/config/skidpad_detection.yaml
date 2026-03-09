@@ -32,17 +32,17 @@ topics:
   # 输入: 锥桶检测
   # 来源: perception/lidar_cluster
   cone: "perception/lidar_cluster/detections"
-  
+
   # 输入: 车辆状态
   # 来源: localization
   car_state: "localization/car_state"
-  
+
   # 输出: 日志路径（调试用）
   log_path: "planning/skidpad/log_path"
-  
+
   # 输出: 路径限制（左右边界）
   pathlimits: "planning/pathlimits"
-  
+
   # 输出: 接近终点标志
   approaching_goal: "planning/skidpad/approaching_goal"
 
@@ -52,7 +52,7 @@ topics:
 frames:
   # 预期输入锥桶的坐标系
   expected_cone: "velodyne"
-  
+
   # 输出路径的坐标系
   output: "world"
 
@@ -64,27 +64,27 @@ length:
   # 单位: m
   # 用途: 坐标变换时补偿LiDAR位置
   circle2lidar: 15.5
-  
+
   # 终点停止距离
   # 单位: m
   # 用途: 距离终点多远时开始减速
   stopdistance: 5.0
-  
+
   # 目标点坐标（第一圈目标）
   # 用途: 用于判断是否完成第一圈
   targetX: 16.0
   targetY: -1.0
-  
+
   # 终点坐标（最终目标）
   # 用途: 八字绕环的终点位置
   FinTargetX: 40.0
   FinTargetY: 0.0
-  
+
   # 进入判断距离阈值
   # 单位: m
   # 用途: 以target为圆心，此值为半径，进入圈内认为到达目标
   distanceThreshold: 0.7
-  
+
   # 离开判断距离阈值
   # 单位: m
   # 用途: 以target为圆心，此值为半径，离开圈内认为完成目标
@@ -101,24 +101,24 @@ circle:
   # 标准值: 9.125m
   # 影响: 路径曲率、速度限制
   radius: 9.125
-  
+
   # 车身长度
   # 单位: m
   # 用途: 计算路径时考虑车辆尺寸
   car_length: 1.87
-  
+
   # 路径点间隔
   # 单位: m
   # 影响: 路径平滑度
   # 调小: 更平滑但计算量↑
   # 调大: 更稀疏但计算量↓
   path_interval: 0.05
-  
+
   # 两圆心标称距离
   # 单位: m
   # 标准值: 18.25m (2 × 9.125m)
   center_distance_nominal: 18.25
-  
+
   # 两圆心距离容差
   # 单位: m
   # 用途: 圆心检测时允许的误差范围
@@ -132,20 +132,20 @@ fit:
   # 影响: 拟合精度和计算量
   # 调大: 更鲁棒但计算量↑
   ransac_iterations: 120
-  
+
   # 内点距离阈值
   # 单位: m
   # 用途: 判断点是否属于圆的内点
   # 调大: 更宽松（可能包含外点）
   # 调小: 更严格（可能丢失内点）
   inlier_threshold: 0.35
-  
+
   # 最少内点数
   # 用途: 有效圆的最少点数
   # 调大: 更严格（避免假阳性）
   # 调小: 更宽松（可能检测错误）
   min_inliers: 4
-  
+
   # 半径范围限制
   # 单位: m
   # 用途: 过滤不合理的圆检测
@@ -160,16 +160,16 @@ phase:
   # 最小停留帧数
   # 用途: 防止阶段快速切换
   min_dwell_frames: 5
-  
+
   # 进入阶段切换距离
   # 单位: m
   entry_switch_dist: 1.2
-  
+
   # 交叉点切换距离
   # 单位: m
   # 用途: 两个圆环交叉处的切换
   crossover_switch_dist: 1.5
-  
+
   # 退出阶段切换距离
   # 单位: m
   exit_switch_dist: 2.0
@@ -182,19 +182,19 @@ phase_speed:
   # 进入阶段
   # 低速进入，确保安全
   entry: 6.0
-  
+
   # 热身阶段
   # 逐渐加速
   warmup: 7.0
-  
+
   # 计时阶段
   # 最高速度
   timed: 8.0
-  
+
   # 交叉点
   # 减速通过交叉点
   crossover: 6.5
-  
+
   # 退出阶段
   # 减速退出
   exit: 5.0
@@ -216,7 +216,7 @@ speed:
   # 速度上限
   # 单位: m/s
   speed_cap: 8.0
-  
+
   # 最大侧向加速度
   # 单位: m/s²
   # 影响: 圆环路径的最大速度
@@ -224,20 +224,20 @@ speed:
   # 调大: 允许更高速度（需要更好抓地力）
   # 调小: 更安全（但可能过慢）
   max_lateral_acc: 6.5
-  
+
   # 最大加速度
   # 单位: m/s²
   max_accel: 2.5
-  
+
   # 最大减速度
   # 单位: m/s²
   max_brake: 4.0
-  
+
   # 最小速度
   # 单位: m/s
   # 防止车辆停止
   min_speed: 1.0
-  
+
   # 曲率epsilon
   # 用途: 数值稳定性
   curvature_epsilon: 0.001

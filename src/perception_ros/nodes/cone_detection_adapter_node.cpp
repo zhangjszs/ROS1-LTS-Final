@@ -1,3 +1,7 @@
+#include "perception_ros/cone_detection_adapter.hpp"
+
+#include <ros/ros.h>
+
 #include <algorithm>
 #include <chrono>
 #include <memory>
@@ -7,10 +11,7 @@
 #include <autodrive_msgs/HUAT_ConeDetections.h>
 #include <autodrive_msgs/HUAT_FusedConeDetections.h>
 #include <fsd_common/topic_contract.hpp>
-#include <ros/ros.h>
 #include <std_msgs/String.h>
-
-#include "perception_ros/cone_detection_adapter.hpp"
 
 namespace perception_ros {
 namespace {
@@ -18,8 +19,7 @@ namespace {
 class ConeDetectionAdapterNode {
  public:
   ConeDetectionAdapterNode(ros::NodeHandle nh, ros::NodeHandle pnh)
-      : nh_(std::move(nh)), pnh_(std::move(pnh))
-  {
+      : nh_(std::move(nh)), pnh_(std::move(pnh)) {
     pnh_.param<std::string>("topics/raw_input", raw_input_topic_,
                             std::string(fsd_common::topic_contract::kConeDetections));
     pnh_.param<std::string>("topics/fused_input", fused_input_topic_,
@@ -37,7 +37,8 @@ class ConeDetectionAdapterNode {
     adapter_ = std::make_unique<ConeDetectionAdapter>(LoadConfig(runtime_contract_));
 
     raw_sub_ = nh_.subscribe(raw_input_topic_, 10, &ConeDetectionAdapterNode::rawCallback, this);
-    fused_sub_ = nh_.subscribe(fused_input_topic_, 10, &ConeDetectionAdapterNode::fusedCallback, this);
+    fused_sub_ =
+        nh_.subscribe(fused_input_topic_, 10, &ConeDetectionAdapterNode::fusedCallback, this);
     output_pub_ = nh_.advertise<autodrive_msgs::HUAT_ConeDetections>(output_topic_, 10);
     trace_pub_ = nh_.advertise<std_msgs::String>(trace_topic_, 50);
     flush_timer_ = nh_.createTimer(ros::Duration(1.0 / std::max(1.0, flush_rate_hz_)),
@@ -47,12 +48,10 @@ class ConeDetectionAdapterNode {
         "[perception] ConeDetectionAdapter raw='%s' fused='%s' output='%s' trace='%s' mode=%s "
         "holdoff=%.3fs budget=%.3fs queue=%d finalized_ttl=%.3fs",
         raw_input_topic_.c_str(), fused_input_topic_.c_str(), output_topic_.c_str(),
-        trace_topic_.c_str(),
-        runtime_contract_.mode.c_str(), runtime_contract_.holdoff_sec,
+        trace_topic_.c_str(), runtime_contract_.mode.c_str(), runtime_contract_.holdoff_sec,
         runtime_contract_.timing_budget_sec, runtime_contract_.queue_size,
         runtime_contract_.finalized_ttl_sec);
-    if (runtime_contract_.contract_mismatch)
-    {
+    if (runtime_contract_.contract_mismatch) {
       ROS_WARN(
           "[perception] ConeDetectionAdapter contract mismatch: fusion timing budget %.3fs "
           "exceeds adapter holdoff %.3fs",
@@ -70,8 +69,7 @@ class ConeDetectionAdapterNode {
     bool contract_mismatch = false;
   };
 
-  RuntimeContract LoadRuntimeContract() const
-  {
+  RuntimeContract LoadRuntimeContract() const {
     RuntimeContract contract;
 
     double raw_holdoff_override_sec = -1.0;
@@ -86,23 +84,19 @@ class ConeDetectionAdapterNode {
 
     bool fusion_enabled = false;
     bool legacy_enabled = false;
-    if (ros::param::has(fusion_enabled_param))
-    {
+    if (ros::param::has(fusion_enabled_param)) {
       ros::param::param(fusion_enabled_param, fusion_enabled, false);
       ros::param::param(fusion_slop_param, contract.timing_budget_sec, 0.08);
       ros::param::param(fusion_queue_param, contract.queue_size, 20);
       contract.mode = fusion_enabled ? "calibrated" : "raw-only";
-    }
-    else
-    {
+    } else {
       ros::param::param(legacy_enabled_param, legacy_enabled, false);
       ros::param::param(legacy_budget_param, contract.timing_budget_sec, 0.15);
       contract.queue_size = legacy_enabled ? 20 : 0;
       contract.mode = legacy_enabled ? "legacy" : "raw-only";
     }
 
-    if (contract.mode == "raw-only")
-    {
+    if (contract.mode == "raw-only") {
       contract.timing_budget_sec = 0.0;
     }
 
@@ -112,8 +106,7 @@ class ConeDetectionAdapterNode {
     return contract;
   }
 
-  ConeDetectionAdapter::Config LoadConfig(const RuntimeContract &contract) const
-  {
+  ConeDetectionAdapter::Config LoadConfig(const RuntimeContract& contract) const {
     ConeDetectionAdapter::Config cfg;
     int max_pending = 100;
     pnh_.param<int>("max_pending", max_pending, 100);
@@ -123,39 +116,32 @@ class ConeDetectionAdapterNode {
     return cfg;
   }
 
-  void publishOutputs(const std::vector<ConeDetectionAdapter::PublishOutput> &outputs)
-  {
-    for (const auto &output : outputs)
-    {
+  void publishOutputs(const std::vector<ConeDetectionAdapter::PublishOutput>& outputs) {
+    for (const auto& output : outputs) {
       output_pub_.publish(output.msg);
       publishTrace(output);
     }
   }
 
-  void publishTrace(const ConeDetectionAdapter::PublishOutput &output)
-  {
+  void publishTrace(const ConeDetectionAdapter::PublishOutput& output) {
     std_msgs::String trace_msg;
     std::ostringstream trace;
     trace << "stamp_ns=" << output.msg.header.stamp.toNSec()
           << " publish_mode=" << (output.used_fused ? "fused" : "raw_fallback")
-          << " reason=" << output.reason
-          << " wait_ms=" << output.wait_ms;
+          << " reason=" << output.reason << " wait_ms=" << output.wait_ms;
     trace_msg.data = trace.str();
     trace_pub_.publish(trace_msg);
   }
 
-  bool HasActivity(const ConeDetectionAdapter::Stats &stats) const
-  {
+  bool HasActivity(const ConeDetectionAdapter::Stats& stats) const {
     return stats.published_fused > 0 || stats.published_raw_fallback > 0 || stats.no_fused > 0 ||
-        stats.late_fused > 0 || stats.stale_fused > 0 || stats.count_mismatch > 0 ||
-        stats.cache_evicted > 0 || stats.duplicate_after_finalize > 0;
+           stats.late_fused > 0 || stats.stale_fused > 0 || stats.count_mismatch > 0 ||
+           stats.cache_evicted > 0 || stats.duplicate_after_finalize > 0;
   }
 
-  void maybeLogSummary() const
-  {
-    const auto &stats = adapter_->stats();
-    if (!HasActivity(stats))
-    {
+  void maybeLogSummary() const {
+    const auto& stats = adapter_->stats();
+    if (!HasActivity(stats)) {
       return;
     }
 
@@ -169,20 +155,17 @@ class ConeDetectionAdapterNode {
         stats.duplicate_after_finalize, stats.pending_cache_size_max);
   }
 
-  void rawCallback(const autodrive_msgs::HUAT_ConeDetections::ConstPtr &msg)
-  {
+  void rawCallback(const autodrive_msgs::HUAT_ConeDetections::ConstPtr& msg) {
     publishOutputs(adapter_->HandleRaw(*msg, ConeDetectionAdapter::SteadyClock::now()));
     maybeLogSummary();
   }
 
-  void fusedCallback(const autodrive_msgs::HUAT_FusedConeDetections::ConstPtr &msg)
-  {
+  void fusedCallback(const autodrive_msgs::HUAT_FusedConeDetections::ConstPtr& msg) {
     publishOutputs(adapter_->HandleFused(*msg, ConeDetectionAdapter::SteadyClock::now()));
     maybeLogSummary();
   }
 
-  void flushTimer(const ros::TimerEvent &event)
-  {
+  void flushTimer(const ros::TimerEvent& event) {
     (void)event;
     publishOutputs(adapter_->Flush(ConeDetectionAdapter::SteadyClock::now()));
     maybeLogSummary();
@@ -209,8 +192,7 @@ class ConeDetectionAdapterNode {
 }  // namespace
 }  // namespace perception_ros
 
-int main(int argc, char **argv)
-{
+int main(int argc, char** argv) {
   ros::init(argc, argv, "cone_detection_adapter");
   ros::NodeHandle nh;
   ros::NodeHandle pnh("~");

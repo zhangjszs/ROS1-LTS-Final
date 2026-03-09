@@ -1,7 +1,7 @@
 <!--
   FSD Planning Subsystem
   规划子系统：统一路径规划管线
-  
+
   Phase 3 Cleanup: Removed legacy planner selection (high_speed/line/skidpad).
   Only unified pipeline and none option remain.
 -->

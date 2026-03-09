@@ -1,10 +1,10 @@
 #pragma once
 
-#include <gtsam/geometry/Point2.h>
-#include <gtsam/nonlinear/NonlinearFactor.h>
-
 #include <algorithm>
 #include <cmath>
+
+#include <gtsam/geometry/Point2.h>
+#include <gtsam/nonlinear/NonlinearFactor.h>
 
 namespace localization_core {
 
@@ -17,21 +17,14 @@ class CircleConstraintFactor : public gtsam::NoiseModelFactor1<gtsam::Point2> {
  public:
   using Base = gtsam::NoiseModelFactor1<gtsam::Point2>;
 
-  CircleConstraintFactor(gtsam::Key key,
-                         const gtsam::Point2& center1,
-                         const gtsam::Point2& center2,
-                         double radius,
-                         const gtsam::SharedNoiseModel& model)
-      : Base(model, key),
-        center1_(center1),
-        center2_(center2),
-        radius_(radius) {}
+  CircleConstraintFactor(gtsam::Key key, const gtsam::Point2& center1, const gtsam::Point2& center2,
+                         double radius, const gtsam::SharedNoiseModel& model)
+      : Base(model, key), center1_(center1), center2_(center2), radius_(radius) {}
 
   ~CircleConstraintFactor() override = default;
 
-  gtsam::Vector evaluateError(
-      const gtsam::Point2& p,
-      boost::optional<gtsam::Matrix&> H = boost::none) const override {
+  gtsam::Vector evaluateError(const gtsam::Point2& p,
+                              boost::optional<gtsam::Matrix&> H = boost::none) const override {
     const double dx1 = p.x() - center1_.x();
     const double dy1 = p.y() - center1_.y();
     const double dist1 = std::sqrt(dx1 * dx1 + dy1 * dy1);

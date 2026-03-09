@@ -4,7 +4,7 @@
  * @brief Contains the Trace class member functions implementation
  * @version 1.0
  * @date 2022-10-31
- * 
+ *
  * @copyright Copyright (c) 2022 BCN eMotorsport
  */
 
@@ -12,26 +12,33 @@
 
 /* ----------------------------- Private Methods ---------------------------- */
 
-Trace::Connection::Connection(const size_t &edgeInd, const double &heur, const double &edgeLen, const bool &loopClosed, std::shared_ptr<Connection> before)
-    : edgeInd(edgeInd), before(before), size(before ? (before->size + 1) : 1), heur(heur), avgEdgeLen(before ? before->avgEdgeLen + ((edgeLen - before->avgEdgeLen) / before->size + 1) : edgeLen), loopClosed(before ? (before->loopClosed or loopClosed) : loopClosed) {}
+Trace::Connection::Connection(const size_t& edgeInd, const double& heur, const double& edgeLen,
+                              const bool& loopClosed, std::shared_ptr<Connection> before)
+    : edgeInd(edgeInd),
+      before(before),
+      size(before ? (before->size + 1) : 1),
+      heur(heur),
+      avgEdgeLen(before ? before->avgEdgeLen + ((edgeLen - before->avgEdgeLen) / before->size + 1)
+                        : edgeLen),
+      loopClosed(before ? (before->loopClosed or loopClosed) : loopClosed) {}
 
-bool Trace::Connection::containsEdge(const size_t &_edgeInd) const {
+bool Trace::Connection::containsEdge(const size_t& _edgeInd) const {
   return edgeInd == _edgeInd || (before ? before->containsEdge(_edgeInd) : false);
 }
 
-Trace::Trace(std::shared_ptr<Connection> p)
-    : p(p) {}
+Trace::Trace(std::shared_ptr<Connection> p) : p(p) {}
 
 /* ----------------------------- Public Methods ----------------------------- */
 
-Trace::Trace()
-    : p(nullptr) {}
+Trace::Trace() : p(nullptr) {}
 
-Trace::Trace(const size_t &edgeInd, const double &heur, const double &edgeLen, const bool &loopClosed) {
+Trace::Trace(const size_t& edgeInd, const double& heur, const double& edgeLen,
+             const bool& loopClosed) {
   this->p = std::make_shared<Connection>(edgeInd, heur, edgeLen, loopClosed, nullptr);
 }
 
-void Trace::addEdge(const size_t &edgeInd, const double &heur, const double &edgeLen, const bool &loopClosed) {
+void Trace::addEdge(const size_t& edgeInd, const double& heur, const double& edgeLen,
+                    const bool& loopClosed) {
   this->p = std::make_shared<Connection>(edgeInd, heur, edgeLen, loopClosed, this->p);
 }
 
@@ -60,23 +67,26 @@ Trace Trace::first() const {
   return Trace(lastNotEmpty);
 }
 
-const size_t &Trace::edgeInd() const {
+const size_t& Trace::edgeInd() const {
   ROS_ASSERT(not empty());
   return this->p->edgeInd;
 }
 
-const double &Trace::heur() const {
+const double& Trace::heur() const {
   ROS_ASSERT(not empty());
   return this->p->heur;
 }
 
 double Trace::avgEdgeLen() const {
-  if (empty()) return 0.0;
-  else return this->p->avgEdgeLen;
+  if (empty())
+    return 0.0;
+  else
+    return this->p->avgEdgeLen;
 }
 
 bool Trace::isLoopClosed() const {
-  if (empty()) return false;
+  if (empty())
+    return false;
   return this->p->loopClosed;
 }
 
@@ -87,7 +97,7 @@ double Trace::sumHeur() const {
     return heur() + before().sumHeur();
 }
 
-bool Trace::containsEdge(const size_t &edgeInd) const {
+bool Trace::containsEdge(const size_t& edgeInd) const {
   if (empty())
     return false;
   else
@@ -99,8 +109,9 @@ void Trace::clear() {
 }
 
 // Useful to print a Trace
-std::ostream &operator<<(std::ostream &os, const Trace &trace) {
+std::ostream& operator<<(std::ostream& os, const Trace& trace) {
   os << "T(";
-  if (!trace.empty()) os << *(trace.p);
+  if (!trace.empty())
+    os << *(trace.p);
   return os << ")";
 }

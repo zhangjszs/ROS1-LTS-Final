@@ -1,0 +1,14 @@
+[flake8]
+max-line-length = 100
+extend-ignore = E203, W503, E402, F401, F841, F541
+exclude =
+    .git,
+    __pycache__,
+    build,
+    devel,
+    install,
+    .catkin_tools,
+    */test/*,
+    */tests/*,
+    perf_reports/*,
+    scripts/*

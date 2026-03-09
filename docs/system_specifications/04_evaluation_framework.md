@@ -102,11 +102,11 @@ class EvaluationRunner:
     def __init__(self, config_path):
         with open(config_path, 'r') as f:
             self.config = yaml.safe_load(f)
-        
+
         self.exp_id = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.result_dir = Path(f"results/exp_{self.exp_id}")
         self.result_dir.mkdir(parents=True, exist_ok=True)
-    
+
     def save_config_snapshot(self):
         """保存参数快照"""
         snapshot = {
@@ -116,12 +116,12 @@ class EvaluationRunner:
             'git_commit': self.get_git_commit(),
             'random_seed': self.config.get('random_seed', 42)
         }
-        
+
         with open(self.result_dir / 'config_snapshot.json', 'w') as f:
             json.dump(snapshot, f, indent=2)
-        
+
         return snapshot
-    
+
     def get_git_commit(self):
         """获取当前git commit"""
         try:
@@ -131,14 +131,14 @@ class EvaluationRunner:
             ).decode().strip()
         except:
             return 'unknown'
-    
+
     def set_random_seed(self):
         """设置随机种子"""
         seed = self.config.get('random_seed', 42)
         os.environ['PYTHONHASHSEED'] = str(seed)
         # 其他随机种子设置...
         return seed
-    
+
     def play_rosbag(self):
         """回放rosbag"""
         bag_path = self.config['bag_path']
@@ -161,15 +161,15 @@ class EvaluationRunner:
             '--rate', str(self.config.get('play_rate', 1.0)),
             '--start', str(start_time),
         ]
-        
+
         if duration:
             cmd.extend(['--duration', str(duration)])
-        
+
         cmd.append(bag_path)
-        
+
         # 启动rosbag play
         self.bag_process = subprocess.Popen(cmd)
-    
+
     def start_recording(self):
         """开始记录评估数据"""
         topics = self.config.get('record_topics', [
@@ -182,32 +182,32 @@ class EvaluationRunner:
             '/tf',
             '/rosout_agg',   # A3: 文件侧通道兼容观测（可选）
         ])
-        
+
         cmd = ['rosbag', 'record', '-O', str(self.result_dir / 'recorded.bag')] + topics
         self.record_process = subprocess.Popen(cmd)
-    
+
     def run(self):
         """执行完整评估流程"""
         print(f"[{self.exp_id}] Starting evaluation...")
-        
+
         # 1. 保存配置快照
         self.save_config_snapshot()
-        
+
         # 2. 设置随机种子
         self.set_random_seed()
-        
+
         # 3. 启动记录
         self.start_recording()
-        
+
         # 4. 回放rosbag
         self.play_rosbag()
-        
+
         # 5. 等待完成
         self.bag_process.wait()
-        
+
         # 6. 停止记录
         self.record_process.terminate()
-        
+
         print(f"[{self.exp_id}] Evaluation completed.")
         return self.result_dir
 
@@ -216,7 +216,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', required=True, help='Path to config yaml')
     args = parser.parse_args()
-    
+
     runner = EvaluationRunner(args.config)
     runner.run()
 ```
@@ -629,7 +629,7 @@ from scipy import stats
 def compute_significance(baseline_values, experiment_values, alpha=0.05):
     """
     计算两组数据的统计显著性
-    
+
     Returns:
         p_value: p值
         is_significant: 是否显著
@@ -637,15 +637,15 @@ def compute_significance(baseline_values, experiment_values, alpha=0.05):
     """
     # t检验
     t_stat, p_value = stats.ttest_ind(baseline_values, experiment_values)
-    
+
     # 效应量
     pooled_std = np.sqrt(
         (np.std(baseline_values)**2 + np.std(experiment_values)**2) / 2
     )
     effect_size = (np.mean(experiment_values) - np.mean(baseline_values)) / pooled_std
-    
+
     is_significant = p_value < alpha
-    
+
     return {
         'p_value': p_value,
         'is_significant': is_significant,
@@ -738,20 +738,20 @@ class SystemMetrics:
 def compute_detection_metrics(bag_path: str, ground_truth: Dict) -> DetectionMetrics:
     """计算感知层指标"""
     bag = rosbag.Bag(bag_path)
-    
+
     detections = []
     for topic, msg, t in bag.read_messages(topics=['/perception/lidar_cluster/detections']):
         detections.append(parse_detection(msg))
-    
+
     # 计算召回率、精确率等
     tp, fp, fn = match_detections(detections, ground_truth)
-    
+
     recall = tp / (tp + fn) if (tp + fn) > 0 else 0
     precision = tp / (tp + fp) if (tp + fp) > 0 else 0
-    
+
     # 计算位置误差
     position_errors = compute_position_errors(detections, ground_truth)
-    
+
     return DetectionMetrics(
         recall=recall,
         precision=precision,
@@ -765,22 +765,22 @@ def compute_detection_metrics(bag_path: str, ground_truth: Dict) -> DetectionMet
 def compute_localization_metrics(bag_path: str, reference_line: np.ndarray) -> LocalizationMetrics:
     """计算定位层指标"""
     bag = rosbag.Bag(bag_path)
-    
+
     positions = []
     headings = []
     for topic, msg, t in bag.read_messages(topics=['/localization/car_state']):
         positions.append([msg.car_state.x, msg.car_state.y])
         headings.append(msg.car_state.theta)
-    
+
     positions = np.array(positions)
     headings = np.array(headings)
-    
+
     # 计算横向误差
     lateral_errors = compute_lateral_errors(positions, reference_line)
-    
+
     # 计算航向误差
     heading_errors = compute_heading_errors(headings, reference_line)
-    
+
     return LocalizationMetrics(
         lateral_error_mean=np.mean(lateral_errors),
         lateral_error_std=np.std(lateral_errors),
@@ -793,24 +793,24 @@ def compute_localization_metrics(bag_path: str, reference_line: np.ndarray) -> L
 def compute_planning_metrics(bag_path: str) -> PlanningMetrics:
     """计算规划层指标"""
     bag = rosbag.Bag(bag_path)
-    
+
     paths = []
     curvatures = []
     failure_count = 0
     total_count = 0
-    
+
     for topic, msg, t in bag.read_messages(topics=['/planning/pathlimits']):
         total_count += 1
         if len(msg.path) == 0:
             failure_count += 1
             continue
-        
+
         path = np.array([[p.x, p.y] for p in msg.path])
         paths.append(path)
         curvatures.extend(msg.curvatures)
-    
+
     curvatures = np.abs(np.array(curvatures))
-    
+
     return PlanningMetrics(
         path_length=np.sum([compute_path_length(p) for p in paths]),
         curvature_mean=np.mean(curvatures),
@@ -823,11 +823,11 @@ def compute_planning_metrics(bag_path: str) -> PlanningMetrics:
 def compute_control_metrics(bag_path: str) -> ControlMetrics:
     """计算控制层指标"""
     bag = rosbag.Bag(bag_path)
-    
+
     # 读取路径和状态
     # 计算跟踪误差
     # ...
-    
+
     return ControlMetrics(
         lateral_tracking_error_mean=0.0,  # 实际计算
         heading_tracking_error_mean=0.0,
@@ -839,23 +839,23 @@ def compute_control_metrics(bag_path: str) -> ControlMetrics:
 def compute_system_metrics(bag_path: str, track_boundary: np.ndarray) -> SystemMetrics:
     """计算系统级指标"""
     bag = rosbag.Bag(bag_path)
-    
+
     positions = []
     speeds = []
     timestamps = []
-    
+
     for topic, msg, t in bag.read_messages(topics=['/localization/car_state']):
         positions.append([msg.car_state.x, msg.car_state.y])
         speeds.append(msg.V)
         timestamps.append(t.to_sec())
-    
+
     positions = np.array(positions)
     speeds = np.array(speeds)
     timestamps = np.array(timestamps)
-    
+
     # 计算出界次数
     violations = check_boundary_violations(positions, track_boundary)
-    
+
     return SystemMetrics(
         boundary_violation_count=np.sum(violations),
         boundary_violation_time=np.sum(violations) * (timestamps[1] - timestamps[0]),
@@ -875,7 +875,7 @@ if __name__ == '__main__':
     parser.add_argument('--gt', required=False)
     parser.add_argument('--output', required=True)
     args = parser.parse_args()
-    
+
     # 计算所有指标
     metrics = {
         'detection': compute_detection_metrics(args.bag, {}),
@@ -884,7 +884,7 @@ if __name__ == '__main__':
         'control': compute_control_metrics(args.bag),
         'system': compute_system_metrics(args.bag, np.array([]))
     }
-    
+
     # 保存结果
     import json
     with open(args.output, 'w') as f:

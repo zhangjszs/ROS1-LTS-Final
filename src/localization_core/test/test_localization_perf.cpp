@@ -1,14 +1,14 @@
-#include <gtest/gtest.h>
+#include "localization_core/descriptor_relocator.hpp"
+#include "localization_core/factor_graph_types.hpp"
+#include "localization_core/particle_relocator.hpp"
+#include "localization_core/types.hpp"
 
 #include <chrono>
 #include <cmath>
 #include <random>
 #include <vector>
 
-#include "localization_core/descriptor_relocator.hpp"
-#include "localization_core/factor_graph_types.hpp"
-#include "localization_core/particle_relocator.hpp"
-#include "localization_core/types.hpp"
+#include <gtest/gtest.h>
 
 using namespace localization_core;
 
@@ -189,7 +189,7 @@ TEST(LocalizationPerf, ParticleFilterUpdate_200p_10obs_100lm) {
   EXPECT_LT(ms, 5.0) << "Particle filter update took " << ms << " ms (limit: 5.0 ms)";
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

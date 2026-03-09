@@ -4,7 +4,7 @@
  * @brief Contains the Edge class specification
  * @version 1.0
  * @date 2022-10-31
- * 
+ *
  * @copyright Copyright (c) 2022 BCN eMotorsport
  */
 
@@ -26,20 +26,20 @@ class Edge {
   /**
    * @brief Returns the hash that would have an Edge having \a n0 and \a n1
    * as its Node(s).
-   * 
-   * @param[in] n0 
-   * @param[in] n1 
+   *
+   * @param[in] n0
+   * @param[in] n1
    */
-  static uint64_t computeHash(const Node &n0, const Node &n1);
-  
+  static uint64_t computeHash(const Node& n0, const Node& n1);
+
   /**
    * @brief Returns the length that would have an Edge defined by \a n0
    * and \a n1.
-   * 
-   * @param[in] n0 
-   * @param[in] n1 
+   *
+   * @param[in] n0
+   * @param[in] n1
    */
-  static double computeLen(const Node &n0, const Node &n1);
+  static double computeLen(const Node& n0, const Node& n1);
   friend class std::hash<Edge>;
 
  public:
@@ -55,34 +55,34 @@ class Edge {
 
   /**
    * @brief Construct a new Edge object.
-   * 
-   * @param[in] n0 
-   * @param[in] n1 
+   *
+   * @param[in] n0
+   * @param[in] n1
    */
-  Edge(const Node &n0, const Node &n1);
+  Edge(const Node& n0, const Node& n1);
 
   /**
    * @brief Comparison operator. Two Edge(s) will be equal if they have
    * the same hash.
-   * 
-   * @param[in] e 
+   *
+   * @param[in] e
    */
-  bool operator==(const Edge &e) const;
+  bool operator==(const Edge& e) const;
 
   /**
    * @brief Negation of the comparison operator.
-   * 
-   * @param[in] e 
+   *
+   * @param[in] e
    */
-  bool operator!=(const Edge &e) const;
+  bool operator!=(const Edge& e) const;
 
   /**
    * @brief Updates the local coordinates of both Node(s).
-   * 
-   * @param[in] tf 
+   *
+   * @param[in] tf
    */
-  void updateLocal(const Eigen::Affine3d &tf) const;
-  
+  void updateLocal(const Eigen::Affine3d& tf) const;
+
   /**
    * @brief Returns the midpoint of the Edge in local coordinates.
    */
@@ -100,16 +100,14 @@ class Edge {
 
   /**
    * @brief Cout operator.
-   * 
-   * @param[in,out] os 
-   * @param[int] e 
+   *
+   * @param[in,out] os
+   * @param[int] e
    */
-  friend std::ostream &operator<<(std::ostream &os, const Edge &e);
+  friend std::ostream& operator<<(std::ostream& os, const Edge& e);
 };
 
 template <>
 struct std::hash<Edge> {
-  uint64_t operator()(const Edge &e) const {
-    return e.hash_;
-  }
+  uint64_t operator()(const Edge& e) const { return e.hash_; }
 };

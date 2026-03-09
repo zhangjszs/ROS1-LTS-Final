@@ -17,7 +17,7 @@
 - **文档**: `2026-02-20-planning-track-tuning-design.md`
 - **实施计划**: `2026-02-20-planning-track-tuning-plan.md`
 - **完成日期**: 2026-02-20
-- **成果说明**: 
+- **成果说明**:
   - 通过更严格的几何过滤降低了18m+"墙/护栏"类连续误检对track规划的影响
   - 提高了min_triangle_angle参数，过滤更"瘦"的三角形
   - 降低了max_dist_circum_midPoint参数，中点必须更贴近外接圆心

@@ -1,6 +1,6 @@
 # HUAT_InsP2.msg
 # INS5711DAA 高精度组合导航系统数据
-# 
+#
 # 坐标系说明:
 # - 车体相关量(角速度/加速度/姿态角): FRD (Front-Right-Down)
 #   X轴: 车头前进方向为正

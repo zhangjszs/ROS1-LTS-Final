@@ -13,7 +13,7 @@
   <include file="$(find perception_ros)/launch/lidar_cluster.launch">
     <arg name="mode" value="skidpad" />
   </include>
-  
+
   <group>
     <param name="control/mode" value="3" />
     <include file="$(find control)/launch/controler.launch" />

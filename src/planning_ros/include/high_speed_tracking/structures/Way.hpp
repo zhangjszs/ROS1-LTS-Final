@@ -4,31 +4,32 @@
  * @brief Contains the Way class specification
  * @version 1.0
  * @date 2022-10-31
- * 
+ *
  * @copyright Copyright (c) 2022 BCN eMotorsport
  */
 
 #pragma once
 
 // #include <as_msgs/PathLimits.h>
-#include <autodrive_msgs/HUAT_PathLimits.h>
-#include <ros/ros.h>
-
-#include <Eigen/Geometry>
-#include <list>
-#include <unordered_map>
-#include <unordered_set>
-#include <vector>
-#include <cstdint>
-#include <cmath>
-#include <algorithm>
-
 #include "structures/Edge.hpp"
 #include "structures/Node.hpp"
 #include "structures/Vector.hpp"
 #include "utils/Params.hpp"
-#include "utils/definitions.hpp"
 #include "utils/constants.hpp"
+#include "utils/definitions.hpp"
+
+#include <ros/ros.h>
+
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <list>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+
+#include <Eigen/Geometry>
+#include <autodrive_msgs/HUAT_PathLimits.h>
 
 /**
  * @brief Represents a way, i.e. the centerline and track limits.
@@ -69,8 +70,10 @@ class Way {
   /**
    * @brief Points at the Edge whose midpoint is closest to the car position.
    * If empty, points to \a path_.cend().
-   * `closestToCarElem_` 是一个指向 `std::list<Edge>` 类型中元素的常量迭代器。它被用于追踪距离汽车位置最近的边缘的位置
-   * 如果 `closestToCarElem_` 为空，即没有找到最近的边缘，则它指向 `path_.cend()`，即指向路径列表 `path_` 的结束迭代器
+   * `closestToCarElem_` 是一个指向 `std::list<Edge>`
+   类型中元素的常量迭代器。它被用于追踪距离汽车位置最近的边缘的位置
+   * 如果 `closestToCarElem_` 为空，即没有找到最近的边缘，则它指向 `path_.cend()`，即指向路径列表
+   `path_` 的结束迭代器
    * 通过使用这个迭代器，我们可以确定距离汽车位置最近的边缘，
     std::list<Edge>` 是一个链表容器，它存储了 `Edge` 对象。
     const_iterator` 是 `std::list<Edge>` 类型定义的常量迭代器，
@@ -108,26 +111,26 @@ class Way {
 
   /**
    * @brief Checks if line segments defined by \a AB and \a CD intersect.
-   * 
-   * @param[in] A 
-   * @param[in] B 
-   * @param[in] C 
-   * @param[in] D 
+   *
+   * @param[in] A
+   * @param[in] B
+   * @param[in] C
+   * @param[in] D
    */
-  static bool segmentsIntersect(const Point &A, const Point &B, const Point &C, const Point &D);
+  static bool segmentsIntersect(const Point& A, const Point& B, const Point& C, const Point& D);
 
   static uint64_t cellKey(int x, int y);
   void rebuildEdgeSet_() const;
   void rebuildSegmentIndex_() const;
-  void addSegmentToIndex_(const Point &a, const Point &b) const;
+  void addSegmentToIndex_(const Point& a, const Point& b) const;
 
  public:
   /**
    * @brief Method to initialize the Singleton.
-   * 
-   * @param[in] params 
+   *
+   * @param[in] params
    */
-  static void init(const Params::WayComputer::Way &params);
+  static void init(const Params::WayComputer::Way& params);
 
   /**
    * @brief Construct a new Way object.
@@ -147,48 +150,50 @@ class Way {
   /**
    * @brief Returns last Edge.
    */
-  const Edge &back() const;
+  const Edge& back() const;
 
   /**
    * @brief Returns the penultimate Edge.
    */
-  const Edge &beforeBack() const;
+  const Edge& beforeBack() const;
 
   /**
    * @brief Returns first Edge.
    */
-  const Edge &front() const;
+  const Edge& front() const;
 
   /**
    * @brief Updates the local position of all Edge(s) in the Way.
-   * 
-   * @param[in] tf 
+   *
+   * @param[in] tf
    */
-  void updateLocal(const Eigen::Affine3d &tf);
+  void updateLocal(const Eigen::Affine3d& tf);
 
   /**
    * @brief Appends an Edge to the back of the Way.
-   * 
-   * @param[in] edge 
+   *
+   * @param[in] edge
    */
-  void addEdge(const Edge &edge);
+  void addEdge(const Edge& edge);
 
   /**
    * @brief Trims the Way so that all Edge(s) coming after the closest to the
    * car are removed.
-   * 假设有一个Way对象，表示一条道路，由以下边构成：A -> B -> C -> D -> E -> F。车辆当前位置在边C上。
-   * 调用`trimByLocal()`函数后，将会删除车边C之后的所有边。因此，最终的结果是保留了车辆当前位置及其之前的边，即A -> B -> C
+   * 假设有一个Way对象，表示一条道路，由以下边构成：A -> B -> C -> D -> E ->
+   * F。车辆当前位置在边C上。
+   * 调用`trimByLocal()`函数后，将会删除车边C之后的所有边。因此，最终的结果是保留了车辆当前位置及其之前的边，即A
+   * -> B -> C
    */
   void trimByLocal();
 
   /**
    * @brief Checks if the Way closes loop when \a e is appended to the Way.
    * If \a lastPosInTrace is not NULL, it is considered last Way midpoint.
-   * 
-   * @param[in] e 
-   * @param[in] lastPosInTrace 
+   *
+   * @param[in] e
+   * @param[in] lastPosInTrace
    */
-  bool closesLoopWith(const Edge &e, const Point *lastPosInTrace = nullptr) const;
+  bool closesLoopWith(const Edge& e, const Point* lastPosInTrace = nullptr) const;
 
   /**
    * @brief Makes a copy making sure that:
@@ -207,55 +212,55 @@ class Way {
   /**
    * @brief Checks if Edge \a e creates an intersection (a loop) on the path.
    * O(n), n=this->size().
-   * 
-   * @param[in] e 
+   *
+   * @param[in] e
    */
-  bool intersectsWith(const Edge &e) const;
+  bool intersectsWith(const Edge& e) const;
 
   /**
    * @brief Checks if the Way contains a specific Edge \a e.
-   * 
+   *
    * @param[in] e
    */
-  bool containsEdge(const Edge &e) const;
+  bool containsEdge(const Edge& e) const;
 
   /**
    * @brief Assignment operator.
-   * 
-   * @param[in] way 
+   *
+   * @param[in] way
    */
-  Way &operator=(const Way &way);
+  Way& operator=(const Way& way);
 
-  Way(const Way &way) = default;
+  Way(const Way& way) = default;
 
   /**
    * @brief Comparison operator. Two Way(s) will be equal if both contain
    * the same Edge(s).
    * **Note** that the midpoints (and track limits) positions may not be equal.
-   * 
-   * @param[in] way 
+   *
+   * @param[in] way
    */
-  bool operator==(const Way &way) const;
+  bool operator==(const Way& way) const;
 
   /**
    * @brief Negation of the comparison operator.
-   * 
-   * @param[in] way 
+   *
+   * @param[in] way
    */
-  bool operator!=(const Way &way) const;
+  bool operator!=(const Way& way) const;
 
   /**
    * @brief Checks if the vital_num_midpoints (the n midpoints after car's position)
    * are equal in both \a *this and \a way.
-   * 
-   * @param[in] way 
+   *
+   * @param[in] way
    */
-  bool quinEhLobjetiuDeLaSevaDiresio(const Way &way) const;
+  bool quinEhLobjetiuDeLaSevaDiresio(const Way& way) const;
 
   /**
    * @brief Returns the average Edge length.
    */
-  const double &getAvgEdgeLen() const;
+  const double& getAvgEdgeLen() const;
 
   /**
    * @brief Returns the number of midpoints ahead of the car, until end of Way.
@@ -275,8 +280,8 @@ class Way {
   Tracklimits getTracklimits() const;
 
   /**
-  * @brief 用于返回全局坐标下的路径
-  */
+   * @brief 用于返回全局坐标下的路径
+   */
   std::vector<Point> getPathLocal() const;
 
   void deleteWayPassed();
@@ -285,31 +290,30 @@ class Way {
   /**
    * @brief 使用去除走过的点进行插值（线性）
    * @param xy 车当前坐标
-  */
-  std::vector<geometry_msgs::Point> getPathInterpolation(double x,double y);
+   */
+  std::vector<geometry_msgs::Point> getPathInterpolation(double x, double y);
 
-    /**
+  /**
    * @brief 使用去除走过的点进行插值（线性，局部坐标系）
    * @param xy 车当前坐标
-  */
+   */
   // std::vector<geometry_msgs::Point> getPathInterpolationLocal(double x,double y);
 
   /**
    * @brief 使用所有路径点插值（线性）
-  */
+   */
   std::vector<geometry_msgs::Point> getPathFullInterpolation();
 
   /**
    * @brief 使用所有路径点插值（线性，局部坐标系）
-  */
+   */
   // std::vector<geometry_msgs::Point> getPathFullInterpolationLocal();
-
 
   /**
    * @brief Cout operator.
-   * 
-   * @param[in,out] os 
-   * @param[in] way 
+   *
+   * @param[in,out] os
+   * @param[in] way
    */
-  friend std::ostream &operator<<(std::ostream &os, const Way &way);
+  friend std::ostream& operator<<(std::ostream& os, const Way& way);
 };

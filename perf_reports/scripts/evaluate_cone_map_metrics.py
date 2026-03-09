@@ -25,7 +25,6 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-
 DEFAULT_TOPIC = "/localization/cone_map"
 
 
@@ -37,7 +36,9 @@ def _confidence_score(confidence_scaled: int) -> float:
     return _clamp(float(confidence_scaled) / 1000.0, 0.0, 1.0)
 
 
-def _quantiles(values: List[float], qs=(0.10, 0.50, 0.90, 0.95, 0.99)) -> Dict[str, Optional[float]]:
+def _quantiles(
+    values: List[float], qs=(0.10, 0.50, 0.90, 0.95, 0.99)
+) -> Dict[str, Optional[float]]:
     if not values:
         return {f"p{int(q * 100):02d}": None for q in qs}
     s = sorted(values)
@@ -151,11 +152,17 @@ def _load_confidences_from_bag(
             "messages": total_msgs,
             "cones_total": total_cones,
             "cones_dist_ge_th": len(far_scores),
-            "cones_dist_ge_th_and_abs_y_le_th": len(far_center_scores) if y_th is not None else None,
+            "cones_dist_ge_th_and_abs_y_le_th": len(far_center_scores)
+            if y_th is not None
+            else None,
             "cones_dist_ge_th_and_abs_y_gt_th": len(far_side_scores) if y_th is not None else None,
             "cones_x_ge_0_and_dist_ge_th": len(front_far_scores),
-            "cones_x_ge_0_and_dist_ge_th_and_abs_y_le_th": len(front_far_center_scores) if y_th is not None else None,
-            "cones_x_ge_0_and_dist_ge_th_and_abs_y_gt_th": len(front_far_side_scores) if y_th is not None else None,
+            "cones_x_ge_0_and_dist_ge_th_and_abs_y_le_th": len(front_far_center_scores)
+            if y_th is not None
+            else None,
+            "cones_x_ge_0_and_dist_ge_th_and_abs_y_gt_th": len(front_far_side_scores)
+            if y_th is not None
+            else None,
         },
         "confidence": {
             "all": {
@@ -168,12 +175,16 @@ def _load_confidences_from_bag(
                 "fraction_at_or_above": _fraction_at_or_above(far_scores),
                 "hist": _histogram(far_scores),
             },
-            "dist_ge_th_and_abs_y_le_th": None if y_th is None else {
+            "dist_ge_th_and_abs_y_le_th": None
+            if y_th is None
+            else {
                 "quantiles": _quantiles(far_center_scores),
                 "fraction_at_or_above": _fraction_at_or_above(far_center_scores),
                 "hist": _histogram(far_center_scores),
             },
-            "dist_ge_th_and_abs_y_gt_th": None if y_th is None else {
+            "dist_ge_th_and_abs_y_gt_th": None
+            if y_th is None
+            else {
                 "quantiles": _quantiles(far_side_scores),
                 "fraction_at_or_above": _fraction_at_or_above(far_side_scores),
                 "hist": _histogram(far_side_scores),
@@ -183,12 +194,16 @@ def _load_confidences_from_bag(
                 "fraction_at_or_above": _fraction_at_or_above(front_far_scores),
                 "hist": _histogram(front_far_scores),
             },
-            "x_ge_0_and_dist_ge_th_and_abs_y_le_th": None if y_th is None else {
+            "x_ge_0_and_dist_ge_th_and_abs_y_le_th": None
+            if y_th is None
+            else {
                 "quantiles": _quantiles(front_far_center_scores),
                 "fraction_at_or_above": _fraction_at_or_above(front_far_center_scores),
                 "hist": _histogram(front_far_center_scores),
             },
-            "x_ge_0_and_dist_ge_th_and_abs_y_gt_th": None if y_th is None else {
+            "x_ge_0_and_dist_ge_th_and_abs_y_gt_th": None
+            if y_th is None
+            else {
                 "quantiles": _quantiles(front_far_side_scores),
                 "fraction_at_or_above": _fraction_at_or_above(front_far_side_scores),
                 "hist": _histogram(front_far_side_scores),
@@ -198,14 +213,24 @@ def _load_confidences_from_bag(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Evaluate ConeMap confidence distribution from rosbag.")
+    parser = argparse.ArgumentParser(
+        description="Evaluate ConeMap confidence distribution from rosbag."
+    )
     parser.add_argument("bag", help="Path to rosbag file")
-    parser.add_argument("-t", "--topic", default=DEFAULT_TOPIC, help=f"Topic (default: {DEFAULT_TOPIC})")
+    parser.add_argument(
+        "-t", "--topic", default=DEFAULT_TOPIC, help=f"Topic (default: {DEFAULT_TOPIC})"
+    )
     parser.add_argument("-o", "--output", default=None, help="Output JSON file (default: stdout)")
-    parser.add_argument("--dist-th", type=float, default=18.0, help="Distance threshold in base_link [m]")
+    parser.add_argument(
+        "--dist-th", type=float, default=18.0, help="Distance threshold in base_link [m]"
+    )
     parser.add_argument("--y-th", type=float, default=1.0, help="|y| threshold in base_link [m]")
-    parser.add_argument("--t0", type=float, default=None, help="Start time [s] (filter by message stamp, inclusive)")
-    parser.add_argument("--t1", type=float, default=None, help="End time [s] (filter by message stamp, inclusive)")
+    parser.add_argument(
+        "--t0", type=float, default=None, help="Start time [s] (filter by message stamp, inclusive)"
+    )
+    parser.add_argument(
+        "--t1", type=float, default=None, help="End time [s] (filter by message stamp, inclusive)"
+    )
     args = parser.parse_args()
 
     bag_path = Path(args.bag)

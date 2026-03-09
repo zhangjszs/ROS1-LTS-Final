@@ -1,9 +1,9 @@
 #pragma once
 
+#include <vector>
+
 #include <localization_core/factor_graph_types.hpp>
 #include <localization_core/types.hpp>
-
-#include <vector>
 
 namespace localization_core {
 
@@ -21,9 +21,8 @@ class DescriptorRelocator {
   /// @param landmarks  landmarks in global frame
   /// @param pose       current pose (used to transform to local frame)
   /// @return descriptor vector (n_rings * n_sectors * n_channels floats)
-  std::vector<float> BuildDescriptor(
-      const std::vector<FgLandmark>& landmarks,
-      const Pose2& pose) const;
+  std::vector<float> BuildDescriptor(const std::vector<FgLandmark>& landmarks,
+                                     const Pose2& pose) const;
 
   /// Add a descriptor to the database.
   void AddToDatabase(const SubMapDescriptor& desc);
@@ -33,10 +32,9 @@ class DescriptorRelocator {
   /// @param current_landmarks  current local landmarks (for RANSAC)
   /// @param current_pose  current dead-reckoned pose
   /// @return RelocResult with success flag and relative transform
-  RelocResult TryRelocalize(
-      const std::vector<float>& current_desc,
-      const std::vector<FgLandmark>& current_landmarks,
-      const Pose2& current_pose) const;
+  RelocResult TryRelocalize(const std::vector<float>& current_desc,
+                            const std::vector<FgLandmark>& current_landmarks,
+                            const Pose2& current_pose) const;
 
   /// Number of descriptors in the database.
   size_t DatabaseSize() const { return database_.size(); }
@@ -49,8 +47,7 @@ class DescriptorRelocator {
   std::vector<SubMapDescriptor> database_;
 
   int descriptorSize() const;
-  double cosineDistance(const std::vector<float>& a,
-                       const std::vector<float>& b) const;
+  double cosineDistance(const std::vector<float>& a, const std::vector<float>& b) const;
 };
 
 }  // namespace localization_core

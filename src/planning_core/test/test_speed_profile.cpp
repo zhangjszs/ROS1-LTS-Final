@@ -1,7 +1,9 @@
-#include <gtest/gtest.h>
+#include "planning_core/speed_profile.hpp"
+
 #include <cmath>
 #include <vector>
-#include "planning_core/speed_profile.hpp"
+
+#include <gtest/gtest.h>
 
 TEST(SpeedProfileTest, EmptyPath) {
   std::vector<planning_core::Point2D> path;
@@ -29,8 +31,7 @@ TEST(SpeedProfileTest, SinglePoint) {
 
 TEST(SpeedProfileTest, StraightLineNoCurvature) {
   std::vector<planning_core::Point2D> path = {
-      {0.0, 0.0}, {1.0, 0.0}, {2.0, 0.0}, {3.0, 0.0}, {4.0, 0.0}
-  };
+      {0.0, 0.0}, {1.0, 0.0}, {2.0, 0.0}, {3.0, 0.0}, {4.0, 0.0}};
   std::vector<double> curvatures(path.size(), 0.0);
   std::vector<double> speeds;
 
@@ -51,8 +52,7 @@ TEST(SpeedProfileTest, StraightLineNoCurvature) {
 
 TEST(SpeedProfileTest, CurvatureLimitsSpeed) {
   std::vector<planning_core::Point2D> path = {
-      {0.0, 0.0}, {1.0, 1.0}, {2.0, 0.0}, {3.0, 1.0}, {4.0, 0.0}
-  };
+      {0.0, 0.0}, {1.0, 1.0}, {2.0, 0.0}, {3.0, 1.0}, {4.0, 0.0}};
   std::vector<double> curvatures;
   planning_core::ComputeCurvatures(path, curvatures);
 
@@ -86,15 +86,14 @@ TEST(SpeedProfileTest, SpeedMonotonicityWithAcceleration) {
   planning_core::ComputeSpeedProfile(path, curvatures, params, speeds);
 
   for (size_t i = 1; i < speeds.size(); ++i) {
-    double reachable = std::sqrt(std::max(0.0, speeds[i-1] * speeds[i-1] + 2.0 * params.max_accel * 1.0));
+    double reachable =
+        std::sqrt(std::max(0.0, speeds[i - 1] * speeds[i - 1] + 2.0 * params.max_accel * 1.0));
     EXPECT_LE(speeds[i], reachable + 0.01);
   }
 }
 
 TEST(SpeedProfileTest, SpeedSeedsFromCurrentSpeed) {
-  std::vector<planning_core::Point2D> path = {
-      {0.0, 0.0}, {1.0, 0.0}, {2.0, 0.0}
-  };
+  std::vector<planning_core::Point2D> path = {{0.0, 0.0}, {1.0, 0.0}, {2.0, 0.0}};
   std::vector<double> curvatures(path.size(), 0.0);
   std::vector<double> speeds;
 
@@ -108,9 +107,7 @@ TEST(SpeedProfileTest, SpeedSeedsFromCurrentSpeed) {
 }
 
 TEST(SpeedProfileTest, ZeroCurrentSpeedStartsFromZero) {
-  std::vector<planning_core::Point2D> path = {
-      {0.0, 0.0}, {1.0, 0.0}, {2.0, 0.0}
-  };
+  std::vector<planning_core::Point2D> path = {{0.0, 0.0}, {1.0, 0.0}, {2.0, 0.0}};
   std::vector<double> curvatures(path.size(), 0.0);
   std::vector<double> speeds;
 
@@ -122,7 +119,7 @@ TEST(SpeedProfileTest, ZeroCurrentSpeedStartsFromZero) {
   EXPECT_GE(speeds[0], 0.0);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

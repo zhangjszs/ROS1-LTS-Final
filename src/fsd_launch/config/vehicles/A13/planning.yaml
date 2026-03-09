@@ -22,19 +22,19 @@
 # vehicle:
 #   # IMU偏移（应与control.yaml中的lidarToIMUDist一致）
 #   imu_offset_x: 1.87
-#   
+#
 #   # 车辆宽度（含后视镜）
 #   # 用途: 计算路径左右安全边界
 #   width: 1.4
-#   
+#
 #   # 最小转弯半径
 #   # 用途: 路径可行性检查
 #   min_turning_radius: 4.0
-#   
+#
 #   # 最大纵向加速度
 #   # 用途: 轨迹规划的速度限制
 #   max_longitudinal_acc: 5.0
-#   
+#
 #   # 最大纵向减速度
 #   max_longitudinal_dec: 8.0
 

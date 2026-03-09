@@ -1,59 +1,62 @@
 #pragma once
 
+#include <ros/ros.h>
+
+#include <cstdint>
 #include <deque>
 #include <memory>
 #include <string>
-#include <cstdint>
 #include <unordered_set>
 
-#include <ros/ros.h>
-#include <std_msgs/String.h>
-#include <diagnostic_msgs/DiagnosticArray.h>
-#include <autodrive_msgs/HUAT_InsP2.h>
 #include <autodrive_msgs/HUAT_CarState.h>
 #include <autodrive_msgs/HUAT_Cone.h>
 #include <autodrive_msgs/HUAT_ConeDetections.h>
 #include <autodrive_msgs/HUAT_ConeMap.h>
+#include <autodrive_msgs/HUAT_InsP2.h>
+#include <autodrive_msgs/diagnostics_helper.hpp>
+#include <autodrive_msgs/topic_contract.hpp>
+#include <diagnostic_msgs/DiagnosticArray.h>
 #include <geometry_msgs/PoseStamped.h>
-#include <nav_msgs/Odometry.h>
-#include <sensor_msgs/PointCloud2.h>
-#include <tf2_ros/transform_broadcaster.h>
-#include <pcl_conversions/pcl_conversions.h>
-#include <std_srvs/Trigger.h>
-
-#include <localization_core/location_mapper.hpp>
 #include <localization_core/factor_graph_optimizer.hpp>
+#include <localization_core/location_mapper.hpp>
 #include <localization_core/types.hpp>
 #include <localization_ros/localization_perf_stats.hpp>
-#include <autodrive_msgs/topic_contract.hpp>
-#include <autodrive_msgs/diagnostics_helper.hpp>
+#include <nav_msgs/Odometry.h>
+#include <pcl_conversions/pcl_conversions.h>
+#include <sensor_msgs/PointCloud2.h>
+#include <std_msgs/String.h>
+#include <std_srvs/Trigger.h>
+#include <tf2_ros/transform_broadcaster.h>
 
 namespace localization_ros {
 
 class LocationNode {
  public:
-  explicit LocationNode(ros::NodeHandle &nh);
+  explicit LocationNode(ros::NodeHandle& nh);
 
  private:
   void loadParameters();
-  void publishState(const localization_core::CarState &state, const ros::Time &stamp, bool publish_carstate);
-  void imuCallback(const autodrive_msgs::HUAT_InsP2::ConstPtr &msg);
-  void carstateCallback(const autodrive_msgs::HUAT_CarState::ConstPtr &msg);
-  void coneCallback(const autodrive_msgs::HUAT_ConeDetections::ConstPtr &msg);
-  void publishDiagnostics(const diagnostic_msgs::DiagnosticArray &diag_arr);
-  void publishEntryHealth(const std::string &source, const ros::Time &stamp, bool force = false);
-  void updateHeadingSanity(const autodrive_msgs::HUAT_InsP2 &msg, const ros::Time &stamp);
-  void updateConeMapLifecycleStats(const autodrive_msgs::HUAT_ConeMap &map_msg);
-  void publishMapperDebugTopics(const localization_core::MapUpdateStats &stats, const ros::Time &stamp);
-  bool evaluateDriftAndRecover(const localization_core::MapUpdateStats &stats, const ros::Time &stamp);
-  bool handleSaveMap(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res);
-  bool handleLoadMap(std_srvs::Trigger::Request &req, std_srvs::Trigger::Response &res);
+  void publishState(const localization_core::CarState& state, const ros::Time& stamp,
+                    bool publish_carstate);
+  void imuCallback(const autodrive_msgs::HUAT_InsP2::ConstPtr& msg);
+  void carstateCallback(const autodrive_msgs::HUAT_CarState::ConstPtr& msg);
+  void coneCallback(const autodrive_msgs::HUAT_ConeDetections::ConstPtr& msg);
+  void publishDiagnostics(const diagnostic_msgs::DiagnosticArray& diag_arr);
+  void publishEntryHealth(const std::string& source, const ros::Time& stamp, bool force = false);
+  void updateHeadingSanity(const autodrive_msgs::HUAT_InsP2& msg, const ros::Time& stamp);
+  void updateConeMapLifecycleStats(const autodrive_msgs::HUAT_ConeMap& map_msg);
+  void publishMapperDebugTopics(const localization_core::MapUpdateStats& stats,
+                                const ros::Time& stamp);
+  bool evaluateDriftAndRecover(const localization_core::MapUpdateStats& stats,
+                               const ros::Time& stamp);
+  bool handleSaveMap(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res);
+  bool handleLoadMap(std_srvs::Trigger::Request& req, std_srvs::Trigger::Response& res);
 
-  static localization_core::Asensing ToCore(const autodrive_msgs::HUAT_InsP2 &msg);
-  static localization_core::CarState ToCore(const autodrive_msgs::HUAT_CarState &msg);
-  static void ToRos(const localization_core::CarState &state, autodrive_msgs::HUAT_CarState *out);
-  static localization_core::ConeDetections ToCore(const autodrive_msgs::HUAT_ConeDetections &msg);
-  static void ToRos(const localization_core::ConeMap &map, autodrive_msgs::HUAT_ConeMap *out);
+  static localization_core::Asensing ToCore(const autodrive_msgs::HUAT_InsP2& msg);
+  static localization_core::CarState ToCore(const autodrive_msgs::HUAT_CarState& msg);
+  static void ToRos(const localization_core::CarState& state, autodrive_msgs::HUAT_CarState* out);
+  static localization_core::ConeDetections ToCore(const autodrive_msgs::HUAT_ConeDetections& msg);
+  static void ToRos(const localization_core::ConeMap& map, autodrive_msgs::HUAT_ConeMap* out);
 
   ros::NodeHandle nh_;
   ros::NodeHandle pnh_;
@@ -105,18 +108,19 @@ class LocationNode {
   localization_core::FactorGraphConfig fg_config_;
   double fg_start_time_ = -1.0;
   // B21: Relocalization success rate tracking
-  localization_core::AnomalyState fg_last_anomaly_state_ = localization_core::AnomalyState::TRACKING;
+  localization_core::AnomalyState fg_last_anomaly_state_ =
+      localization_core::AnomalyState::TRACKING;
   int fg_reloc_attempt_count_ = 0;
   int fg_reloc_success_count_ = 0;
   double fg_reloc_total_ms_ = 0.0;
   ros::WallTime fg_reloc_start_time_;
-  void feedFactorGraph(const autodrive_msgs::HUAT_InsP2 &msg);
-  void feedFactorGraphCones(const autodrive_msgs::HUAT_ConeDetections &msg);
+  void feedFactorGraph(const autodrive_msgs::HUAT_InsP2& msg);
+  void feedFactorGraphCones(const autodrive_msgs::HUAT_ConeDetections& msg);
   void updateMapperStateMachine(bool frame_good);
   bool shouldProcessConeFusion();
   int carStateQualityLevel() const;
   std::string carStateQualityLabel() const;
-  static const char *mapperStateName(int state);
+  static const char* mapperStateName(int state);
 
   // INS 状态环形缓冲区，用于检测-状态时间戳对齐
   struct StampedIns {
@@ -125,7 +129,7 @@ class LocationNode {
   };
   static constexpr size_t kInsBufferSize = 200;  // ~2s @ 100Hz
   std::deque<StampedIns> ins_buffer_;
-  bool interpolateIns(const ros::Time &target, localization_core::Asensing &out) const;
+  bool interpolateIns(const ros::Time& target, localization_core::Asensing& out) const;
 
   // Performance statistics
   LocPerfStats perf_stats_;

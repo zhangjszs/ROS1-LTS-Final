@@ -1,10 +1,10 @@
 #include "vision_core/image_quality.hpp"
+
 #include <opencv2/imgproc.hpp>
 
 namespace vision_core {
 
-ImageQualityAssessor::ImageQualityAssessor(const QualityThresholds& t)
-    : thresholds_(t) {}
+ImageQualityAssessor::ImageQualityAssessor(const QualityThresholds& t) : thresholds_(t) {}
 
 QualityMetrics ImageQualityAssessor::assess(const cv::Mat& bgr) const {
   QualityMetrics m{};
@@ -35,16 +35,12 @@ QualityMetrics ImageQualityAssessor::assess(const cv::Mat& bgr) const {
 
   // Classification
   const auto& t = thresholds_;
-  if (m.blur_score < t.blur_poor ||
-      m.overexposure_ratio > t.overexposure_unusable ||
-      m.underexposure_ratio > t.underexposure_unusable ||
-      m.brightness < t.brightness_very_low ||
+  if (m.blur_score < t.blur_poor || m.overexposure_ratio > t.overexposure_unusable ||
+      m.underexposure_ratio > t.underexposure_unusable || m.brightness < t.brightness_very_low ||
       m.brightness > t.brightness_very_high) {
     m.overall = ImageQuality::UNUSABLE;
-  } else if (m.blur_score < t.blur_degraded ||
-             m.brightness < t.brightness_low ||
-             m.brightness > t.brightness_high ||
-             m.overexposure_ratio > t.overexposure_limit) {
+  } else if (m.blur_score < t.blur_degraded || m.brightness < t.brightness_low ||
+             m.brightness > t.brightness_high || m.overexposure_ratio > t.overexposure_limit) {
     m.overall = ImageQuality::POOR;
   } else if (m.blur_score < t.blur_good || m.contrast < 30.0f) {
     m.overall = ImageQuality::DEGRADED;

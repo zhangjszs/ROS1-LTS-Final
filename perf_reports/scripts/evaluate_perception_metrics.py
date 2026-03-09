@@ -184,17 +184,20 @@ def _extract_frames(bag_path: Path, topic: str) -> List[Dict[str, Any]]:
             n_left = sum(1 for p in msg.points if p.y > 0)
             n_right = n_det - n_left
 
-            frames.append({
-                "stamp_sec": msg.header.stamp.to_sec(),
-                "n_detections": n_det,
-                "confidences": confidences,
-                "distances": distances,
-                "det_x": det_x,
-                "det_y": det_y,
-                "n_left": n_left,
-                "n_right": n_right,
-            })
+            frames.append(
+                {
+                    "stamp_sec": msg.header.stamp.to_sec(),
+                    "n_detections": n_det,
+                    "confidences": confidences,
+                    "distances": distances,
+                    "det_x": det_x,
+                    "det_y": det_y,
+                    "n_left": n_left,
+                    "n_right": n_right,
+                }
+            )
     return frames
+
 
 def evaluate(
     bag_path: Path,
@@ -286,31 +289,41 @@ def evaluate(
 
     return result
 
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Evaluate LiDAR perception proxy metrics from a ROS bag file."
     )
+    parser.add_argument("bag_file", type=Path, help="Path to the ROS bag file.")
     parser.add_argument(
-        "bag_file", type=Path, help="Path to the ROS bag file."
-    )
-    parser.add_argument(
-        "--topic", type=str, default=DEFAULT_TOPIC,
+        "--topic",
+        type=str,
+        default=DEFAULT_TOPIC,
         help=f"Detection topic to read (default: {DEFAULT_TOPIC}).",
     )
     parser.add_argument(
-        "-o", "--output-json", type=Path, default=None,
+        "-o",
+        "--output-json",
+        type=Path,
+        default=None,
         help="Output JSON path. Defaults to <bag_stem>_perception.json alongside the bag.",
     )
     parser.add_argument(
-        "--gt", type=Path, default=None,
+        "--gt",
+        type=Path,
+        default=None,
         help="Ground-truth cone map CSV (x,y,z per line). Enables precision/recall/F1.",
     )
     parser.add_argument(
-        "--gt-threshold", type=float, default=1.0,
+        "--gt-threshold",
+        type=float,
+        default=1.0,
         help="GT matching distance threshold in meters (default: 1.0).",
     )
     parser.add_argument(
-        "--gt-max-range", type=float, default=50.0,
+        "--gt-max-range",
+        type=float,
+        default=50.0,
         help="Max range for GT visibility filter in meters (default: 50.0).",
     )
     args = parser.parse_args()
@@ -324,7 +337,8 @@ def main() -> int:
         return 1
 
     payload = evaluate(
-        args.bag_file, args.topic,
+        args.bag_file,
+        args.topic,
         gt_path=args.gt,
         gt_match_threshold=args.gt_threshold,
         gt_max_range=args.gt_max_range,
@@ -332,9 +346,7 @@ def main() -> int:
 
     # Default output path
     if args.output_json is None:
-        args.output_json = args.bag_file.with_name(
-            args.bag_file.stem + "_perception.json"
-        )
+        args.output_json = args.bag_file.with_name(args.bag_file.stem + "_perception.json")
 
     args.output_json.parent.mkdir(parents=True, exist_ok=True)
     args.output_json.write_text(

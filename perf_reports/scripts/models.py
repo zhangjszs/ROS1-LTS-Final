@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
+
 @dataclass
 class MetricStats:
     mean: float
@@ -11,11 +12,13 @@ class MetricStats:
     p99: float
     max: float
 
+
 @dataclass
 class GitInfo:
     commit_hash: str
     branch: str
     commit_message: str
+
 
 @dataclass
 class SystemInfo:
@@ -24,12 +27,14 @@ class SystemInfo:
     memory: str
     os: str
 
+
 @dataclass
 class NodeMetrics:
     node: str
     window_size: int
     metrics: Dict[str, MetricStats]
     timestamp: str
+
 
 @dataclass
 class PerformanceData:

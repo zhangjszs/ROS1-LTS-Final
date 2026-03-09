@@ -34,34 +34,34 @@ topics:
   # 消息类型: autodrive_msgs/HUAT_InsP2
   # 包含: 位置、速度、姿态、IMU原始数据
   ins: "sensors/ins"
-  
+
   # 车辆状态输入（仅在use_external_carstate=true时使用）
   # 消息类型: autodrive_msgs/HUAT_CarState
   car_state_in: "localization/car_state"
-  
+
   # 锥桶检测结果输入（来自感知模块）
   # 消息类型: autodrive_msgs/HUAT_ConeDetections
   # 注意: 坐标系应与frames/base_link一致
   cone: "perception/lidar_cluster/detections"
-  
+
   # 车辆状态输出
   # 消息类型: autodrive_msgs/HUAT_CarState
   # 包含: x, y, yaw, vx, vy, omega (world坐标系)
   car_state_out: "localization/car_state"
-  
+
   # 局部锥桶地图输出
   # 消息类型: autodrive_msgs/HUAT_ConeMap
   # 包含: 车辆周围一定范围内的锥桶（用于规划）
   cone_map: "localization/cone_map"
-  
+
   # 全局锥桶地图输出（用于可视化）
   # 消息类型: sensor_msgs/PointCloud2
   global_map: "localization/global_map"
-  
+
   # 位姿输出
   # 消息类型: geometry_msgs/PoseStamped
   pose: "localization/pose"
-  
+
   # 里程计输出
   # 消息类型: nav_msgs/Odometry
   odom: "localization/odom"
@@ -73,7 +73,7 @@ frames:
   # 世界坐标系（全局地图坐标系）
   # 通常使用ENU坐标系（东-北-天）
   world: "world"
-  
+
   # 车体坐标系
   # 车辆中心点，通常位于IMU位置
   base_link: "base_link"
@@ -107,7 +107,7 @@ length:
   frontToIMUdistanceX: 0.0
   frontToIMUdistanceY: 0.0
   frontToIMUdistanceZ: 0.0
-  
+
   # 后轴到IMU的距离
   # 单位: m
   rearToIMUdistanceX: 0.0
@@ -122,14 +122,14 @@ map:
   # 影响: 加载哪组地图参数
   # 可选: accel | skidpad | track
   mode: track
-  
+
   # 锥桶合并距离阈值
   # 单位: m | 建议范围: 1.0-3.0
   # 影响: 同一物理锥桶的多次观测是否合并
   # 调大: 更激进的合并（可能误合并相邻锥桶）
   # 调小: 更保守的合并（可能产生重复锥桶）
   merge_distance: 2.5
-  
+
   # 地图最大锥桶数量
   # 影响: 内存占用和计算量
   # 超过此数量时清理低观测次数的锥桶
@@ -137,20 +137,20 @@ map:
   # Accel模式: 60  (小场地)
   # Skidpad模式: 100 (中等场地)
   max_map_size: 500
-  
+
   # 清理时保留的最小观测次数
   # 影响: 锥桶的持久性
   # 调大: 更严格的清理，只保留经常被观测到的锥桶
   # 调小: 更宽松的清理，保留更多锥桶
   min_obs_to_keep: 2
-  
+
   # 输出局部锥桶的最大距离
   # 单位: m | 建议范围: 20-50
   # 影响: 发布给规划模块的锥桶范围
   # 调大: 规划看到更远（计算量↑）
   # 调小: 只看到近处（可能漏掉弯道）
   local_cone_range: 50.0
-  
+
   # ==========================
   # 锥桶入图过滤
   # ==========================
@@ -160,18 +160,18 @@ map:
   # 调大: 更严格的入图（减少假阳性，可能漏真阳性）
   # 调小: 更宽松的入图（增加地图密度，可能有噪声）
   min_confidence_to_add: 0.3
-  
+
   # 合并已有锥桶的最低置信度
   # 范围: 0-1 | 建议: 0.1-0.2
   # 影响: 低置信度检测是否可以更新已有锥桶位置
   # 通常低于min_confidence_to_add，允许低置信度检测更新位置
   min_confidence_to_merge: 0.15
-  
+
   # 锥桶尺寸约束（入图过滤）
   max_cone_height: 0.75    # 最大高度 (m)
   max_cone_width: 0.5      # 最大宽度 (m)
   min_cone_height: 0.03    # 最小高度 (m)
-  
+
   # ==========================
   # 模式特定预设
   # ==========================
@@ -186,7 +186,7 @@ map:
       cone_y_max: 2.5                  # Y轴最大偏移（直线场景窄）
       expected_cone_spacing: 5.0       # 预期锥桶间距
       track_width: 3.0                 # 赛道宽度 (m)
-    
+
     # --- 八字绕环模式 ---
     skidpad:
       merge_distance: 2.0              # 中等合并距离
@@ -200,7 +200,7 @@ map:
       circle_center_dist: 18.25        # 两圆心间距 (m)
       circle_tolerance: 2.0            # 圆形验证容差 (m)
       track_width: 3.0                 # 赛道宽度 (m)
-    
+
     # --- 高速循迹模式 ---
     track:
       merge_distance: 2.5              # 标准合并距离
@@ -300,29 +300,29 @@ fg:
   keyframe_dist: 1.0                 # 距离阈值 (m)
   keyframe_yaw: 0.1                  # 航向变化阈值 (rad)
   keyframe_dt: 0.5                   # 时间阈值 (s)
-  
+
   # 是否执行额外的iSAM更新
   # true: 更精确但更慢
   # false: 更快但可能精度稍低
   run_extra_update: false
-  
+
   # IMU噪声模型
   sigma_imu_xy: 0.05                 # IMU位置噪声 (m/√s)
   sigma_imu_theta: 0.01              # IMU航向噪声 (rad/√s)
-  
+
   # GNSS噪声模型（根据信号质量分级）
   sigma_gnss_good: 0.5               # GNSS良好质量 (m)
   sigma_gnss_medium: 2.0             # GNSS中等质量 (m)
   sigma_gnss_poor: 10.0              # GNSS较差质量 (m)
-  
+
   # 锥桶观测门限
   min_cone_confidence: 0.15          # 锥桶最低置信度
   max_cone_factors_per_keyframe: 10  # 每关键帧最大锥桶因子数
-  
+
   # 颜色-拓扑软关联（等待相机颜色分类可用后启用）
   color_mismatch_penalty: 0.0        # 颜色不匹配代价（当前禁用）
   merge_distance: 2.0                # 路标合并距离 (m)
-  
+
   # 关联权重
   w_maha: 1.0                        # 马氏距离权重
   w_color: 0.0                       # 颜色权重（当前禁用）

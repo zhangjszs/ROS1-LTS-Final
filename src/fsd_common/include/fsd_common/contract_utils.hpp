@@ -1,20 +1,22 @@
 #pragma once
+#include <ros/ros.h>
+
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <string>
-#include <ros/ros.h>
+
 #include <fsd_common/topic_contract.hpp>
 
 namespace fsd_common {
 namespace contract {
 
-inline ros::Time NormalizeInputStamp(const ros::Time &stamp) {
+inline ros::Time NormalizeInputStamp(const ros::Time& stamp) {
   return stamp.isZero() ? ros::Time::now() : stamp;
 }
 
-inline std::string NormalizeFrameId(const std::string &frame_id,
-                                    const std::string &fallback = fsd_common::frame_contract::kWorld) {
+inline std::string NormalizeFrameId(
+    const std::string& frame_id, const std::string& fallback = fsd_common::frame_contract::kWorld) {
   return frame_id.empty() ? fallback : frame_id;
 }
 

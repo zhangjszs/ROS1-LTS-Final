@@ -1,9 +1,9 @@
 #pragma once
 
+#include <vector>
+
 #include <localization_core/factor_graph_types.hpp>
 #include <localization_core/types.hpp>
-
-#include <vector>
 
 namespace localization_core {
 

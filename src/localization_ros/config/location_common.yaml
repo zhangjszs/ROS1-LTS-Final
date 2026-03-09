@@ -142,12 +142,12 @@ ins_quality:
   # 调大：更严格，只使用高质量数据（可能漏帧）
   # 调小：更宽松，使用更多数据（可能有噪声）
   min_ins_status: 2
-  
+
   # 最少卫星数量
   # 影响：GNSS定位精度
   # 建议：>= 8颗卫星才能保证良好精度
   min_satellite_count: 8
-  
+
   # 最大差分龄期
   # 单位：0.1秒（30 = 3.0秒）
   # 影响：差分校正数据的新鲜度
@@ -165,20 +165,20 @@ fg:
   keyframe_dist: 1.0                 # 距离阈值 (m)
   keyframe_yaw: 0.1                  # 航向变化阈值 (rad)
   keyframe_dt: 0.5                   # 时间阈值 (s)
-  
+
   run_extra_update: false
-  
+
   # 噪声模型
   sigma_imu_xy: 0.05
   sigma_imu_theta: 0.01
   sigma_gnss_good: 0.5
   sigma_gnss_medium: 2.0
   sigma_gnss_poor: 10.0
-  
+
   # 锥桶观测
   min_cone_confidence: 0.15
   max_cone_factors_per_keyframe: 10
-  
+
   # 数据关联
   color_mismatch_penalty: 0.0
   merge_distance: 2.0
@@ -188,7 +188,7 @@ fg:
   topo_penalty: 0.0
   neighbor_radius: 8.0
   gate_threshold: 15.0
-  
+
   # 八字绕环圆形几何参数
   circle_radius: 15.25
   circle_center1_x: 0.0
@@ -196,7 +196,7 @@ fg:
   circle_center2_x: 0.0
   circle_center2_y: 9.125
   circle_sigma: 1.0
-  
+
   # 异常状态机参数
   anomaly:
     chi2_degrade: 15.0               # 卡方退化阈值
@@ -207,7 +207,7 @@ fg:
     no_cone_frames_max: 30           # 无锥桶最大帧数
     reloc_a_timeout: 3.0             # 重定位A阶段超时 (s)
     reloc_b_timeout: 5.0             # 重定位B阶段超时 (s)
-  
+
   # 重定位参数
   reloc:
     submap_radius: 15.0              # 子地图半径 (m)
@@ -280,12 +280,12 @@ loop_closure:
     max_heading_drift: 0.3         # 最大航向漂移 (rad)
     use_geometric_verification: true # 使用几何验证
     min_inlier_ratio: 0.6          # 最小内点比率
-  
+
   trigger:
     min_travel_distance: 20.0      # 最小行驶距离 (m)
     min_time_elapsed: 10.0         # 最小时间间隔 (s)
     confidence_threshold: 0.7      # 置信度阈值
-  
+
   geometric_check:
     check_relative_pose: true      # 检查相对位姿
     check_track_width: true        # 检查赛道宽度一致性
@@ -296,18 +296,18 @@ loop_closure:
 # 几何特征增强
 geometric_features:
   enabled: true                     # 启用几何特征增强
-  
+
   distance_weighting:
     near_distance: 5.0             # 近距离阈值 (m)
     far_distance: 30.0             # 远距离阈值 (m)
     near_weight: 1.5               # 近距离几何权重
     far_weight: 0.8                # 远距离几何权重
-  
+
   angle_features:
     use_bearing: true              # 使用方位角
     use_elevation: false           # 不使用俯仰角（2D定位）
     bearing_weight: 1.0            # 方位角权重
-  
+
   distance_features:
     use_euclidean: true            # 使用欧氏距离
     use_manhattan: false           # 不使用曼哈顿距离
@@ -319,13 +319,13 @@ data_association:
     enabled: true                  # 启用多假设
     max_hypotheses: 3              # 最大假设数
     hypothesis_decay: 0.9          # 假设衰减因子
-  
+
   gating:
     method: adaptive               # 门控方法: fixed | adaptive | chi2
     base_threshold: 3.0            # 基础门限 (m)
     adaptive_factor: 1.5           # 自适应因子
     max_threshold: 8.0             # 最大门限 (m)
-  
+
   nearest_neighbor:
     use_mahalanobis: true          # 使用马氏距离
     use_euclidean_fallback: true   # 欧氏距离回退

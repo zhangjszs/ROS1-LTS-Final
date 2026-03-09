@@ -33,14 +33,14 @@ class PerfStats : public fsd_common::perf::PerfStatsBase<PerfSample> {
 
   PerfStats() {
     SetDescriptors({
-        {"t_pass_ms", [](const PerfSample &s) { return s.t_pass_ms; }},
-        {"t_ground_ms", [](const PerfSample &s) { return s.t_ground_ms; }},
-        {"t_cluster_ms", [](const PerfSample &s) { return s.t_cluster_ms; }},
-        {"t_total_ms", [](const PerfSample &s) { return s.t_total_ms; }},
-        {"N", [](const PerfSample &s) { return s.n_points; }},
-        {"K", [](const PerfSample &s) { return s.n_clusters; }},
-        {"D", [](const PerfSample &s) { return s.n_detections; }},
-        {"bytes", [](const PerfSample &s) { return s.bytes_pub; }},
+        {"t_pass_ms", [](const PerfSample& s) { return s.t_pass_ms; }},
+        {"t_ground_ms", [](const PerfSample& s) { return s.t_ground_ms; }},
+        {"t_cluster_ms", [](const PerfSample& s) { return s.t_cluster_ms; }},
+        {"t_total_ms", [](const PerfSample& s) { return s.t_total_ms; }},
+        {"N", [](const PerfSample& s) { return s.n_points; }},
+        {"K", [](const PerfSample& s) { return s.n_clusters; }},
+        {"D", [](const PerfSample& s) { return s.n_detections; }},
+        {"bytes", [](const PerfSample& s) { return s.bytes_pub; }},
     });
   }
 

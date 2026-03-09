@@ -1,30 +1,24 @@
+#include <ros/ros.h>
+
+#include <autodrive_msgs/HUAT_CarState.h>
+#include <autodrive_msgs/HUAT_InsP2.h>
+#include <autodrive_msgs/topic_contract.hpp>
 #include <localization_core/imu_state_estimator.hpp>
 
-#include <ros/ros.h>
-#include <autodrive_msgs/HUAT_InsP2.h>
-#include <autodrive_msgs/HUAT_CarState.h>
-#include <autodrive_msgs/topic_contract.hpp>
-
-class StateEstimatorNode
-{
-public:
-  StateEstimatorNode()
-      : nh_(),
-        pnh_("~"),
-        params_(LoadParams()),
-        estimator_(params_)
-  {
+class StateEstimatorNode {
+ public:
+  StateEstimatorNode() : nh_(), pnh_("~"), params_(LoadParams()), estimator_(params_) {
     pnh_.param<std::string>("topics/ins", imu_topic_, "sensors/ins");
-    pnh_.param<std::string>("topics/car_state", carstate_topic_, autodrive_msgs::topic_contract::kCarState);
+    pnh_.param<std::string>("topics/car_state", carstate_topic_,
+                            autodrive_msgs::topic_contract::kCarState);
     pnh_.param<std::string>("frames/world", world_frame_, autodrive_msgs::frame_contract::kWorld);
 
     imu_sub_ = nh_.subscribe(imu_topic_, 50, &StateEstimatorNode::ImuCallback, this);
     carstate_pub_ = nh_.advertise<autodrive_msgs::HUAT_CarState>(carstate_topic_, 10);
   }
 
-private:
-  localization_core::ImuStateEstimatorParams LoadParams()
-  {
+ private:
+  localization_core::ImuStateEstimatorParams LoadParams() {
     localization_core::ImuStateEstimatorParams params;
 
     pnh_.param("use_gnss", params.use_gnss, true);
@@ -48,28 +42,22 @@ private:
     pnh_.param("accel_gravity", params.accel_gravity, 9.79);
     pnh_.param("gyro_scale", params.gyro_scale, 1.0);
 
-    if (!pnh_.param("length/frontToIMUdistanceX", params.front_to_imu_x, 0.0))
-    {
+    if (!pnh_.param("length/frontToIMUdistanceX", params.front_to_imu_x, 0.0)) {
       nh_.param("length/frontToIMUdistanceX", params.front_to_imu_x, 0.0);
     }
-    if (!pnh_.param("length/frontToIMUdistanceY", params.front_to_imu_y, 0.0))
-    {
+    if (!pnh_.param("length/frontToIMUdistanceY", params.front_to_imu_y, 0.0)) {
       nh_.param("length/frontToIMUdistanceY", params.front_to_imu_y, 0.0);
     }
-    if (!pnh_.param("length/frontToIMUdistanceZ", params.front_to_imu_z, 0.0))
-    {
+    if (!pnh_.param("length/frontToIMUdistanceZ", params.front_to_imu_z, 0.0)) {
       nh_.param("length/frontToIMUdistanceZ", params.front_to_imu_z, 0.0);
     }
-    if (!pnh_.param("length/rearToIMUdistanceX", params.rear_to_imu_x, 0.0))
-    {
+    if (!pnh_.param("length/rearToIMUdistanceX", params.rear_to_imu_x, 0.0)) {
       nh_.param("length/rearToIMUdistanceX", params.rear_to_imu_x, 0.0);
     }
-    if (!pnh_.param("length/rearToIMUdistanceY", params.rear_to_imu_y, 0.0))
-    {
+    if (!pnh_.param("length/rearToIMUdistanceY", params.rear_to_imu_y, 0.0)) {
       nh_.param("length/rearToIMUdistanceY", params.rear_to_imu_y, 0.0);
     }
-    if (!pnh_.param("length/rearToIMUdistanceZ", params.rear_to_imu_z, 0.0))
-    {
+    if (!pnh_.param("length/rearToIMUdistanceZ", params.rear_to_imu_z, 0.0)) {
       nh_.param("length/rearToIMUdistanceZ", params.rear_to_imu_z, 0.0);
     }
 
@@ -83,43 +71,40 @@ private:
     return params;
   }
 
-  static localization_core::Asensing ToCore(const autodrive_msgs::HUAT_InsP2 &msg)
-  {
+  static localization_core::Asensing ToCore(const autodrive_msgs::HUAT_InsP2& msg) {
     localization_core::Asensing out;
-    
+
     // 位置 (WGS84)
     out.latitude = msg.Lat;
     out.longitude = msg.Lon;
     out.altitude = msg.Altitude;
-    
+
     // 速度 (m/s, NED坐标系)
     // HUAT_InsP2.Vd 向下为正
     out.north_velocity = msg.Vn;
     out.east_velocity = msg.Ve;
     out.ground_velocity = msg.Vd;  // Vd(向下)
-    
+
     // 姿态角 (度)
     out.roll = msg.Roll;
     out.pitch = msg.Pitch;
     out.azimuth = msg.Heading;
-    
+
     // 角速度 (rad/s, FRD车体系)
     out.x_angular_velocity = msg.gyro_x;
     out.y_angular_velocity = msg.gyro_y;
     out.z_angular_velocity = msg.gyro_z;
-    
+
     // 加速度 (m/s², FRD车体系)
     out.x_acc = msg.acc_x;
     out.y_acc = msg.acc_y;
     out.z_acc = msg.acc_z;
-    
+
     return out;
   }
 
-  static void ToRos(const localization_core::CarState &state, autodrive_msgs::HUAT_CarState *out)
-  {
-    if (!out)
-    {
+  static void ToRos(const localization_core::CarState& state, autodrive_msgs::HUAT_CarState* out) {
+    if (!out) {
       return;
     }
     out->car_state.x = state.car_state.x;
@@ -142,13 +127,11 @@ private:
     out->Ay = static_cast<float>(state.Ay);
   }
 
-  void ImuCallback(const autodrive_msgs::HUAT_InsP2::ConstPtr &msg)
-  {
+  void ImuCallback(const autodrive_msgs::HUAT_InsP2::ConstPtr& msg) {
     autodrive_msgs::HUAT_CarState state_msg;
     localization_core::CarState state;
     const double stamp = msg->header.stamp.toSec();
-    if (estimator_.Process(ToCore(*msg), stamp, &state))
-    {
+    if (estimator_.Process(ToCore(*msg), stamp, &state)) {
       ToRos(state, &state_msg);
       state_msg.header.stamp = msg->header.stamp;
       state_msg.header.frame_id = world_frame_;
@@ -167,8 +150,7 @@ private:
   ros::Publisher carstate_pub_;
 };
 
-int main(int argc, char **argv)
-{
+int main(int argc, char** argv) {
   ros::init(argc, argv, "state_estimator_node");
   StateEstimatorNode node;
   ros::spin();

@@ -1,14 +1,14 @@
 #pragma once
 
-#include <localization_core/factor_graph_types.hpp>
-#include <localization_core/anomaly_state_machine.hpp>
-#include <localization_core/descriptor_relocator.hpp>
-#include <localization_core/particle_relocator.hpp>
-#include <localization_core/types.hpp>
-
 #include <cstdint>
 #include <memory>
 #include <vector>
+
+#include <localization_core/anomaly_state_machine.hpp>
+#include <localization_core/descriptor_relocator.hpp>
+#include <localization_core/factor_graph_types.hpp>
+#include <localization_core/particle_relocator.hpp>
+#include <localization_core/types.hpp>
 
 // Forward-declare GTSAM types to avoid header pollution
 namespace gtsam {
@@ -97,9 +97,7 @@ class FactorGraphOptimizer {
 
   /// Last computed cone match ratio.
   double GetConeMatchRatio() const {
-    return (total_obs_count_ > 0)
-        ? static_cast<double>(matched_count_) / total_obs_count_
-        : 0.0;
+    return (total_obs_count_ > 0) ? static_cast<double>(matched_count_) / total_obs_count_ : 0.0;
   }
 
  private:
@@ -119,8 +117,7 @@ class FactorGraphOptimizer {
   void addGeometryPriorFactors();
   double computeChi2Normalized();
   double computeConeMatchRatio();
-  TopoRelation classifyRelation(const ConeObservation& obs, int lm_idx,
-                                 const Pose2& pose) const;
+  TopoRelation classifyRelation(const ConeObservation& obs, int lm_idx, const Pose2& pose) const;
 
   // ─── State ───────────────────────────────────────────────────
 

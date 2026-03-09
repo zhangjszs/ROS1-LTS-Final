@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import json
 import os
 import re
-import json
 from datetime import datetime
 from pathlib import Path
+
 from common import Config, get_git_info, get_system_info, validate_perf_data
+
 
 class PerfDataCollector:
     def __init__(self, log_file=None, note=None, scenario=None, tags=None):
@@ -21,7 +23,7 @@ class PerfDataCollector:
         self.tags = tags or []
 
     def parse_perf_line(self, line):
-        pattern = r'\[perf\] node=(\w+) window=(\d+) (.+)'
+        pattern = r"\[perf\] node=(\w+) window=(\d+) (.+)"
         match = re.search(pattern, line)
         if not match:
             return None
@@ -31,7 +33,9 @@ class PerfDataCollector:
         metrics_str = match.group(3)
 
         metrics = {}
-        metric_pattern = r'(\w+)\{mean=([\d.]+),p50=([\d.]+),p95=([\d.]+),p99=([\d.]+),max=([\d.]+)\}'
+        metric_pattern = (
+            r"(\w+)\{mean=([\d.]+),p50=([\d.]+),p95=([\d.]+),p99=([\d.]+),max=([\d.]+)\}"
+        )
         for metric_match in re.finditer(metric_pattern, metrics_str):
             metric_name = metric_match.group(1)
             metrics[metric_name] = {
@@ -39,14 +43,14 @@ class PerfDataCollector:
                 "p50": float(metric_match.group(3)),
                 "p95": float(metric_match.group(4)),
                 "p99": float(metric_match.group(5)),
-                "max": float(metric_match.group(6))
+                "max": float(metric_match.group(6)),
             }
 
         return {
             "node": node_name,
             "window_size": window_size,
             "metrics": metrics,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     def collect_from_log(self):
@@ -55,9 +59,9 @@ class PerfDataCollector:
             return
 
         collected_data = []
-        with open(self.log_file, 'r') as f:
+        with open(self.log_file, "r") as f:
             for line in f:
-                if '[perf]' in line:
+                if "[perf]" in line:
                     perf_entry = self.parse_perf_line(line)
                     if perf_entry:
                         collected_data.append(perf_entry)
@@ -84,7 +88,7 @@ class PerfDataCollector:
             "note": self.note,
             "scenario": self.scenario,
             "tags": self.tags,
-            "nodes": self.perf_data
+            "nodes": self.perf_data,
         }
 
         filepath = os.path.join(output_dir, filename)
@@ -93,7 +97,7 @@ class PerfDataCollector:
         if not validate_perf_data(data):
             print("Warning: Data validation failed, but saving anyway")
 
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             json.dump(data, f, indent=2)
 
         print(f"Performance data saved to: {filepath}")
@@ -104,24 +108,22 @@ class PerfDataCollector:
             return None
         return self.perf_data[node_name][-1]
 
+
 def main():
     import argparse
 
-    parser = argparse.ArgumentParser(description='Collect performance data from ROS logs')
-    parser.add_argument('--log-file', help='Path to ROS log file')
-    parser.add_argument('--output-dir', help='Output directory for collected data')
-    parser.add_argument('--note', help='Short change note for this run')
-    parser.add_argument('--scenario', help='Test scenario description')
-    parser.add_argument('--tags', help='Comma-separated tags for this run')
+    parser = argparse.ArgumentParser(description="Collect performance data from ROS logs")
+    parser.add_argument("--log-file", help="Path to ROS log file")
+    parser.add_argument("--output-dir", help="Output directory for collected data")
+    parser.add_argument("--note", help="Short change note for this run")
+    parser.add_argument("--scenario", help="Test scenario description")
+    parser.add_argument("--tags", help="Comma-separated tags for this run")
     args = parser.parse_args()
 
-    tags = [tag.strip() for tag in args.tags.split(',')] if args.tags else []
+    tags = [tag.strip() for tag in args.tags.split(",")] if args.tags else []
     tags = [tag for tag in tags if tag]
     collector = PerfDataCollector(
-        log_file=args.log_file,
-        note=args.note,
-        scenario=args.scenario,
-        tags=tags
+        log_file=args.log_file, note=args.note, scenario=args.scenario, tags=tags
     )
     collector.collect_from_log()
     filepath = collector.save_data(output_dir=args.output_dir)
@@ -129,6 +131,7 @@ def main():
     print(f"\nCollected data for {len(collector.perf_data)} nodes:")
     for node_name, entries in collector.perf_data.items():
         print(f"  - {node_name}: {len(entries)} entries")
+
 
 if __name__ == "__main__":
     main()

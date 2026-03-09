@@ -5,11 +5,9 @@
 #include <cmath>
 #include <vector>
 
-namespace planning_core
-{
+namespace planning_core {
 
-struct SpeedProfileParams
-{
+struct SpeedProfileParams {
   double speed_cap = 20.0;
   double max_lateral_acc = 6.5;
   double max_accel = 3.0;
@@ -26,21 +24,18 @@ struct SpeedProfileParams
   bool decel_to_stop_at_end = false;
 };
 
-struct Point2D
-{
+struct Point2D {
   double x = 0.0;
   double y = 0.0;
 };
 
-inline double PointDist(const Point2D &a, const Point2D &b)
-{
+inline double PointDist(const Point2D& a, const Point2D& b) {
   const double dx = b.x - a.x;
   const double dy = b.y - a.y;
   return std::sqrt(dx * dx + dy * dy);
 }
 
-inline double SignedCurvature3(const Point2D &p0, const Point2D &p1, const Point2D &p2)
-{
+inline double SignedCurvature3(const Point2D& p0, const Point2D& p1, const Point2D& p2) {
   const double a = PointDist(p0, p1);
   const double b = PointDist(p1, p2);
   const double c = PointDist(p0, p2);
@@ -52,15 +47,12 @@ inline double SignedCurvature3(const Point2D &p0, const Point2D &p1, const Point
 }
 /// Compute signed curvatures for a path of 2D points.
 /// Output vector has same size as input; endpoints copy from neighbors.
-inline void ComputeCurvatures(const std::vector<Point2D> &path,
-                              std::vector<double> &curvatures)
-{
+inline void ComputeCurvatures(const std::vector<Point2D>& path, std::vector<double>& curvatures) {
   const size_t n = path.size();
   curvatures.assign(n, 0.0);
   if (n < 3)
     return;
-  for (size_t i = 1; i + 1 < n; ++i)
-  {
+  for (size_t i = 1; i + 1 < n; ++i) {
     curvatures[i] = SignedCurvature3(path[i - 1], path[i], path[i + 1]);
   }
   curvatures.front() = curvatures[1];
@@ -70,11 +62,9 @@ inline void ComputeCurvatures(const std::vector<Point2D> &path,
 /// Compute a feasible speed profile given curvatures and path geometry.
 /// Uses lateral-acceleration limit (with lookahead curvature preview),
 /// forward (accel) and backward (brake) passes.
-inline void ComputeSpeedProfile(const std::vector<Point2D> &path,
-                                const std::vector<double> &curvatures,
-                                const SpeedProfileParams &p,
-                                std::vector<double> &target_speeds)
-{
+inline void ComputeSpeedProfile(const std::vector<Point2D>& path,
+                                const std::vector<double>& curvatures, const SpeedProfileParams& p,
+                                std::vector<double>& target_speeds) {
   const size_t n = path.size();
   target_speeds.assign(n, 0.0);
   if (n == 0)
@@ -89,8 +79,7 @@ inline void ComputeSpeedProfile(const std::vector<Point2D> &path,
 
   // Segment lengths
   std::vector<double> ds;
-  if (n >= 2)
-  {
+  if (n >= 2) {
     ds.resize(n - 1, 1e-3);
     for (size_t i = 0; i + 1 < n; ++i)
       ds[i] = std::max(1e-3, PointDist(path[i], path[i + 1]));
@@ -100,73 +89,65 @@ inline void ComputeSpeedProfile(const std::vector<Point2D> &path,
   // a forward window of curvature_lookahead_m meters.
   // This makes the vehicle start slowing BEFORE entering a curve.
   std::vector<double> effective_kappa(n, 0.0);
-  if (p.curvature_lookahead_m > 0.0 && n >= 2)
-  {
-    for (size_t i = 0; i < n; ++i)
-    {
+  if (p.curvature_lookahead_m > 0.0 && n >= 2) {
+    for (size_t i = 0; i < n; ++i) {
       double max_k = std::abs(curvatures[i]);
       double dist_acc = 0.0;
-      for (size_t j = i; j + 1 < n; ++j)
-      {
+      for (size_t j = i; j + 1 < n; ++j) {
         dist_acc += ds[j];
         if (dist_acc > p.curvature_lookahead_m)
           break;
         double k = std::abs(curvatures[j + 1]);
-        if (k > max_k) max_k = k;
+        if (k > max_k)
+          max_k = k;
       }
       effective_kappa[i] = max_k;
     }
-  }
-  else
-  {
+  } else {
     for (size_t i = 0; i < n; ++i)
       effective_kappa[i] = std::abs(curvatures[i]);
   }
 
   // PASS 1: Lateral acceleration constraint with lookahead curvature
   std::vector<double> v_ref(n, v_cap);
-  for (size_t i = 0; i < n; ++i)
-  {
+  for (size_t i = 0; i < n; ++i) {
     const double denom = std::max(effective_kappa[i], kappa_eps);
     const double v_lat_max = std::sqrt(std::max(0.0, a_lat / denom));
     v_ref[i] = std::max(v_min, std::min(v_cap, v_lat_max));
   }
 
   // Seed with current vehicle speed
-  v_ref[0] = std::max(v_min, std::min(v_cap,
-      std::isfinite(p.current_speed) ? std::max(0.0, p.current_speed) : 0.0));
+  v_ref[0] = std::max(
+      v_min,
+      std::min(v_cap, std::isfinite(p.current_speed) ? std::max(0.0, p.current_speed) : 0.0));
 
   // End-of-path deceleration: force last point to min_speed
-  if (p.decel_to_stop_at_end && n >= 2)
-  {
+  if (p.decel_to_stop_at_end && n >= 2) {
     v_ref[n - 1] = v_min;
   }
 
   // PASS 2: Forward pass (acceleration constraint)
-  for (size_t i = 1; i < n; ++i)
-  {
-    const double reachable = std::sqrt(std::max(0.0,
-        v_ref[i - 1] * v_ref[i - 1] + 2.0 * a_acc * ds[i - 1]));
+  for (size_t i = 1; i < n; ++i) {
+    const double reachable =
+        std::sqrt(std::max(0.0, v_ref[i - 1] * v_ref[i - 1] + 2.0 * a_acc * ds[i - 1]));
     v_ref[i] = std::min(v_ref[i], reachable);
   }
 
   // PASS 3: Backward pass (braking constraint)
-  for (size_t i = n - 1; i > 0; --i)
-  {
-    const double reachable = std::sqrt(std::max(0.0,
-        v_ref[i] * v_ref[i] + 2.0 * a_brake * ds[i - 1]));
+  for (size_t i = n - 1; i > 0; --i) {
+    const double reachable =
+        std::sqrt(std::max(0.0, v_ref[i] * v_ref[i] + 2.0 * a_brake * ds[i - 1]));
     v_ref[i - 1] = std::min(v_ref[i - 1], reachable);
   }
 
   // Sanitize output
-  for (size_t i = 0; i < n; ++i)
-  {
+  for (size_t i = 0; i < n; ++i) {
     target_speeds[i] = (std::isfinite(v_ref[i]) && v_ref[i] > 0.0) ? v_ref[i] : 0.0;
   }
 }
 
 // APPEND_MARKER
 
-} // namespace planning_core
+}  // namespace planning_core
 
-#endif // PLANNING_CORE_SPEED_PROFILE_HPP_
+#endif  // PLANNING_CORE_SPEED_PROFILE_HPP_

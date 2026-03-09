@@ -1,5 +1,6 @@
 #pragma once
 #include "vision_core/types.hpp"
+
 #include <opencv2/core.hpp>
 
 namespace vision_core {
@@ -19,10 +20,11 @@ struct QualityThresholds {
 };
 
 class ImageQualityAssessor {
-public:
+ public:
   explicit ImageQualityAssessor(const QualityThresholds& thresholds = {});
   QualityMetrics assess(const cv::Mat& bgr_image) const;
-private:
+
+ private:
   QualityThresholds thresholds_;
 };
 

@@ -1,12 +1,12 @@
-#include <localization_core/location_mapper.hpp>
-#include <localization_core/confidence_utils.hpp>
-
 #include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <exception>
 #include <fstream>
 #include <sstream>
+
+#include <localization_core/confidence_utils.hpp>
+#include <localization_core/location_mapper.hpp>
 
 namespace localization_core {
 
@@ -20,10 +20,8 @@ constexpr std::uint8_t kConeOrangeBig = 3;
 constexpr std::uint8_t kConeNone = 4;
 constexpr std::uint8_t kConeRed = 5;
 
-std::uint8_t normalizeConeType(std::uint8_t raw_type)
-{
-  switch (raw_type)
-  {
+std::uint8_t normalizeConeType(std::uint8_t raw_type) {
+  switch (raw_type) {
     case kConeBlue:
     case kConeYellow:
     case kConeOrangeSmall:
@@ -35,43 +33,35 @@ std::uint8_t normalizeConeType(std::uint8_t raw_type)
       return kConeNone;
   }
 }
-}
+}  // namespace
 
-LocationMapper::LocationMapper(const LocationParams &params)
-    : params_(params)
-{
+LocationMapper::LocationMapper(const LocationParams& params) : params_(params) {
   cloud_.reset(new pcl::PointCloud<pcl::PointXYZ>);
 }
 
-void LocationMapper::Configure(const LocationParams &params)
-{
+void LocationMapper::Configure(const LocationParams& params) {
   params_ = params;
 }
 
-void LocationMapper::SetDataDirectory(const std::string &path)
-{
+void LocationMapper::SetDataDirectory(const std::string& path) {
   data_root_ = path;
 }
 
-bool LocationMapper::UpdateFromIns(const Asensing &imu, CarState *state_out)
-{
+bool LocationMapper::UpdateFromIns(const Asensing& imu, CarState* state_out) {
   std::lock_guard<std::mutex> lock(state_mutex_);
 
-  if (imu.status < params_.min_ins_status)
-  {
+  if (imu.status < params_.min_ins_status) {
     return false;
   }
-  if (std::max(imu.nsv1, imu.nsv2) < params_.min_satellite_count)
-  {
+  if (std::max(imu.nsv1, imu.nsv2) < params_.min_satellite_count) {
     return false;
   }
-  if (imu.age > params_.max_diff_age)
-  {
+  if (imu.age > params_.max_diff_age) {
     return false;
   }
 
   mimu_ = imu;
-  const Asensing &imu_data = mimu_;
+  const Asensing& imu_data = mimu_;
 
   mins_.east_velocity = imu_data.east_velocity;
   mins_.north_velocity = imu_data.north_velocity;
@@ -89,19 +79,16 @@ bool LocationMapper::UpdateFromIns(const Asensing &imu, CarState *state_out)
   constexpr double kGravity = 9.79;
   mins_.z_acc = imu_data.z_acc + kGravity * std::cos(imu_data.roll) * std::cos(imu_data.pitch);
 
-  if (!has_carstate_)
-  {
+  if (!has_carstate_) {
     car_state_.car_state.theta = 0.0;
     standard_azimuth_ = imu_data.azimuth;
-    car_state_.V = std::sqrt(std::pow(mins_.east_velocity, 2) +
-                             std::pow(mins_.north_velocity, 2) +
+    car_state_.V = std::sqrt(std::pow(mins_.east_velocity, 2) + std::pow(mins_.north_velocity, 2) +
                              std::pow(mins_.ground_velocity, 2));
-    car_state_.W = std::sqrt(std::pow(mins_.x_angular_velocity, 2) +
-                             std::pow(mins_.y_angular_velocity, 2) +
-                             std::pow(mins_.z_angular_velocity, 2));
-    car_state_.A = std::sqrt(std::pow(mins_.x_acc, 2) +
-                             std::pow(mins_.y_acc, 2) +
-                             std::pow(mins_.z_acc, 2));
+    car_state_.W =
+        std::sqrt(std::pow(mins_.x_angular_velocity, 2) + std::pow(mins_.y_angular_velocity, 2) +
+                  std::pow(mins_.z_angular_velocity, 2));
+    car_state_.A =
+        std::sqrt(std::pow(mins_.x_acc, 2) + std::pow(mins_.y_acc, 2) + std::pow(mins_.z_acc, 2));
 
     // FSSIM-style body-frame state (heading=0 at init)
     car_state_.Vy = 0.0;
@@ -116,31 +103,24 @@ bool LocationMapper::UpdateFromIns(const Asensing &imu, CarState *state_out)
     car_state_.car_state.x = 0.0;
     car_state_.car_state.y = 0.0;
     has_carstate_ = true;
-  }
-  else
-  {
+  } else {
     double diff = -(imu_data.azimuth - standard_azimuth_);
     car_state_.car_state.theta = diff * kPi / 180.0;
-    if (car_state_.car_state.theta > kPi)
-    {
+    if (car_state_.car_state.theta > kPi) {
       car_state_.car_state.theta -= 2 * kPi;
       diff -= 360.0;
-    }
-    else if (car_state_.car_state.theta < -kPi)
-    {
+    } else if (car_state_.car_state.theta < -kPi) {
       car_state_.car_state.theta += 2 * kPi;
       diff += 360.0;
     }
 
-    car_state_.V = std::sqrt(std::pow(mins_.east_velocity, 2) +
-                             std::pow(mins_.north_velocity, 2) +
+    car_state_.V = std::sqrt(std::pow(mins_.east_velocity, 2) + std::pow(mins_.north_velocity, 2) +
                              std::pow(mins_.ground_velocity, 2));
-    car_state_.W = std::sqrt(std::pow(mins_.x_angular_velocity, 2) +
-                             std::pow(mins_.y_angular_velocity, 2) +
-                             std::pow(mins_.z_angular_velocity, 2));
-    car_state_.A = std::sqrt(std::pow(mins_.x_acc, 2) +
-                             std::pow(mins_.y_acc, 2) +
-                             std::pow(mins_.z_acc, 2));
+    car_state_.W =
+        std::sqrt(std::pow(mins_.x_angular_velocity, 2) + std::pow(mins_.y_angular_velocity, 2) +
+                  std::pow(mins_.z_angular_velocity, 2));
+    car_state_.A =
+        std::sqrt(std::pow(mins_.x_acc, 2) + std::pow(mins_.y_acc, 2) + std::pow(mins_.z_acc, 2));
 
     // FSSIM-style body-frame state
     // Rotate NED velocity to body frame using heading
@@ -157,33 +137,25 @@ bool LocationMapper::UpdateFromIns(const Asensing &imu, CarState *state_out)
     car_state_.Ax = mins_.x_acc;
     car_state_.Ay = mins_.y_acc;
 
-    GeoDeticToENU(imu_data.latitude * kPi / 180.0,
-                  imu_data.longitude * kPi / 180.0,
-                  imu_data.altitude,
-                  first_lat_ * kPi / 180.0,
-                  first_lon_ * kPi / 180.0,
-                  first_alt_,
+    GeoDeticToENU(imu_data.latitude * kPi / 180.0, imu_data.longitude * kPi / 180.0,
+                  imu_data.altitude, first_lat_ * kPi / 180.0, first_lon_ * kPi / 180.0, first_alt_,
                   &enu_xyz_[0]);
   }
 
-  if (state_out)
-  {
+  if (state_out) {
     *state_out = car_state_;
   }
   return true;
 }
 
-void LocationMapper::UpdateFromCarState(const CarState &state)
-{
+void LocationMapper::UpdateFromCarState(const CarState& state) {
   std::lock_guard<std::mutex> lock(state_mutex_);
   car_state_ = state;
   has_carstate_ = true;
 }
 
-void LocationMapper::GeoDeticToENU(double lat, double lon, double h,
-                                  double lat0, double lon0, double h0,
-                                  double enu_xyz[3])
-{
+void LocationMapper::GeoDeticToENU(double lat, double lon, double h, double lat0, double lon0,
+                                   double h0, double enu_xyz[3]) {
   const double a = 6378137.0;
   const double b = 6356752.3142;
   const double f = (a - b) / a;
@@ -248,14 +220,10 @@ void LocationMapper::GeoDeticToENU(double lat, double lon, double h,
   has_carstate_ = true;
 }
 
-bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
-                                     ConeMap *map_out,
-                                     PointCloudPtr *cloud_out,
-                                     MapUpdateStats *stats_out)
-{
+bool LocationMapper::UpdateFromCones(const ConeDetections& detections, ConeMap* map_out,
+                                     PointCloudPtr* cloud_out, MapUpdateStats* stats_out) {
   std::lock_guard<std::mutex> lock(state_mutex_);
-  if (!has_carstate_ || detections.detections.empty() || !map_out)
-  {
+  if (!has_carstate_ || detections.detections.empty() || !map_out) {
     return false;
   }
 
@@ -268,28 +236,23 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
   local_stats.map_frozen = map_frozen_;
   local_stats.map_size = static_cast<int>(cloud_->size());
 
-  if (!std::isfinite(car_state_.car_state.x) ||
-      !std::isfinite(car_state_.car_state.y) ||
-      !std::isfinite(car_state_.car_state.theta))
-  {
+  if (!std::isfinite(car_state_.car_state.x) || !std::isfinite(car_state_.car_state.y) ||
+      !std::isfinite(car_state_.car_state.theta)) {
     return false;
   }
 
-  auto push_outlier = [&local_stats](const Cone &cone) {
-    if (local_stats.outlier_cones.size() < 200)
-    {
+  auto push_outlier = [&local_stats](const Cone& cone) {
+    if (local_stats.outlier_cones.size() < 200) {
       local_stats.outlier_cones.push_back(cone);
     }
   };
-  auto push_inlier = [&local_stats](const Cone &cone) {
-    if (local_stats.inlier_cones.size() < 200)
-    {
+  auto push_inlier = [&local_stats](const Cone& cone) {
+    if (local_stats.inlier_cones.size() < 200) {
       local_stats.inlier_cones.push_back(cone);
     }
   };
-  auto push_assoc = [&local_stats](const ConeAssociationDebug &assoc) {
-    if (local_stats.associations.size() < 200)
-    {
+  auto push_assoc = [&local_stats](const ConeAssociationDebug& assoc) {
+    if (local_stats.associations.size() < 200) {
       local_stats.associations.push_back(assoc);
     }
   };
@@ -302,7 +265,7 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
   const double lidar_offset_x = cos_yaw * params_.lidar_to_imu_dist;
   const double lidar_offset_y = sin_yaw * params_.lidar_to_imu_dist;
 
-  auto make_cone_from_detection = [&](const ConeDetection &det) {
+  auto make_cone_from_detection = [&](const ConeDetection& det) {
     Cone cone;
     const double lx = det.point.x;
     const double ly = det.point.y;
@@ -326,23 +289,21 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
   bool cloud_modified = false;
   bool kdtree_needs_rebuild = false;
   first_cone_msg_ = !cloud_->empty();
-  for (const auto &det : detections.detections)
-  {
+  for (const auto& det : detections.detections) {
     const double height = det.bbox_max.z - det.bbox_min.z;
     const double width_x = det.bbox_max.x - det.bbox_min.x;
     const double width_y = det.bbox_max.y - det.bbox_min.y;
     const double width = std::max(width_x, width_y);
     Cone det_cone = make_cone_from_detection(det);
 
-    if (height > params_.max_cone_height || width > params_.max_cone_width || height < params_.min_cone_height)
-    {
+    if (height > params_.max_cone_height || width > params_.max_cone_width ||
+        height < params_.min_cone_height) {
       local_stats.bbox_reject_count++;
       push_outlier(det_cone);
       continue;
     }
 
-    if (!passesGeometryFilter(det.point.x, det.point.y))
-    {
+    if (!passesGeometryFilter(det.point.x, det.point.y)) {
       local_stats.geometry_reject_count++;
       push_outlier(det_cone);
       continue;
@@ -357,45 +318,36 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
 
     int nearest_idx = -1;
     float nearest_sq_dist = 0.0f;
-    if (!std::isfinite(point.x) || !std::isfinite(point.y) || !std::isfinite(point.z))
-    {
+    if (!std::isfinite(point.x) || !std::isfinite(point.y) || !std::isfinite(point.z)) {
       local_stats.geometry_reject_count++;
       push_outlier(det_cone);
       continue;
     }
-    if (!cloud_->empty())
-    {
-      if (kdtree_needs_rebuild)
-      {
+    if (!cloud_->empty()) {
+      if (kdtree_needs_rebuild) {
         kdtree_.setInputCloud(cloud_);
         kdtree_needs_rebuild = false;
       }
       std::vector<int> idx(1);
       std::vector<float> sqdist(1);
-      if (kdtree_.nearestKSearch(point, 1, idx, sqdist) > 0 &&
-          idx[0] >= 0 && idx[0] < static_cast<int>(cloud_->size()))
-      {
+      if (kdtree_.nearestKSearch(point, 1, idx, sqdist) > 0 && idx[0] >= 0 &&
+          idx[0] < static_cast<int>(cloud_->size())) {
         nearest_idx = idx[0];
         nearest_sq_dist = sqdist[0];
       }
     }
 
-    const bool valid_nearest =
-        nearest_idx >= 0 &&
-        nearest_idx < static_cast<int>(cloud_->size()) &&
-        nearest_idx < static_cast<int>(point_ids_.size()) &&
-        nearest_idx < static_cast<int>(point_obs_counts_.size());
+    const bool valid_nearest = nearest_idx >= 0 && nearest_idx < static_cast<int>(cloud_->size()) &&
+                               nearest_idx < static_cast<int>(point_ids_.size()) &&
+                               nearest_idx < static_cast<int>(point_obs_counts_.size());
     const bool can_merge = (valid_nearest && nearest_sq_dist <= merge_distance_sq);
-    if (can_merge)
-    {
-      if (det_conf < params_.min_confidence_to_merge)
-      {
+    if (can_merge) {
+      if (det_conf < params_.min_confidence_to_merge) {
         local_stats.conf_merge_reject_count++;
         push_outlier(det_cone);
         continue;
       }
-      if (map_frozen_ && !params_.map_freeze.allow_merge_when_frozen)
-      {
+      if (map_frozen_ && !params_.map_freeze.allow_merge_when_frozen) {
         local_stats.frozen_reject_count++;
         push_outlier(det_cone);
         continue;
@@ -404,24 +356,25 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
       const int n = point_obs_counts_[nearest_idx];
       const double w_old = static_cast<double>(n) / static_cast<double>(n + 1);
       const double w_new = 1.0 / static_cast<double>(n + 1);
-      cloud_->points[nearest_idx].x = static_cast<float>(cloud_->points[nearest_idx].x * w_old + point.x * w_new);
-      cloud_->points[nearest_idx].y = static_cast<float>(cloud_->points[nearest_idx].y * w_old + point.y * w_new);
-      cloud_->points[nearest_idx].z = static_cast<float>(cloud_->points[nearest_idx].z * w_old + point.z * w_new);
+      cloud_->points[nearest_idx].x =
+          static_cast<float>(cloud_->points[nearest_idx].x * w_old + point.x * w_new);
+      cloud_->points[nearest_idx].y =
+          static_cast<float>(cloud_->points[nearest_idx].y * w_old + point.y * w_new);
+      cloud_->points[nearest_idx].z =
+          static_cast<float>(cloud_->points[nearest_idx].z * w_old + point.z * w_new);
       point_obs_counts_[nearest_idx]++;
-      if (nearest_idx < static_cast<int>(point_types_.size()))
-      {
+      if (nearest_idx < static_cast<int>(point_types_.size())) {
         const std::uint8_t obs_type = normalizeConeType(det.color_type);
-        if (point_types_[nearest_idx] == kConeNone && obs_type != kConeNone)
-        {
+        if (point_types_[nearest_idx] == kConeNone && obs_type != kConeNone) {
           point_types_[nearest_idx] = obs_type;
         }
       }
       // B10: Update confidence with weighted average
       // Existing confidence is weighted by w_old, new detection by w_new
       // This allows confidence to increase with repeated observations
-      if (nearest_idx < static_cast<int>(point_confidences_.size()))
-      {
-        point_confidences_[nearest_idx] = point_confidences_[nearest_idx] * w_old + det_conf * w_new;
+      if (nearest_idx < static_cast<int>(point_confidences_.size())) {
+        point_confidences_[nearest_idx] =
+            point_confidences_[nearest_idx] * w_old + det_conf * w_new;
       }
 
       Cone merged_cone = det_cone;
@@ -447,14 +400,12 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
       continue;
     }
 
-    if (det_conf < params_.min_confidence_to_add)
-    {
+    if (det_conf < params_.min_confidence_to_add) {
       local_stats.conf_add_reject_count++;
       push_outlier(det_cone);
       continue;
     }
-    if (map_frozen_ && !params_.map_freeze.allow_new_cones_when_frozen)
-    {
+    if (map_frozen_ && !params_.map_freeze.allow_new_cones_when_frozen) {
       local_stats.frozen_reject_count++;
       push_outlier(det_cone);
       continue;
@@ -483,17 +434,14 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
     cloud_modified = true;
   }
 
-  if (cloud_modified)
-  {
+  if (cloud_modified) {
     cloud_->width = cloud_->points.size();
     cloud_->height = 1;
     kdtree_.setInputCloud(cloud_);
     first_cone_msg_ = true;
   }
 
-  if (params_.max_map_size > 0 &&
-      static_cast<int>(cloud_->points.size()) > params_.max_map_size)
-  {
+  if (params_.max_map_size > 0 && static_cast<int>(cloud_->points.size()) > params_.max_map_size) {
     PointCloudPtr new_cloud(new pcl::PointCloud<pcl::PointXYZ>);
     std::vector<int> new_ids;
     std::vector<int> new_obs;
@@ -506,19 +454,13 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
     new_confidences.reserve(cloud_->points.size());
 
     for (size_t i = 0;
-         i < cloud_->points.size() &&
-         i < point_obs_counts_.size() &&
-         i < point_ids_.size();
-         ++i)
-    {
-      if (point_obs_counts_[i] >= params_.min_obs_to_keep)
-      {
+         i < cloud_->points.size() && i < point_obs_counts_.size() && i < point_ids_.size(); ++i) {
+      if (point_obs_counts_[i] >= params_.min_obs_to_keep) {
         new_cloud->push_back(cloud_->points[i]);
         new_ids.push_back(point_ids_[i]);
         new_obs.push_back(point_obs_counts_[i]);
         new_types.push_back((i < point_types_.size()) ? point_types_[i] : kConeNone);
-        new_confidences.push_back(
-            (i < point_confidences_.size()) ? point_confidences_[i] : 0.0);
+        new_confidences.push_back((i < point_confidences_.size()) ? point_confidences_[i] : 0.0);
       }
     }
     new_cloud->width = new_cloud->points.size();
@@ -531,16 +473,12 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
     kdtree_.setInputCloud(cloud_);
   }
 
-  if (!map_frozen_ && params_.map_freeze.enabled)
-  {
-    const bool frame_hit =
-        params_.map_freeze.freeze_after_frames > 0 &&
-        cone_update_frames_ >= params_.map_freeze.freeze_after_frames;
-    const bool cone_hit =
-        params_.map_freeze.freeze_after_cones > 0 &&
-        static_cast<int>(cloud_->size()) >= params_.map_freeze.freeze_after_cones;
-    if (frame_hit || cone_hit)
-    {
+  if (!map_frozen_ && params_.map_freeze.enabled) {
+    const bool frame_hit = params_.map_freeze.freeze_after_frames > 0 &&
+                           cone_update_frames_ >= params_.map_freeze.freeze_after_frames;
+    const bool cone_hit = params_.map_freeze.freeze_after_cones > 0 &&
+                          static_cast<int>(cloud_->size()) >= params_.map_freeze.freeze_after_cones;
+    if (frame_hit || cone_hit) {
       map_frozen_ = true;
       checkpoint_cloud_.reset(new pcl::PointCloud<pcl::PointXYZ>(*cloud_));
       checkpoint_ids_ = point_ids_;
@@ -558,12 +496,10 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
   map_out->cones.clear();
   std::vector<size_t> local_indices;
   local_indices.reserve(cloud_->points.size());
-  for (size_t i = 0; i < cloud_->points.size() && i < point_ids_.size(); ++i)
-  {
+  for (size_t i = 0; i < cloud_->points.size() && i < point_ids_.size(); ++i) {
     const double dx = cloud_->points[i].x - car_state_.car_state.x;
     const double dy = cloud_->points[i].y - car_state_.car_state.y;
-    if (dx * dx + dy * dy <= range_sq)
-    {
+    if (dx * dx + dy * dy <= range_sq) {
       local_indices.push_back(i);
     }
   }
@@ -571,24 +507,24 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
   const double dedup_radius = std::max(0.6, params_.merge_distance * 0.4);
   const double dedup_radius_sq = dedup_radius * dedup_radius;
   map_out->cones.reserve(local_indices.size());
-  for (const size_t i : local_indices)
-  {
+  for (const size_t i : local_indices) {
     bool suppressed = false;
     const int obs_i = (i < point_obs_counts_.size()) ? point_obs_counts_[i] : 1;
-    for (const size_t j : local_indices)
-    {
-      if (i == j) continue;
+    for (const size_t j : local_indices) {
+      if (i == j)
+        continue;
       const double ddx = cloud_->points[i].x - cloud_->points[j].x;
       const double ddy = cloud_->points[i].y - cloud_->points[j].y;
-      if (ddx * ddx + ddy * ddy > dedup_radius_sq) continue;
+      if (ddx * ddx + ddy * ddy > dedup_radius_sq)
+        continue;
       const int obs_j = (j < point_obs_counts_.size()) ? point_obs_counts_[j] : 1;
-      if (obs_j > obs_i || (obs_j == obs_i && point_ids_[j] < point_ids_[i]))
-      {
+      if (obs_j > obs_i || (obs_j == obs_i && point_ids_[j] < point_ids_[i])) {
         suppressed = true;
         break;
       }
     }
-    if (suppressed) continue;
+    if (suppressed)
+      continue;
 
     const double dx = cloud_->points[i].x - car_state_.car_state.x;
     const double dy = cloud_->points[i].y - car_state_.car_state.y;
@@ -613,62 +549,52 @@ bool LocationMapper::UpdateFromCones(const ConeDetections &detections,
     map_out->cones.push_back(cone_msg);
   }
 
-  if (params_.missing_cone_fallback.enabled)
-  {
+  if (params_.missing_cone_fallback.enabled) {
     interpolateMissingCones(map_out);
   }
 
-  if (params_.short_path_suppression.enabled && !map_out->cones.empty())
-  {
-    const auto &sps = params_.short_path_suppression;
+  if (params_.short_path_suppression.enabled && !map_out->cones.empty()) {
+    const auto& sps = params_.short_path_suppression;
     const int cone_count = static_cast<int>(map_out->cones.size());
-    if ((sps.reject_single_cone_paths && cone_count <= 1) || cone_count < sps.min_cone_count)
-    {
+    if ((sps.reject_single_cone_paths && cone_count <= 1) || cone_count < sps.min_cone_count) {
       map_out->cones.clear();
-    }
-    else
-    {
+    } else {
       double x_min = map_out->cones[0].position_base_link.x;
       double x_max = x_min;
-      for (const auto &c : map_out->cones)
-      {
-        if (c.position_base_link.x < x_min) x_min = c.position_base_link.x;
-        if (c.position_base_link.x > x_max) x_max = c.position_base_link.x;
+      for (const auto& c : map_out->cones) {
+        if (c.position_base_link.x < x_min)
+          x_min = c.position_base_link.x;
+        if (c.position_base_link.x > x_max)
+          x_max = c.position_base_link.x;
       }
-      if ((x_max - x_min) < sps.min_path_length)
-      {
+      if ((x_max - x_min) < sps.min_path_length) {
         map_out->cones.clear();
       }
     }
   }
 
-  if (cloud_out)
-  {
+  if (cloud_out) {
     *cloud_out = cloud_;
   }
 
-  if (local_stats.merged_count > 0)
-  {
+  if (local_stats.merged_count > 0) {
     local_stats.mean_match_distance /= static_cast<double>(local_stats.merged_count);
   }
   local_stats.map_frozen = map_frozen_;
   local_stats.map_size = static_cast<int>(cloud_->size());
   local_stats.local_output_count = static_cast<int>(map_out->cones.size());
-  if (stats_out)
-  {
+  if (stats_out) {
     *stats_out = std::move(local_stats);
   }
   return true;
 }
 
-int LocationMapper::getNewId()
-{
+int LocationMapper::getNewId() {
   next_id_++;
   return next_id_;
 }
 
-void LocationMapper::ResetMap(bool keep_checkpoint)
-{
+void LocationMapper::ResetMap(bool keep_checkpoint) {
   std::lock_guard<std::mutex> lock(state_mutex_);
   cloud_.reset(new pcl::PointCloud<pcl::PointXYZ>);
   cloud_->width = 0;
@@ -683,8 +609,7 @@ void LocationMapper::ResetMap(bool keep_checkpoint)
   map_update_seq_ = 0;
   next_id_ = 0;
   kdtree_.setInputCloud(cloud_);
-  if (!keep_checkpoint)
-  {
+  if (!keep_checkpoint) {
     has_checkpoint_ = false;
     checkpoint_cloud_.reset();
     checkpoint_ids_.clear();
@@ -694,11 +619,9 @@ void LocationMapper::ResetMap(bool keep_checkpoint)
   }
 }
 
-bool LocationMapper::RollbackToCheckpoint()
-{
+bool LocationMapper::RollbackToCheckpoint() {
   std::lock_guard<std::mutex> lock(state_mutex_);
-  if (!has_checkpoint_ || !checkpoint_cloud_)
-  {
+  if (!has_checkpoint_ || !checkpoint_cloud_) {
     return false;
   }
   cloud_.reset(new pcl::PointCloud<pcl::PointXYZ>(*checkpoint_cloud_));
@@ -712,58 +635,49 @@ bool LocationMapper::RollbackToCheckpoint()
   first_cone_msg_ = !cloud_->empty();
   map_frozen_ = true;
   next_id_ = 0;
-  for (int id : point_ids_)
-  {
+  for (int id : point_ids_) {
     next_id_ = std::max(next_id_, id);
   }
   return true;
 }
 
-bool LocationMapper::SaveMapToFile(const std::string &path, std::string *error_msg) const
-{
+bool LocationMapper::SaveMapToFile(const std::string& path, std::string* error_msg) const {
   std::lock_guard<std::mutex> lock(state_mutex_);
   std::ofstream out(path.c_str(), std::ios::out | std::ios::trunc);
-  if (!out.is_open())
-  {
-    if (error_msg) *error_msg = "failed_to_open_file";
+  if (!out.is_open()) {
+    if (error_msg)
+      *error_msg = "failed_to_open_file";
     return false;
   }
 
   out << "# localization_map_v1\n";
-  out << "# map_mode=" << params_.map_mode
-      << ",map_frozen=" << (map_frozen_ ? 1 : 0)
+  out << "# map_mode=" << params_.map_mode << ",map_frozen=" << (map_frozen_ ? 1 : 0)
       << ",next_id=" << next_id_ << "\n";
   out << "id,x,y,z,obs_count,type,confidence\n";
-  for (size_t i = 0; i < cloud_->size(); ++i)
-  {
+  for (size_t i = 0; i < cloud_->size(); ++i) {
     const int id = (i < point_ids_.size()) ? point_ids_[i] : 0;
     const int obs = (i < point_obs_counts_.size()) ? point_obs_counts_[i] : 1;
     const std::uint8_t type = (i < point_types_.size()) ? point_types_[i] : kConeNone;
     const double conf = (i < point_confidences_.size()) ? point_confidences_[i] : 0.0;
-    out << id << ","
-        << cloud_->points[i].x << ","
-        << cloud_->points[i].y << ","
-        << cloud_->points[i].z << ","
-        << obs << ","
-        << static_cast<int>(type) << ","
-        << conf << "\n";
+    out << id << "," << cloud_->points[i].x << "," << cloud_->points[i].y << ","
+        << cloud_->points[i].z << "," << obs << "," << static_cast<int>(type) << "," << conf
+        << "\n";
   }
 
-  if (!out.good())
-  {
-    if (error_msg) *error_msg = "failed_to_write_file";
+  if (!out.good()) {
+    if (error_msg)
+      *error_msg = "failed_to_write_file";
     return false;
   }
   return true;
 }
 
-bool LocationMapper::LoadMapFromFile(const std::string &path, std::string *error_msg)
-{
+bool LocationMapper::LoadMapFromFile(const std::string& path, std::string* error_msg) {
   std::lock_guard<std::mutex> lock(state_mutex_);
   std::ifstream in(path.c_str(), std::ios::in);
-  if (!in.is_open())
-  {
-    if (error_msg) *error_msg = "failed_to_open_file";
+  if (!in.is_open()) {
+    if (error_msg)
+      *error_msg = "failed_to_open_file";
     return false;
   }
 
@@ -774,29 +688,23 @@ bool LocationMapper::LoadMapFromFile(const std::string &path, std::string *error
   std::vector<double> loaded_conf;
 
   std::string line;
-  while (std::getline(in, line))
-  {
-    if (line.empty() || line[0] == '#')
-    {
+  while (std::getline(in, line)) {
+    if (line.empty() || line[0] == '#') {
       continue;
     }
-    if (line.find("id,") == 0)
-    {
+    if (line.find("id,") == 0) {
       continue;
     }
     std::stringstream ss(line);
     std::string tok;
     std::vector<std::string> fields;
-    while (std::getline(ss, tok, ','))
-    {
+    while (std::getline(ss, tok, ',')) {
       fields.push_back(tok);
     }
-    if (fields.size() < 7)
-    {
+    if (fields.size() < 7) {
       continue;
     }
-    try
-    {
+    try {
       int id = std::stoi(fields[0]);
       pcl::PointXYZ pt;
       pt.x = static_cast<float>(std::stod(fields[1]));
@@ -811,9 +719,7 @@ bool LocationMapper::LoadMapFromFile(const std::string &path, std::string *error
       loaded_obs.push_back(std::max(1, obs));
       loaded_types.push_back(normalizeConeType(static_cast<std::uint8_t>(type)));
       loaded_conf.push_back(std::min(1.0, std::max(0.0, conf)));
-    }
-    catch (const std::exception &)
-    {
+    } catch (const std::exception&) {
       continue;
     }
   }
@@ -830,8 +736,7 @@ bool LocationMapper::LoadMapFromFile(const std::string &path, std::string *error
   map_frozen_ = false;
 
   next_id_ = 0;
-  for (int id : point_ids_)
-  {
+  for (int id : point_ids_) {
     next_id_ = std::max(next_id_, id);
   }
 
@@ -844,10 +749,8 @@ bool LocationMapper::LoadMapFromFile(const std::string &path, std::string *error
   return true;
 }
 
-void LocationMapper::saveCarstate(double x, double y)
-{
-  if (data_root_.empty())
-  {
+void LocationMapper::saveCarstate(double x, double y) {
+  if (data_root_.empty()) {
     return;
   }
   std::stringstream ss;
@@ -855,28 +758,21 @@ void LocationMapper::saveCarstate(double x, double y)
   std::string path = data_root_ + "/testData/carstate.txt";
   std::ofstream f;
   f.open(path.c_str(), std::ios_base::app);
-  if (f.fail())
-  {
+  if (f.fail()) {
     return;
   }
   f << ss.str();
   f.close();
 }
 
-bool LocationMapper::passesGeometryFilter(double lx, double ly) const
-{
-  if (params_.map_mode == "accel")
-  {
+bool LocationMapper::passesGeometryFilter(double lx, double ly) const {
+  if (params_.map_mode == "accel") {
     // 加速赛：锥桶只在 Y 轴 ±cone_y_max 范围内
-    if (params_.cone_y_max > 0.0 && std::abs(ly) > params_.cone_y_max)
-    {
+    if (params_.cone_y_max > 0.0 && std::abs(ly) > params_.cone_y_max) {
       return false;
     }
-  }
-  else if (params_.map_mode == "skidpad")
-  {
-    if (params_.enable_circle_validation)
-    {
+  } else if (params_.map_mode == "skidpad") {
+    if (params_.enable_circle_validation) {
       // 八字绕环：检测点到两个预期圆心的最近距离是否接近 circle_radius
       // 两个圆心在 X 轴方向，间距 circle_center_dist，关于原点对称
       const double half_dist = params_.circle_center_dist * 0.5;
@@ -892,8 +788,7 @@ bool LocationMapper::passesGeometryFilter(double lx, double ly) const
       const double err2 = std::abs(dist2 - params_.circle_radius);
       const double min_err = std::min(err1, err2);
 
-      if (min_err > params_.circle_tolerance)
-      {
+      if (min_err > params_.circle_tolerance) {
         return false;
       }
     }
@@ -902,48 +797,43 @@ bool LocationMapper::passesGeometryFilter(double lx, double ly) const
   return true;
 }
 
-void LocationMapper::interpolateMissingCones(ConeMap *map_out)
-{
-  if (!map_out || map_out->cones.size() < 2)
-  {
+void LocationMapper::interpolateMissingCones(ConeMap* map_out) {
+  if (!map_out || map_out->cones.size() < 2) {
     return;
   }
 
-  const auto &cfg = params_.missing_cone_fallback;
+  const auto& cfg = params_.missing_cone_fallback;
   const double gap_threshold = cfg.expected_spacing * 1.5;
 
   // 按 base_link.x 排序（前方为正）
   std::vector<size_t> order(map_out->cones.size());
-  for (size_t i = 0; i < order.size(); ++i) order[i] = i;
+  for (size_t i = 0; i < order.size(); ++i)
+    order[i] = i;
   std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
     return map_out->cones[a].position_base_link.x < map_out->cones[b].position_base_link.x;
   });
 
   std::vector<Cone> interpolated;
-  for (size_t k = 0; k + 1 < order.size(); ++k)
-  {
-    const auto &c1 = map_out->cones[order[k]];
-    const auto &c2 = map_out->cones[order[k + 1]];
+  for (size_t k = 0; k + 1 < order.size(); ++k) {
+    const auto& c1 = map_out->cones[order[k]];
+    const auto& c2 = map_out->cones[order[k + 1]];
 
     const double dx = c2.position_base_link.x - c1.position_base_link.x;
     const double dy = c2.position_base_link.y - c1.position_base_link.y;
     const double dist = std::sqrt(dx * dx + dy * dy);
 
-    if (dist <= gap_threshold || dist > cfg.max_interpolation_distance)
-    {
+    if (dist <= gap_threshold || dist > cfg.max_interpolation_distance) {
       continue;
     }
 
     // 计算需要插值的锥桶数量
     int n_missing = static_cast<int>(std::round(dist / cfg.expected_spacing)) - 1;
     n_missing = std::min(n_missing, cfg.max_consecutive_missing);
-    if (n_missing <= 0)
-    {
+    if (n_missing <= 0) {
       continue;
     }
 
-    for (int m = 1; m <= n_missing; ++m)
-    {
+    for (int m = 1; m <= n_missing; ++m) {
       const double t = static_cast<double>(m) / static_cast<double>(n_missing + 1);
       Cone vc;
       vc.position_base_link.x = c1.position_base_link.x + t * dx;
@@ -951,8 +841,10 @@ void LocationMapper::interpolateMissingCones(ConeMap *map_out)
       vc.position_base_link.z = (c1.position_base_link.z + c2.position_base_link.z) * 0.5;
 
       // 全局坐标也做线性插值
-      vc.position_global.x = c1.position_global.x + t * (c2.position_global.x - c1.position_global.x);
-      vc.position_global.y = c1.position_global.y + t * (c2.position_global.y - c1.position_global.y);
+      vc.position_global.x =
+          c1.position_global.x + t * (c2.position_global.x - c1.position_global.x);
+      vc.position_global.y =
+          c1.position_global.y + t * (c2.position_global.y - c1.position_global.y);
       vc.position_global.z = (c1.position_global.z + c2.position_global.z) * 0.5;
 
       vc.id = static_cast<std::uint32_t>(getNewId());  // 虚拟锥使用会话内唯一ID（禁止ID=0）
@@ -963,8 +855,7 @@ void LocationMapper::interpolateMissingCones(ConeMap *map_out)
     }
   }
 
-  for (auto &c : interpolated)
-  {
+  for (auto& c : interpolated) {
     map_out->cones.push_back(std::move(c));
   }
 }

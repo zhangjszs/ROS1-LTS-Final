@@ -1,7 +1,8 @@
-#include <gtest/gtest.h>
+#include "perception_ros/perf_stats.hpp"
+
 #include <ros/ros.h>
 
-#include "perception_ros/perf_stats.hpp"
+#include <gtest/gtest.h>
 
 TEST(PerfStatsTest, SnapshotStatsBasic) {
   PerfStats stats;
@@ -49,7 +50,7 @@ TEST(PerfStatsTest, WindowRollsForward) {
   EXPECT_NEAR(snap.n_points.max, 40.0, 1e-6);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   ros::init(argc, argv, "lidar_cluster_perf_stats_test");
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

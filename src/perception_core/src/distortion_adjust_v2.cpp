@@ -3,477 +3,473 @@
  * @brief 改进版点云畸变补偿实现
  */
 
-#include <perception_core/distortion_adjust_v2.hpp>
-#include <cmath>
 #include <algorithm>
+#include <cmath>
+
+#include <perception_core/distortion_adjust_v2.hpp>
 
 namespace lidar_distortion {
 
 void DistortionAdjustV2::AddImuData(const ImuState& imu) {
-    // 保持时间顺序
-    if (!imu_buffer_.empty() && imu.timestamp < imu_buffer_.back().timestamp) {
-        // 时间戳回退，清空缓冲区（可能是rosbag重放）
-        imu_buffer_.clear();
-    }
+  // 保持时间顺序
+  if (!imu_buffer_.empty() && imu.timestamp < imu_buffer_.back().timestamp) {
+    // 时间戳回退，清空缓冲区（可能是rosbag重放）
+    imu_buffer_.clear();
+  }
 
-    imu_buffer_.push_back(imu);
+  imu_buffer_.push_back(imu);
 
-    // 限制缓冲区大小
-    while (imu_buffer_.size() > kMaxImuBufferSize) {
-        imu_buffer_.pop_front();
-    }
+  // 限制缓冲区大小
+  while (imu_buffer_.size() > kMaxImuBufferSize) {
+    imu_buffer_.pop_front();
+  }
 }
 
 bool DistortionAdjustV2::Compensate(CloudPtr& cloud, double cloud_timestamp) {
-    if (!cloud || cloud->empty()) {
-        debug_info_.error_msg = "Empty input cloud";
+  if (!cloud || cloud->empty()) {
+    debug_info_.error_msg = "Empty input cloud";
+    return false;
+  }
+
+  // 计算参考时刻
+  double ref_timestamp;
+  switch (config_.ref_time) {
+    case DistortionConfigV2::RefTime::SCAN_START:
+      ref_timestamp = cloud_timestamp - config_.scan_period;
+      break;
+    case DistortionConfigV2::RefTime::SCAN_MIDDLE:
+      ref_timestamp = cloud_timestamp - config_.scan_period / 2.0;
+      break;
+    case DistortionConfigV2::RefTime::SCAN_END:
+    default:
+      ref_timestamp = cloud_timestamp;
+      break;
+  }
+
+  // 获取参考时刻的IMU状态
+  ImuState ref_state;
+  if (config_.use_imu_interpolation) {
+    if (!InterpolateImu(ref_timestamp, ref_state)) {
+      if (imu_buffer_.empty()) {
+        debug_info_.error_msg = "IMU buffer empty";
         return false;
+      }
+      // 使用最近的IMU数据
+      ref_state = imu_buffer_.back();
     }
+  } else {
+    if (imu_buffer_.empty()) {
+      debug_info_.error_msg = "IMU buffer empty";
+      return false;
+    }
+    // 找最近的IMU数据
+    double min_dt = std::numeric_limits<double>::max();
+    for (const auto& imu : imu_buffer_) {
+      double dt = std::abs(imu.timestamp - ref_timestamp);
+      if (dt < min_dt) {
+        min_dt = dt;
+        ref_state = imu;
+      }
+    }
+    if (min_dt > config_.max_time_diff) {
+      debug_info_.error_msg = "IMU data too old";
+      return false;
+    }
+  }
 
-    // 计算参考时刻
-    double ref_timestamp;
+  // 更新调试信息
+  debug_info_.ref_timestamp = ref_timestamp;
+  debug_info_.ref_velocity = ref_state.velocity;
+  debug_info_.ref_angular_velocity = ref_state.angular_velocity;
+  debug_info_.points_compensated = 0;
+  debug_info_.max_displacement = 0.0;
+  debug_info_.avg_displacement = 0.0;
+  debug_info_.used_point_time = false;
+  debug_info_.used_preintegration = (config_.mode == DistortionConfigV2::Mode::IMU_PREINTEGRATION);
+  debug_info_.error_msg.clear();
+
+  double total_displacement = 0.0;
+
+  // 补偿每个点
+  for (auto& point : cloud->points) {
+    // 计算该点相对于参考时刻的时间偏移
+    double point_rel_time = ComputePointTimeFromAngle(point.x, point.y);
+
+    // 计算相对于参考时刻的时间差
+    double dt;
     switch (config_.ref_time) {
-        case DistortionConfigV2::RefTime::SCAN_START:
-            ref_timestamp = cloud_timestamp - config_.scan_period;
-            break;
-        case DistortionConfigV2::RefTime::SCAN_MIDDLE:
-            ref_timestamp = cloud_timestamp - config_.scan_period / 2.0;
-            break;
-        case DistortionConfigV2::RefTime::SCAN_END:
-        default:
-            ref_timestamp = cloud_timestamp;
-            break;
+      case DistortionConfigV2::RefTime::SCAN_START:
+        dt = point_rel_time;
+        break;
+      case DistortionConfigV2::RefTime::SCAN_END:
+        dt = point_rel_time - config_.scan_period;
+        break;
+      case DistortionConfigV2::RefTime::SCAN_MIDDLE:
+      default:
+        dt = point_rel_time - config_.scan_period / 2.0;
+        break;
     }
 
-    // 获取参考时刻的IMU状态
-    ImuState ref_state;
-    if (config_.use_imu_interpolation) {
-        if (!InterpolateImu(ref_timestamp, ref_state)) {
-            if (imu_buffer_.empty()) {
-                debug_info_.error_msg = "IMU buffer empty";
-                return false;
-            }
-            // 使用最近的IMU数据
-            ref_state = imu_buffer_.back();
-        }
+    // 保存原始位置用于计算位移
+    float orig_x = point.x;
+    float orig_y = point.y;
+    float orig_z = point.z;
+
+    // 根据模式补偿
+    if (config_.mode == DistortionConfigV2::Mode::IMU_PREINTEGRATION) {
+      double point_abs_time = cloud_timestamp - config_.scan_period + point_rel_time;
+      CompensatePointPreintegration(point, point_abs_time, ref_timestamp, ref_state);
     } else {
-        if (imu_buffer_.empty()) {
-            debug_info_.error_msg = "IMU buffer empty";
-            return false;
-        }
-        // 找最近的IMU数据
-        double min_dt = std::numeric_limits<double>::max();
-        for (const auto& imu : imu_buffer_) {
-            double dt = std::abs(imu.timestamp - ref_timestamp);
-            if (dt < min_dt) {
-                min_dt = dt;
-                ref_state = imu;
-            }
-        }
-        if (min_dt > config_.max_time_diff) {
-            debug_info_.error_msg = "IMU data too old";
-            return false;
-        }
+      CompensatePointSimple(point, dt, ref_state);
     }
 
-    // 更新调试信息
-    debug_info_.ref_timestamp = ref_timestamp;
-    debug_info_.ref_velocity = ref_state.velocity;
-    debug_info_.ref_angular_velocity = ref_state.angular_velocity;
-    debug_info_.points_compensated = 0;
-    debug_info_.max_displacement = 0.0;
-    debug_info_.avg_displacement = 0.0;
-    debug_info_.used_point_time = false;
-    debug_info_.used_preintegration = (config_.mode == DistortionConfigV2::Mode::IMU_PREINTEGRATION);
-    debug_info_.error_msg.clear();
-
-    double total_displacement = 0.0;
-
-    // 补偿每个点
-    for (auto& point : cloud->points) {
-        // 计算该点相对于参考时刻的时间偏移
-        double point_rel_time = ComputePointTimeFromAngle(point.x, point.y);
-
-        // 计算相对于参考时刻的时间差
-        double dt;
-        switch (config_.ref_time) {
-            case DistortionConfigV2::RefTime::SCAN_START:
-                dt = point_rel_time;
-                break;
-            case DistortionConfigV2::RefTime::SCAN_END:
-                dt = point_rel_time - config_.scan_period;
-                break;
-            case DistortionConfigV2::RefTime::SCAN_MIDDLE:
-            default:
-                dt = point_rel_time - config_.scan_period / 2.0;
-                break;
-        }
-
-        // 保存原始位置用于计算位移
-        float orig_x = point.x;
-        float orig_y = point.y;
-        float orig_z = point.z;
-
-        // 根据模式补偿
-        if (config_.mode == DistortionConfigV2::Mode::IMU_PREINTEGRATION) {
-            double point_abs_time = cloud_timestamp - config_.scan_period + point_rel_time;
-            CompensatePointPreintegration(point, point_abs_time, ref_timestamp, ref_state);
-        } else {
-            CompensatePointSimple(point, dt, ref_state);
-        }
-
-        // 计算位移量
-        double disp = std::sqrt(
-            std::pow(point.x - orig_x, 2) +
-            std::pow(point.y - orig_y, 2) +
-            std::pow(point.z - orig_z, 2));
-        total_displacement += disp;
-        if (disp > debug_info_.max_displacement) {
-            debug_info_.max_displacement = disp;
-        }
-
-        debug_info_.points_compensated++;
+    // 计算位移量
+    double disp = std::sqrt(std::pow(point.x - orig_x, 2) + std::pow(point.y - orig_y, 2) +
+                            std::pow(point.z - orig_z, 2));
+    total_displacement += disp;
+    if (disp > debug_info_.max_displacement) {
+      debug_info_.max_displacement = disp;
     }
 
-    if (debug_info_.points_compensated > 0) {
-        debug_info_.avg_displacement = total_displacement / debug_info_.points_compensated;
-    }
+    debug_info_.points_compensated++;
+  }
 
-    return true;
+  if (debug_info_.points_compensated > 0) {
+    debug_info_.avg_displacement = total_displacement / debug_info_.points_compensated;
+  }
+
+  return true;
 }
 
 bool DistortionAdjustV2::InterpolateImu(double timestamp, ImuState& out) const {
-    if (imu_buffer_.size() < 2) {
-        if (imu_buffer_.size() == 1) {
-            double dt = std::abs(imu_buffer_.front().timestamp - timestamp);
-            if (dt < config_.max_time_diff) {
-                out = imu_buffer_.front();
-                return true;
-            }
-        }
-        return false;
-    }
-
-    // 找到包围timestamp的两个IMU数据
-    const ImuState* before = nullptr;
-    const ImuState* after = nullptr;
-
-    for (size_t i = 0; i < imu_buffer_.size(); ++i) {
-        if (imu_buffer_[i].timestamp >= timestamp) {
-            if (i > 0) {
-                before = &imu_buffer_[i - 1];
-                after = &imu_buffer_[i];
-            } else {
-                // timestamp在第一个数据之前
-                double dt = imu_buffer_[i].timestamp - timestamp;
-                if (dt < config_.max_time_diff) {
-                    out = imu_buffer_[i];
-                    return true;
-                }
-                return false;
-            }
-            break;
-        }
-    }
-
-    // timestamp在最后一个数据之后
-    if (!after) {
-        double dt = timestamp - imu_buffer_.back().timestamp;
-        if (dt < config_.max_time_diff) {
-            out = imu_buffer_.back();
-            return true;
-        }
-        return false;
-    }
-
-    // 线性插值
-    double dt = after->timestamp - before->timestamp;
-    if (dt < 1e-9) {
-        out = *before;
+  if (imu_buffer_.size() < 2) {
+    if (imu_buffer_.size() == 1) {
+      double dt = std::abs(imu_buffer_.front().timestamp - timestamp);
+      if (dt < config_.max_time_diff) {
+        out = imu_buffer_.front();
         return true;
+      }
     }
+    return false;
+  }
 
-    double alpha = (timestamp - before->timestamp) / dt;
+  // 找到包围timestamp的两个IMU数据
+  const ImuState* before = nullptr;
+  const ImuState* after = nullptr;
 
-    out.timestamp = timestamp;
-    out.velocity = (1.0 - alpha) * before->velocity + alpha * after->velocity;
-    out.angular_velocity = (1.0 - alpha) * before->angular_velocity +
-                           alpha * after->angular_velocity;
-    out.acceleration = (1.0 - alpha) * before->acceleration +
-                       alpha * after->acceleration;
-    // 四元数球面线性插值 (SLERP)
-    out.orientation = before->orientation.slerp(alpha, after->orientation);
+  for (size_t i = 0; i < imu_buffer_.size(); ++i) {
+    if (imu_buffer_[i].timestamp >= timestamp) {
+      if (i > 0) {
+        before = &imu_buffer_[i - 1];
+        after = &imu_buffer_[i];
+      } else {
+        // timestamp在第一个数据之前
+        double dt = imu_buffer_[i].timestamp - timestamp;
+        if (dt < config_.max_time_diff) {
+          out = imu_buffer_[i];
+          return true;
+        }
+        return false;
+      }
+      break;
+    }
+  }
 
-    // 从SLERP后的四元数反算欧拉角，保证与四元数一致
-    Eigen::Vector3d euler = out.orientation.toRotationMatrix().eulerAngles(2, 1, 0);  // ZYX: yaw, pitch, roll
-    out.yaw = euler[0] * 180.0 / M_PI;
-    out.pitch = euler[1] * 180.0 / M_PI;
-    out.roll = euler[2] * 180.0 / M_PI;
+  // timestamp在最后一个数据之后
+  if (!after) {
+    double dt = timestamp - imu_buffer_.back().timestamp;
+    if (dt < config_.max_time_diff) {
+      out = imu_buffer_.back();
+      return true;
+    }
+    return false;
+  }
 
+  // 线性插值
+  double dt = after->timestamp - before->timestamp;
+  if (dt < 1e-9) {
+    out = *before;
     return true;
+  }
+
+  double alpha = (timestamp - before->timestamp) / dt;
+
+  out.timestamp = timestamp;
+  out.velocity = (1.0 - alpha) * before->velocity + alpha * after->velocity;
+  out.angular_velocity = (1.0 - alpha) * before->angular_velocity + alpha * after->angular_velocity;
+  out.acceleration = (1.0 - alpha) * before->acceleration + alpha * after->acceleration;
+  // 四元数球面线性插值 (SLERP)
+  out.orientation = before->orientation.slerp(alpha, after->orientation);
+
+  // 从SLERP后的四元数反算欧拉角，保证与四元数一致
+  Eigen::Vector3d euler =
+      out.orientation.toRotationMatrix().eulerAngles(2, 1, 0);  // ZYX: yaw, pitch, roll
+  out.yaw = euler[0] * 180.0 / M_PI;
+  out.pitch = euler[1] * 180.0 / M_PI;
+  out.roll = euler[2] * 180.0 / M_PI;
+
+  return true;
 }
 
 bool DistortionAdjustV2::Preintegrate(double t_start, double t_end,
-                                       ImuPreintegration& result) const {
-    if (imu_buffer_.empty()) {
-        return false;
+                                      ImuPreintegration& result) const {
+  if (imu_buffer_.empty()) {
+    return false;
+  }
+
+  result.dt = t_end - t_start;
+  result.delta_p.setZero();
+  result.delta_v.setZero();
+  result.delta_q.setIdentity();
+
+  if (std::abs(result.dt) < 1e-9) {
+    return true;
+  }
+
+  // 找到时间范围内的IMU数据
+  std::vector<const ImuState*> imu_in_range;
+  for (const auto& imu : imu_buffer_) {
+    if (imu.timestamp >= t_start && imu.timestamp <= t_end) {
+      imu_in_range.push_back(&imu);
+    }
+  }
+
+  if (imu_in_range.empty()) {
+    // 没有IMU数据在范围内，使用插值
+    ImuState interp_state;
+    double t_mid = (t_start + t_end) / 2.0;
+    if (!InterpolateImu(t_mid, interp_state)) {
+      return false;
     }
 
-    result.dt = t_end - t_start;
-    result.delta_p.setZero();
-    result.delta_v.setZero();
-    result.delta_q.setIdentity();
+    // 简单积分
+    double dt = t_end - t_start;
+    Eigen::Vector3d acc = ApplyExtrinsics(interp_state.acceleration);
+    Eigen::Vector3d gyro = ApplyExtrinsics(interp_state.angular_velocity);
 
-    if (std::abs(result.dt) < 1e-9) {
-        return true;
-    }
-
-    // 找到时间范围内的IMU数据
-    std::vector<const ImuState*> imu_in_range;
-    for (const auto& imu : imu_buffer_) {
-        if (imu.timestamp >= t_start && imu.timestamp <= t_end) {
-            imu_in_range.push_back(&imu);
-        }
-    }
-
-    if (imu_in_range.empty()) {
-        // 没有IMU数据在范围内，使用插值
-        ImuState interp_state;
-        double t_mid = (t_start + t_end) / 2.0;
-        if (!InterpolateImu(t_mid, interp_state)) {
-            return false;
-        }
-
-        // 简单积分
-        double dt = t_end - t_start;
-        Eigen::Vector3d acc = ApplyExtrinsics(interp_state.acceleration);
-        Eigen::Vector3d gyro = ApplyExtrinsics(interp_state.angular_velocity);
-
-        // 去除重力分量
-        Eigen::Vector3d gravity(0.0, 0.0, config_.gravity);
-        acc -= gravity;
-
-        result.delta_v = acc * dt;
-        result.delta_p = 0.5 * acc * dt * dt;
-
-        // 旋转增量
-        Eigen::Vector3d angle = gyro * dt;
-        double angle_norm = angle.norm();
-        if (angle_norm > 1e-9) {
-            result.delta_q = Eigen::Quaterniond(
-                Eigen::AngleAxisd(angle_norm, angle / angle_norm));
-        }
-
-        return true;
-    }
-
-    // 中点积分法
-    double last_t = t_start;
-    Eigen::Vector3d last_acc = Eigen::Vector3d::Zero();
-    Eigen::Vector3d last_gyro = Eigen::Vector3d::Zero();
-
-    // 重力向量（FRD坐标系）
+    // 去除重力分量
     Eigen::Vector3d gravity(0.0, 0.0, config_.gravity);
+    acc -= gravity;
 
-    // 获取起始时刻的IMU状态
-    ImuState start_state;
-    if (InterpolateImu(t_start, start_state)) {
-        last_acc = ApplyExtrinsics(start_state.acceleration) - gravity;
-        last_gyro = ApplyExtrinsics(start_state.angular_velocity);
-    }
+    result.delta_v = acc * dt;
+    result.delta_p = 0.5 * acc * dt * dt;
 
-    for (const auto* imu : imu_in_range) {
-        double curr_t = imu->timestamp;
-        double dt = curr_t - last_t;
-
-        if (dt < 1e-9) continue;
-
-        Eigen::Vector3d curr_acc = ApplyExtrinsics(imu->acceleration) - gravity;
-        Eigen::Vector3d curr_gyro = ApplyExtrinsics(imu->angular_velocity);
-
-        // 中点值
-        Eigen::Vector3d mid_acc = 0.5 * (last_acc + curr_acc);
-        Eigen::Vector3d mid_gyro = 0.5 * (last_gyro + curr_gyro);
-
-        // 旋转增量
-        Eigen::Vector3d angle = mid_gyro * dt;
-        double angle_norm = angle.norm();
-        Eigen::Quaterniond dq = Eigen::Quaterniond::Identity();
-        if (angle_norm > 1e-9) {
-            dq = Eigen::Quaterniond(Eigen::AngleAxisd(angle_norm, angle / angle_norm));
-        }
-
-        // 更新预积分量
-        // 位置增量需要考虑旋转
-        result.delta_p += result.delta_v * dt + 0.5 * (result.delta_q * mid_acc) * dt * dt;
-        result.delta_v += (result.delta_q * mid_acc) * dt;
-        result.delta_q = result.delta_q * dq;
-        result.delta_q.normalize();
-
-        last_t = curr_t;
-        last_acc = curr_acc;
-        last_gyro = curr_gyro;
-    }
-
-    // 处理最后一段到t_end
-    if (last_t < t_end) {
-        ImuState end_state;
-        if (InterpolateImu(t_end, end_state)) {
-            double dt = t_end - last_t;
-            Eigen::Vector3d curr_acc = ApplyExtrinsics(end_state.acceleration) - gravity;
-            Eigen::Vector3d curr_gyro = ApplyExtrinsics(end_state.angular_velocity);
-
-            Eigen::Vector3d mid_acc = 0.5 * (last_acc + curr_acc);
-            Eigen::Vector3d mid_gyro = 0.5 * (last_gyro + curr_gyro);
-
-            Eigen::Vector3d angle = mid_gyro * dt;
-            double angle_norm = angle.norm();
-            Eigen::Quaterniond dq = Eigen::Quaterniond::Identity();
-            if (angle_norm > 1e-9) {
-                dq = Eigen::Quaterniond(Eigen::AngleAxisd(angle_norm, angle / angle_norm));
-            }
-
-            result.delta_p += result.delta_v * dt + 0.5 * (result.delta_q * mid_acc) * dt * dt;
-            result.delta_v += (result.delta_q * mid_acc) * dt;
-            result.delta_q = result.delta_q * dq;
-            result.delta_q.normalize();
-        }
+    // 旋转增量
+    Eigen::Vector3d angle = gyro * dt;
+    double angle_norm = angle.norm();
+    if (angle_norm > 1e-9) {
+      result.delta_q = Eigen::Quaterniond(Eigen::AngleAxisd(angle_norm, angle / angle_norm));
     }
 
     return true;
+  }
+
+  // 中点积分法
+  double last_t = t_start;
+  Eigen::Vector3d last_acc = Eigen::Vector3d::Zero();
+  Eigen::Vector3d last_gyro = Eigen::Vector3d::Zero();
+
+  // 重力向量（FRD坐标系）
+  Eigen::Vector3d gravity(0.0, 0.0, config_.gravity);
+
+  // 获取起始时刻的IMU状态
+  ImuState start_state;
+  if (InterpolateImu(t_start, start_state)) {
+    last_acc = ApplyExtrinsics(start_state.acceleration) - gravity;
+    last_gyro = ApplyExtrinsics(start_state.angular_velocity);
+  }
+
+  for (const auto* imu : imu_in_range) {
+    double curr_t = imu->timestamp;
+    double dt = curr_t - last_t;
+
+    if (dt < 1e-9)
+      continue;
+
+    Eigen::Vector3d curr_acc = ApplyExtrinsics(imu->acceleration) - gravity;
+    Eigen::Vector3d curr_gyro = ApplyExtrinsics(imu->angular_velocity);
+
+    // 中点值
+    Eigen::Vector3d mid_acc = 0.5 * (last_acc + curr_acc);
+    Eigen::Vector3d mid_gyro = 0.5 * (last_gyro + curr_gyro);
+
+    // 旋转增量
+    Eigen::Vector3d angle = mid_gyro * dt;
+    double angle_norm = angle.norm();
+    Eigen::Quaterniond dq = Eigen::Quaterniond::Identity();
+    if (angle_norm > 1e-9) {
+      dq = Eigen::Quaterniond(Eigen::AngleAxisd(angle_norm, angle / angle_norm));
+    }
+
+    // 更新预积分量
+    // 位置增量需要考虑旋转
+    result.delta_p += result.delta_v * dt + 0.5 * (result.delta_q * mid_acc) * dt * dt;
+    result.delta_v += (result.delta_q * mid_acc) * dt;
+    result.delta_q = result.delta_q * dq;
+    result.delta_q.normalize();
+
+    last_t = curr_t;
+    last_acc = curr_acc;
+    last_gyro = curr_gyro;
+  }
+
+  // 处理最后一段到t_end
+  if (last_t < t_end) {
+    ImuState end_state;
+    if (InterpolateImu(t_end, end_state)) {
+      double dt = t_end - last_t;
+      Eigen::Vector3d curr_acc = ApplyExtrinsics(end_state.acceleration) - gravity;
+      Eigen::Vector3d curr_gyro = ApplyExtrinsics(end_state.angular_velocity);
+
+      Eigen::Vector3d mid_acc = 0.5 * (last_acc + curr_acc);
+      Eigen::Vector3d mid_gyro = 0.5 * (last_gyro + curr_gyro);
+
+      Eigen::Vector3d angle = mid_gyro * dt;
+      double angle_norm = angle.norm();
+      Eigen::Quaterniond dq = Eigen::Quaterniond::Identity();
+      if (angle_norm > 1e-9) {
+        dq = Eigen::Quaterniond(Eigen::AngleAxisd(angle_norm, angle / angle_norm));
+      }
+
+      result.delta_p += result.delta_v * dt + 0.5 * (result.delta_q * mid_acc) * dt * dt;
+      result.delta_v += (result.delta_q * mid_acc) * dt;
+      result.delta_q = result.delta_q * dq;
+      result.delta_q.normalize();
+    }
+  }
+
+  return true;
 }
 
 double DistortionAdjustV2::ComputePointTimeFromAngle(float x, float y) const {
-    // 计算方位角
-    double azimuth = std::atan2(static_cast<double>(y), static_cast<double>(x));
+  // 计算方位角
+  double azimuth = std::atan2(static_cast<double>(y), static_cast<double>(x));
 
-    // 将方位角转换到 [0, 2π] 范围
-    if (azimuth < 0) {
-        azimuth += 2.0 * M_PI;
-    }
+  // 将方位角转换到 [0, 2π] 范围
+  if (azimuth < 0) {
+    azimuth += 2.0 * M_PI;
+  }
 
-    // Velodyne扫描方向
-    // 俯视角顺时针旋转 -> 在右手坐标系中azimuth递减 -> 时间与azimuth反相关
-    double time;
-    if (config_.clockwise_scan) {
-        // 顺时针扫描：azimuth递减 -> 时间增大
-        time = (2.0 * M_PI - azimuth) / (2.0 * M_PI) * config_.scan_period;
-    } else {
-        // 逆时针扫描：azimuth递增 -> 时间增大
-        time = azimuth / (2.0 * M_PI) * config_.scan_period;
-    }
+  // Velodyne扫描方向
+  // 俯视角顺时针旋转 -> 在右手坐标系中azimuth递减 -> 时间与azimuth反相关
+  double time;
+  if (config_.clockwise_scan) {
+    // 顺时针扫描：azimuth递减 -> 时间增大
+    time = (2.0 * M_PI - azimuth) / (2.0 * M_PI) * config_.scan_period;
+  } else {
+    // 逆时针扫描：azimuth递增 -> 时间增大
+    time = azimuth / (2.0 * M_PI) * config_.scan_period;
+  }
 
-    return time;
+  return time;
 }
 
 void DistortionAdjustV2::CompensatePointSimple(PointType& point, double dt,
-                                                const ImuState& ref_state) {
-    Eigen::Vector3d p(point.x, point.y, point.z);
+                                               const ImuState& ref_state) {
+  Eigen::Vector3d p(point.x, point.y, point.z);
 
-    // 应用外参变换到速度和加速度
-    Eigen::Vector3d angular_velocity = ApplyExtrinsics(ref_state.angular_velocity);
-    Eigen::Vector3d velocity = ApplyExtrinsicsVelocity(ref_state.velocity, ref_state.angular_velocity);
-    Eigen::Vector3d acceleration = ApplyExtrinsics(ref_state.acceleration);
+  // 应用外参变换到速度和加速度
+  Eigen::Vector3d angular_velocity = ApplyExtrinsics(ref_state.angular_velocity);
+  Eigen::Vector3d velocity =
+      ApplyExtrinsicsVelocity(ref_state.velocity, ref_state.angular_velocity);
+  Eigen::Vector3d acceleration = ApplyExtrinsics(ref_state.acceleration);
 
-    // 去除重力分量（FRD坐标系，重力沿Z轴正方向）
-    Eigen::Vector3d gravity(0.0, 0.0, config_.gravity);
-    Eigen::Vector3d accel_no_gravity = acceleration - gravity;
+  // 去除重力分量（FRD坐标系，重力沿Z轴正方向）
+  Eigen::Vector3d gravity(0.0, 0.0, config_.gravity);
+  Eigen::Vector3d accel_no_gravity = acceleration - gravity;
 
-    // 计算位移补偿
-    Eigen::Vector3d displacement;
+  // 计算位移补偿
+  Eigen::Vector3d displacement;
 
-    switch (config_.mode) {
-        case DistortionConfigV2::Mode::VELOCITY_ACCEL:
-            // s = v*t + 0.5*a*t^2
-            displacement = velocity * dt + 0.5 * accel_no_gravity * dt * dt;
-            break;
+  switch (config_.mode) {
+    case DistortionConfigV2::Mode::VELOCITY_ACCEL:
+      // s = v*t + 0.5*a*t^2
+      displacement = velocity * dt + 0.5 * accel_no_gravity * dt * dt;
+      break;
 
-        case DistortionConfigV2::Mode::FULL_6DOF: {
-            // 完整6DOF补偿
-            // 1. 旋转补偿
-            Eigen::Vector3d angle = angular_velocity * dt;
-            double angle_norm = angle.norm();
-            Eigen::Matrix3d rotation = Eigen::Matrix3d::Identity();
-            if (angle_norm > 1e-9) {
-                Eigen::AngleAxisd aa(angle_norm, angle / angle_norm);
-                rotation = aa.toRotationMatrix();
-            }
+    case DistortionConfigV2::Mode::FULL_6DOF: {
+      // 完整6DOF补偿
+      // 1. 旋转补偿
+      Eigen::Vector3d angle = angular_velocity * dt;
+      double angle_norm = angle.norm();
+      Eigen::Matrix3d rotation = Eigen::Matrix3d::Identity();
+      if (angle_norm > 1e-9) {
+        Eigen::AngleAxisd aa(angle_norm, angle / angle_norm);
+        rotation = aa.toRotationMatrix();
+      }
 
-            // 2. 平移补偿
-            displacement = velocity * dt + 0.5 * accel_no_gravity * dt * dt;
+      // 2. 平移补偿
+      displacement = velocity * dt + 0.5 * accel_no_gravity * dt * dt;
 
-            // 刚体变换: p_ref = R_inv * (p_point - t)
-            p = rotation.transpose() * (p - displacement);
+      // 刚体变换: p_ref = R_inv * (p_point - t)
+      p = rotation.transpose() * (p - displacement);
 
-            // displacement已在上面应用，跳过后续的 p -= displacement
-            point.x = static_cast<float>(p.x());
-            point.y = static_cast<float>(p.y());
-            point.z = static_cast<float>(p.z());
-            return;
-        }
-
-        case DistortionConfigV2::Mode::VELOCITY_ONLY:
-        default:
-            // s = v*t
-            displacement = velocity * dt;
-            break;
+      // displacement已在上面应用，跳过后续的 p -= displacement
+      point.x = static_cast<float>(p.x());
+      point.y = static_cast<float>(p.y());
+      point.z = static_cast<float>(p.z());
+      return;
     }
 
-    // 应用补偿（减去位移，将点移动到参考时刻）
-    p -= displacement;
+    case DistortionConfigV2::Mode::VELOCITY_ONLY:
+    default:
+      // s = v*t
+      displacement = velocity * dt;
+      break;
+  }
 
-    // 写回点
-    point.x = static_cast<float>(p.x());
-    point.y = static_cast<float>(p.y());
-    point.z = static_cast<float>(p.z());
+  // 应用补偿（减去位移，将点移动到参考时刻）
+  p -= displacement;
+
+  // 写回点
+  point.x = static_cast<float>(p.x());
+  point.y = static_cast<float>(p.y());
+  point.z = static_cast<float>(p.z());
 }
 
-void DistortionAdjustV2::CompensatePointPreintegration(PointType& point,
-                                                        double point_time,
-                                                        double ref_time,
-                                                        const ImuState& ref_state) {
-    Eigen::Vector3d p(point.x, point.y, point.z);
+void DistortionAdjustV2::CompensatePointPreintegration(PointType& point, double point_time,
+                                                       double ref_time, const ImuState& ref_state) {
+  Eigen::Vector3d p(point.x, point.y, point.z);
 
-    // 预积分从point_time到ref_time
-    ImuPreintegration preint;
-    if (!Preintegrate(point_time, ref_time, preint)) {
-        // 预积分失败，回退到简单模式
-        double dt = point_time - ref_time;
-        CompensatePointSimple(point, dt, ref_state);
-        return;
-    }
+  // 预积分从point_time到ref_time
+  ImuPreintegration preint;
+  if (!Preintegrate(point_time, ref_time, preint)) {
+    // 预积分失败，回退到简单模式
+    double dt = point_time - ref_time;
+    CompensatePointSimple(point, dt, ref_state);
+    return;
+  }
 
-    // 应用预积分结果
-    // 旋转补偿
-    p = preint.delta_q.inverse() * p;
+  // 应用预积分结果
+  // 旋转补偿
+  p = preint.delta_q.inverse() * p;
 
-    // 平移补偿
-    p -= preint.delta_p;
+  // 平移补偿
+  p -= preint.delta_p;
 
-    // 写回点
-    point.x = static_cast<float>(p.x());
-    point.y = static_cast<float>(p.y());
-    point.z = static_cast<float>(p.z());
+  // 写回点
+  point.x = static_cast<float>(p.x());
+  point.y = static_cast<float>(p.y());
+  point.z = static_cast<float>(p.z());
 }
 
 Eigen::Vector3d DistortionAdjustV2::ApplyExtrinsics(const Eigen::Vector3d& v_imu) const {
-    if (config_.extrinsics.enable) {
-        return config_.extrinsics.transformVector(v_imu);
-    }
-    return v_imu;
+  if (config_.extrinsics.enable) {
+    return config_.extrinsics.transformVector(v_imu);
+  }
+  return v_imu;
 }
 
 Eigen::Vector3d DistortionAdjustV2::ApplyExtrinsicsVelocity(
-    const Eigen::Vector3d& v_imu,
-    const Eigen::Vector3d& omega_imu) const {
-    if (config_.extrinsics.enable) {
-        Eigen::Vector3d v_lidar = config_.extrinsics.transformVector(v_imu);
-        // 杠杆臂补偿: v_lidar += omega_lidar × t_imu_to_lidar
-        Eigen::Vector3d omega_lidar = config_.extrinsics.transformVector(omega_imu);
-        v_lidar += omega_lidar.cross(config_.extrinsics.translation);
-        return v_lidar;
-    }
-    return v_imu;
+    const Eigen::Vector3d& v_imu, const Eigen::Vector3d& omega_imu) const {
+  if (config_.extrinsics.enable) {
+    Eigen::Vector3d v_lidar = config_.extrinsics.transformVector(v_imu);
+    // 杠杆臂补偿: v_lidar += omega_lidar × t_imu_to_lidar
+    Eigen::Vector3d omega_lidar = config_.extrinsics.transformVector(omega_imu);
+    v_lidar += omega_lidar.cross(config_.extrinsics.translation);
+    return v_lidar;
+  }
+  return v_imu;
 }
 
 }  // namespace lidar_distortion

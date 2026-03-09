@@ -103,7 +103,9 @@ def _extract_localization_diag_kv(msg) -> Dict[str, str]:
     return {}
 
 
-def _compute_pose_jitter(car_samples: List[Tuple[float, float, float]]) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+def _compute_pose_jitter(
+    car_samples: List[Tuple[float, float, float]]
+) -> Tuple[Optional[float], Optional[float], Optional[float]]:
     if len(car_samples) < 3:
         return None, None, None
 
@@ -119,11 +121,15 @@ def _compute_pose_jitter(car_samples: List[Tuple[float, float, float]]) -> Tuple
         dyaw = _angle_diff(y2aw, y1aw) - _angle_diff(y1aw, y0aw)
         yaw_second_diff.append(abs(dyaw))
 
-    closure_error = math.hypot(car_samples[-1][0] - car_samples[0][0], car_samples[-1][1] - car_samples[0][1])
+    closure_error = math.hypot(
+        car_samples[-1][0] - car_samples[0][0], car_samples[-1][1] - car_samples[0][1]
+    )
     return _mean(pos_second_diff), math.degrees(_mean(yaw_second_diff) or 0.0), closure_error
 
 
-def _compute_map_repeat_consistency(cone_history: Dict[int, List[Tuple[float, float]]]) -> Optional[float]:
+def _compute_map_repeat_consistency(
+    cone_history: Dict[int, List[Tuple[float, float]]]
+) -> Optional[float]:
     id_sigmas = []
     for cid, pts in cone_history.items():
         if cid <= 0 or len(pts) < 3:
@@ -137,7 +143,9 @@ def _compute_map_repeat_consistency(cone_history: Dict[int, List[Tuple[float, fl
     return _mean(id_sigmas)
 
 
-def _compute_recovery_metrics(state_series: List[Tuple[float, str]]) -> Tuple[Optional[float], Optional[float], Optional[float], int]:
+def _compute_recovery_metrics(
+    state_series: List[Tuple[float, str]]
+) -> Tuple[Optional[float], Optional[float], Optional[float], int]:
     if not state_series:
         return None, None, None, 0
 
@@ -251,7 +259,12 @@ def evaluate(args) -> Dict:
     if match_good_flags:
         match_success_rate = sum(1 for g in match_good_flags if g) / float(len(match_good_flags))
 
-    reloc_success_rate, reloc_latency_mean_s, reloc_latency_p95_s, reloc_event_count = _compute_recovery_metrics(state_series)
+    (
+        reloc_success_rate,
+        reloc_latency_mean_s,
+        reloc_latency_p95_s,
+        reloc_event_count,
+    ) = _compute_recovery_metrics(state_series)
     pos_jitter_m, heading_jitter_deg, closure_error_m = _compute_pose_jitter(car_pose)
     repeat_consistency_m = _compute_map_repeat_consistency(cone_history)
 
@@ -334,7 +347,9 @@ def main() -> int:
         description="Evaluate localization proxy metrics and topic contract directly from rosbag."
     )
     parser.add_argument("--bag", type=Path, required=True, help="Input rosbag path.")
-    parser.add_argument("--detections-topic", type=str, default="perception/lidar_cluster/detections")
+    parser.add_argument(
+        "--detections-topic", type=str, default="perception/lidar_cluster/detections"
+    )
     parser.add_argument("--car-state-topic", type=str, default="localization/car_state")
     parser.add_argument("--cone-map-topic", type=str, default="localization/cone_map")
     parser.add_argument("--tf-topic", type=str, default="/tf")
@@ -354,7 +369,9 @@ def main() -> int:
 
     payload = evaluate(args)
     args.output_json.parent.mkdir(parents=True, exist_ok=True)
-    args.output_json.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    args.output_json.write_text(
+        json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
     _write_markdown(args.output_md, payload)
 
     print(f"[OK] proxy metrics json: {args.output_json}")

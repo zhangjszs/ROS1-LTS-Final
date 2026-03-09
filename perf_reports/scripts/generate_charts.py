@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import os
 import json
-import numpy as np
+import os
+
 import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
+import numpy as np
+
+matplotlib.use("Agg")
 from datetime import datetime
 from pathlib import Path
-from common import Config, load_all_data, METRIC_DEFINITIONS, VISUALIZATION
+
+import matplotlib.pyplot as plt
+from common import METRIC_DEFINITIONS, VISUALIZATION, Config, load_all_data
+
 
 class PerfChartGenerator:
     def __init__(self, data_dir=None, output_dir=None):
@@ -32,12 +36,12 @@ class PerfChartGenerator:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         chart_files = []
 
-        for node_name, entries in data['nodes'].items():
+        for node_name, entries in data["nodes"].items():
             if not entries:
                 continue
 
             latest_entry = entries[-1]
-            metrics = latest_entry['metrics']
+            metrics = latest_entry["metrics"]
 
             chart_file = self._generate_node_charts(node_name, metrics, timestamp)
             if chart_file:
@@ -58,7 +62,7 @@ class PerfChartGenerator:
 
         all_nodes = set()
         for data in data_list:
-            all_nodes.update(data['nodes'].keys())
+            all_nodes.update(data["nodes"].keys())
 
         for node_name in sorted(all_nodes):
             chart_file = self._generate_comparison_chart(node_name, data_list, timestamp)
@@ -71,78 +75,113 @@ class PerfChartGenerator:
         chart_filename = f"{node_name}_performance_{timestamp}.png"
         chart_path = os.path.join(self.output_dir, chart_filename)
 
-        fig_size = VISUALIZATION['figure_size']
+        fig_size = VISUALIZATION["figure_size"]
         fig, axes = plt.subplots(2, 2, figsize=fig_size)
-        fig.suptitle(f'{node_name} - Performance Metrics', fontsize=16, fontweight='bold')
+        fig.suptitle(f"{node_name} - Performance Metrics", fontsize=16, fontweight="bold")
 
-        time_metrics = METRIC_DEFINITIONS['time_metrics']
-        time_labels = ['Pass', 'Ground', 'Cluster', 'Delaunay', 'Way', 'Total']
-        time_values = [metrics.get(m, {}).get('mean', 0) for m in time_metrics]
+        time_metrics = METRIC_DEFINITIONS["time_metrics"]
+        time_labels = ["Pass", "Ground", "Cluster", "Delaunay", "Way", "Total"]
+        time_values = [metrics.get(m, {}).get("mean", 0) for m in time_metrics]
 
         ax = axes[0, 0]
-        bars = ax.bar(time_labels, time_values, color='skyblue', edgecolor='navy')
-        ax.set_ylabel('Time (ms)', fontsize=12)
-        ax.set_title('Processing Time Breakdown', fontsize=12)
-        ax.grid(axis='y', alpha=0.3)
+        bars = ax.bar(time_labels, time_values, color="skyblue", edgecolor="navy")
+        ax.set_ylabel("Time (ms)", fontsize=12)
+        ax.set_title("Processing Time Breakdown", fontsize=12)
+        ax.grid(axis="y", alpha=0.3)
         for bar in bars:
             height = bar.get_height()
             if height > 0:
-                ax.text(bar.get_x() + bar.get_width()/2., height,
-                       f'{height:.2f}', ha='center', va='bottom', fontsize=9)
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2.0,
+                    height,
+                    f"{height:.2f}",
+                    ha="center",
+                    va="bottom",
+                    fontsize=9,
+                )
 
         ax = axes[0, 1]
-        if 't_total_ms' in metrics:
-            m = metrics['t_total_ms']
-            stats = ['Mean', 'P50', 'P95', 'P99', 'Max']
-            values = [m['mean'], m['p50'], m['p95'], m['p99'], m['max']]
-            colors = ['lightcoral', 'lightblue', 'lightgreen', 'lightyellow', 'lightpink']
-            bars = ax.bar(stats, values, color=colors, edgecolor='black')
-            ax.set_ylabel('Time (ms)', fontsize=12)
-            ax.set_title('Total Processing Time Distribution', fontsize=12)
-            ax.grid(axis='y', alpha=0.3)
+        if "t_total_ms" in metrics:
+            m = metrics["t_total_ms"]
+            stats = ["Mean", "P50", "P95", "P99", "Max"]
+            values = [m["mean"], m["p50"], m["p95"], m["p99"], m["max"]]
+            colors = ["lightcoral", "lightblue", "lightgreen", "lightyellow", "lightpink"]
+            bars = ax.bar(stats, values, color=colors, edgecolor="black")
+            ax.set_ylabel("Time (ms)", fontsize=12)
+            ax.set_title("Total Processing Time Distribution", fontsize=12)
+            ax.grid(axis="y", alpha=0.3)
             for bar in bars:
                 height = bar.get_height()
-                ax.text(bar.get_x() + bar.get_width()/2., height,
-                       f'{height:.2f}', ha='center', va='bottom', fontsize=9)
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2.0,
+                    height,
+                    f"{height:.2f}",
+                    ha="center",
+                    va="bottom",
+                    fontsize=9,
+                )
 
         ax = axes[1, 0]
-        data_metrics = ['N', 'K', 'T', 'E']
-        data_labels = ['Points', 'Clusters', 'Triangles', 'Edges']
-        data_values = [metrics.get(m, {}).get('mean', 0) for m in data_metrics]
-        colors = ['gold', 'lightcoral', 'lightgreen', 'lightblue']
-        bars = ax.bar(data_labels, data_values, color=colors, edgecolor='black')
-        ax.set_ylabel('Count', fontsize=12)
-        ax.set_title('Data Volume Statistics', fontsize=12)
-        ax.grid(axis='y', alpha=0.3)
+        data_metrics = ["N", "K", "T", "E"]
+        data_labels = ["Points", "Clusters", "Triangles", "Edges"]
+        data_values = [metrics.get(m, {}).get("mean", 0) for m in data_metrics]
+        colors = ["gold", "lightcoral", "lightgreen", "lightblue"]
+        bars = ax.bar(data_labels, data_values, color=colors, edgecolor="black")
+        ax.set_ylabel("Count", fontsize=12)
+        ax.set_title("Data Volume Statistics", fontsize=12)
+        ax.grid(axis="y", alpha=0.3)
         for bar in bars:
             height = bar.get_height()
             if height > 0:
-                ax.text(bar.get_x() + bar.get_width()/2., height,
-                       f'{int(height)}', ha='center', va='bottom', fontsize=9)
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2.0,
+                    height,
+                    f"{int(height)}",
+                    ha="center",
+                    va="bottom",
+                    fontsize=9,
+                )
 
         ax = axes[1, 1]
-        if 't_total_ms' in metrics and 't_pass_ms' in metrics and 't_ground_ms' in metrics and 't_cluster_ms' in metrics:
-            total = metrics['t_total_ms']['mean']
-            pass_time = metrics['t_pass_ms']['mean']
-            ground_time = metrics['t_ground_ms']['mean']
-            cluster_time = metrics['t_cluster_ms']['mean']
+        if (
+            "t_total_ms" in metrics
+            and "t_pass_ms" in metrics
+            and "t_ground_ms" in metrics
+            and "t_cluster_ms" in metrics
+        ):
+            total = metrics["t_total_ms"]["mean"]
+            pass_time = metrics["t_pass_ms"]["mean"]
+            ground_time = metrics["t_ground_ms"]["mean"]
+            cluster_time = metrics["t_cluster_ms"]["mean"]
 
             if total > 0:
-                labels = ['Pass', 'Ground', 'Cluster', 'Other']
-                sizes = [pass_time, ground_time, cluster_time, total - pass_time - ground_time - cluster_time]
-                colors = ['#ff9999', '#66b3ff', '#99ff99', '#ffcc99']
+                labels = ["Pass", "Ground", "Cluster", "Other"]
+                sizes = [
+                    pass_time,
+                    ground_time,
+                    cluster_time,
+                    total - pass_time - ground_time - cluster_time,
+                ]
+                colors = ["#ff9999", "#66b3ff", "#99ff99", "#ffcc99"]
                 explode = (0.1, 0.1, 0.1, 0)
 
-                wedges, texts, autotexts = ax.pie(sizes, explode=explode, labels=labels, colors=colors,
-                                                  autopct='%1.1f%%', shadow=True, startangle=90)
+                wedges, texts, autotexts = ax.pie(
+                    sizes,
+                    explode=explode,
+                    labels=labels,
+                    colors=colors,
+                    autopct="%1.1f%%",
+                    shadow=True,
+                    startangle=90,
+                )
                 for autotext in autotexts:
-                    autotext.set_color('black')
+                    autotext.set_color("black")
                     autotext.set_fontsize(10)
-                ax.set_title('Time Distribution', fontsize=12)
+                ax.set_title("Time Distribution", fontsize=12)
 
         plt.tight_layout()
-        dpi = VISUALIZATION['chart_dpi']
-        plt.savefig(chart_path, dpi=dpi, bbox_inches='tight')
+        dpi = VISUALIZATION["chart_dpi"]
+        plt.savefig(chart_path, dpi=dpi, bbox_inches="tight")
         plt.close()
 
         print(f"Chart generated: {chart_path}")
@@ -152,106 +191,119 @@ class PerfChartGenerator:
         chart_filename = f"{node_name}_comparison_{timestamp}.png"
         chart_path = os.path.join(self.output_dir, chart_filename)
 
-        fig_size = VISUALIZATION['figure_size']
+        fig_size = VISUALIZATION["figure_size"]
         fig, axes = plt.subplots(2, 2, figsize=fig_size)
-        fig.suptitle(f'{node_name} - Version Comparison', fontsize=16, fontweight='bold')
+        fig.suptitle(f"{node_name} - Version Comparison", fontsize=16, fontweight="bold")
 
         versions = [f"v{i+1}" for i in range(len(data_list))]
-        colors = VISUALIZATION['colors']['primary'][:len(data_list)]
+        colors = VISUALIZATION["colors"]["primary"][: len(data_list)]
 
         ax = axes[0, 0]
-        time_metrics = ['t_total_ms', 't_pass_ms', 't_ground_ms', 't_cluster_ms']
-        time_labels = ['Total', 'Pass', 'Ground', 'Cluster']
+        time_metrics = ["t_total_ms", "t_pass_ms", "t_ground_ms", "t_cluster_ms"]
+        time_labels = ["Total", "Pass", "Ground", "Cluster"]
         x = np.arange(len(time_labels))
         width = 0.8 / len(data_list)
 
         for i, data in enumerate(data_list):
-            if node_name in data['nodes'] and data['nodes'][node_name]:
-                metrics = data['nodes'][node_name][-1]['metrics']
-                values = [metrics.get(m, {}).get('mean', 0) for m in time_metrics]
-                offset = (i - len(data_list)/2 + 0.5) * width
-                bars = ax.bar(x + offset, values, width, label=f"v{i+1}", color=colors[i], alpha=0.7)
+            if node_name in data["nodes"] and data["nodes"][node_name]:
+                metrics = data["nodes"][node_name][-1]["metrics"]
+                values = [metrics.get(m, {}).get("mean", 0) for m in time_metrics]
+                offset = (i - len(data_list) / 2 + 0.5) * width
+                bars = ax.bar(
+                    x + offset, values, width, label=f"v{i+1}", color=colors[i], alpha=0.7
+                )
 
-        ax.set_ylabel('Time (ms)', fontsize=12)
-        ax.set_title('Processing Time Comparison', fontsize=12)
+        ax.set_ylabel("Time (ms)", fontsize=12)
+        ax.set_title("Processing Time Comparison", fontsize=12)
         ax.set_xticks(x)
         ax.set_xticklabels(time_labels)
         ax.legend()
-        ax.grid(axis='y', alpha=0.3)
+        ax.grid(axis="y", alpha=0.3)
 
         ax = axes[0, 1]
-        if 't_total_ms' in data_list[0]['nodes'].get(node_name, [{}])[-1]['metrics']:
+        if "t_total_ms" in data_list[0]["nodes"].get(node_name, [{}])[-1]["metrics"]:
             p95_values = []
             p99_values = []
             for data in data_list:
-                if node_name in data['nodes'] and data['nodes'][node_name]:
-                    metrics = data['nodes'][node_name][-1]['metrics']
-                    p95_values.append(metrics['t_total_ms']['p95'])
-                    p99_values.append(metrics['t_total_ms']['p99'])
+                if node_name in data["nodes"] and data["nodes"][node_name]:
+                    metrics = data["nodes"][node_name][-1]["metrics"]
+                    p95_values.append(metrics["t_total_ms"]["p95"])
+                    p99_values.append(metrics["t_total_ms"]["p99"])
 
             x = np.arange(len(versions))
             width = 0.35
-            bars1 = ax.bar(x - width/2, p95_values, width, label='P95', color='blue', alpha=0.7)
-            bars2 = ax.bar(x + width/2, p99_values, width, label='P99', color='red', alpha=0.7)
+            bars1 = ax.bar(x - width / 2, p95_values, width, label="P95", color="blue", alpha=0.7)
+            bars2 = ax.bar(x + width / 2, p99_values, width, label="P99", color="red", alpha=0.7)
 
-            ax.set_ylabel('Time (ms)', fontsize=12)
-            ax.set_title('P95/P99 Comparison', fontsize=12)
+            ax.set_ylabel("Time (ms)", fontsize=12)
+            ax.set_title("P95/P99 Comparison", fontsize=12)
             ax.set_xticks(x)
             ax.set_xticklabels(versions)
             ax.legend()
-            ax.grid(axis='y', alpha=0.3)
+            ax.grid(axis="y", alpha=0.3)
 
         ax = axes[1, 0]
-        data_metrics = ['N', 'K', 'T', 'E']
-        data_labels = ['Points', 'Clusters', 'Triangles', 'Edges']
+        data_metrics = ["N", "K", "T", "E"]
+        data_labels = ["Points", "Clusters", "Triangles", "Edges"]
         x = np.arange(len(data_labels))
         width = 0.8 / len(data_list)
 
         for i, data in enumerate(data_list):
-            if node_name in data['nodes'] and data['nodes'][node_name]:
-                metrics = data['nodes'][node_name][-1]['metrics']
-                values = [metrics.get(m, {}).get('mean', 0) for m in data_metrics]
-                offset = (i - len(data_list)/2 + 0.5) * width
-                bars = ax.bar(x + offset, values, width, label=f"v{i+1}", color=colors[i], alpha=0.7)
+            if node_name in data["nodes"] and data["nodes"][node_name]:
+                metrics = data["nodes"][node_name][-1]["metrics"]
+                values = [metrics.get(m, {}).get("mean", 0) for m in data_metrics]
+                offset = (i - len(data_list) / 2 + 0.5) * width
+                bars = ax.bar(
+                    x + offset, values, width, label=f"v{i+1}", color=colors[i], alpha=0.7
+                )
 
-        ax.set_ylabel('Count', fontsize=12)
-        ax.set_title('Data Volume Comparison', fontsize=12)
+        ax.set_ylabel("Count", fontsize=12)
+        ax.set_title("Data Volume Comparison", fontsize=12)
         ax.set_xticks(x)
         ax.set_xticklabels(data_labels)
         ax.legend()
-        ax.grid(axis='y', alpha=0.3)
+        ax.grid(axis="y", alpha=0.3)
 
         ax = axes[1, 1]
-        if 't_total_ms' in data_list[0]['nodes'].get(node_name, [{}])[-1]['metrics']:
+        if "t_total_ms" in data_list[0]["nodes"].get(node_name, [{}])[-1]["metrics"]:
             mean_values = []
             for data in data_list:
-                if node_name in data['nodes'] and data['nodes'][node_name]:
-                    metrics = data['nodes'][node_name][-1]['metrics']
-                    mean_values.append(metrics['t_total_ms']['mean'])
+                if node_name in data["nodes"] and data["nodes"][node_name]:
+                    metrics = data["nodes"][node_name][-1]["metrics"]
+                    mean_values.append(metrics["t_total_ms"]["mean"])
 
-            ax.plot(versions, mean_values, marker='o', linewidth=2, markersize=8, color='blue', label='Mean')
-            ax.fill_between(versions, mean_values, alpha=0.3, color='blue')
+            ax.plot(
+                versions,
+                mean_values,
+                marker="o",
+                linewidth=2,
+                markersize=8,
+                color="blue",
+                label="Mean",
+            )
+            ax.fill_between(versions, mean_values, alpha=0.3, color="blue")
 
-            ax.set_ylabel('Time (ms)', fontsize=12)
-            ax.set_title('Performance Trend', fontsize=12)
-            ax.set_xlabel('Version', fontsize=12)
+            ax.set_ylabel("Time (ms)", fontsize=12)
+            ax.set_title("Performance Trend", fontsize=12)
+            ax.set_xlabel("Version", fontsize=12)
             ax.legend()
             ax.grid(alpha=0.3)
 
         plt.tight_layout()
-        plt.savefig(chart_path, dpi=300, bbox_inches='tight')
+        plt.savefig(chart_path, dpi=300, bbox_inches="tight")
         plt.close()
 
         print(f"Comparison chart generated: {chart_path}")
         return chart_path
 
+
 def main():
     import argparse
 
-    parser = argparse.ArgumentParser(description='Generate performance charts')
-    parser.add_argument('--data-dir', help='Directory containing performance data files')
-    parser.add_argument('--output-dir', help='Output directory for charts')
-    parser.add_argument('--compare', action='store_true', help='Generate comparison charts')
+    parser = argparse.ArgumentParser(description="Generate performance charts")
+    parser.add_argument("--data-dir", help="Directory containing performance data files")
+    parser.add_argument("--output-dir", help="Output directory for charts")
+    parser.add_argument("--compare", action="store_true", help="Generate comparison charts")
     args = parser.parse_args()
 
     generator = PerfChartGenerator(data_dir=args.data_dir, output_dir=args.output_dir)
@@ -261,6 +313,7 @@ def main():
         generator.generate_comparison_charts()
     else:
         generator.generate_charts()
+
 
 if __name__ == "__main__":
     main()

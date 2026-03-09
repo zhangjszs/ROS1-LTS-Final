@@ -2,11 +2,9 @@
 
 #include <limits>
 
-namespace control_core
-{
+namespace control_core {
 
-void ControllerBase::SetParams(const ControlParams &params)
-{
+void ControllerBase::SetParams(const ControlParams& params) {
   angle_kp_ = params.angle_kp;
   angle_ki_ = params.angle_ki;
   angle_kd_ = params.angle_kd;
@@ -32,14 +30,21 @@ void ControllerBase::SetParams(const ControlParams &params)
   brake_speed_margin_ = params.brake_speed_margin;
 
   // B22: critical parameter range validation
-  if (car_length_ <= 0.0) { car_length_ = 1.55; }
-  if (steering_delta_max_ <= 0.0) { steering_delta_max_ = 0.5; }
-  if (min_lookahead_ <= 0.0) { min_lookahead_ = 0.5; }
-  if (max_lookahead_ < min_lookahead_) { max_lookahead_ = min_lookahead_ + 1.0; }
+  if (car_length_ <= 0.0) {
+    car_length_ = 1.55;
+  }
+  if (steering_delta_max_ <= 0.0) {
+    steering_delta_max_ = 0.5;
+  }
+  if (min_lookahead_ <= 0.0) {
+    min_lookahead_ = 0.5;
+  }
+  if (max_lookahead_ < min_lookahead_) {
+    max_lookahead_ = min_lookahead_ + 1.0;
+  }
 }
 
-void ControllerBase::UpdateCarState(const CarState &state)
-{
+void ControllerBase::UpdateCarState(const CarState& state) {
   car_x_ = state.x;
   car_y_ = state.y;
   car_theta_ = state.theta;
@@ -50,37 +55,30 @@ void ControllerBase::UpdateCarState(const CarState &state)
   car_yaw_rate_ = state.yaw_rate;
 }
 
-void ControllerBase::UpdatePath(const std::vector<Position> &path)
-{
+void ControllerBase::UpdatePath(const std::vector<Position>& path) {
   path_coordinate_ = path;
   // Clear stale data if path length changed
-  if (target_speeds_.size() != path.size())
-  {
+  if (target_speeds_.size() != path.size()) {
     target_speeds_.clear();
   }
-  if (curvatures_.size() != path.size())
-  {
+  if (curvatures_.size() != path.size()) {
     curvatures_.clear();
   }
 }
 
-void ControllerBase::UpdateTargetSpeeds(const std::vector<double> &speeds)
-{
+void ControllerBase::UpdateTargetSpeeds(const std::vector<double>& speeds) {
   target_speeds_ = speeds;
 }
 
-void ControllerBase::UpdateCurvatures(const std::vector<double> &curvatures)
-{
+void ControllerBase::UpdateCurvatures(const std::vector<double>& curvatures) {
   curvatures_ = curvatures;
 }
 
-void ControllerBase::SetFinishSignal(bool finish_signal)
-{
+void ControllerBase::SetFinishSignal(bool finish_signal) {
   finish_signal_ = finish_signal;
 }
 
-ControlOutput ControllerBase::ComputeOutput()
-{
+ControlOutput ControllerBase::ComputeOutput() {
   stop_requested_ = false;
   ControlOutput output;
   output.steering = ComputeSteering();
@@ -91,25 +89,20 @@ ControlOutput ControllerBase::ComputeOutput()
   return output;
 }
 
-void ControllerBase::Tick()
-{
+void ControllerBase::Tick() {
   ++now_;
 }
 
-double ControllerBase::distance_square(double x1, double y1, double x2, double y2) const
-{
+double ControllerBase::distance_square(double x1, double y1, double x2, double y2) const {
   return std::pow(x1 - x2, 2) + std::pow(y1 - y2, 2);
 }
 
-int ControllerBase::FindNearestIndex() const
-{
+int ControllerBase::FindNearestIndex() const {
   double min_distance = std::numeric_limits<double>::max();
   int nearest = 0;
-  for (int i = 0; i < static_cast<int>(path_coordinate_.size()); ++i)
-  {
+  for (int i = 0; i < static_cast<int>(path_coordinate_.size()); ++i) {
     double d = distance_square(car_x_, car_y_, path_coordinate_[i].x, path_coordinate_[i].y);
-    if (d < min_distance)
-    {
+    if (d < min_distance) {
       min_distance = d;
       nearest = i;
     }
@@ -117,8 +110,7 @@ int ControllerBase::FindNearestIndex() const
   return nearest;
 }
 
-int ControllerBase::GetTargetIndex()
-{
+int ControllerBase::GetTargetIndex() {
   double diff_distance = 0;
   double tem_distance;
   int index = 0;
@@ -127,10 +119,11 @@ int ControllerBase::GetTargetIndex()
 
   int min = FindNearestIndex();
 
-  for (index = min + 1, diff_distance = 0.0; index < static_cast<int>(path_coordinate_.size()); index++)
-  {
-    tem_distance = std::sqrt(distance_square(path_coordinate_[index - 1].x, path_coordinate_[index - 1].y,
-                                             path_coordinate_[index].x, path_coordinate_[index].y));
+  for (index = min + 1, diff_distance = 0.0; index < static_cast<int>(path_coordinate_.size());
+       index++) {
+    tem_distance =
+        std::sqrt(distance_square(path_coordinate_[index - 1].x, path_coordinate_[index - 1].y,
+                                  path_coordinate_[index].x, path_coordinate_[index].y));
     diff_distance += tem_distance;
     if (diff_distance + tem_distance > lookhead_)
       break;
@@ -141,25 +134,22 @@ int ControllerBase::GetTargetIndex()
     return index - 1;
 }
 
-double ControllerBase::angle_range(double alpha) const
-{
-  if (!std::isfinite(alpha)) { return 0.0; }
+double ControllerBase::angle_range(double alpha) const {
+  if (!std::isfinite(alpha)) {
+    return 0.0;
+  }
   return std::remainder(alpha, 2.0 * M_PI);
 }
 
-double ControllerBase::angle_pid(double delta)
-{
+double ControllerBase::angle_pid(double delta) {
   double error = delta - car_fangle_;
 
   double differ = error - last_angle_error_;
   last_angle_error_ = error;
 
-  if (std::abs(error) <= steering_delta_max_)
-  {
+  if (std::abs(error) <= steering_delta_max_) {
     angle_integra_ += error;
-  }
-  else
-  {
+  } else {
     angle_integra_ = 0.0;
   }
 
@@ -174,13 +164,11 @@ double ControllerBase::angle_pid(double delta)
   return output;
 }
 
-void ControllerBase::RequestStop()
-{
+void ControllerBase::RequestStop() {
   stop_requested_ = true;
 }
 
-double ControllerBase::computeSlipAngle() const
-{
+double ControllerBase::computeSlipAngle() const {
   // FSSIM风格滑移角计算
   // beta = atan(vy / vx)
   // 在低速时避免除零
@@ -189,10 +177,8 @@ double ControllerBase::computeSlipAngle() const
   return std::atan2(car_vy_, vx);
 }
 
-double ControllerBase::compensateSlipAngle(double delta) const
-{
-  if (!enable_slip_compensation_ || car_veloc_ < 1.0)
-  {
+double ControllerBase::compensateSlipAngle(double delta) const {
+  if (!enable_slip_compensation_ || car_veloc_ < 1.0) {
     return delta;
   }
 
@@ -210,8 +196,7 @@ double ControllerBase::compensateSlipAngle(double delta) const
   return delta_comp;
 }
 
-double ControllerBase::computeAdaptiveLookahead() const
-{
+double ControllerBase::computeAdaptiveLookahead() const {
   // FSSIM风格速度自适应前视距离
   // lookahead = kv * v + kl
   // 但限制在 [min_lookahead, max_lookahead] 范围内
@@ -223,10 +208,8 @@ double ControllerBase::computeAdaptiveLookahead() const
   return lookahead;
 }
 
-int ControllerBase::ComputeSteeringWithLookahead(int target_index)
-{
-  if (target_index >= static_cast<int>(path_coordinate_.size()) - 1 && finish_signal_)
-  {
+int ControllerBase::ComputeSteeringWithLookahead(int target_index) {
+  if (target_index >= static_cast<int>(path_coordinate_.size()) - 1 && finish_signal_) {
     RequestStop();
     return steering_offset_;
   }
@@ -242,8 +225,7 @@ int ControllerBase::ComputeSteeringWithLookahead(int target_index)
   double delta = std::atan2(2 * car_length_ * std::sin(alpha) / lookhead_, 1.0);
 
   // Curvature feedforward: delta_ff = atan(L * kappa)
-  if (curvature_ff_gain_ > 0.0 && !curvatures_.empty())
-  {
+  if (curvature_ff_gain_ > 0.0 && !curvatures_.empty()) {
     double kappa = GetCurvatureAt(target_index);
     double delta_ff = std::atan(car_length_ * kappa);
     delta += curvature_ff_gain_ * delta_ff;
@@ -256,33 +238,25 @@ int ControllerBase::ComputeSteeringWithLookahead(int target_index)
   return static_cast<int>(delta / M_PI * 180 * steering_ratio_) + steering_offset_;
 }
 
-double ControllerBase::GetTargetSpeedAt(int index) const
-{
-  if (target_speeds_.empty() || index < 0 ||
-      index >= static_cast<int>(target_speeds_.size()))
-  {
+double ControllerBase::GetTargetSpeedAt(int index) const {
+  if (target_speeds_.empty() || index < 0 || index >= static_cast<int>(target_speeds_.size())) {
     return default_target_speed_;
   }
   double v = target_speeds_[index];
   return (v > 0.0) ? v : default_target_speed_;
 }
 
-double ControllerBase::GetCurvatureAt(int index) const
-{
-  if (curvatures_.empty() || index < 0 ||
-      index >= static_cast<int>(curvatures_.size()))
-  {
+double ControllerBase::GetCurvatureAt(int index) const {
+  if (curvatures_.empty() || index < 0 || index >= static_cast<int>(curvatures_.size())) {
     return 0.0;
   }
   return curvatures_[index];
 }
 
-int ControllerBase::ComputeDefaultPedal()
-{
+int ControllerBase::ComputeDefaultPedal() {
   // Look up per-point target speed from planning layer
   double target_speed = default_target_speed_;
-  if (!path_coordinate_.empty() && !target_speeds_.empty())
-  {
+  if (!path_coordinate_.empty() && !target_speeds_.empty()) {
     int nearest = FindNearestIndex();
     target_speed = GetTargetSpeedAt(nearest);
   }
@@ -303,10 +277,8 @@ int ControllerBase::ComputeDefaultPedal()
   return static_cast<int>(accel);
 }
 
-int ControllerBase::ComputeDefaultBrake()
-{
-  if (path_coordinate_.empty() || target_speeds_.empty())
-  {
+int ControllerBase::ComputeDefaultBrake() {
+  if (path_coordinate_.empty() || target_speeds_.empty()) {
     return 0;
   }
 
@@ -314,20 +286,19 @@ int ControllerBase::ComputeDefaultBrake()
   double target_speed = GetTargetSpeedAt(nearest);
   double overspeed = car_veloc_ - target_speed;
 
-  if (overspeed > brake_speed_margin_)
-  {
+  if (overspeed > brake_speed_margin_) {
     // Proportional braking: harder brake for larger overspeed
     double brake = brake_kp_ * (overspeed - brake_speed_margin_);
-    if (brake > brake_max_) brake = brake_max_;
+    if (brake > brake_max_)
+      brake = brake_max_;
     return static_cast<int>(brake);
   }
 
   return 0;
 }
 
-int ControllerBase::ComputeDefaultStatus()
-{
+int ControllerBase::ComputeDefaultStatus() {
   return 2;
 }
 
-} // namespace control_core
+}  // namespace control_core

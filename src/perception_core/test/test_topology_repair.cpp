@@ -4,13 +4,12 @@
  */
 
 #include <gtest/gtest.h>
-
 #include <perception_core/topology_repair.hpp>
 
 namespace {
 
-perception::TopologyCone MakeCone(double x, double y, double z = 0.0,
-                                   double confidence = 0.8, int index = -1) {
+perception::TopologyCone MakeCone(double x, double y, double z = 0.0, double confidence = 0.8,
+                                  int index = -1) {
   perception::TopologyCone c;
   c.x = x;
   c.y = y;
@@ -73,18 +72,18 @@ TEST(TopologyRepairTest, LargeGapTriggersInterpolation) {
   perception::TopologyRepair repair;
   perception::TopologyConfig cfg;
   cfg.enable = true;
-  cfg.max_same_side_spacing = 5.0;   // 5m threshold
-  cfg.max_repair_range = 50.0;       // Large enough
-  cfg.interpolated_confidence = 0.3; // Interpolated cone confidence
+  cfg.max_same_side_spacing = 5.0;    // 5m threshold
+  cfg.max_repair_range = 50.0;        // Large enough
+  cfg.interpolated_confidence = 0.3;  // Interpolated cone confidence
   repair.setConfig(cfg);
 
   // Need at least 3 cones on same side to trigger interpolation
   // Create a track with left side having a large gap
   std::vector<perception::TopologyCone> input;
-  input.push_back(MakeCone(0.0, 2.0, 0.0, 0.9, 0));   // left
-  input.push_back(MakeCone(0.0, -2.0, 0.0, 0.9, 1));  // right
-  input.push_back(MakeCone(12.0, 2.0, 0.0, 0.9, 2));  // left, 12m gap
-  input.push_back(MakeCone(12.0, -2.0, 0.0, 0.9, 3)); // right
+  input.push_back(MakeCone(0.0, 2.0, 0.0, 0.9, 0));    // left
+  input.push_back(MakeCone(0.0, -2.0, 0.0, 0.9, 1));   // right
+  input.push_back(MakeCone(12.0, 2.0, 0.0, 0.9, 2));   // left, 12m gap
+  input.push_back(MakeCone(12.0, -2.0, 0.0, 0.9, 3));  // right
 
   auto result = repair.repair(input);
 

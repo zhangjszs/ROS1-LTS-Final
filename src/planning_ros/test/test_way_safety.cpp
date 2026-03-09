@@ -1,12 +1,13 @@
-#include <gtest/gtest.h>
-
 #include "structures/Edge.hpp"
 #include "structures/Node.hpp"
 #include "structures/Way.hpp"
 
+#include <gtest/gtest.h>
+
 namespace {
 
-Edge MakeEdge(const uint32_t id_base, const double x0, const double y0, const double x1, const double y1) {
+Edge MakeEdge(const uint32_t id_base, const double x0, const double y0, const double x1,
+              const double y1) {
   const Node n0(x0, y0, x0, y0, id_base);
   const Node n1(x1, y1, x1, y1, id_base + 1U);
   return Edge(n0, n1);
@@ -38,7 +39,7 @@ TEST(WaySafetyTest, GetNextPathPointOnEmptyWayReturnsOrigin) {
   EXPECT_DOUBLE_EQ(p.y, 0.0);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

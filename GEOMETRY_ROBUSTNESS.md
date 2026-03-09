@@ -1,8 +1,8 @@
 # 非视觉模式几何鲁棒性增强配置
 
-**版本:** 1.0  
-**日期:** 2026-02-11  
-**模式:** 非视觉 / 纯几何降级  
+**版本:** 1.0
+**日期:** 2026-02-11
+**模式:** 非视觉 / 纯几何降级
 
 ---
 
@@ -217,7 +217,7 @@ rostopic echo /localization/loop_closure_events
 
 ### 6.1 堆叠锥过度去重
 **症状:** 有效锥桶被错误去除
-**解决:** 
+**解决:**
 ```bash
 # 放宽XY阈值
 rosparam set /stacked_cone_dedup/xy_distance_threshold 0.4

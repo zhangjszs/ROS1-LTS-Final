@@ -70,7 +70,7 @@
 | **检测难度** | 4 |
 | **RPN** | 160 |
 
-**代码位置**: 
+**代码位置**:
 - 地面分割: `fast_ground_segmentation.cpp`
 - 聚类: `lidar_cluster_core.cpp`
 - 缺锥补偿: `location_mapper.cpp:581-615`
@@ -91,7 +91,7 @@
 | **检测难度** | 5 |
 | **RPN** | 140 |
 
-**代码位置**: 
+**代码位置**:
 - 置信度评分: `confidence_scorer.cpp`
 - 语义评分: `confidence_scorer.cpp:150-221`
 
@@ -111,7 +111,7 @@
 | **检测难度** | 6 |
 | **RPN** | 162 |
 
-**代码位置**: 
+**代码位置**:
 - 颜色权重配置: `location_common.yaml:60`
 - 几何降级: `location_common.yaml:112-115`
 
@@ -131,7 +131,7 @@
 | **检测难度** | 7 |
 | **RPN** | 140 |
 
-**代码位置**: 
+**代码位置**:
 - 置信度计算: `confidence_scorer.cpp:17-35`
 
 ---
@@ -152,7 +152,7 @@
 | **检测难度** | 3 |
 | **RPN** | 81 |
 
-**代码位置**: 
+**代码位置**:
 - 状态机: `anomaly_state_machine.cpp`
 - 配置: `location_common.yaml:76-83`
 
@@ -172,7 +172,7 @@
 | **检测难度** | 2 |
 | **RPN** | 32 |
 
-**代码位置**: 
+**代码位置**:
 - 重定位: `descriptor_relocator.cpp`
 - 超时配置: `location_common.yaml:82-97`
 
@@ -192,7 +192,7 @@
 | **检测难度** | 6 |
 | **RPN** | 144 |
 
-**代码位置**: 
+**代码位置**:
 - 因子图: `factor_graph_optimizer.cpp`
 - 回环检测: `location_common.yaml:147-169`
 
@@ -212,7 +212,7 @@
 | **检测难度** | 2 |
 | **RPN** | 42 |
 
-**代码位置**: 
+**代码位置**:
 - INS质量检查: `location_common.yaml:36-39`
 - 状态定义: `HUAT_InsP2.msg`
 
@@ -234,7 +234,7 @@
 | **检测难度** | 2 |
 | **RPN** | 48 |
 
-**代码位置**: 
+**代码位置**:
 - 短路径抑制: `location_common.yaml:138-144`
 - 路径保持: `WayComputer.cpp:1165-1201`
 
@@ -254,7 +254,7 @@
 | **检测难度** | 3 |
 | **RPN** | 63 |
 
-**代码位置**: 
+**代码位置**:
 - 曲率检查: `WayComputer.cpp:1151-1207`
 - 配置: `planning_ros/config/`
 
@@ -274,7 +274,7 @@
 | **检测难度** | 3 |
 | **RPN** | 60 |
 
-**代码位置**: 
+**代码位置**:
 - 闭环检测: `WayComputer.cpp:1060-1108`
 - 模式切换: `WayComputer.cpp:775-829`
 
@@ -294,7 +294,7 @@
 | **检测难度** | 4 |
 | **RPN** | 72 |
 
-**代码位置**: 
+**代码位置**:
 - 速度规划: `speed_profile.hpp`
 - 阶段限速: `skidpad_detection_core.cpp:62-81`
 
@@ -316,7 +316,7 @@
 | **检测难度** | 3 |
 | **RPN** | 72 |
 
-**代码位置**: 
+**代码位置**:
 - 控制器: `controller_base.cpp`
 - 前视距离: `controller_base.cpp:139-150`
 
@@ -355,7 +355,7 @@
 | **检测难度** | 2 |
 | **RPN** | 36 |
 
-**代码位置**: 
+**代码位置**:
 - 滑移角补偿: `controller_base.cpp:108-137`
 
 ---
@@ -374,7 +374,7 @@
 | **检测难度** | 2 |
 | **RPN** | 20 |
 
-**代码位置**: 
+**代码位置**:
 - 紧急停车: `control_node.cpp:214-232`
 - EBS配置: `ebs_test.launch`
 

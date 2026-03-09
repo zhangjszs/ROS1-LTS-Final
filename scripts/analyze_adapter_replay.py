@@ -92,37 +92,41 @@ def write_summary(summary: List[Dict[str, object]], out_dir: Path) -> None:
 
     with csv_path.open("w", newline="") as csv_file:
         writer = csv.writer(csv_file)
-        writer.writerow([
-            "scenario",
-            "frames",
-            "fused_frames",
-            "raw_fallback_frames",
-            "fused_ratio",
-            "raw_fallback_ratio",
-            "reason_counts",
-            "wait_p50_ms",
-            "wait_p95_ms",
-            "wait_p99_ms",
-            "wait_max_ms",
-            "gap_p99_ms",
-            "gap_max_ms",
-        ])
+        writer.writerow(
+            [
+                "scenario",
+                "frames",
+                "fused_frames",
+                "raw_fallback_frames",
+                "fused_ratio",
+                "raw_fallback_ratio",
+                "reason_counts",
+                "wait_p50_ms",
+                "wait_p95_ms",
+                "wait_p99_ms",
+                "wait_max_ms",
+                "gap_p99_ms",
+                "gap_max_ms",
+            ]
+        )
         for row in summary:
-            writer.writerow([
-                row["scenario"],
-                row["frames"],
-                row["fused_frames"],
-                row["raw_fallback_frames"],
-                f"{row['fused_ratio']:.3f}",
-                f"{row['raw_fallback_ratio']:.3f}",
-                json.dumps(row["reason_counts"], sort_keys=True),
-                row["wait_ms"]["p50"],
-                row["wait_ms"]["p95"],
-                row["wait_ms"]["p99"],
-                row["wait_ms"]["max"],
-                row["output_gap_ms"]["p99"],
-                row["output_gap_ms"]["max"],
-            ])
+            writer.writerow(
+                [
+                    row["scenario"],
+                    row["frames"],
+                    row["fused_frames"],
+                    row["raw_fallback_frames"],
+                    f"{row['fused_ratio']:.3f}",
+                    f"{row['raw_fallback_ratio']:.3f}",
+                    json.dumps(row["reason_counts"], sort_keys=True),
+                    row["wait_ms"]["p50"],
+                    row["wait_ms"]["p95"],
+                    row["wait_ms"]["p99"],
+                    row["wait_ms"]["max"],
+                    row["output_gap_ms"]["p99"],
+                    row["output_gap_ms"]["max"],
+                ]
+            )
 
     lines = [
         "# Adapter Replay Summary",
@@ -168,7 +172,9 @@ def main() -> None:
         scenario = bag_path.stem.replace("_results", "")
         metrics = analyze_bag(bag_path, scenario)
         summary.append(metrics)
-        (out_dir / f"{scenario}_summary.json").write_text(json.dumps(metrics, indent=2, sort_keys=True))
+        (out_dir / f"{scenario}_summary.json").write_text(
+            json.dumps(metrics, indent=2, sort_keys=True)
+        )
 
     write_summary(summary, out_dir)
 

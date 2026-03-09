@@ -4,14 +4,13 @@
  */
 
 #include <gtest/gtest.h>
-
 #include <perception_core/cone_tracker.hpp>
 
 namespace {
 
-perception::ConeTracker::Detection MakeDetection(
-    double x, double y, double z = 0.0, double confidence = 0.8,
-    std::uint8_t color_type = 4) {
+perception::ConeTracker::Detection MakeDetection(double x, double y, double z = 0.0,
+                                                 double confidence = 0.8,
+                                                 std::uint8_t color_type = 4) {
   perception::ConeTracker::Detection d;
   d.x = x;
   d.y = y;

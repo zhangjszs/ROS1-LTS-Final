@@ -15,7 +15,7 @@ uint32_t Node::superTriangleNodeNum = 0;
 
 /* ----------------------------- Private Methods ---------------------------- */
 
-Node::Node(const double &x, const double &y)
+Node::Node(const double& x, const double& y)
     : belongsToSuperTriangle_(true), point_(x, y), id(SUPERTRIANGLE_BASEID + superTriangleNodeNum) {
   superTriangleNodeNum++;
   superTriangleNodeNum %= 3;
@@ -23,57 +23,62 @@ Node::Node(const double &x, const double &y)
 
 /* ----------------------------- Public Methods ----------------------------- */
 
-Node::Node(const double &x, const double &y, const double &xGlobal, const double &yGlobal, const uint32_t &id)
+Node::Node(const double& x, const double& y, const double& xGlobal, const double& yGlobal,
+           const uint32_t& id)
     : belongsToSuperTriangle_(false), point_(x, y), pointGlobal_(xGlobal, yGlobal), id(id) {
-  if (this->id >= (1 << HASH_SHIFT_NUM) - 3) ROS_ERROR("[high_speed_tracking] Cone ID is above the allowed threshold, see utils/constants.hpp/HASH_SHIFT_NUM");
+  if (this->id >= (1 << HASH_SHIFT_NUM) - 3)
+    ROS_ERROR(
+        "[high_speed_tracking] Cone ID is above the allowed threshold, see "
+        "utils/constants.hpp/HASH_SHIFT_NUM");
 }
 
-Node::Node(const autodrive_msgs::HUAT_Cone &c)
-    : Node(c.position_baseLink.x, c.position_baseLink.y, c.position_global.x, c.position_global.y, c.id) {
+Node::Node(const autodrive_msgs::HUAT_Cone& c)
+    : Node(c.position_baseLink.x, c.position_baseLink.y, c.position_global.x, c.position_global.y,
+           c.id) {
   type_ = c.type;
 }
 
-const double &Node::x() const {
+const double& Node::x() const {
   return this->point_.x;
 }
 
-const double &Node::y() const {
+const double& Node::y() const {
   return this->point_.y;
 }
 
-bool Node::operator==(const Node &n) const {
+bool Node::operator==(const Node& n) const {
   return n.id == this->id;
 }
 
-bool Node::operator!=(const Node &n) const {
+bool Node::operator!=(const Node& n) const {
   return not(*this == n);
 }
 
-Node Node::superTriangleNode(const double &x, const double &y) {
+Node Node::superTriangleNode(const double& x, const double& y) {
   return Node(x, y);
 }
 
-const bool &Node::belongsToSuperTriangle() const {
+const bool& Node::belongsToSuperTriangle() const {
   return belongsToSuperTriangle_;
 }
 
-void Node::updateLocal(const Eigen::Affine3d &tf) const {
+void Node::updateLocal(const Eigen::Affine3d& tf) const {
   this->point_ = this->pointGlobal().transformed(tf);
 }
 
-const Point &Node::point() const {
+const Point& Node::point() const {
   return this->point_;
 }
 
-const Point &Node::pointGlobal() const {              //构造函数可直接赋值
+const Point& Node::pointGlobal() const {  //构造函数可直接赋值
   return this->pointGlobal_;
 }
 
-double Node::distSq(const Point &p) const {
+double Node::distSq(const Point& p) const {
   return (this->x() - p.x) * (this->x() - p.x) + (this->y() - p.y) * (this->y() - p.y);
 }
 
-double Node::angleWith(const Node &n0, const Node &n1) const {
+double Node::angleWith(const Node& n0, const Node& n1) const {
   return abs(Vector(this->point(), n0.point()).angleWith(Vector(this->point(), n1.point())));
 }
 
@@ -89,7 +94,7 @@ autodrive_msgs::HUAT_Cone Node::cone() const {
   return res;
 }
 
-std::ostream &operator<<(std::ostream &os, const Node &n) {
+std::ostream& operator<<(std::ostream& os, const Node& n) {
   os << "N(" << n.x() << ", " << n.y() << ")";
   return os;
 }

@@ -1,6 +1,7 @@
+#include "vision_core/fallback_detector.hpp"
+
 #include <gtest/gtest.h>
 #include <opencv2/imgproc.hpp>
-#include "vision_core/fallback_detector.hpp"
 
 using namespace vision_core;
 
@@ -14,8 +15,7 @@ TEST(FallbackDetector, EmptyImageReturnsEmpty) {
 TEST(FallbackDetector, DetectsBlueRegion) {
   FallbackDetector det;
   cv::Mat img(480, 640, CV_8UC3, cv::Scalar(0, 0, 0));
-  cv::rectangle(img, cv::Rect(200, 200, 60, 80),
-                cv::Scalar(200, 100, 50), cv::FILLED);
+  cv::rectangle(img, cv::Rect(200, 200, 60, 80), cv::Scalar(200, 100, 50), cv::FILLED);
   auto results = det.detect(img);
   SUCCEED();
 }

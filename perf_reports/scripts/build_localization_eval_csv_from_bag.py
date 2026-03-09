@@ -11,7 +11,6 @@ from typing import List, Optional, Tuple
 
 import rosbag
 
-
 EARTH_RADIUS_M = 6378137.0
 
 

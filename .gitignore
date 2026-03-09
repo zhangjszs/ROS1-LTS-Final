@@ -141,7 +141,10 @@ target/
 
 # Test data
 **/testData/*.txt
+
+# Performance reports (keep baselines, ignore generated data)
 perf_reports/data/*.json
+perf_reports/data/**/*.json
 
 # Type checkers
 .mypy_cache/

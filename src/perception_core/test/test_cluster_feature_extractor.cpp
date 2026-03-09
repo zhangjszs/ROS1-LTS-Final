@@ -4,19 +4,17 @@
  */
 
 #include <gtest/gtest.h>
-
-#include <perception_core/cluster_feature_extractor.hpp>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+#include <perception_core/cluster_feature_extractor.hpp>
 
 namespace perception {
 namespace {
 
 using PointType = pcl::PointXYZI;
 
-pcl::PointCloud<PointType>::Ptr CreateConeCluster(double x, double y, double z,
-                                                   double height, double radius,
-                                                   int num_points) {
+pcl::PointCloud<PointType>::Ptr CreateConeCluster(double x, double y, double z, double height,
+                                                  double radius, int num_points) {
   auto cloud = pcl::make_shared<pcl::PointCloud<PointType>>();
   cloud->reserve(num_points);
 
@@ -40,9 +38,8 @@ pcl::PointCloud<PointType>::Ptr CreateConeCluster(double x, double y, double z,
   return cloud;
 }
 
-pcl::PointCloud<PointType>::Ptr CreateWallCluster(double x, double y,
-                                                   double width, double height,
-                                                   int num_points) {
+pcl::PointCloud<PointType>::Ptr CreateWallCluster(double x, double y, double width, double height,
+                                                  int num_points) {
   auto cloud = pcl::make_shared<pcl::PointCloud<PointType>>();
   cloud->reserve(num_points);
 
@@ -202,12 +199,30 @@ TEST(ClusterFeatureExtractorTest, BoundingBoxIsCorrect) {
   PointType pt;
   pt.intensity = 100.0;
 
-  pt.x = 1.0; pt.y = 2.0; pt.z = 0.0; cloud->push_back(pt);
-  pt.x = 2.0; pt.y = 2.0; pt.z = 0.0; cloud->push_back(pt);
-  pt.x = 1.0; pt.y = 3.0; pt.z = 0.0; cloud->push_back(pt);
-  pt.x = 2.0; pt.y = 3.0; pt.z = 0.0; cloud->push_back(pt);
-  pt.x = 1.0; pt.y = 2.0; pt.z = 0.5; cloud->push_back(pt);
-  pt.x = 2.0; pt.y = 3.0; pt.z = 0.5; cloud->push_back(pt);
+  pt.x = 1.0;
+  pt.y = 2.0;
+  pt.z = 0.0;
+  cloud->push_back(pt);
+  pt.x = 2.0;
+  pt.y = 2.0;
+  pt.z = 0.0;
+  cloud->push_back(pt);
+  pt.x = 1.0;
+  pt.y = 3.0;
+  pt.z = 0.0;
+  cloud->push_back(pt);
+  pt.x = 2.0;
+  pt.y = 3.0;
+  pt.z = 0.0;
+  cloud->push_back(pt);
+  pt.x = 1.0;
+  pt.y = 2.0;
+  pt.z = 0.5;
+  cloud->push_back(pt);
+  pt.x = 2.0;
+  pt.y = 3.0;
+  pt.z = 0.5;
+  cloud->push_back(pt);
 
   auto features = extractor.extract(cloud);
 

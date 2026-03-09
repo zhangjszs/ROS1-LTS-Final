@@ -4,16 +4,16 @@
  * @brief Contains the Circle class specification
  * @version 1.0
  * @date 2022-10-31
- * 
+ *
  * @copyright Copyright (c) 2022 BCN eMotorsport
  */
 
 #pragma once
 
+#include "structures/Node.hpp"
+
 #include <cmath>
 #include <iostream>
-
-#include "structures/Node.hpp"
 
 /**
  * @brief Represents a circle in 2D coordinates.
@@ -34,27 +34,27 @@ class Circle {
   /**
    * @brief Construct a new Circle object.
    * \a n0, \a n1, \a n2 are 3 Node(s) belonging to the Circle's circumference.
-   * 
+   *
    * @param[in] n0
-   * @param[in] n1 
-   * @param[in] n2 
+   * @param[in] n1
+   * @param[in] n2
    */
-  Circle(const Node &n0, const Node &n1, const Node &n2);
+  Circle(const Node& n0, const Node& n1, const Node& n2);
 
   /**
    * @brief Checks if Node \a n is inside the Circle's circumference.
-   * 
-   * @param n 
+   *
+   * @param n
    */
-  bool containsNode(const Node &n) const;
+  bool containsNode(const Node& n) const;
 
   /**
    * @brief Returns the Circle's center in local coordinates.
    */
-  const Point &center() const;
+  const Point& center() const;
 
   /**
    * @brief Returns the Circle's center in global coordinates.
    */
-  const Point &centerGlobal() const;
+  const Point& centerGlobal() const;
 };

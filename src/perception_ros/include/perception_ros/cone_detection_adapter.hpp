@@ -1,5 +1,8 @@
 #pragma once
 
+#include <ros/duration.h>
+#include <ros/time.h>
+
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -9,8 +12,6 @@
 
 #include <autodrive_msgs/HUAT_ConeDetections.h>
 #include <autodrive_msgs/HUAT_FusedConeDetections.h>
-#include <ros/duration.h>
-#include <ros/time.h>
 
 namespace perception_ros {
 
@@ -44,14 +45,14 @@ class ConeDetectionAdapter {
     double wait_ms = 0.0;
   };
 
-  explicit ConeDetectionAdapter(const Config &config);
+  explicit ConeDetectionAdapter(const Config& config);
 
-  std::vector<PublishOutput> HandleRaw(const autodrive_msgs::HUAT_ConeDetections &msg,
-                                       const SteadyTimePoint &received_at);
-  std::vector<PublishOutput> HandleFused(const autodrive_msgs::HUAT_FusedConeDetections &msg,
-                                         const SteadyTimePoint &received_at);
-  std::vector<PublishOutput> Flush(const SteadyTimePoint &now);
-  const Stats &stats() const;
+  std::vector<PublishOutput> HandleRaw(const autodrive_msgs::HUAT_ConeDetections& msg,
+                                       const SteadyTimePoint& received_at);
+  std::vector<PublishOutput> HandleFused(const autodrive_msgs::HUAT_FusedConeDetections& msg,
+                                         const SteadyTimePoint& received_at);
+  std::vector<PublishOutput> Flush(const SteadyTimePoint& now);
+  const Stats& stats() const;
 
  private:
   struct RawEntry {
@@ -71,16 +72,16 @@ class ConeDetectionAdapter {
 
   using StampKey = std::uint64_t;
 
-  static StampKey StampToKey(const ros::Time &stamp);
-  static SteadyClock::duration ToSteadyDuration(const ros::Duration &duration);
-  PublishOutput BuildMergedOutput(const autodrive_msgs::HUAT_ConeDetections &raw,
-                                  const autodrive_msgs::HUAT_FusedConeDetections &fused) const;
-  PublishOutput BuildRawOutput(const autodrive_msgs::HUAT_ConeDetections &raw) const;
-  bool CanMerge(const autodrive_msgs::HUAT_ConeDetections &raw,
-                const autodrive_msgs::HUAT_FusedConeDetections &fused) const;
-  void Finalize(StampKey key, const SteadyTimePoint &now);
+  static StampKey StampToKey(const ros::Time& stamp);
+  static SteadyClock::duration ToSteadyDuration(const ros::Duration& duration);
+  PublishOutput BuildMergedOutput(const autodrive_msgs::HUAT_ConeDetections& raw,
+                                  const autodrive_msgs::HUAT_FusedConeDetections& fused) const;
+  PublishOutput BuildRawOutput(const autodrive_msgs::HUAT_ConeDetections& raw) const;
+  bool CanMerge(const autodrive_msgs::HUAT_ConeDetections& raw,
+                const autodrive_msgs::HUAT_FusedConeDetections& fused) const;
+  void Finalize(StampKey key, const SteadyTimePoint& now);
   void NotePendingCacheSize();
-  void PruneFinalized(const SteadyTimePoint &now);
+  void PruneFinalized(const SteadyTimePoint& now);
   void TrimCaches();
 
   Config config_;

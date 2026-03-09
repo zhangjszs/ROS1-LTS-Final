@@ -1,5 +1,6 @@
 # HUAT FSD C++ Code Style
 # Based on Google Style with ROS1 conventions
+# Compatible with clang-format 10.0+
 
 Language: Cpp
 BasedOnStyle: Google
@@ -32,21 +33,20 @@ AlignTrailingComments: true
 IncludeBlocks: Regroup
 IncludeCategories:
   # ROS headers
-  - Regex: '^<ros/.*>'
+  - Regex: "^<ros/.*>"
     Priority: 2
   # Standard library
-  - Regex: '^<[a-z_]+>'
+  - Regex: "^<[a-z_]+>"
     Priority: 3
   # Third party (Eigen, PCL, etc.)
-  - Regex: '^<.*>'
+  - Regex: "^<.*>"
     Priority: 4
   # Project headers
-  - Regex: '.*'
+  - Regex: ".*"
     Priority: 1
 
 # Pointers and references
 PointerAlignment: Left
-ReferenceAlignment: Left
 DerivePointerAlignment: false
 
 # Spaces

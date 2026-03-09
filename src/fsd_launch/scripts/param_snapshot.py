@@ -11,9 +11,9 @@ Usage:
     python3 param_snapshot.py --diff <snap1.yaml> <snap2.yaml>
 """
 
+import argparse
 import os
 import sys
-import argparse
 from datetime import datetime
 
 import yaml
@@ -97,10 +97,10 @@ def diff_snapshots(path_a, path_b):
 
 def main():
     parser = argparse.ArgumentParser(description="ROS Parameter Snapshot Tool")
-    parser.add_argument("--diff", nargs=2, metavar=("SNAP1", "SNAP2"),
-                        help="Diff two snapshot files")
-    parser.add_argument("--list", action="store_true",
-                        help="List existing snapshots")
+    parser.add_argument(
+        "--diff", nargs=2, metavar=("SNAP1", "SNAP2"), help="Diff two snapshot files"
+    )
+    parser.add_argument("--list", action="store_true", help="List existing snapshots")
     args = parser.parse_args()
 
     if args.diff:

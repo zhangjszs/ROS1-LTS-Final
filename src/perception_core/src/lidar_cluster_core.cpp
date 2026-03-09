@@ -6,8 +6,7 @@
 namespace {
 
 template <class Type>
-std::string num2Str(const Type value, unsigned int precision)
-{
+std::string num2Str(const Type value, unsigned int precision) {
   std::ostringstream out;
   if (precision > 0) {
     out.precision(precision);
@@ -18,15 +17,13 @@ std::string num2Str(const Type value, unsigned int precision)
 
 }  // namespace
 
-lidar_cluster::lidar_cluster()
-{
+lidar_cluster::lidar_cluster() {
   init();
 }
 
 lidar_cluster::~lidar_cluster() = default;
 
-void lidar_cluster::SetInputCloud(const pcl::PointCloud<PointType>::ConstPtr &cloud, uint32_t seq)
-{
+void lidar_cluster::SetInputCloud(const pcl::PointCloud<PointType>::ConstPtr& cloud, uint32_t seq) {
   if (!cloud || !current_pc_ptr) {
     return;
   }
@@ -38,8 +35,7 @@ void lidar_cluster::SetInputCloud(const pcl::PointCloud<PointType>::ConstPtr &cl
   frame_count = static_cast<int>(seq);
 }
 
-void lidar_cluster::SetInputCloud(pcl::PointCloud<PointType>::Ptr &&cloud, uint32_t seq)
-{
+void lidar_cluster::SetInputCloud(pcl::PointCloud<PointType>::Ptr&& cloud, uint32_t seq) {
   if (!cloud) {
     return;
   }
@@ -50,13 +46,11 @@ void lidar_cluster::SetInputCloud(pcl::PointCloud<PointType>::Ptr &&cloud, uint3
   frame_count = static_cast<int>(seq);
 }
 
-void lidar_cluster::SetEgoMotion(const perception::EgoMotion &ego)
-{
+void lidar_cluster::SetEgoMotion(const perception::EgoMotion& ego) {
   ego_motion_ = ego;
 }
 
-bool lidar_cluster::Process(LidarClusterOutput *output)
-{
+bool lidar_cluster::Process(LidarClusterOutput* output) {
   if (!output) {
     return false;
   }
@@ -73,8 +67,8 @@ bool lidar_cluster::Process(LidarClusterOutput *output)
   PassThroughROI(current_pc_ptr);
   cloud_filtered = current_pc_ptr;
   auto endTimePassThrough = std::chrono::steady_clock::now();
-  auto elapsedTimePassThrough =
-      std::chrono::duration_cast<std::chrono::microseconds>(endTimePassThrough - startTimePassThrough);
+  auto elapsedTimePassThrough = std::chrono::duration_cast<std::chrono::microseconds>(
+      endTimePassThrough - startTimePassThrough);
 
   output->passthrough = cloud_filtered;
 
@@ -118,7 +112,8 @@ bool lidar_cluster::Process(LidarClusterOutput *output)
     if (last_frame_time_ >= 0.0) {
       double now_sec = std::chrono::duration<double>(now.time_since_epoch()).count();
       dt = now_sec - last_frame_time_;
-      if (dt <= 0.0 || dt > 2.0) dt = 0.1;
+      if (dt <= 0.0 || dt > 2.0)
+        dt = 0.1;
     }
     last_frame_time_ = std::chrono::duration<double>(now.time_since_epoch()).count();
 
@@ -137,9 +132,8 @@ bool lidar_cluster::Process(LidarClusterOutput *output)
     cone_tracker_.update(tracker_dets, dt, ego_motion_);
 
     // Get confirmed tracks and match back to original detections
-    auto confirmed = config_.tracker.only_output_confirmed
-                         ? cone_tracker_.getConfirmedCones()
-                         : cone_tracker_.getAllTracks();
+    auto confirmed = config_.tracker.only_output_confirmed ? cone_tracker_.getConfirmedCones()
+                                                           : cone_tracker_.getAllTracks();
 
     // Build a map from tracker detection index to original cone index
     // by matching confirmed track positions back to closest original detection
@@ -167,10 +161,9 @@ bool lidar_cluster::Process(LidarClusterOutput *output)
         det.track_id = track.id;  // G12: propagate tracker ID
         filtered_cones.push_back(std::move(det));
         if (output->cones[best_idx].cluster) {
-          filtered_cloud->points.insert(
-              filtered_cloud->points.end(),
-              output->cones[best_idx].cluster->points.begin(),
-              output->cones[best_idx].cluster->points.end());
+          filtered_cloud->points.insert(filtered_cloud->points.end(),
+                                        output->cones[best_idx].cluster->points.begin(),
+                                        output->cones[best_idx].cluster->points.end());
         }
       }
     }
@@ -211,17 +204,15 @@ bool lidar_cluster::Process(LidarClusterOutput *output)
           rc.original_index < static_cast<int>(output->cones.size())) {
         new_cones.push_back(output->cones[rc.original_index]);
         if (output->cones[rc.original_index].cluster) {
-          new_cloud->points.insert(
-              new_cloud->points.end(),
-              output->cones[rc.original_index].cluster->points.begin(),
-              output->cones[rc.original_index].cluster->points.end());
+          new_cloud->points.insert(new_cloud->points.end(),
+                                   output->cones[rc.original_index].cluster->points.begin(),
+                                   output->cones[rc.original_index].cluster->points.end());
         }
       } else if (rc.is_interpolated) {
         // Create synthetic detection for interpolated cone
         ConeDetection det;
-        det.centroid = pcl::PointXYZ(static_cast<float>(rc.x),
-                                      static_cast<float>(rc.y),
-                                      static_cast<float>(rc.z));
+        det.centroid = pcl::PointXYZ(static_cast<float>(rc.x), static_cast<float>(rc.y),
+                                     static_cast<float>(rc.z));
         det.min = det.centroid;
         det.max = det.centroid;
         det.confidence = rc.confidence;

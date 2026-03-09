@@ -323,10 +323,10 @@ if r_has_gt != b_has_gt:
 def check_metric(name, current, baseline_val, thresh):
     if current is None or baseline_val is None:
         return
-    
+
     abs_diff = abs(current - baseline_val)
     rel_diff = abs_diff / baseline_val if baseline_val != 0 else float('inf')
-    
+
     status = "OK"
     if abs_diff > thresh.get("abs", float('inf')) and rel_diff > thresh.get("rel", float('inf')):
         status = "FAIL"
@@ -334,13 +334,13 @@ def check_metric(name, current, baseline_val, thresh):
     elif abs_diff > thresh.get("abs", float('inf')) * 0.5 or rel_diff > thresh.get("rel", float('inf')) * 0.5:
         status = "WARN"
         warnings.append(f"{name}: {current:.4f} vs {baseline_val:.4f} (abs={abs_diff:.4f}, rel={rel_diff:.2%})")
-    
+
     # 检查最小/最大值约束
     if "min" in thresh and current < thresh["min"]:
         violations.append(f"{name}: {current:.4f} < min {thresh['min']}")
     if "max" in thresh and current > thresh["max"]:
         violations.append(f"{name}: {current:.4f} > max {thresh['max']}")
-    
+
     return status
 
 print("\n" + "="*60)

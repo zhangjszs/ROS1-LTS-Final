@@ -1,6 +1,6 @@
 # perception_ros 激光雷达点云聚类（ROS 包装层）
 
-检测接收到的点云并进行滤波与聚类，算法核心已拆到 `perception_core`（无 ROS 依赖），本包仅负责 ROS 订阅/发布/参数/可视化。  
+检测接收到的点云并进行滤波与聚类，算法核心已拆到 `perception_core`（无 ROS 依赖），本包仅负责 ROS 订阅/发布/参数/可视化。
 当前参数体系已迁移为 `Base + Overlay`：
 - `config/lidar_base.yaml`：通用基线参数
 - `config/lidar_track.yaml` / `config/lidar_accel.yaml` / `config/lidar_skidpad.yaml`：按任务的覆盖参数
@@ -83,8 +83,8 @@ Launch 会按顺序加载：
 
   2. `lidar_cluster_ros.cpp` 中的回调函数接受到原始点云，存入 core。使用 `pcl::fromROSMsg(*original_cloud_ptr, *current_pc_ptr)` 将点云数据存入新的 `current_pc_ptr` 变量中。
 
-  3. 在 `RunOnce()` 中，首先使用直通滤波 `PassThrough()` 进行处理并发布。  
-    其中包含 ROI 裁剪 + 可选 SOR + 体素/自适应体素（见 `roi/*` 与 `filters/*`）。  
+  3. 在 `RunOnce()` 中，首先使用直通滤波 `PassThrough()` 进行处理并发布。
+    其中包含 ROI 裁剪 + 可选 SOR + 体素/自适应体素（见 `roi/*` 与 `filters/*`）。
     此后根据 `ground_method`（`ransac`/`patchworkpp`）进行地面分割，发布数据到 `points/no_ground`。
     - ransac 参数在 `ransac/*`
     - patchworkpp 参数在 `patchworkpp/*`
@@ -102,7 +102,7 @@ Launch 会按顺序加载：
 
   3. 进行聚类处理
 
-  3. 使用 `cluster_velodyne32()` 进行聚类后处理  
+  3. 使用 `cluster_velodyne32()` 进行聚类后处理
       - 提取聚类点云
       - 计算置信度
       - 计算 bbox 和聚类中心
@@ -115,7 +115,7 @@ Launch 会按顺序加载：
 
 - [x] 尝试添加各点云簇置信度
 
-- [x] 重写置信度计算 
+- [x] 重写置信度计算
 
 - [x] 根据bbox的z轴高度去除误判对象
 
@@ -153,9 +153,9 @@ Launch 会按顺序加载：
 ### detections (/perception/lidar_cluster/detections)
 
 以数组形式给出当前push中所有的锥桶信息：
-  
+
   - （相对车辆的）坐标
-  
+
   - 置信度
 
   - bbox 最大点及最小点

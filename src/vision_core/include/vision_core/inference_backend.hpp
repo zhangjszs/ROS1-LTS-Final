@@ -1,9 +1,11 @@
 #pragma once
 #include "vision_core/types.hpp"
-#include <opencv2/core.hpp>
+
 #include <memory>
 #include <string>
 #include <vector>
+
+#include <opencv2/core.hpp>
 
 namespace vision_core {
 
@@ -19,7 +21,7 @@ struct InferenceConfig {
 };
 
 class InferenceBackend {
-public:
+ public:
   virtual ~InferenceBackend() = default;
   virtual bool initialize(const InferenceConfig& config) = 0;
   virtual std::vector<Detection> detect(const cv::Mat& bgr) = 0;

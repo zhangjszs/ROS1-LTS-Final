@@ -125,20 +125,20 @@ measure_topic() {
   local topic=$1
   local duration=$2
   local output_file=$3
-  
+
   timeout $duration rostopic hz "$topic" 2>&1 > "$output_file" &
   local pid=$!
   wait $pid 2>/dev/null || true
-  
+
   # Parse results
   local avg_hz=$(grep "average rate:" "$output_file" | tail -1 | awk '{print $3}')
   local min_interval=$(grep "min:" "$output_file" | tail -1 | awk '{print $2}')
   local max_interval=$(grep "max:" "$output_file" | tail -1 | awk '{print $4}')
-  
+
   # Default to 0 if parsing failed
   avg_hz=${avg_hz:-0}
   max_interval=${max_interval:-999}
-  
+
   echo "{\"hz\": $avg_hz, \"max_interval\": $max_interval}"
 }
 
@@ -147,12 +147,12 @@ check_log_errors() {
   local log_file=$1
   local curvature_exceeds=0
   local failsafe_count=0
-  
+
   if [ -f "$log_file" ]; then
     curvature_exceeds=$(grep -c "Curvature exceeds" "$log_file" 2>/dev/null || echo 0)
     failsafe_count=$(grep -c "GENERAL FAILSAFE" "$log_file" 2>/dev/null || echo 0)
   fi
-  
+
   echo "{\"curvature_exceeds\": $curvature_exceeds, \"general_failsafe\": $failsafe_count}"
 }
 
@@ -161,15 +161,15 @@ run_mission_test() {
   local mission=$1
   local bag_path=$2
   local duration=${3:-$TEST_DURATION}
-  
+
   log_info "Testing mission: $mission"
   log_info "Bag file: $bag_path"
   log_info "Duration: ${duration}s"
-  
+
   local mission_log="$LOG_DIR/${mission}.log"
   local pathlimits_hz_log="$LOG_DIR/${mission}_pathlimits_hz.log"
   local cmd_hz_log="$LOG_DIR/${mission}_cmd_hz.log"
-  
+
   # Start launch in background
   case $mission in
     trackdrive)
@@ -201,71 +201,71 @@ run_mission_test() {
       return 1
       ;;
   esac
-  
+
   local launch_pid=$!
-  
+
   # Wait for system to stabilize
   log_info "Waiting for system stabilization (15s)..."
   sleep 15
-  
+
   # Check if still running
   if ! kill -0 $launch_pid 2>/dev/null; then
     log_error "Launch failed or exited early. Check log: $mission_log"
     return 1
   fi
-  
+
   # Measure topics
   log_info "Measuring planning/pathlimits..."
   local pathlimits_metrics=$(measure_topic "/planning/pathlimits" $duration "$pathlimits_hz_log")
-  
+
   log_info "Measuring vehcileCMDMsg..."
   local cmd_metrics=$(measure_topic "/vehcileCMDMsg" $duration "$cmd_hz_log")
-  
+
   # Stop launch
   log_info "Stopping launch..."
   kill $launch_pid 2>/dev/null || true
   sleep 3
-  
+
   # Parse metrics
   local pl_hz=$(echo "$pathlimits_metrics" | python3 -c "import sys,json; print(json.load(sys.stdin)['hz'])")
   local pl_interval=$(echo "$pathlimits_metrics" | python3 -c "import sys,json; print(json.load(sys.stdin)['max_interval'])")
   local cmd_hz=$(echo "$cmd_metrics" | python3 -c "import sys,json; print(json.load(sys.stdin)['hz'])")
   local cmd_interval=$(echo "$cmd_metrics" | python3 -c "import sys,json; print(json.load(sys.stdin)['max_interval'])")
-  
+
   # Check for errors
   local error_metrics=$(check_log_errors "$mission_log")
   local curvature_exceeds=$(echo "$error_metrics" | python3 -c "import sys,json; print(json.load(sys.stdin)['curvature_exceeds'])")
   local failsafe_count=$(echo "$error_metrics" | python3 -c "import sys,json; print(json.load(sys.stdin)['general_failsafe'])")
-  
+
   # Determine pass/fail
   local pass=true
-  
+
   if (( $(echo "$pl_hz < $MIN_PATHLIMITS_HZ" | bc -l) )); then
     log_warn "$mission: PathLimits frequency $pl_hz Hz < $MIN_PATHLIMITS_HZ Hz"
     pass=false
   fi
-  
+
   if (( $(echo "$pl_interval > $MAX_PATHLIMITS_INTERVAL" | bc -l) )); then
     log_warn "$mission: PathLimits max interval ${pl_interval}s > ${MAX_PATHLIMITS_INTERVAL}s"
     pass=false
   fi
-  
+
   if (( $(echo "$cmd_hz < $MIN_CMD_HZ" | bc -l) )); then
     log_warn "$mission: Cmd frequency $cmd_hz Hz < $MIN_CMD_HZ Hz"
     pass=false
   fi
-  
+
   if (( $(echo "$cmd_interval > $MAX_CMD_INTERVAL" | bc -l) )); then
     log_warn "$mission: Cmd max interval ${cmd_interval}s > ${MAX_CMD_INTERVAL}s"
     pass=false
   fi
-  
+
   if [ "$pass" = true ]; then
     log_info "$mission: ✅ PASSED"
   else
     log_warn "$mission: ❌ FAILED"
   fi
-  
+
   # Output JSON result
   cat <<EOF
 {
@@ -331,12 +331,12 @@ if [ -n "$SPECIFIC_MISSION" ]; then
     [ "$SPECIFIC_MISSION" = "trackdrive" ] && SPECIFIC_BAG="${DEFAULT_BAG_DIR}/track.bag"
     [ "$SPECIFIC_MISSION" = "acceleration" ] && SPECIFIC_BAG="${DEFAULT_BAG_DIR}/accel.bag"
   fi
-  
+
   if [ ! -f "$SPECIFIC_BAG" ]; then
     log_error "Bag file not found: $SPECIFIC_BAG"
     exit 1
   fi
-  
+
   RESULT=$(run_mission_test "$SPECIFIC_MISSION" "$SPECIFIC_BAG" $TEST_DURATION)
   REPORT_JSON=$(echo "$REPORT_JSON" | python3 -c "
 import sys, json
@@ -347,7 +347,7 @@ if not result['pass']:
   data['overall_pass'] = False
 print(json.dumps(data, indent=2))
 ")
-  
+
   OVERALL_PASS=$(echo "$REPORT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['overall_pass'])")
 else
   # Test all missions
@@ -356,10 +356,10 @@ else
     ["acceleration"]="${DEFAULT_BAG_DIR}/accel.bag"
     ["skidpad"]="${DEFAULT_BAG_DIR}/skidpad.bag"
   )
-  
+
   for mission in trackdrive acceleration skidpad; do
     bag="${MISSION_BAGS[$mission]}"
-    
+
     if [ ! -f "$bag" ]; then
       log_warn "Bag file not found: $bag, skipping $mission"
       REPORT_JSON=$(echo "$REPORT_JSON" | python3 -c "
@@ -370,7 +370,7 @@ print(json.dumps(data, indent=2))
 ")
       continue
     fi
-    
+
     RESULT=$(run_mission_test "$mission" "$bag" $TEST_DURATION)
     REPORT_JSON=$(echo "$REPORT_JSON" | python3 -c "
 import sys, json
@@ -382,7 +382,7 @@ if not result['pass']:
 print(json.dumps(data, indent=2))
 ")
   done
-  
+
   OVERALL_PASS=$(echo "$REPORT_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['overall_pass'])")
 fi
 

@@ -84,23 +84,23 @@ stacked_cone_detection:
     # 更精细的分层（高速需要更高精度定位）
     # 单位：m | 建议范围：0.15-0.25
     layer_height: 0.2
-    
+
     # 更多层数（应对各种堆叠情况）
     # 影响：最多检测几层堆叠
     max_layers: 4
-  
+
   deduplication:
     # 稍宽松的聚类（高速动态场景，锥桶位置变化快）
     # 单位：m | 建议范围：0.35-0.50
     # 调大：更激进的去重（避免重复检测导致规划抖动）
     # 调小：保留更多检测（可能重复）
     cluster_tolerance: 0.4
-  
+
   near_range:
     # 扩大近距范围（高速时近处锥桶快速通过）
     # 单位：m | 建议范围：6-10
     distance_threshold: 8.0
-    
+
     # 高速需要更严格的去重（避免重复检测导致规划抖动）
     # 单位：m | 建议范围：0.25-0.35
     stricter_xy_threshold: 0.3
@@ -111,16 +111,16 @@ occlusion_handling:
     # 更大的角度间隙容忍（高速遮挡多，需要更宽松的遮挡判断）
     # 单位：度 | 建议范围：15-25
     angle_gap_threshold: 20.0
-  
+
   missing_cone_prediction:
     # 更长的预测距离（高速需要提前看到更多锥桶）
     # 单位：m | 建议范围：10-15
     max_prediction_distance: 12.0
-    
+
     # 稍低的预测置信度（保守策略，避免假阳性）
     # 范围：0-1 | 建议：0.15-0.25
     prediction_confidence: 0.2
-    
+
     # 更多连续预测（保证赛道连续性）
     # 影响：允许多少帧连续预测不出现
     max_consecutive_predictions: 3
@@ -133,16 +133,16 @@ short_detection_suppression:
     # 调大：更严格，过滤更多瞬态噪声（延迟↑）
     # 调小：更快响应（可能抖动）
     min_detections_for_valid: 3
-    
+
     # 更高的置信度门槛
     # 范围：0-1 | 建议：0.3-0.4
     min_confidence: 0.35
-  
+
   temporal_continuity:
     # 更长的跟踪长度（确保稳定性）
     # 影响：时序上需要连续多少帧
     min_track_length: 4
-    
+
     # 较小的间隙容忍（高速场景连续性要求高）
     max_gap_frames: 1
 
@@ -152,23 +152,23 @@ geometric_consistency:
     # 更严格的高度方差（锥桶尺寸应一致）
     # 单位：m | 建议范围：0.10-0.15
     max_height_variance: 0.12
-    
+
     # 更严格的面积方差
     # 单位：m² | 建议范围：0.03-0.06
     max_area_variance: 0.04
-  
+
   spatial_distribution:
     # 检查间距均匀性
     check_spacing_uniformity: true
-    
+
     # 更严格的间距方差
     # 单位：m² | 建议范围：2.5-4.0
     max_spacing_variance: 3.0
-  
+
   angular_distribution:
     # 检查方位角方差
     check_bearing_variance: true
-    
+
     # 高速场景允许一定方位角变化（弯道）
     # 单位：度 | 建议范围：30-40
     max_bearing_variance: 35.0
@@ -179,28 +179,28 @@ loop_closure_optimization:
     # 更长的特征寿命（回环时重识别）
     # 影响：特征保留多少帧
     min_feature_lifetime: 8
-    
+
     # 更高的重识别门槛（避免误识别）
     # 范围：0-1 | 建议：0.70-0.80
     reidentification_threshold: 0.75
-    
+
     feature_reidentification: true
-  
+
   observation_stability:
     # 更多的观测帧数（确保特征稳定）
     # 影响：需要多少帧观测才确认
     min_observation_frames: 5
-    
+
     # 检查观测一致性
     observation_consistency_check: true
-  
+
   geometric_verification:
     # 检查相对几何（回环时几何验证）
     check_relative_geometry: true
-    
+
     # 检查距离一致性
     check_distance_consistency: true
-    
+
     # 距离容差（单位：m）
     # 调大：更宽松的验证（可能误接受）
     # 调小：更严格（可能拒真）

@@ -12,6 +12,7 @@
 
 #include "utils/Params.hpp"
 #include "utils/constants.hpp"
+
 #include <cmath>
 
 /**
@@ -23,17 +24,18 @@ class Failsafe : public T {
  private:
  public:
   Failsafe() = default;
-  Failsafe(const T &x) : T(x) {}
+  Failsafe(const T& x) : T(x) {}
 
   /**
    * @brief Sets implicit object to a general failsafe object, using its parameters.
    * The objectives are:
    * - Increase all parameters (thresholds) by a factor.
    * - Limit sight length.
-   * 
-   * @param params 
-   * @param safetyFactor 
-   * @param failsafe_max_way_horizon_size 
+   *
+   * @param params
+   * @param safetyFactor
+   * @param failsafe_max_way_horizon_size
    */
-  void initGeneral(const T &params, const double &safetyFactor, const int &failsafe_max_way_horizon_size);
+  void initGeneral(const T& params, const double& safetyFactor,
+                   const int& failsafe_max_way_horizon_size);
 };

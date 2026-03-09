@@ -693,4 +693,3 @@ namespace fsd_common {
 | 参数快照可生成 | ✅ | ✅ | ✅ |
 | fsd_common 共享工具 | 9 个 hpp | ≥6 | ✅ |
 | `catkin build` 全量通过 | ✅ 19/19 | ✅ | ✅ |
-

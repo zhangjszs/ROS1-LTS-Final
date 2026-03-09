@@ -15,11 +15,12 @@ import sys
 from pathlib import Path
 from typing import Any, Dict
 
-
 DEFAULT_TOPIC = "/perception/lidar_cluster/detections"
 
 
-def _compute(bag_path: Path, topic: str, far_dist: float, wall_y: float, front_y: float) -> Dict[str, Any]:
+def _compute(
+    bag_path: Path, topic: str, far_dist: float, wall_y: float, front_y: float
+) -> Dict[str, Any]:
     try:
         import rosbag  # type: ignore
     except ImportError as e:
@@ -89,10 +90,14 @@ def _compute(bag_path: Path, topic: str, far_dist: float, wall_y: float, front_y
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("bag", type=Path, help="Recorded detections bag path")
-    parser.add_argument("--topic", default=DEFAULT_TOPIC, help=f"Detections topic (default: {DEFAULT_TOPIC})")
+    parser.add_argument(
+        "--topic", default=DEFAULT_TOPIC, help=f"Detections topic (default: {DEFAULT_TOPIC})"
+    )
     parser.add_argument("--far-dist", type=float, default=18.0, help="Far distance threshold [m]")
     parser.add_argument("--wall-y", type=float, default=6.0, help="Wall-like abs(y) threshold [m]")
-    parser.add_argument("--front-y", type=float, default=1.0, help="Front-like abs(y) threshold [m]")
+    parser.add_argument(
+        "--front-y", type=float, default=1.0, help="Front-like abs(y) threshold [m]"
+    )
     parser.add_argument("-o", "--output", type=Path, default=None, help="Write JSON output to file")
     args = parser.parse_args()
 
@@ -110,4 +115,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

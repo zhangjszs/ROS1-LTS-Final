@@ -1,22 +1,20 @@
-#include <localization_core/descriptor_relocator.hpp>
-
 #include <algorithm>
 #include <cmath>
 #include <numeric>
 #include <random>
 
+#include <localization_core/descriptor_relocator.hpp>
+
 namespace localization_core {
 
-DescriptorRelocator::DescriptorRelocator(const RelocConfig& cfg)
-    : cfg_(cfg) {}
+DescriptorRelocator::DescriptorRelocator(const RelocConfig& cfg) : cfg_(cfg) {}
 
 int DescriptorRelocator::descriptorSize() const {
   return cfg_.n_rings * cfg_.n_sectors * cfg_.n_channels;
 }
 
-std::vector<float> DescriptorRelocator::BuildDescriptor(
-    const std::vector<FgLandmark>& landmarks,
-    const Pose2& pose) const {
+std::vector<float> DescriptorRelocator::BuildDescriptor(const std::vector<FgLandmark>& landmarks,
+                                                        const Pose2& pose) const {
   const int desc_size = descriptorSize();
   std::vector<float> desc(desc_size, 0.0f);
 
@@ -31,22 +29,23 @@ std::vector<float> DescriptorRelocator::BuildDescriptor(
     const double ly = -s * dx + c * dy;
 
     const double range = std::sqrt(lx * lx + ly * ly);
-    if (range > cfg_.submap_radius || range < 0.5) continue;
+    if (range > cfg_.submap_radius || range < 0.5)
+      continue;
 
     const double angle = std::atan2(ly, lx);  // [-pi, pi]
 
     // Quantize to ring and sector
-    const int ring = std::min(
-        static_cast<int>(range / cfg_.submap_radius * cfg_.n_rings),
-        cfg_.n_rings - 1);
-    int sector = static_cast<int>(
-        (angle + M_PI) / (2.0 * M_PI) * cfg_.n_sectors);
+    const int ring =
+        std::min(static_cast<int>(range / cfg_.submap_radius * cfg_.n_rings), cfg_.n_rings - 1);
+    int sector = static_cast<int>((angle + M_PI) / (2.0 * M_PI) * cfg_.n_sectors);
     sector = std::clamp(sector, 0, cfg_.n_sectors - 1);
 
     // Color channel: 0=blue, 1=red (HUAT left boundary), 2=other/none
     int channel = 2;
-    if (lm.color_type == 0) channel = 0;       // BLUE
-    else if (lm.color_type == 5 || lm.color_type == 1) channel = 1;   // RED (fallback keeps legacy YELLOW)
+    if (lm.color_type == 0)
+      channel = 0;  // BLUE
+    else if (lm.color_type == 5 || lm.color_type == 1)
+      channel = 1;  // RED (fallback keeps legacy YELLOW)
 
     const int idx = (ring * cfg_.n_sectors + sector) * cfg_.n_channels + channel;
     if (idx >= 0 && idx < desc_size) {
@@ -56,10 +55,12 @@ std::vector<float> DescriptorRelocator::BuildDescriptor(
 
   // L2 normalize
   float norm = 0.0f;
-  for (float v : desc) norm += v * v;
+  for (float v : desc)
+    norm += v * v;
   norm = std::sqrt(norm);
   if (norm > 1e-6f) {
-    for (float& v : desc) v /= norm;
+    for (float& v : desc)
+      v /= norm;
   }
 
   return desc;
@@ -73,9 +74,10 @@ void DescriptorRelocator::AddToDatabase(const SubMapDescriptor& desc) {
   database_.push_back(desc);
 }
 
-double DescriptorRelocator::cosineDistance(
-    const std::vector<float>& a, const std::vector<float>& b) const {
-  if (a.size() != b.size()) return 1.0;
+double DescriptorRelocator::cosineDistance(const std::vector<float>& a,
+                                           const std::vector<float>& b) const {
+  if (a.size() != b.size())
+    return 1.0;
   double dot = 0.0, na = 0.0, nb = 0.0;
   for (size_t i = 0; i < a.size(); ++i) {
     dot += a[i] * b[i];
@@ -83,16 +85,17 @@ double DescriptorRelocator::cosineDistance(
     nb += b[i] * b[i];
   }
   const double denom = std::sqrt(na) * std::sqrt(nb);
-  if (denom < 1e-9) return 1.0;
+  if (denom < 1e-9)
+    return 1.0;
   return 1.0 - dot / denom;
 }
 
-RelocResult DescriptorRelocator::TryRelocalize(
-    const std::vector<float>& current_desc,
-    const std::vector<FgLandmark>& current_landmarks,
-    const Pose2& current_pose) const {
+RelocResult DescriptorRelocator::TryRelocalize(const std::vector<float>& current_desc,
+                                               const std::vector<FgLandmark>& current_landmarks,
+                                               const Pose2& current_pose) const {
   RelocResult result;
-  if (database_.empty() || current_landmarks.size() < 3) return result;
+  if (database_.empty() || current_landmarks.size() < 3)
+    return result;
 
   // Find top-K nearest descriptors by cosine distance
   struct Candidate {
@@ -106,16 +109,16 @@ RelocResult DescriptorRelocator::TryRelocalize(
     candidates.push_back({i, d});
   }
   std::sort(candidates.begin(), candidates.end(),
-            [](const Candidate& a, const Candidate& b) {
-              return a.dist < b.dist;
-            });
+            [](const Candidate& a, const Candidate& b) { return a.dist < b.dist; });
 
   const int k = std::min(cfg_.top_k, static_cast<int>(candidates.size()));
-  const double inlier_thresh2 =
-      cfg_.ransac_inlier_thresh * cfg_.ransac_inlier_thresh;
+  const double inlier_thresh2 = cfg_.ransac_inlier_thresh * cfg_.ransac_inlier_thresh;
 
   // Convert current landmarks to local frame (relative to current_pose)
-  struct Pt { double x; double y; };
+  struct Pt {
+    double x;
+    double y;
+  };
   std::vector<Pt> cur_local(current_landmarks.size());
   {
     const double c = std::cos(current_pose.theta);
@@ -131,7 +134,8 @@ RelocResult DescriptorRelocator::TryRelocalize(
 
   for (int ci = 0; ci < k; ++ci) {
     const auto& db_desc = database_[candidates[ci].db_idx];
-    if (db_desc.local_landmark_positions.size() < 2) continue;
+    if (db_desc.local_landmark_positions.size() < 2)
+      continue;
 
     // Convert DB landmarks to local frame (relative to db_desc pose)
     const size_t n_db = db_desc.local_landmark_positions.size();
@@ -156,7 +160,8 @@ RelocResult DescriptorRelocator::TryRelocalize(
       // Sample two distinct current landmark indices
       const size_t ci1 = dist_cur(rng);
       size_t ci2 = dist_cur(rng);
-      if (ci2 == ci1) ci2 = (ci1 + 1) % n_cur;
+      if (ci2 == ci1)
+        ci2 = (ci1 + 1) % n_cur;
 
       // For each sampled current landmark, find nearest DB landmark
       auto nearest_db = [&](const Pt& p) -> size_t {
@@ -166,13 +171,17 @@ RelocResult DescriptorRelocator::TryRelocalize(
           const double ddx = p.x - db_local[j].x;
           const double ddy = p.y - db_local[j].y;
           const double d2 = ddx * ddx + ddy * ddy;
-          if (d2 < best_d2) { best_d2 = d2; best = j; }
+          if (d2 < best_d2) {
+            best_d2 = d2;
+            best = j;
+          }
         }
         return best;
       };
       const size_t di1 = nearest_db(cur_local[ci1]);
       const size_t di2 = nearest_db(cur_local[ci2]);
-      if (di1 == di2) continue;
+      if (di1 == di2)
+        continue;
 
       // Estimate SE(2) from 2 correspondences:
       // cur_local[ci] -> db_local[di]
@@ -186,14 +195,16 @@ RelocResult DescriptorRelocator::TryRelocalize(
       const double d_db_x = Bx - Ax, d_db_y = By - Ay;
       const double len_cur = std::sqrt(d_cur_x * d_cur_x + d_cur_y * d_cur_y);
       const double len_db = std::sqrt(d_db_x * d_db_x + d_db_y * d_db_y);
-      if (len_cur < 0.5 || len_db < 0.5) continue;
+      if (len_cur < 0.5 || len_db < 0.5)
+        continue;
       // Reject if scale mismatch > 30%
-      if (std::abs(len_cur - len_db) / std::max(len_cur, len_db) > 0.3) continue;
+      if (std::abs(len_cur - len_db) / std::max(len_cur, len_db) > 0.3)
+        continue;
 
       const double theta_cur = std::atan2(d_cur_y, d_cur_x);
       const double theta_db = std::atan2(d_db_y, d_db_x);
-      const double dtheta = std::atan2(std::sin(theta_db - theta_cur),
-                                        std::cos(theta_db - theta_cur));
+      const double dtheta =
+          std::atan2(std::sin(theta_db - theta_cur), std::cos(theta_db - theta_cur));
       const double ct = std::cos(dtheta), st = std::sin(dtheta);
       const double tx = Ax - (ct * ax - st * ay);
       const double ty = Ay - (st * ax + ct * ay);
@@ -219,16 +230,14 @@ RelocResult DescriptorRelocator::TryRelocalize(
 
       if (inliers >= cfg_.min_inliers &&
           (inliers > result.inlier_count ||
-           (inliers == result.inlier_count &&
-            total_res / inliers < result.mean_residual))) {
+           (inliers == result.inlier_count && total_res / inliers < result.mean_residual))) {
         // Convert local-frame SE(2) to global correction:
         // The relative transform from current_pose to db_pose
         result.success = true;
         result.dx = db_desc.px - current_pose.x;
         result.dy = db_desc.py - current_pose.y;
-        result.dtheta = std::atan2(
-            std::sin(db_desc.ptheta - current_pose.theta + dtheta),
-            std::cos(db_desc.ptheta - current_pose.theta + dtheta));
+        result.dtheta = std::atan2(std::sin(db_desc.ptheta - current_pose.theta + dtheta),
+                                   std::cos(db_desc.ptheta - current_pose.theta + dtheta));
         result.inlier_count = inliers;
         result.mean_residual = total_res / inliers;
       }

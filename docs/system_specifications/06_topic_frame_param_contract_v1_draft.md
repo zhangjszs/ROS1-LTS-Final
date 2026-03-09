@@ -1,6 +1,6 @@
 # Topic/Frame/Param 统一契约草案（V1）
 
-> 状态：Draft（2026-02-13）  
+> 状态：Draft（2026-02-13）
 > 目的：在不改算法的前提下，先统一主链路命名与边界，降低隐式耦合和 remap 依赖。
 
 ---
@@ -30,8 +30,8 @@
 
 ### 1.3 Topic 规则
 
-1. 主链路组件默认只依赖 canonical topic。  
-2. legacy alias 仅用于过渡窗口，必须可关闭并可观测（diagnostics 或日志）。  
+1. 主链路组件默认只依赖 canonical topic。
+2. legacy alias 仅用于过渡窗口，必须可关闭并可观测（diagnostics 或日志）。
 3. 不允许在核心业务代码中硬编码绝对 legacy topic。
 
 ---
@@ -47,9 +47,9 @@
 
 ### 2.1 Frame 规则
 
-1. `HUAT_PathLimits.header.frame_id` 必须为 `world`。  
-2. `HUAT_CarState.header.frame_id` 必须为 `world`。  
-3. 检测消息 `HUAT_ConeDetections.header.frame_id` 默认为 `velodyne`。  
+1. `HUAT_PathLimits.header.frame_id` 必须为 `world`。
+2. `HUAT_CarState.header.frame_id` 必须为 `world`。
+3. 检测消息 `HUAT_ConeDetections.header.frame_id` 默认为 `velodyne`。
 4. 同一时间戳下，`world->base_link` TF 与 `car_state` 必须同源。
 
 ---
@@ -67,22 +67,22 @@
 
 ### 3.2 参数规则
 
-1. 业务配置优先使用私有命名空间，不允许“私有读取失败后回退全局”作为默认机制。  
-2. 兼容链路参数必须显式命名到 `~compat/*`，避免与主链参数混淆。  
+1. 业务配置优先使用私有命名空间，不允许“私有读取失败后回退全局”作为默认机制。
+2. 兼容链路参数必须显式命名到 `~compat/*`，避免与主链参数混淆。
 3. Topic 相关参数统一放在 `~topics/*`，减少散落字符串。
 
 ---
 
 ## 4. 迁移阶段（建议）
 
-1. **阶段 A（当前）**：默认 canonical，保留 legacy alias 开关。  
-2. **阶段 B**：将 legacy alias 默认关闭，仅在回归/赛事脚本中按需启用。  
+1. **阶段 A（当前）**：默认 canonical，保留 legacy alias 开关。
+2. **阶段 B**：将 legacy alias 默认关闭，仅在回归/赛事脚本中按需启用。
 3. **阶段 C**：删除 legacy alias 代码路径，保留迁移文档和回退脚本。
 
 ---
 
 ## 5. 对应基线快照
 
-- `docs/system_specifications/baseline/2026-02-13/regression_metrics.md`  
-- `docs/system_specifications/baseline/2026-02-13/runtime_endpoints_snapshot.txt`  
+- `docs/system_specifications/baseline/2026-02-13/regression_metrics.md`
+- `docs/system_specifications/baseline/2026-02-13/runtime_endpoints_snapshot.txt`
 - `docs/system_specifications/baseline/2026-02-13/legacy_alias_refs_snapshot.txt`

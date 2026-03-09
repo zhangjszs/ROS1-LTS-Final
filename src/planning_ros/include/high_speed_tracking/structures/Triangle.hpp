@@ -10,16 +10,16 @@
 
 #pragma once
 
+#include "structures/Circle.hpp"
+#include "structures/Edge.hpp"
+#include "structures/Node.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <iostream>
 #include <unordered_set>
 #include <vector>
-
-#include "structures/Circle.hpp"
-#include "structures/Edge.hpp"
-#include "structures/Node.hpp"
 
 /**
  * @brief Represents a triangle, includes all elements to ease the Delaunay
@@ -45,7 +45,7 @@ class Triangle {
    * @param[in] n1
    * @param[in] n2
    */
-  static uint64_t computeHash(const Node &n0, const Node &n1, const Node &n2);
+  static uint64_t computeHash(const Node& n0, const Node& n1, const Node& n2);
   friend class std::hash<Triangle>;
 
  public:
@@ -70,7 +70,7 @@ class Triangle {
    * @param[in] n1
    * @param[in] n2
    */
-  Triangle(const Node &n0, const Node &n1, const Node &n2);
+  Triangle(const Node& n0, const Node& n1, const Node& n2);
 
   /**
    * @brief Construct a new Triangle object from an Edge and a Node.
@@ -78,42 +78,42 @@ class Triangle {
    * @param[in] e
    * @param[in] n
    */
-  Triangle(const Edge &e, const Node &n);
+  Triangle(const Edge& e, const Node& n);
 
   /**
    * @brief Comparison operator, two triangles will be equal if they have the same hash.
    *
    * @param[in] t
    */
-  bool operator==(const Triangle &t) const;
+  bool operator==(const Triangle& t) const;
 
   /**
    * @brief Negation of the comparison operator.
    *
    * @param[in] t
    */
-  bool operator!=(const Triangle &t) const;
+  bool operator!=(const Triangle& t) const;
 
   /**
    * @brief Checks if the Triangle contains the Node \a n.
    *
    * @param[in] n
    */
-  bool containsNode(const Node &n) const;
+  bool containsNode(const Node& n) const;
 
   /**
    * @brief Checks if the Edge \a e belongs to the Triangle.
    *
    * @param[in] e
    */
-  bool containsEdge(const Edge &e) const;
+  bool containsEdge(const Edge& e) const;
 
   /**
    * @brief Checks if a Node is inside the Triangle's circumcircle.
    *
    * @param[in] n
    */
-  bool circleContainsNode(const Node &n) const;
+  bool circleContainsNode(const Node& n) const;
 
   /**
    * @brief Checks if any Node of the Triangle belongs to the supertriangle.
@@ -128,12 +128,12 @@ class Triangle {
   /**
    * @brief Returns the circumcenter in local coordinates.
    */
-  const Point &circumCenter() const;
+  const Point& circumCenter() const;
 
   /**
    * @brief Returns the circumcenter in global coordinates.
    */
-  const Point &circumCenterGlobal() const;
+  const Point& circumCenterGlobal() const;
 
   /**
    * @brief Cout operator.
@@ -141,16 +141,12 @@ class Triangle {
    * @param[in,out] os
    * @param[in] t
    */
-  friend std::ostream &operator<<(std::ostream &os, const Triangle &t);
+  friend std::ostream& operator<<(std::ostream& os, const Triangle& t);
 
-  int getHash() const{
-    return hash_;
-  }
+  int getHash() const { return hash_; }
 };
 
 template <>
 struct std::hash<Triangle> {
-  uint64_t operator()(const Triangle &t) const {
-    return t.hash_;
-  }
+  uint64_t operator()(const Triangle& t) const { return t.hash_; }
 };

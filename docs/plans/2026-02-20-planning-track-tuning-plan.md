@@ -69,4 +69,3 @@
 
 **Step 3: 比较结论**
 - 重点看：`empty_path_rate`、`spike_jump_rate`、`max_curvature` 是否不回退；cone_map 在 dist>=18（以及 abs(y)<=1）窗口的置信度分布是否显示“可安全加阈值”的空间。
-

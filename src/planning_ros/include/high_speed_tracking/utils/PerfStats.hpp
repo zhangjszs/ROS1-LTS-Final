@@ -18,13 +18,13 @@ class PerfStats : public fsd_common::perf::PerfStatsBase<PerfSample> {
  public:
   PerfStats() {
     SetDescriptors({
-        {"t_delaunay_ms", [](const PerfSample &s) { return s.t_delaunay_ms; }},
-        {"t_way_ms", [](const PerfSample &s) { return s.t_way_ms; }},
-        {"t_total_ms", [](const PerfSample &s) { return s.t_total_ms; }},
-        {"N", [](const PerfSample &s) { return s.n_points; }},
-        {"T", [](const PerfSample &s) { return s.n_triangles; }},
-        {"E", [](const PerfSample &s) { return s.n_edges; }},
-        {"bytes", [](const PerfSample &s) { return s.bytes_pub; }},
+        {"t_delaunay_ms", [](const PerfSample& s) { return s.t_delaunay_ms; }},
+        {"t_way_ms", [](const PerfSample& s) { return s.t_way_ms; }},
+        {"t_total_ms", [](const PerfSample& s) { return s.t_total_ms; }},
+        {"N", [](const PerfSample& s) { return s.n_points; }},
+        {"T", [](const PerfSample& s) { return s.n_triangles; }},
+        {"E", [](const PerfSample& s) { return s.n_edges; }},
+        {"bytes", [](const PerfSample& s) { return s.bytes_pub; }},
     });
   }
 };

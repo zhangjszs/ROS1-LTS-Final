@@ -1,5 +1,6 @@
 #pragma once
 #include "vision_core/types.hpp"
+
 #include <deque>
 #include <vector>
 
@@ -13,11 +14,12 @@ struct TrackerConfig {
 };
 
 class TemporalTracker {
-public:
+ public:
   explicit TemporalTracker(const TrackerConfig& config = {});
   std::vector<Detection> update(const std::vector<Detection>& dets);
   void reset();
-private:
+
+ private:
   struct Track {
     Detection last_det;
     int hits = 0;

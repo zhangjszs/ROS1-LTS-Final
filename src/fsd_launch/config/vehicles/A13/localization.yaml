@@ -22,7 +22,7 @@ length:
   # 测量方法:
   #   1. 使用全站仪测量LiDAR和IMU的物理位置
   #   2. 或者通过标定程序优化获得
-  # 
+  #
   # 标定重要性:
   #   - 误差1cm → 定位误差约1-2cm
   #   - 必须精确到厘米级
@@ -30,7 +30,7 @@ length:
   # A13车型当前标定值: 1.87m
   # 表示LiDAR在IMU前方1.87米
   lidarToIMUDist: 1.87
-  
+
   # 前轴到IMU的距离（车辆几何参数）
   # 单位: m
   # 用于车辆运动学模型
@@ -38,7 +38,7 @@ length:
   frontToIMUdistanceX: 0.0
   frontToIMUdistanceY: 0.0
   frontToIMUdistanceZ: 0.0
-  
+
   # 后轴到IMU的距离
   # 单位: m
   rearToIMUdistanceX: 0.0
@@ -74,10 +74,10 @@ length:
 # 【标定命令】
 #   # 1. 录制标定bag（直线+转弯，约100m路程）
 #   rosbag record -O calibration /sensors/ins /perception/lidar_cluster/detections
-#   
+#
 #   # 2. 运行标定程序
 #   rosrun localization_ros calibrate_extrinsics _bag:=calibration.bag
-#   
+#
 #   # 3. 验证标定结果
 #   roslaunch fsd_launch missions/trackdrive.launch simulation:=true bag:=calibration.bag
 #   # RViz中观察地图是否清晰

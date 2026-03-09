@@ -19,8 +19,9 @@ class ScopedTimer {
   double ElapsedMs() const {
     return std::chrono::duration<double, std::milli>(Clock::now() - start_).count();
   }
-  ScopedTimer(const ScopedTimer &) = delete;
-  ScopedTimer &operator=(const ScopedTimer &) = delete;
+  ScopedTimer(const ScopedTimer&) = delete;
+  ScopedTimer& operator=(const ScopedTimer&) = delete;
+
  private:
   std::function<void(double)> on_done_;
   Clock::time_point start_;

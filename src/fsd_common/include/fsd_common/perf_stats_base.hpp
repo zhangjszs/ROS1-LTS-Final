@@ -1,12 +1,12 @@
 #pragma once
 
+#include <ros/ros.h>
+
 #include <functional>
 #include <iomanip>
 #include <sstream>
 #include <string>
 #include <vector>
-
-#include <ros/ros.h>
 
 #include <fsd_common/perf_stats_skeleton.hpp>
 
@@ -16,8 +16,8 @@ namespace perf {
 /// Descriptor for a single metric extracted from a PerfSample.
 template <typename SampleT>
 struct MetricDescriptor {
-  const char *name;
-  std::function<double(const SampleT &)> getter;
+  const char* name;
+  std::function<double(const SampleT&)> getter;
 };
 
 /// Generic PerfStats base that eliminates per-package boilerplate.
@@ -46,11 +46,11 @@ class PerfStatsBase {
     descriptors_ = std::move(descriptors);
   }
 
-  void Configure(const std::string &name, bool enabled, size_t window_size, size_t log_every) {
+  void Configure(const std::string& name, bool enabled, size_t window_size, size_t log_every) {
     window_.Configure(name, enabled, window_size, log_every);
   }
 
-  void Add(const SampleT &sample) {
+  void Add(const SampleT& sample) {
     if (window_.PushSample(sample)) {
       LogStats();
     }
@@ -59,15 +59,15 @@ class PerfStatsBase {
   Snapshot SnapshotStats() const {
     Snapshot snap;
     snap.reserve(descriptors_.size());
-    for (const auto &d : descriptors_) {
+    for (const auto& d : descriptors_) {
       snap.emplace_back(d.name, window_.ComputeStatsFor(d.getter));
     }
     return snap;
   }
 
   /// Look up a single metric by name.
-  MetricStats GetMetric(const char *name) const {
-    for (const auto &d : descriptors_) {
+  MetricStats GetMetric(const char* name) const {
+    for (const auto& d : descriptors_) {
       if (std::string(d.name) == name) {
         return window_.ComputeStatsFor(d.getter);
       }
@@ -76,7 +76,7 @@ class PerfStatsBase {
   }
 
  private:
-  static void AppendMetric(std::ostringstream &os, const char *name, const MetricStats &stats) {
+  static void AppendMetric(std::ostringstream& os, const char* name, const MetricStats& stats) {
     os << name << "{mean=" << stats.mean << ",p50=" << stats.p50 << ",p95=" << stats.p95
        << ",p99=" << stats.p99 << ",max=" << stats.max << "} ";
   }
@@ -86,7 +86,7 @@ class PerfStatsBase {
     os.setf(std::ios::fixed, std::ios::floatfield);
     os << std::setprecision(3);
     os << "[perf] node=" << window_.Name() << " window=" << window_.SampleCount() << " ";
-    for (const auto &d : descriptors_) {
+    for (const auto& d : descriptors_) {
       AppendMetric(os, d.name, window_.ComputeStatsFor(d.getter));
     }
     ROS_INFO_STREAM(os.str());

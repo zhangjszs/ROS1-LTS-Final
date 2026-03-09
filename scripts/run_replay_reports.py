@@ -21,7 +21,6 @@ import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-
 # ---------------------------------------------------------------------------
 # Mission catalogue
 # ---------------------------------------------------------------------------
@@ -76,6 +75,7 @@ RECORD_INIT_DELAY_SEC = 10  # match baseline ~10s init delay to skip ONNX JIT wa
 # Subprocess helpers
 # ---------------------------------------------------------------------------
 
+
 def _kill_ros_procs():
     """Kill any leftover roscore / roslaunch / rosbag processes."""
     for pattern in ["roscore", "rosmaster", "roslaunch", "rosbag"]:
@@ -102,7 +102,9 @@ def run_mission_replay(mission: dict, outdir: str) -> Optional[str]:
     env["ROS_HOME"] = ros_home_dir
 
     launch_cmd = [
-        "roslaunch", "fsd_launch", mission["launch"],
+        "roslaunch",
+        "fsd_launch",
+        mission["launch"],
         "simulation:=true",
         f"bag:={mission['bag']}",
         "rate:=1.0",
@@ -114,8 +116,10 @@ def run_mission_replay(mission: dict, outdir: str) -> Optional[str]:
 
     bag_out = os.path.join(outdir, f"{mission['name']}_combined.bag")
     record_cmd = [
-        "rosbag", "record",
-        "-O", bag_out,
+        "rosbag",
+        "record",
+        "-O",
+        bag_out,
     ] + RECORD_TOPICS
 
     launch_log_path = os.path.join(outdir, "launch.log")
@@ -164,6 +168,7 @@ def run_mission_replay(mission: dict, outdir: str) -> Optional[str]:
 # Bag analysis helpers
 # ---------------------------------------------------------------------------
 
+
 def _percentile(values: List[float], p: float) -> float:
     if not values:
         return 0.0
@@ -192,6 +197,7 @@ def _stats_no_p99(values: List[float]) -> Dict[str, float]:
 # ---------------------------------------------------------------------------
 # Vision backlog probe analysis
 # ---------------------------------------------------------------------------
+
 
 def analyse_vision_backlog(bag_path: str, mission: dict) -> Dict[str, Any]:
     """
@@ -340,6 +346,7 @@ def analyse_vision_backlog(bag_path: str, mission: dict) -> Dict[str, Any]:
 # Legacy timing review analysis
 # ---------------------------------------------------------------------------
 
+
 def analyse_timing_review(bag_path: str, mission: dict) -> Dict[str, Any]:
     """
     Analyse a combined bag for the legacy_timing_review report suite.
@@ -349,11 +356,11 @@ def analyse_timing_review(bag_path: str, mission: dict) -> Dict[str, Any]:
     import rosbag  # noqa
 
     # ---- data accumulators ----
-    trace_msgs: List[Tuple[float, Dict[str, str]]] = []   # (recv_sec, parsed_fields)
-    vision_det_recv: List[float] = []          # bag recv times
-    vision_det_header: List[float] = []        # header stamps
+    trace_msgs: List[Tuple[float, Dict[str, str]]] = []  # (recv_sec, parsed_fields)
+    vision_det_recv: List[float] = []  # bag recv times
+    vision_det_header: List[float] = []  # header stamps
     fusion_det_count = 0
-    latest_fusion_diag: Dict[str, str] = {}   # last set of fusion_* KVs
+    latest_fusion_diag: Dict[str, str] = {}  # last set of fusion_* KVs
     fusion_sync_slop_sec: float = mission["budget_sec"]
 
     def _parse_trace(s: str) -> Dict[str, str]:
@@ -445,8 +452,7 @@ def analyse_timing_review(bag_path: str, mission: dict) -> Dict[str, Any]:
 
     # ---- vision publish lag ----
     publish_lag_ms = [
-        max((r - h) * 1000.0, 0.0)
-        for r, h in zip(vision_det_recv, vision_det_header)
+        max((r - h) * 1000.0, 0.0) for r, h in zip(vision_det_recv, vision_det_header)
     ]
 
     # Vision output Hz
@@ -512,6 +518,7 @@ def analyse_timing_review(bag_path: str, mission: dict) -> Dict[str, Any]:
 # Markdown report generators
 # ---------------------------------------------------------------------------
 
+
 def _fmt_ms(d: Optional[Dict[str, float]]) -> str:
     if not d:
         return "N/A"
@@ -558,7 +565,9 @@ def build_backlog_md(data: Dict[str, Any], tag: str) -> str:
         )
 
         fps = m.get("vision_processed_fps_from_frame_count", {})
-        lines.append(f"- Processed FPS    : p50={fps.get('p50',0):.2f}  p95={fps.get('p95',0):.2f}  max={fps.get('max',0):.2f}")
+        lines.append(
+            f"- Processed FPS    : p50={fps.get('p50',0):.2f}  p95={fps.get('p95',0):.2f}  max={fps.get('max',0):.2f}"
+        )
 
         # New metrics
         if "skipped_postprocess_newer_pending_delta" in m:
@@ -569,7 +578,9 @@ def build_backlog_md(data: Dict[str, Any], tag: str) -> str:
         if "fallback_ms_dist" in m:
             lines.append(f"- **NEW** Fallback ms (nonzero): {_fmt_ms(m['fallback_ms_dist'])}")
         elif "fallback_ms_zero_frames" in m:
-            lines.append(f"- **NEW** Fallback ms: 0 in all {m['fallback_ms_zero_frames']} frames (✓ optimised out)")
+            lines.append(
+                f"- **NEW** Fallback ms: 0 in all {m['fallback_ms_zero_frames']} frames (✓ optimised out)"
+            )
         if "tracker_ms_dist" in m:
             lines.append(f"- **NEW** Tracker ms (nonzero) : {_fmt_ms(m['tracker_ms_dist'])}")
         elif m.get("tracker_ms_all_zero"):
@@ -614,9 +625,7 @@ def build_timing_md(data: Dict[str, Any], tag: str) -> str:
             f"  ← baseline p50={b_lag}ms  ({sign2}{delta_lag:.0f}ms)"
         )
         lines.append(f"- Vision Hz        : {m.get('vision_publish_hz', 0):.2f}")
-        lines.append(
-            f"- header→raw ms    : {_fmt_ms(m.get('vision_header_to_raw_ms',{}))}"
-        )
+        lines.append(f"- header→raw ms    : {_fmt_ms(m.get('vision_header_to_raw_ms',{}))}")
         lines.append(
             f"- raw match/budget : {m.get('raw_frames_with_header_match_within_budget',0)}"
             f" / {m.get('raw_frames_in_record_window',0)}"
@@ -638,6 +647,7 @@ def build_timing_md(data: Dict[str, Any], tag: str) -> str:
 # ---------------------------------------------------------------------------
 # Main orchestration
 # ---------------------------------------------------------------------------
+
 
 def main():
     parser = argparse.ArgumentParser(description="Run replay report suites")

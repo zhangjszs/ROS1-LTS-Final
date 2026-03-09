@@ -1,8 +1,8 @@
 #pragma once
 
-#include <localization_core/factor_graph_types.hpp>
-
 #include <deque>
+
+#include <localization_core/factor_graph_types.hpp>
 
 namespace localization_core {
 
@@ -20,8 +20,8 @@ class AnomalyStateMachine {
   /// @param match_ratio      fraction of observed cones matched to landmarks
   /// @param gnss_quality     current GNSS quality tier
   /// @param timestamp        monotonic seconds
-  void Evaluate(double chi2_normalized, double match_ratio,
-                GnssQuality gnss_quality, double timestamp);
+  void Evaluate(double chi2_normalized, double match_ratio, GnssQuality gnss_quality,
+                double timestamp);
 
   /// Current anomaly state.
   AnomalyState GetState() const { return state_; }

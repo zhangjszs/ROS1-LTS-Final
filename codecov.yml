@@ -1,21 +1,126 @@
+# Codecov configuration for ROS project
+codecov:
+  require_ci_to_pass: yes
+  notify:
+    wait_for_ci: yes
+    after_n_builds: 1
+
 coverage:
+  precision: 2
+  round: down
+  range: "70...100"
+
   status:
+    # Project-level coverage
     project:
       default:
         target: auto
         threshold: 5%
+        base: auto
+        branches:
+          - main
+          - develop
+        if_not_found: success
+        if_ci_failed: error
+        informational: false
+        only_pulls: false
+
+    # Patch-level coverage (for PRs)
     patch:
       default:
         target: auto
         threshold: 5%
+        base: auto
+        branches:
+          - main
+          - develop
+        if_not_found: success
+        if_ci_failed: error
+        informational: false
+        only_pulls: true
 
+    # Changes coverage
+    changes:
+      default:
+        target: auto
+        threshold: 5%
+        base: auto
+        branches:
+          - main
+          - develop
+        if_not_found: success
+        if_ci_failed: error
+        informational: false
+
+# Files to ignore in coverage calculation
 ignore:
   - "src/*/test/**"
+  - "src/*/tests/**"
   - "src/_deprecated/**"
+  - "src/**/examples/**"
   - "build/**"
   - "devel/**"
+  - "install/**"
+  - "**/CMakeFiles/**"
+  - "**/_deps/**"
+  # ROS generated files
+  - "**/msg/**"
+  - "**/srv/**"
+  - "**/action/**"
+  # Third party
+  - "src/**/third_party/**"
+  - "src/**/external/**"
 
+# Comment configuration for PRs
 comment:
-  layout: "reach, diff, flags, files"
+  layout: "reach,diff,flags,files,footer"
   behavior: default
   require_changes: false
+  require_base: false
+  require_head: true
+  hide_project_coverage: false
+
+# Flags for different test types
+flags:
+  unit:
+    paths:
+      - src/*_core/
+    carryforward: true
+  integration:
+    paths:
+      - src/*_ros/
+    carryforward: true
+
+# Component coverage (optional)
+component_management:
+  default_rules:
+    statuses:
+      - type: project
+        target: auto
+        threshold: 5%
+  individual_components:
+    - component_id: perception
+      name: Perception
+      paths:
+        - src/perception_core/
+        - src/perception_ros/
+    - component_id: planning
+      name: Planning
+      paths:
+        - src/planning_core/
+        - src/planning_ros/
+    - component_id: control
+      name: Control
+      paths:
+        - src/control_core/
+        - src/control_ros/
+    - component_id: localization
+      name: Localization
+      paths:
+        - src/localization_core/
+        - src/localization_ros/
+    - component_id: simulation
+      name: Simulation
+      paths:
+        - src/simulation_core/
+        - src/simulation_ros/

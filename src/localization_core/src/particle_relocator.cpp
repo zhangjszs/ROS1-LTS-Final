@@ -1,15 +1,14 @@
-#include <localization_core/particle_relocator.hpp>
-
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <numeric>
 #include <random>
 
+#include <localization_core/particle_relocator.hpp>
+
 namespace localization_core {
 
-ParticleRelocator::ParticleRelocator(const RelocConfig& cfg)
-    : cfg_(cfg) {}
+ParticleRelocator::ParticleRelocator(const RelocConfig& cfg) : cfg_(cfg) {}
 
 void ParticleRelocator::Reset() {
   particles_.clear();
@@ -34,7 +33,8 @@ void ParticleRelocator::Initialize(const Pose2& seed_pose) {
 }
 
 void ParticleRelocator::Predict(double v_forward, double wz, double dt) {
-  if (!initialized_ || dt <= 0.0) return;
+  if (!initialized_ || dt <= 0.0)
+    return;
 
   std::mt19937 rng(std::random_device{}());
   std::normal_distribution<double> noise_xy(0.0, 0.05 * std::abs(v_forward) * dt + 0.01);
@@ -48,10 +48,10 @@ void ParticleRelocator::Predict(double v_forward, double wz, double dt) {
   }
 }
 
-void ParticleRelocator::Update(
-    const std::vector<ConeObservation>& observations,
-    const std::vector<FgLandmark>& landmarks) {
-  if (!initialized_ || observations.empty() || landmarks.empty()) return;
+void ParticleRelocator::Update(const std::vector<ConeObservation>& observations,
+                               const std::vector<FgLandmark>& landmarks) {
+  if (!initialized_ || observations.empty() || landmarks.empty())
+    return;
 
   for (auto& p : particles_) {
     double log_likelihood = 0.0;
@@ -59,7 +59,8 @@ void ParticleRelocator::Update(
     const double sp = std::sin(p.theta);
 
     for (const auto& obs : observations) {
-      if (obs.range <= 0.0) continue;
+      if (obs.range <= 0.0)
+        continue;
 
       // Expected global position of observed cone from this particle
       const double lx = obs.range * std::cos(obs.bearing);
@@ -111,7 +112,8 @@ void ParticleRelocator::normalize() {
 void ParticleRelocator::resample() {
   // Systematic resampling
   const int n = static_cast<int>(particles_.size());
-  if (n == 0) return;
+  if (n == 0)
+    return;
 
   std::mt19937 rng(std::random_device{}());
   std::uniform_real_distribution<double> u01(0.0, 1.0 / n);
@@ -145,7 +147,8 @@ void ParticleRelocator::resample() {
 }
 
 bool ParticleRelocator::HasConverged() const {
-  if (!initialized_ || particles_.empty()) return false;
+  if (!initialized_ || particles_.empty())
+    return false;
 
   // Compute weighted mean
   double mx = 0, my = 0, ms = 0, mc = 0;
@@ -162,21 +165,20 @@ bool ParticleRelocator::HasConverged() const {
   for (const auto& p : particles_) {
     var_x += p.weight * (p.x - mx) * (p.x - mx);
     var_y += p.weight * (p.y - my) * (p.y - my);
-    double dt = std::atan2(std::sin(p.theta - mean_theta),
-                           std::cos(p.theta - mean_theta));
+    double dt = std::atan2(std::sin(p.theta - mean_theta), std::cos(p.theta - mean_theta));
     var_theta += p.weight * dt * dt;
   }
 
   const double std_xy = std::sqrt(var_x + var_y);
   const double std_theta = std::sqrt(var_theta);
 
-  return std_xy < cfg_.converge_sigma_xy &&
-         std_theta < cfg_.converge_sigma_theta;
+  return std_xy < cfg_.converge_sigma_xy && std_theta < cfg_.converge_sigma_theta;
 }
 
 Pose2 ParticleRelocator::GetEstimate() const {
   Pose2 est;
-  if (!initialized_ || particles_.empty()) return est;
+  if (!initialized_ || particles_.empty())
+    return est;
 
   double mx = 0, my = 0, ms = 0, mc = 0;
   for (const auto& p : particles_) {

@@ -1,6 +1,11 @@
 #ifndef PLANNING_ROS_SKIDPAD_DETECTION_NODE_HPP_
 #define PLANNING_ROS_SKIDPAD_DETECTION_NODE_HPP_
 
+#include "planning_core/skidpad_detection_core.hpp"
+#include "planning_ros/skidpad_detection_perf_stats.hpp"
+
+#include <ros/ros.h>
+
 #include <mutex>
 #include <string>
 #include <vector>
@@ -9,36 +14,29 @@
 #include <autodrive_msgs/HUAT_ConeDetections.h>
 #include <autodrive_msgs/HUAT_PathLimits.h>
 #include <diagnostic_msgs/DiagnosticArray.h>
+#include <fsd_common/diagnostics_helper.hpp>
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/synchronizer.h>
-#include <ros/ros.h>
 #include <std_msgs/Bool.h>
 
-#include <fsd_common/diagnostics_helper.hpp>
-#include "planning_core/skidpad_detection_core.hpp"
-#include "planning_ros/skidpad_detection_perf_stats.hpp"
+namespace planning_ros {
 
-namespace planning_ros
-{
-
-class SkidpadDetectionNode
-{
-public:
-  explicit SkidpadDetectionNode(ros::NodeHandle &nh);
+class SkidpadDetectionNode {
+ public:
+  explicit SkidpadDetectionNode(ros::NodeHandle& nh);
 
   void RunOnce();
 
-private:
+ private:
   using ConeMsg = autodrive_msgs::HUAT_ConeDetections;
   using StateMsg = autodrive_msgs::HUAT_CarState;
   using SyncPolicy = message_filters::sync_policies::ApproximateTime<ConeMsg, StateMsg>;
 
   void LoadParameters();
-  void SyncCallback(const ConeMsg::ConstPtr &cone_msg,
-                    const StateMsg::ConstPtr &car_state);
-  void PublishPathLimits(const std::vector<planning_core::Pose> &path_points);
-  void FillPathDynamics(autodrive_msgs::HUAT_PathLimits &msg) const;
+  void SyncCallback(const ConeMsg::ConstPtr& cone_msg, const StateMsg::ConstPtr& car_state);
+  void PublishPathLimits(const std::vector<planning_core::Pose>& path_points);
+  void FillPathDynamics(autodrive_msgs::HUAT_PathLimits& msg) const;
   void PublishApproachingGoal(bool approaching);
 
   ros::NodeHandle nh_;
@@ -81,6 +79,6 @@ private:
   int64_t cone_count_{0};
 };
 
-} // namespace planning_ros
+}  // namespace planning_ros
 
-#endif // PLANNING_ROS_SKIDPAD_DETECTION_NODE_HPP_
+#endif  // PLANNING_ROS_SKIDPAD_DETECTION_NODE_HPP_

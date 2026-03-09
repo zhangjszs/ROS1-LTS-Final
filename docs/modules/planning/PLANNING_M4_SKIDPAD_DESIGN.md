@@ -131,4 +131,3 @@ publish_approaching_goal_if_needed(phase)
 
 - phase-aware speed cap 通过 `GetRecommendedSpeedCap()` 获取，传入共享模块 `ComputeSpeedProfile`
 - 输出话题由 `output_pathlimits_topic` 参数统一为 `planning/pathlimits`
-

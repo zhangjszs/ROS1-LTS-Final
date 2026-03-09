@@ -39,13 +39,13 @@ if [ -z "$MISSION" ]; then
   # Try to auto-detect from running ROS parameters
   log_info "Auto-detecting mission from ROS parameters..."
   MISSION=$(rosparam get /planning_pipeline/mission 2>/dev/null || echo "")
-  
+
   if [ -z "$MISSION" ]; then
     log_error "Could not auto-detect mission"
     log_info "Please specify mission: $0 [trackdrive|acceleration|skidpad]"
     exit 1
   fi
-  
+
   log_info "Detected mission: $MISSION"
 fi
 

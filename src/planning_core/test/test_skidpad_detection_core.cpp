@@ -1,7 +1,9 @@
-#include <gtest/gtest.h>
-#include <vector>
-#include <cmath>
 #include "planning_core/skidpad_detection_core.hpp"
+
+#include <cmath>
+#include <vector>
+
+#include <gtest/gtest.h>
 
 TEST(SkidpadDetectionCoreTest, Initialization) {
   planning_core::SkidpadParams params;
@@ -37,8 +39,8 @@ TEST(SkidpadDetectionCoreTest, SimpleCircleFitting) {
   std::vector<planning_core::ConePoint> cones;
   for (int i = 0; i < 16; ++i) {
     double angle = 2.0 * M_PI * i / 16.0;
-    cones.push_back({params.circle_radius * std::cos(angle),
-                     params.circle_radius * std::sin(angle), 0.0, 4});  // NONE
+    cones.push_back({params.circle_radius * std::cos(angle), params.circle_radius * std::sin(angle),
+                     0.0, 4});  // NONE
   }
   core.ProcessConeDetections(cones);
 
@@ -116,13 +118,11 @@ TEST(SkidpadDetectionCoreTest, NoColorFallsBackToGeometric) {
   std::vector<planning_core::ConePoint> cones;
   for (int i = 0; i < 8; ++i) {
     double angle = 2.0 * M_PI * i / 8.0;
-    cones.push_back({9.125 * std::cos(angle),
-                     -9.125 + 9.125 * std::sin(angle), 0.0, 4});
+    cones.push_back({9.125 * std::cos(angle), -9.125 + 9.125 * std::sin(angle), 0.0, 4});
   }
   for (int i = 0; i < 8; ++i) {
     double angle = 2.0 * M_PI * i / 8.0;
-    cones.push_back({9.125 * std::cos(angle),
-                     9.125 + 9.125 * std::sin(angle), 0.0, 4});
+    cones.push_back({9.125 * std::cos(angle), 9.125 + 9.125 * std::sin(angle), 0.0, 4});
   }
   core.ProcessConeDetections(cones);
 
@@ -132,7 +132,7 @@ TEST(SkidpadDetectionCoreTest, NoColorFallsBackToGeometric) {
   SUCCEED();
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

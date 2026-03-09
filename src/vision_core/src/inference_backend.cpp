@@ -8,7 +8,8 @@ namespace vision_core {
 
 std::unique_ptr<InferenceBackend> createBackend(const std::string& type) {
 #ifdef HAVE_ONNXRUNTIME
-  if (type == "onnx") return std::make_unique<OnnxBackend>();
+  if (type == "onnx")
+    return std::make_unique<OnnxBackend>();
 #endif
   (void)type;
   return nullptr;

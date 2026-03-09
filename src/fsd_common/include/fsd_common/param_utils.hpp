@@ -1,19 +1,18 @@
 #pragma once
 
+#include <ros/ros.h>
+
 #include <string>
 #include <vector>
 
-#include <ros/ros.h>
 #include <XmlRpcValue.h>
 
 namespace fsd_common {
 
 /// Load a parameter from a single NodeHandle with debug logging on default.
 template <typename T>
-bool LoadParam(ros::NodeHandle &nh, const std::string &key, T &out, const T &default_value)
-{
-  if (nh.param<T>(key, out, default_value))
-  {
+bool LoadParam(ros::NodeHandle& nh, const std::string& key, T& out, const T& default_value) {
+  if (nh.param<T>(key, out, default_value)) {
     return true;
   }
   ROS_DEBUG_STREAM("[param] Using default for " << key << ": " << default_value);
@@ -22,15 +21,12 @@ bool LoadParam(ros::NodeHandle &nh, const std::string &key, T &out, const T &def
 
 /// Load a parameter with private-then-global fallback (localization pattern).
 template <typename T>
-bool LoadParam(ros::NodeHandle &pnh, ros::NodeHandle &nh,
-               const std::string &key, T &out, const T &default_value)
-{
-  if (pnh.param<T>(key, out, default_value))
-  {
+bool LoadParam(ros::NodeHandle& pnh, ros::NodeHandle& nh, const std::string& key, T& out,
+               const T& default_value) {
+  if (pnh.param<T>(key, out, default_value)) {
     return true;
   }
-  if (nh.param<T>(key, out, default_value))
-  {
+  if (nh.param<T>(key, out, default_value)) {
     return true;
   }
   return false;
@@ -38,16 +34,13 @@ bool LoadParam(ros::NodeHandle &pnh, ros::NodeHandle &nh,
 
 /// Load a vector parameter from XmlRpcValue array.
 template <typename T>
-bool LoadVector(ros::NodeHandle &nh, const std::string &key, std::vector<T> &vec)
-{
+bool LoadVector(ros::NodeHandle& nh, const std::string& key, std::vector<T>& vec) {
   XmlRpc::XmlRpcValue list;
-  if (!nh.getParam(key, list))
-  {
+  if (!nh.getParam(key, list)) {
     ROS_ERROR_STREAM("[param] Failed to load parameter: " << key);
     return false;
   }
-  if (list.getType() != XmlRpc::XmlRpcValue::TypeArray)
-  {
+  if (list.getType() != XmlRpc::XmlRpcValue::TypeArray) {
     ROS_ERROR_STREAM("[param] Parameter " << key << " is not an array");
     return false;
   }
@@ -55,29 +48,19 @@ bool LoadVector(ros::NodeHandle &nh, const std::string &key, std::vector<T> &vec
   vec.clear();
   vec.reserve(list.size());
 
-  for (size_t i = 0; i < list.size(); ++i)
-  {
-    if constexpr (std::is_same_v<T, int>)
-    {
-      if (list[i].getType() != XmlRpc::XmlRpcValue::TypeInt)
-      {
+  for (size_t i = 0; i < list.size(); ++i) {
+    if constexpr (std::is_same_v<T, int>) {
+      if (list[i].getType() != XmlRpc::XmlRpcValue::TypeInt) {
         ROS_ERROR_STREAM("[param] Element " << i << " in " << key << " is not an int");
         return false;
       }
       vec.push_back(static_cast<int>(list[i]));
-    }
-    else if constexpr (std::is_same_v<T, double>)
-    {
-      if (list[i].getType() == XmlRpc::XmlRpcValue::TypeDouble)
-      {
+    } else if constexpr (std::is_same_v<T, double>) {
+      if (list[i].getType() == XmlRpc::XmlRpcValue::TypeDouble) {
         vec.push_back(static_cast<double>(list[i]));
-      }
-      else if (list[i].getType() == XmlRpc::XmlRpcValue::TypeInt)
-      {
+      } else if (list[i].getType() == XmlRpc::XmlRpcValue::TypeInt) {
         vec.push_back(static_cast<double>(static_cast<int>(list[i])));
-      }
-      else
-      {
+      } else {
         ROS_ERROR_STREAM("[param] Element " << i << " in " << key << " is not a number");
         return false;
       }

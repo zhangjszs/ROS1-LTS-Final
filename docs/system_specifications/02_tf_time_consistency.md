@@ -339,19 +339,19 @@ class HealthMonitor:
         self.topic_stats = {}
         self.tf_stats = {}
         self.latency_stats = {}
-    
+
     def check_topic_frequency(self, topic, msg):
         # 统计消息频率
         pass
-    
+
     def check_timestamp_consistency(self, topic, msg):
         # 检查时间戳是否合理
         pass
-    
+
     def check_tf_availability(self):
         # 检查TF变换是否可用
         pass
-    
+
     def publish_health_report(self):
         # 发布健康报告
         pass

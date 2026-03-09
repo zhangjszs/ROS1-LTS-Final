@@ -1,7 +1,7 @@
 # LiDAR Track Mode (18m+) Tuning Design
 
-**Date:** 2026-02-20  
-**Scope:** `perception_ros` LiDAR cluster pipeline parameters (Track mode only)  
+**Date:** 2026-02-20
+**Scope:** `perception_ros` LiDAR cluster pipeline parameters (Track mode only)
 **Goal:** Reduce 18m+ false positives from continuous vertical structures (walls/guardrails/front barriers) while recovering far-range cone recall, without changing ground segmentation method.
 
 ## Context

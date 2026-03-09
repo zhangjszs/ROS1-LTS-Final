@@ -4,18 +4,19 @@
  * @brief Contains the Visualization class specification
  * @version 1.0
  * @date 2022-10-31
- * 
+ *
  * @copyright Copyright (c) 2022 BCN eMotorsport
  */
 
 #pragma once
 
-#include <ros/ros.h>
-#include <autodrive_msgs/HUAT_HighSpeedViz.h>
-
 #include "structures/Way.hpp"
 #include "utils/Params.hpp"
 #include "utils/definitions.hpp"
+
+#include <ros/ros.h>
+
+#include <autodrive_msgs/HUAT_HighSpeedViz.h>
 
 /**
  * @brief Class that implements all necessary functions to visualize all
@@ -27,7 +28,7 @@ class Visualization {
    * @brief All Markers publishers.
    */
   ros::Publisher viz_pub_;
-  
+
   /**
    * @brief All parameters related to the Visualization class.
    */
@@ -46,44 +47,44 @@ class Visualization {
   Visualization() = default;
 
   // Singleton pattern
-  static Visualization &getInstance();
-  Visualization(Visualization const &) = delete;
-  void operator=(Visualization const &) = delete;
+  static Visualization& getInstance();
+  Visualization(Visualization const&) = delete;
+  void operator=(Visualization const&) = delete;
 
   /**
    * @brief Method to initialize the Singleton.
-   * 
-   * @param[in] nh 
-   * @param[in] params 
+   *
+   * @param[in] nh
+   * @param[in] params
    */
-  void init(ros::NodeHandle *const nh, const Params::Visualization &params);
-  
+  void init(ros::NodeHandle* const nh, const Params::Visualization& params);
+
   /**
    * @brief Sets the \a stamp_ attribute, all Markers will be published with
    * this stamp
-   * 
-   * @param[in] stamp 
+   *
+   * @param[in] stamp
    */
-  void setTimestamp(const ros::Time &stamp);
+  void setTimestamp(const ros::Time& stamp);
 
   /**
    * @brief Method to visualize a TriangleSet.
-   * 
-   * @param[in] triSet 
+   *
+   * @param[in] triSet
    */
-  void visualize(const TriangleSet &triSet);
-  
+  void visualize(const TriangleSet& triSet);
+
   /**
    * @brief Method to visualize an EdgeSet.
-   * 
-   * @param[in] edgeSet 
+   *
+   * @param[in] edgeSet
    */
-  void visualize(const EdgeSet &edgeSet);
+  void visualize(const EdgeSet& edgeSet);
 
   /**
    * @brief Method to visualize a Way.
-   * 
-   * @param[in] way 
+   *
+   * @param[in] way
    */
-  void visualize(const Way &way);
+  void visualize(const Way& way);
 };

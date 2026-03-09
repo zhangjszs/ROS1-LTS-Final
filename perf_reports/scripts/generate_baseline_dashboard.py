@@ -10,7 +10,6 @@ from typing import Dict, List, Optional, Tuple
 
 import yaml
 
-
 DEFAULT_METRICS = ["t_pass_ms", "t_ground_ms", "t_cluster_ms", "t_total_ms", "bytes"]
 
 
@@ -107,15 +106,9 @@ def _write_markdown(
     output_md: Path, payload: Dict, required_metrics: List[str], manifest: Optional[Dict]
 ) -> None:
     output_md.parent.mkdir(parents=True, exist_ok=True)
-    commit = (
-        manifest.get("baseline", {}).get("git", {}).get("commit", "")
-        if manifest
-        else ""
-    )
+    commit = manifest.get("baseline", {}).get("git", {}).get("commit", "") if manifest else ""
     bag_path = (
-        manifest.get("baseline", {}).get("dataset", {}).get("bag_path", "")
-        if manifest
-        else ""
+        manifest.get("baseline", {}).get("dataset", {}).get("bag_path", "") if manifest else ""
     )
 
     lines = []
@@ -165,9 +158,7 @@ def main() -> int:
         default=Path("perf_reports/data"),
         help="Directory containing perf_data_*.json files.",
     )
-    parser.add_argument(
-        "--node", type=str, default="lidar_cluster", help="Target node name."
-    )
+    parser.add_argument("--node", type=str, default="lidar_cluster", help="Target node name.")
     parser.add_argument(
         "--gate-config",
         type=Path,

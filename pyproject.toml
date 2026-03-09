@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm>=7"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "fsd-huat"
+version = "0.0.0"
+description = "FSD HUAT Workspace"
+requires-python = ">=3.8"
+
+[tool.black]
+line-length = 100
+target-version = ['py38']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.catkin_tools
+  | build
+  | devel
+  | install
+  | __pycache__
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 100
+known_ros = ["rospy", "rospkg", "catkin_pkg", "std_msgs", "sensor_msgs", "geometry_msgs", "nav_msgs"]
+known_first_party = ["fsd_common", "autodrive_msgs"]
+sections = ["FUTURE", "STDLIB", "THIRDPARTY", "ROS", "FIRSTPARTY", "LOCALFOLDER"]

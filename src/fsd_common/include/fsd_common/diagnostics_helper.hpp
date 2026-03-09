@@ -1,12 +1,13 @@
 #pragma once
 
+#include <ros/ros.h>
+
 #include <string>
 #include <vector>
 
 #include <diagnostic_msgs/DiagnosticArray.h>
 #include <diagnostic_msgs/DiagnosticStatus.h>
 #include <diagnostic_msgs/KeyValue.h>
-#include <ros/ros.h>
 
 namespace fsd_common {
 
@@ -14,7 +15,7 @@ namespace fsd_common {
  * @brief Shared diagnostics publisher with rate throttling and dual local/global publish.
  */
 class DiagnosticsHelper {
-public:
+ public:
   struct Config {
     std::string local_topic;
     std::string global_topic;
@@ -26,38 +27,32 @@ public:
 
   DiagnosticsHelper() = default;
 
-  void Init(ros::NodeHandle &nh, const Config &cfg)
-  {
+  void Init(ros::NodeHandle& nh, const Config& cfg) {
     cfg_ = cfg;
-    if (cfg_.rate_hz <= 0.0) cfg_.rate_hz = 1.0;
-    pub_local_ = nh.advertise<diagnostic_msgs::DiagnosticArray>(
-        cfg_.local_topic, cfg_.queue_size, cfg_.latch_local);
-    if (cfg_.publish_global)
-    {
-      pub_global_ = nh.advertise<diagnostic_msgs::DiagnosticArray>(
-          cfg_.global_topic, cfg_.queue_size);
+    if (cfg_.rate_hz <= 0.0)
+      cfg_.rate_hz = 1.0;
+    pub_local_ = nh.advertise<diagnostic_msgs::DiagnosticArray>(cfg_.local_topic, cfg_.queue_size,
+                                                                cfg_.latch_local);
+    if (cfg_.publish_global) {
+      pub_global_ =
+          nh.advertise<diagnostic_msgs::DiagnosticArray>(cfg_.global_topic, cfg_.queue_size);
     }
   }
 
   /// Publish a pre-built DiagnosticArray (local + optional global).
-  void Publish(const diagnostic_msgs::DiagnosticArray &arr)
-  {
+  void Publish(const diagnostic_msgs::DiagnosticArray& arr) {
     pub_local_.publish(arr);
-    if (cfg_.publish_global)
-    {
+    if (cfg_.publish_global) {
       pub_global_.publish(arr);
     }
   }
 
   /// Rate-throttled publish. Returns false if throttled (no publish).
-  bool PublishThrottled(const diagnostic_msgs::DiagnosticArray &arr, bool force = false)
-  {
+  bool PublishThrottled(const diagnostic_msgs::DiagnosticArray& arr, bool force = false) {
     const ros::Time now = ros::Time::now();
-    if (!force && last_pub_.isValid())
-    {
+    if (!force && last_pub_.isValid()) {
       const double min_interval = 1.0 / cfg_.rate_hz;
-      if ((now - last_pub_).toSec() < min_interval)
-      {
+      if ((now - last_pub_).toSec() < min_interval) {
         return false;
       }
     }
@@ -67,14 +62,9 @@ public:
   }
 
   /// Convenience: build a single-status DiagnosticArray and publish with throttling.
-  bool PublishStatus(const std::string &name,
-                     const std::string &hardware_id,
-                     uint8_t level,
-                     const std::string &message,
-                     const std::vector<diagnostic_msgs::KeyValue> &kvs,
-                     const ros::Time &stamp = ros::Time(0),
-                     bool force = false)
-  {
+  bool PublishStatus(const std::string& name, const std::string& hardware_id, uint8_t level,
+                     const std::string& message, const std::vector<diagnostic_msgs::KeyValue>& kvs,
+                     const ros::Time& stamp = ros::Time(0), bool force = false) {
     diagnostic_msgs::DiagnosticArray arr;
     const ros::Time now = ros::Time::now();
     arr.header.stamp = stamp.isZero() ? now : stamp;
@@ -91,15 +81,14 @@ public:
   }
 
   /// Helper to create a KeyValue pair.
-  static diagnostic_msgs::KeyValue KV(const std::string &key, const std::string &value)
-  {
+  static diagnostic_msgs::KeyValue KV(const std::string& key, const std::string& value) {
     diagnostic_msgs::KeyValue kv;
     kv.key = key;
     kv.value = value;
     return kv;
   }
 
-private:
+ private:
   Config cfg_;
   ros::Publisher pub_local_;
   ros::Publisher pub_global_;

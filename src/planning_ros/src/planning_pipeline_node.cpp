@@ -1,10 +1,10 @@
 #include "planning_ros/planning_pipeline_node.hpp"
 
+#include "planning_ros/contract_utils.hpp"
+
 #include <ros/package.h>
 #include <ros/serialization.h>
-#include <sys/stat.h>
 
-#include <autodrive_msgs/topic_contract.hpp>
 #include <cerrno>
 #include <cmath>
 #include <cstring>
@@ -12,18 +12,17 @@
 #include <iostream>
 #include <sstream>
 
-#include "planning_ros/contract_utils.hpp"
+#include <autodrive_msgs/topic_contract.hpp>
+#include <sys/stat.h>
 
-namespace planning_ros
-{
+namespace planning_ros {
 
 // ---------------------------------------------------------------------------
 // Construction
 // ---------------------------------------------------------------------------
 
-PlanningPipelineNode::PlanningPipelineNode(ros::NodeHandle &nh, const std::string &mission)
-  : mission_(mission)
-{
+PlanningPipelineNode::PlanningPipelineNode(ros::NodeHandle& nh, const std::string& mission)
+    : mission_(mission) {
   ros::NodeHandle pnh("~");
   pnh.param("diagnostics_rate_hz", diagnostics_rate_hz_, 1.0);
   pnh.param("enable_internal_viz_side_channel", enable_internal_viz_side_channel_, false);
@@ -43,16 +42,11 @@ PlanningPipelineNode::PlanningPipelineNode(ros::NodeHandle &nh, const std::strin
     diag_helper_.Init(nh, dcfg);
   }
 
-  if (mission_ == "line" || mission_ == "acceleration")
-  {
+  if (mission_ == "line" || mission_ == "acceleration") {
     InitLine(nh);
-  }
-  else if (mission_ == "skidpad")
-  {
+  } else if (mission_ == "skidpad") {
     InitSkidpad(nh);
-  }
-  else
-  {
+  } else {
     // Default: high_speed / trackdrive / autocross
     InitHighSpeed(nh);
   }
@@ -64,42 +58,44 @@ PlanningPipelineNode::PlanningPipelineNode(ros::NodeHandle &nh, const std::strin
 // Backend initializers
 // ---------------------------------------------------------------------------
 
-void PlanningPipelineNode::InitLine(ros::NodeHandle &nh)
-{
+void PlanningPipelineNode::InitLine(ros::NodeHandle& nh) {
   // Contract topics are provided by launch; read back for traceability only.
   ros::NodeHandle pnh("~");
   std::string output_topic;
   std::string car_state_topic;
-  pnh.param<std::string>("output_pathlimits_topic", output_topic, autodrive_msgs::topic_contract::kPathLimits);
-  pnh.param<std::string>("input_car_state_topic", car_state_topic, autodrive_msgs::topic_contract::kCarState);
-  ROS_INFO("[PlanningPipeline/line] topics: car_state=%s, pathlimits=%s",
-           car_state_topic.c_str(), output_topic.c_str());
-  
+  pnh.param<std::string>("output_pathlimits_topic", output_topic,
+                         autodrive_msgs::topic_contract::kPathLimits);
+  pnh.param<std::string>("input_car_state_topic", car_state_topic,
+                         autodrive_msgs::topic_contract::kCarState);
+  ROS_INFO("[PlanningPipeline/line] topics: car_state=%s, pathlimits=%s", car_state_topic.c_str(),
+           output_topic.c_str());
+
   line_node_ = std::make_unique<LineDetectionNode>(nh);
 }
 
-void PlanningPipelineNode::InitSkidpad(ros::NodeHandle &nh)
-{
+void PlanningPipelineNode::InitSkidpad(ros::NodeHandle& nh) {
   // Contract topics are provided by launch; read back for traceability only.
   ros::NodeHandle pnh("~");
   std::string output_topic;
   std::string car_state_topic;
   std::string approaching_goal_topic;
-  pnh.param<std::string>("output_pathlimits_topic", output_topic, autodrive_msgs::topic_contract::kPathLimits);
-  pnh.param<std::string>("input_car_state_topic", car_state_topic, autodrive_msgs::topic_contract::kCarState);
+  pnh.param<std::string>("output_pathlimits_topic", output_topic,
+                         autodrive_msgs::topic_contract::kPathLimits);
+  pnh.param<std::string>("input_car_state_topic", car_state_topic,
+                         autodrive_msgs::topic_contract::kCarState);
   pnh.param<std::string>("output_approaching_goal_topic", approaching_goal_topic,
                          autodrive_msgs::topic_contract::kApproachingGoal);
   ROS_INFO("[PlanningPipeline/skidpad] topics: car_state=%s, pathlimits=%s, approaching_goal=%s",
            car_state_topic.c_str(), output_topic.c_str(), approaching_goal_topic.c_str());
-  
+
   skidpad_node_ = std::make_unique<SkidpadDetectionNode>(nh);
 }
 
-void PlanningPipelineNode::InitHighSpeed(ros::NodeHandle &nh)
-{
+void PlanningPipelineNode::InitHighSpeed(ros::NodeHandle& nh) {
   ros::NodeHandle pnh("~");
   std::string car_state_topic;
-  pnh.param<std::string>("input_car_state_topic", car_state_topic, autodrive_msgs::topic_contract::kCarState);
+  pnh.param<std::string>("input_car_state_topic", car_state_topic,
+                         autodrive_msgs::topic_contract::kCarState);
   ROS_INFO("[PlanningPipeline/high_speed] input_pose_topic=%s", car_state_topic.c_str());
 
   pnh.param("wait_full_before_stop", waitFullBeforeStop_, true);
@@ -113,27 +109,26 @@ void PlanningPipelineNode::InitHighSpeed(ros::NodeHandle &nh)
   pnh.param("perf_stats_log_every", perf_log_every_, 30);
 
   hs_perf_.Configure("planning_pipeline/high_speed", perf_enabled_,
-                      static_cast<size_t>(perf_window_),
-                      static_cast<size_t>(perf_log_every_));
+                     static_cast<size_t>(perf_window_), static_cast<size_t>(perf_log_every_));
 
   hs_params_ = std::make_unique<Params>(&nh);
   hs_way_computer_ = std::make_unique<WayComputer>(hs_params_->wayComputer);
 
-  if (enable_internal_viz_side_channel_)
-  {
+  if (enable_internal_viz_side_channel_) {
     hs_viz_ = &Visualization::getInstance();
     hs_viz_->init(&nh, hs_params_->visualization);
-    ROS_WARN("[planning_pipeline/high_speed] Internal visualization side-channel enabled for compatibility.");
-  }
-  else
-  {
+    ROS_WARN(
+        "[planning_pipeline/high_speed] Internal visualization side-channel enabled for "
+        "compatibility.");
+  } else {
     hs_viz_ = nullptr;
-    ROS_INFO("[planning_pipeline/high_speed] Internal visualization side-channel disabled (decoupled mode).");
+    ROS_INFO(
+        "[planning_pipeline/high_speed] Internal visualization side-channel disabled (decoupled "
+        "mode).");
   }
 
   debug_save_way_files_ = hs_params_->main.debug_save_way_files;
-  if (debug_save_way_files_)
-  {
+  if (debug_save_way_files_) {
     TxtClear();
   }
 
@@ -145,8 +140,9 @@ void PlanningPipelineNode::InitHighSpeed(ros::NodeHandle &nh)
 
   hs_sync_ = std::make_unique<message_filters::Synchronizer<SyncPolicy>>(
       SyncPolicy(10), *hs_cone_sub_, *hs_state_sub_);
-  hs_sync_->setMaxIntervalDuration(ros::Duration(0.1)); // 100ms max time difference
-  hs_sync_->registerCallback(boost::bind(&PlanningPipelineNode::HighSpeedSyncCallback, this, _1, _2));
+  hs_sync_->setMaxIntervalDuration(ros::Duration(0.1));  // 100ms max time difference
+  hs_sync_->registerCallback(
+      boost::bind(&PlanningPipelineNode::HighSpeedSyncCallback, this, _1, _2));
 
   ROS_INFO("[planning_pipeline/high_speed] Message synchronizer configured (max_interval=100ms).");
 
@@ -168,13 +164,11 @@ void PlanningPipelineNode::InitHighSpeed(ros::NodeHandle &nh)
 // SpinOnce
 // ---------------------------------------------------------------------------
 
-void PlanningPipelineNode::PublishDiagnostics(const diagnostic_msgs::DiagnosticArray &diag_arr)
-{
+void PlanningPipelineNode::PublishDiagnostics(const diagnostic_msgs::DiagnosticArray& diag_arr) {
   diag_helper_.Publish(diag_arr);
 }
 
-void PlanningPipelineNode::PublishEntryHealth(const ros::Time &stamp, bool force)
-{
+void PlanningPipelineNode::PublishEntryHealth(const ros::Time& stamp, bool force) {
   using DH = autodrive_msgs::DiagnosticsHelper;
 
   uint8_t level = diagnostic_msgs::DiagnosticStatus::OK;
@@ -183,64 +177,56 @@ void PlanningPipelineNode::PublishEntryHealth(const ros::Time &stamp, bool force
   std::vector<diagnostic_msgs::KeyValue> kvs;
   kvs.push_back(DH::KV("mission", mission_));
 
-  if (mission_ == "line" || mission_ == "acceleration")
-  {
+  if (mission_ == "line" || mission_ == "acceleration") {
     kvs.push_back(DH::KV("backend", "line_detection"));
     kvs.push_back(DH::KV("local_tf_valid", "n/a"));
     kvs.push_back(DH::KV("lap_mode", "n/a"));
     kvs.push_back(DH::KV("internal_viz_side_channel", "false"));
-  }
-  else if (mission_ == "skidpad")
-  {
+  } else if (mission_ == "skidpad") {
     kvs.push_back(DH::KV("backend", "skidpad_detection"));
     kvs.push_back(DH::KV("local_tf_valid", "n/a"));
     kvs.push_back(DH::KV("lap_mode", "n/a"));
     kvs.push_back(DH::KV("internal_viz_side_channel", "false"));
-  }
-  else
-  {
+  } else {
     const bool local_tf_valid = hs_way_computer_ && hs_way_computer_->isLocalTfValid();
-    if (!local_tf_valid)
-    {
+    if (!local_tf_valid) {
       level = diagnostic_msgs::DiagnosticStatus::WARN;
       message = "WAITING_CARSTATE";
     }
 
     std::string lap_mode = "MAP_BUILD_SAFE";
-    if (hs_way_computer_ && hs_way_computer_->lapMode() == WayComputer::LapMode::FAST_LAP)
-    {
+    if (hs_way_computer_ && hs_way_computer_->lapMode() == WayComputer::LapMode::FAST_LAP) {
       lap_mode = "FAST_LAP";
     }
 
     kvs.push_back(DH::KV("backend", "high_speed_tracking"));
     kvs.push_back(DH::KV("local_tf_valid", local_tf_valid ? "true" : "false"));
     kvs.push_back(DH::KV("lap_mode", lap_mode));
-    kvs.push_back(DH::KV("loop_closed", (hs_way_computer_ && hs_way_computer_->isLoopClosed()) ? "true" : "false"));
+    kvs.push_back(DH::KV(
+        "loop_closed", (hs_way_computer_ && hs_way_computer_->isLoopClosed()) ? "true" : "false"));
     kvs.push_back(DH::KV("loop_fallback_active", loopFallbackWasActive_ ? "true" : "false"));
     kvs.push_back(DH::KV("inter_times", std::to_string(interTimes_)));
-    kvs.push_back(DH::KV("internal_viz_side_channel", enable_internal_viz_side_channel_ ? "true" : "false"));
+    kvs.push_back(
+        DH::KV("internal_viz_side_channel", enable_internal_viz_side_channel_ ? "true" : "false"));
     // B29: Mission FSM state in entry health
     kvs.push_back(DH::KV("mission_state",
-        planning_core::MissionStateMachine::StateName(mission_fsm_.GetState())));
-    kvs.push_back(DH::KV("mission_state_frames",
-        std::to_string(mission_fsm_.FramesInCurrentState())));
+                         planning_core::MissionStateMachine::StateName(mission_fsm_.GetState())));
+    kvs.push_back(
+        DH::KV("mission_state_frames", std::to_string(mission_fsm_.FramesInCurrentState())));
   }
 
-  diag_helper_.PublishStatus("planning_entry_health", "planning_ros/planning_pipeline",
-                             level, message, kvs, stamp, force);
+  diag_helper_.PublishStatus("planning_entry_health", "planning_ros/planning_pipeline", level,
+                             message, kvs, stamp, force);
 }
 
-bool PlanningPipelineNode::SpinOnce()
-{
+bool PlanningPipelineNode::SpinOnce() {
   PublishEntryHealth(ros::Time::now(), false);
 
-  if (mission_ == "line" || mission_ == "acceleration")
-  {
+  if (mission_ == "line" || mission_ == "acceleration") {
     line_node_->RunOnce();
     return line_node_->IsFinished();
   }
-  if (mission_ == "skidpad")
-  {
+  if (mission_ == "skidpad") {
     skidpad_node_->RunOnce();
     return false;
   }
@@ -253,46 +239,43 @@ bool PlanningPipelineNode::SpinOnce()
 // ---------------------------------------------------------------------------
 
 void PlanningPipelineNode::HighSpeedSyncCallback(
-    const autodrive_msgs::HUAT_ConeMap::ConstPtr &cone_msg,
-    const autodrive_msgs::HUAT_CarState::ConstPtr &state_msg)
-{
+    const autodrive_msgs::HUAT_ConeMap::ConstPtr& cone_msg,
+    const autodrive_msgs::HUAT_CarState::ConstPtr& state_msg) {
   const ros::Time diag_stamp = contract::NormalizeInputStamp(cone_msg->header.stamp);
 
   // B2: Update car state from synchronized message
   hs_way_computer_->stateCallback(state_msg);
 
-  if (!hs_params_ || !hs_way_computer_ || !hs_way_computer_->isLocalTfValid())
-  {
+  if (!hs_params_ || !hs_way_computer_ || !hs_way_computer_->isLocalTfValid()) {
     PublishEntryHealth(diag_stamp, false);
     ROS_WARN("[planning_pipeline/high_speed] CarState not received or wayComputer invalid.");
     return;
   }
-  if (cone_msg->cone.empty())
-  {
+  if (cone_msg->cone.empty()) {
     PublishEntryHealth(diag_stamp, false);
     ROS_WARN("[planning_pipeline/high_speed] Empty cone set.");
     return;
   }
 
   constexpr size_t kMaxCones = 2000;
-  if (cone_msg->cone.size() > kMaxCones)
-  {
-    ROS_WARN_THROTTLE(1.0, "[planning_pipeline/high_speed] Cone count %zu exceeds limit %zu, truncating.",
-                      cone_msg->cone.size(), kMaxCones);
+  if (cone_msg->cone.size() > kMaxCones) {
+    ROS_WARN_THROTTLE(
+        1.0, "[planning_pipeline/high_speed] Cone count %zu exceeds limit %zu, truncating.",
+        cone_msg->cone.size(), kMaxCones);
   }
 
   // B2: Check timestamp synchronization quality
   const double time_diff = std::abs((cone_msg->header.stamp - state_msg->header.stamp).toSec());
-  if (time_diff > 0.1)
-  {
-    ROS_WARN_THROTTLE(1.0, "[planning_pipeline/high_speed] Large time difference between cone and state: %.3f sec",
-                      time_diff);
+  if (time_diff > 0.1) {
+    ROS_WARN_THROTTLE(
+        1.0,
+        "[planning_pipeline/high_speed] Large time difference between cone and state: %.3f sec",
+        time_diff);
     ++sync_failure_count_;
   }
 
   static ros::Time last_stamp;
-  if (last_stamp.isValid() && cone_msg->header.stamp < last_stamp)
-  {
+  if (last_stamp.isValid() && cone_msg->header.stamp < last_stamp) {
     ROS_WARN_THROTTLE(1.0, "[planning_pipeline/high_speed] Stamp regression: %.3f -> %.3f",
                       last_stamp.toSec(), cone_msg->header.stamp.toSec());
   }
@@ -304,60 +287,54 @@ void PlanningPipelineNode::HighSpeedSyncCallback(
   // Filter cones by confidence
   std::vector<Node> nodes;
   nodes.reserve(cone_msg->cone.size());
-  for (const autodrive_msgs::HUAT_Cone &c : cone_msg->cone)
-  {
+  for (const autodrive_msgs::HUAT_Cone& c : cone_msg->cone) {
     const double base_min = hs_params_->main.min_cone_confidence;
     double required_min = base_min;
-    const auto &p = c.position_baseLink;
+    const auto& p = c.position_baseLink;
     const double dist = std::hypot(static_cast<double>(p.x), static_cast<double>(p.y));
     if (static_cast<double>(p.x) >= 0.0 &&
         dist >= hs_params_->main.far_front_center_dist_threshold &&
-        std::abs(static_cast<double>(p.y)) <= hs_params_->main.far_front_center_abs_y_threshold)
-    {
+        std::abs(static_cast<double>(p.y)) <= hs_params_->main.far_front_center_abs_y_threshold) {
+      required_min = std::max(
+          required_min, static_cast<double>(hs_params_->main.min_cone_confidence_far_front_center));
+    }
+    if (static_cast<double>(p.x) >= 0.0 && dist >= hs_params_->main.far_side_dist_threshold &&
+        std::abs(static_cast<double>(p.y)) > hs_params_->main.far_side_abs_y_threshold) {
       required_min = std::max(required_min,
-                              static_cast<double>(hs_params_->main.min_cone_confidence_far_front_center));
+                              static_cast<double>(hs_params_->main.min_cone_confidence_far_side));
     }
-    if (static_cast<double>(p.x) >= 0.0 &&
-        dist >= hs_params_->main.far_side_dist_threshold &&
-        std::abs(static_cast<double>(p.y)) > hs_params_->main.far_side_abs_y_threshold)
-    {
-      required_min = std::max(required_min, static_cast<double>(hs_params_->main.min_cone_confidence_far_side));
-    }
-    if (static_cast<double>(p.x) >= 0.0 &&
-        dist >= hs_params_->main.far_side_dist_threshold &&
-        std::abs(static_cast<double>(p.y)) > hs_params_->main.far_side_abs_y_strict_threshold)
-    {
-      required_min = std::max(required_min, static_cast<double>(hs_params_->main.min_cone_confidence_far_side_strict));
+    if (static_cast<double>(p.x) >= 0.0 && dist >= hs_params_->main.far_side_dist_threshold &&
+        std::abs(static_cast<double>(p.y)) > hs_params_->main.far_side_abs_y_strict_threshold) {
+      required_min = std::max(
+          required_min, static_cast<double>(hs_params_->main.min_cone_confidence_far_side_strict));
     }
 
     if (hs_params_->main.cone_geom_filter_enable) {
-      const bool front_ok = !hs_params_->main.cone_geom_filter_front_only || static_cast<double>(p.x) >= 0.0;
-      if (front_ok &&
-          dist >= hs_params_->main.cone_geom_filter_dist_th &&
+      const bool front_ok =
+          !hs_params_->main.cone_geom_filter_front_only || static_cast<double>(p.x) >= 0.0;
+      if (front_ok && dist >= hs_params_->main.cone_geom_filter_dist_th &&
           std::abs(static_cast<double>(p.y)) > hs_params_->main.cone_geom_filter_abs_y_max) {
         continue;
       }
     }
 
-    if (contract::DecodeConeConfidenceScore(c.confidence) >= required_min)
-    {
-      if (c.type > 5)
-      {
-        ROS_WARN_ONCE("[planning_pipeline/high_speed] Cone type %u out of range [0..5], treating as NONE.", c.type);
+    if (contract::DecodeConeConfidenceScore(c.confidence) >= required_min) {
+      if (c.type > 5) {
+        ROS_WARN_ONCE(
+            "[planning_pipeline/high_speed] Cone type %u out of range [0..5], treating as NONE.",
+            c.type);
       }
       nodes.emplace_back(c);
     }
   }
-  if (nodes.empty())
-  {
-    ROS_WARN_THROTTLE(1.0,
-        "[planning_pipeline/high_speed] No cones passed confidence filter (min=%.3f).",
+  if (nodes.empty()) {
+    ROS_WARN_THROTTLE(
+        1.0, "[planning_pipeline/high_speed] No cones passed confidence filter (min=%.3f).",
         hs_params_->main.min_cone_confidence);
     return;
   }
 
-  for (const Node &n : nodes)
-  {
+  for (const Node& n : nodes) {
     n.updateLocal(hs_way_computer_->getLocalTf());
   }
 
@@ -373,8 +350,7 @@ void PlanningPipelineNode::HighSpeedSyncCallback(
 
   const bool finish_reached = HighSpeedFinishCheck();
 
-  if (hs_viz_)
-  {
+  if (hs_viz_) {
     hs_viz_->setTimestamp(diag_stamp);
     hs_viz_->visualize(hs_way_computer_->lastFilteredTriangulation());
     hs_viz_->visualize(hs_way_computer_->lastFilteredEdges());
@@ -394,13 +370,12 @@ void PlanningPipelineNode::HighSpeedSyncCallback(
       enableLoopFallbackByLapCounter_ && (interTimes_ >= std::max(1, loopFallbackMinLaps_));
   const bool loop_fallback_active_now = (!loop_closed_raw && loop_closed_fallback);
 
-  if (loop_fallback_active_now && !loopFallbackWasActive_)
-  {
-    ROS_WARN("[planning_pipeline/high_speed] Loop-closure fallback activated (interTimes=%d, threshold=%d).",
-             interTimes_, std::max(1, loopFallbackMinLaps_));
-  }
-  else if (!loop_fallback_active_now && loopFallbackWasActive_)
-  {
+  if (loop_fallback_active_now && !loopFallbackWasActive_) {
+    ROS_WARN(
+        "[planning_pipeline/high_speed] Loop-closure fallback activated (interTimes=%d, "
+        "threshold=%d).",
+        interTimes_, std::max(1, loopFallbackMinLaps_));
+  } else if (!loop_fallback_active_now && loopFallbackWasActive_) {
     ROS_INFO("[planning_pipeline/high_speed] Loop-closure fallback cleared.");
   }
   loopFallbackWasActive_ = loop_fallback_active_now;
@@ -414,18 +389,15 @@ void PlanningPipelineNode::HighSpeedSyncCallback(
     fsm_in.lap_count = interTimes_;
     fsm_in.full_path_published = fullPathPublishedOnce_;
     fsm_in.stop_requested = finish_reached;
-    if (mission_fsm_.Update(fsm_in))
-    {
+    if (mission_fsm_.Update(fsm_in)) {
       ROS_INFO("[planning_pipeline] Mission FSM: %s (frame %d)",
                planning_core::MissionStateMachine::StateName(mission_fsm_.GetState()),
                mission_fsm_.TotalFrames());
     }
   }
 
-  if (loop_closed_for_publish)
-  {
-    if (!wasLoopClosed_)
-    {
+  if (loop_closed_for_publish) {
+    if (!wasLoopClosed_) {
       ROS_INFO("[planning_pipeline/high_speed] Enter FAST_LAP: publishing full path.");
     }
     autodrive_msgs::HUAT_PathLimits full_msg =
@@ -435,44 +407,43 @@ void PlanningPipelineNode::HighSpeedSyncCallback(
     std::string quality_warning;
     int curv_violations = 0;
     double max_curv = 0.0;
-    if (!planning_ros::contract::ValidatePathQuality(full_msg, &quality_warning, &curv_violations, &max_curv, 5, 1.08))
-    {
-      ROS_WARN_THROTTLE(1.0, "[planning_pipeline/high_speed] Path quality issues: %s", quality_warning.c_str());
+    if (!planning_ros::contract::ValidatePathQuality(full_msg, &quality_warning, &curv_violations,
+                                                     &max_curv, 5, 1.08)) {
+      ROS_WARN_THROTTLE(1.0, "[planning_pipeline/high_speed] Path quality issues: %s",
+                        quality_warning.c_str());
       path_quality_violation_count_++;
     }
 
     // B14: Set replan flag — true if path changed or loop-closure state changed
     {
       double checksum = 0.0;
-      for (const auto &pt : full_msg.path) { checksum += pt.x + pt.y; }
+      for (const auto& pt : full_msg.path) {
+        checksum += pt.x + pt.y;
+      }
       const bool loop_state_changed = (loop_closed_for_publish != last_path_was_loop_closed_);
       full_msg.replan = (checksum != last_path_checksum_) || loop_state_changed;
       last_path_checksum_ = checksum;
       last_path_was_loop_closed_ = loop_closed_for_publish;
     }
 
-    if (debug_save_way_files_) DoWayFullMsg(full_msg);
+    if (debug_save_way_files_)
+      DoWayFullMsg(full_msg);
     pathlimits_pub_.publish(full_msg);
     bytes_pub += ros::serialization::serializationLength(full_msg);
     fullPathPublishedOnce_ = true;
     finishGraceCount_ = 0;
     wasLoopClosed_ = true;
-    if (debug_save_way_files_)
-    {
+    if (debug_save_way_files_) {
       std::string loopDir = hs_params_->main.package_path + "/loops";
       mkdir(loopDir.c_str(), 0777);
       hs_way_computer_->writeWayToFile(loopDir + "/loop.unay");
     }
-    if (hs_params_->main.shutdown_on_loop_closure)
-    {
+    if (hs_params_->main.shutdown_on_loop_closure) {
       ros::shutdown();
       return;
     }
-  }
-  else
-  {
-    if (wasLoopClosed_)
-    {
+  } else {
+    if (wasLoopClosed_) {
       ROS_WARN_THROTTLE(1.0, "[planning_pipeline/high_speed] FAST_LAP lost. Fallback to SAFE_LAP.");
     }
     autodrive_msgs::HUAT_PathLimits partial_msg =
@@ -482,23 +453,27 @@ void PlanningPipelineNode::HighSpeedSyncCallback(
     std::string quality_warning;
     int curv_violations = 0;
     double max_curv = 0.0;
-    if (!planning_ros::contract::ValidatePathQuality(partial_msg, &quality_warning, &curv_violations, &max_curv, 10, 1.5))
-    {
-      ROS_WARN_THROTTLE(1.0, "[planning_pipeline/high_speed] Path quality issues: %s", quality_warning.c_str());
+    if (!planning_ros::contract::ValidatePathQuality(partial_msg, &quality_warning,
+                                                     &curv_violations, &max_curv, 10, 1.5)) {
+      ROS_WARN_THROTTLE(1.0, "[planning_pipeline/high_speed] Path quality issues: %s",
+                        quality_warning.c_str());
       path_quality_violation_count_++;
     }
 
     // B14: Set replan flag — true if path changed or loop-closure state changed
     {
       double checksum = 0.0;
-      for (const auto &pt : partial_msg.path) { checksum += pt.x + pt.y; }
+      for (const auto& pt : partial_msg.path) {
+        checksum += pt.x + pt.y;
+      }
       const bool loop_state_changed = (loop_closed_for_publish != last_path_was_loop_closed_);
       partial_msg.replan = (checksum != last_path_checksum_) || loop_state_changed;
       last_path_checksum_ = checksum;
       last_path_was_loop_closed_ = loop_closed_for_publish;
     }
 
-    if (debug_save_way_files_) DoWayMsg(partial_msg);
+    if (debug_save_way_files_)
+      DoWayMsg(partial_msg);
     pathlimits_pub_.publish(partial_msg);
     bytes_pub += ros::serialization::serializationLength(partial_msg);
     wasLoopClosed_ = false;
@@ -517,7 +492,7 @@ void PlanningPipelineNode::HighSpeedSyncCallback(
     const char* mode_str = loop_closed_for_publish ? "FAST_LAP" : "MAP_BUILD_SAFE";
     ds.message = mode_str;
 
-    auto kv = [](const std::string &k, const std::string &v) {
+    auto kv = [](const std::string& k, const std::string& v) {
       diagnostic_msgs::KeyValue pair;
       pair.key = k;
       pair.value = v;
@@ -529,7 +504,7 @@ void PlanningPipelineNode::HighSpeedSyncCallback(
     ds.values.push_back(kv("inter_times", std::to_string(interTimes_)));
     // B29: Mission FSM state in per-callback diagnostics
     ds.values.push_back(kv("mission_state",
-        planning_core::MissionStateMachine::StateName(mission_fsm_.GetState())));
+                           planning_core::MissionStateMachine::StateName(mission_fsm_.GetState())));
 
     diag_arr.status.push_back(ds);
     PublishDiagnostics(diag_arr);
@@ -537,19 +512,16 @@ void PlanningPipelineNode::HighSpeedSyncCallback(
   PublishEntryHealth(diag_stamp, false);
 
   // Finish handling
-  if (finish_reached)
-  {
+  if (finish_reached) {
     if (waitFullBeforeStop_ && !fullPathPublishedOnce_ &&
-        finishGraceCount_ < std::max(0, finishGraceFrames_))
-    {
+        finishGraceCount_ < std::max(0, finishGraceFrames_)) {
       ++finishGraceCount_;
-      ROS_WARN_THROTTLE(1.0,
+      ROS_WARN_THROTTLE(
+          1.0,
           "[planning_pipeline/high_speed] Finish reached but full path not published. "
           "Delaying stop (%d/%d).",
           finishGraceCount_, finishGraceFrames_);
-    }
-    else
-    {
+    } else {
       autodrive_msgs::HUAT_Stop msg;
       msg.stop = true;
       hs_stop_pub_.publish(msg);
@@ -577,18 +549,14 @@ void PlanningPipelineNode::HighSpeedSyncCallback(
 // High-speed finish check (migrated from main.cpp::finish())
 // ---------------------------------------------------------------------------
 
-bool PlanningPipelineNode::HighSpeedFinishCheck()
-{
-  if (!inter_ &&
-      std::abs(hs_way_computer_->getCarState().car_state.x) < finish_zone_x_threshold_ &&
-      std::abs(hs_way_computer_->getCarState().car_state.y) < finish_zone_y_threshold_)
-  {
+bool PlanningPipelineNode::HighSpeedFinishCheck() {
+  if (!inter_ && std::abs(hs_way_computer_->getCarState().car_state.x) < finish_zone_x_threshold_ &&
+      std::abs(hs_way_computer_->getCarState().car_state.y) < finish_zone_y_threshold_) {
     inter_ = true;
     ROS_INFO("[planning_pipeline/high_speed] Entered finish zone.");
   }
-  if (std::abs(hs_way_computer_->getCarState().car_state.y) < finish_zone_y_threshold_ &&
-      inter_ && hs_way_computer_->getCarState().car_state.x > finish_zone_x_threshold_)
-  {
+  if (std::abs(hs_way_computer_->getCarState().car_state.y) < finish_zone_y_threshold_ && inter_ &&
+      hs_way_computer_->getCarState().car_state.x > finish_zone_x_threshold_) {
     inter_ = false;
     interTimes_++;
     ROS_INFO("[planning_pipeline/high_speed] Starting lap %d.", interTimes_);
@@ -600,8 +568,7 @@ bool PlanningPipelineNode::HighSpeedFinishCheck()
 // Debug file helpers (migrated from main.cpp)
 // ---------------------------------------------------------------------------
 
-void PlanningPipelineNode::TxtClear()
-{
+void PlanningPipelineNode::TxtClear() {
   std::string dir = ros::package::getPath("planning_ros") + "/testData";
   mkdir(dir.c_str(), 0777);
   std::ofstream f1(dir + "/wayPartial.txt", std::ios::out | std::ios::trunc);
@@ -610,22 +577,22 @@ void PlanningPipelineNode::TxtClear()
   f2.close();
 }
 
-void PlanningPipelineNode::DoWayMsg(const autodrive_msgs::HUAT_PathLimits &msgs)
-{
+void PlanningPipelineNode::DoWayMsg(const autodrive_msgs::HUAT_PathLimits& msgs) {
   std::string path = ros::package::getPath("planning_ros") + "/testData/wayPartial.txt";
   std::ofstream f(path.c_str(), std::ios_base::app);
-  if (f.fail() || msgs.path.empty()) return;
+  if (f.fail() || msgs.path.empty())
+    return;
   std::stringstream ss;
   for (size_t i = 0; i < msgs.path.size(); i++)
     ss << msgs.path[i].x << "\t" << msgs.path[i].y << "\t" << std::endl;
   f << ss.str();
 }
 
-void PlanningPipelineNode::DoWayFullMsg(const autodrive_msgs::HUAT_PathLimits &msgs)
-{
+void PlanningPipelineNode::DoWayFullMsg(const autodrive_msgs::HUAT_PathLimits& msgs) {
   std::string path = ros::package::getPath("planning_ros") + "/testData/wayFull.txt";
   std::ofstream f(path.c_str(), std::ios_base::app);
-  if (f.fail() || msgs.path.empty()) return;
+  if (f.fail() || msgs.path.empty())
+    return;
   std::stringstream ss;
   for (size_t i = 0; i < msgs.path.size(); i++)
     ss << msgs.path[i].x << "\t" << msgs.path[i].y << "\t" << std::endl;
@@ -633,4 +600,4 @@ void PlanningPipelineNode::DoWayFullMsg(const autodrive_msgs::HUAT_PathLimits &m
   f << "************************************\n";
 }
 
-} // namespace planning_ros
+}  // namespace planning_ros

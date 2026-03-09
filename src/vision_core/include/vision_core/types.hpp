@@ -18,18 +18,13 @@ enum ConeColorType : uint8_t {
 };
 
 struct Detection {
-  float x, y, w, h;        // bbox center + size (pixels)
-  float confidence;         // 0.0 ~ 1.0
-  uint8_t class_id;         // model class index (0-4)
-  uint8_t color_type;       // mapped ConeColorType
+  float x, y, w, h;    // bbox center + size (pixels)
+  float confidence;    // 0.0 ~ 1.0
+  uint8_t class_id;    // model class index (0-4)
+  uint8_t color_type;  // mapped ConeColorType
 };
 
-enum class ImageQuality : uint8_t {
-  GOOD = 0,
-  DEGRADED = 1,
-  POOR = 2,
-  UNUSABLE = 3
-};
+enum class ImageQuality : uint8_t { GOOD = 0, DEGRADED = 1, POOR = 2, UNUSABLE = 3 };
 
 struct QualityMetrics {
   float blur_score;
@@ -51,8 +46,8 @@ inline ConeColorType modelClassToColorType(uint8_t cls) {
 // Optional model-specific remap: class_id -> ConeColorType enum value.
 // Example for classes [red, blue, yellow_small]: [3, 0, 1].
 // Note: Max valid enum value is now 4 (NONE), previously was 5 (RED at old value).
-inline ConeColorType modelClassToColorType(
-    uint8_t cls, const std::vector<uint8_t>& class_to_color_map) {
+inline ConeColorType modelClassToColorType(uint8_t cls,
+                                           const std::vector<uint8_t>& class_to_color_map) {
   if (!class_to_color_map.empty()) {
     if (cls < class_to_color_map.size()) {
       const auto mapped = class_to_color_map[cls];

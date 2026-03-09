@@ -2,8 +2,7 @@
 
 #include <ros/ros.h>
 
-int main(int argc, char **argv)
-{
+int main(int argc, char** argv) {
   ros::init(argc, argv, "planning_pipeline");
   ros::NodeHandle nh;
   ros::NodeHandle pnh("~");
@@ -17,11 +16,9 @@ int main(int argc, char **argv)
   pnh.param("loop_rate", rate, 20);
   ros::Rate loop_rate(rate);
 
-  while (ros::ok())
-  {
+  while (ros::ok()) {
     ros::spinOnce();
-    if (node.SpinOnce())
-    {
+    if (node.SpinOnce()) {
       ros::Duration(2.0).sleep();
       ros::shutdown();
       break;

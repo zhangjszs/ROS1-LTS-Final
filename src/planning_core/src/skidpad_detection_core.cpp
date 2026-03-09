@@ -5,14 +5,11 @@
 #include <limits>
 #include <random>
 
-namespace planning_core
-{
-namespace
-{
+namespace planning_core {
+namespace {
 constexpr double kTwoPi = 2.0 * M_PI;
 
-Pose MakePose(double x, double y)
-{
+Pose MakePose(double x, double y) {
   Pose pose;
   pose.x = x;
   pose.y = y;
@@ -23,84 +20,73 @@ Pose MakePose(double x, double y)
   pose.qw = 1.0;
   return pose;
 }
-} // namespace
+}  // namespace
 
-SkidpadDetectionCore::SkidpadDetectionCore(const SkidpadParams &params)
-    : skidpad_msg_ptr_(new pcl::PointCloud<pcl::PointXYZ>())
-{
+SkidpadDetectionCore::SkidpadDetectionCore(const SkidpadParams& params)
+    : skidpad_msg_ptr_(new pcl::PointCloud<pcl::PointXYZ>()) {
   SetParams(params);
 }
 
-void SkidpadDetectionCore::SetParams(const SkidpadParams &params)
-{
+void SkidpadDetectionCore::SetParams(const SkidpadParams& params) {
   params_ = params;
 }
 
-std::string SkidpadDetectionCore::GetPhaseName() const
-{
-  switch (phase_)
-  {
-  case SkidpadPhase::ENTRY:
-    return "ENTRY";
-  case SkidpadPhase::RIGHT_WARMUP:
-    return "RIGHT_WARMUP";
-  case SkidpadPhase::RIGHT_TIMED:
-    return "RIGHT_TIMED";
-  case SkidpadPhase::CROSSOVER:
-    return "CROSSOVER";
-  case SkidpadPhase::LEFT_WARMUP:
-    return "LEFT_WARMUP";
-  case SkidpadPhase::LEFT_TIMED:
-    return "LEFT_TIMED";
-  case SkidpadPhase::EXIT:
-    return "EXIT";
-  default:
-    return "UNKNOWN";
+std::string SkidpadDetectionCore::GetPhaseName() const {
+  switch (phase_) {
+    case SkidpadPhase::ENTRY:
+      return "ENTRY";
+    case SkidpadPhase::RIGHT_WARMUP:
+      return "RIGHT_WARMUP";
+    case SkidpadPhase::RIGHT_TIMED:
+      return "RIGHT_TIMED";
+    case SkidpadPhase::CROSSOVER:
+      return "CROSSOVER";
+    case SkidpadPhase::LEFT_WARMUP:
+      return "LEFT_WARMUP";
+    case SkidpadPhase::LEFT_TIMED:
+      return "LEFT_TIMED";
+    case SkidpadPhase::EXIT:
+      return "EXIT";
+    default:
+      return "UNKNOWN";
   }
 }
 
-double SkidpadDetectionCore::GetRecommendedSpeedCap() const
-{
-  switch (phase_)
-  {
-  case SkidpadPhase::ENTRY:
-    return std::max(0.0, params_.speed_entry);
-  case SkidpadPhase::RIGHT_WARMUP:
-  case SkidpadPhase::LEFT_WARMUP:
-    return std::max(0.0, params_.speed_warmup);
-  case SkidpadPhase::RIGHT_TIMED:
-  case SkidpadPhase::LEFT_TIMED:
-    return std::max(0.0, params_.speed_timed);
-  case SkidpadPhase::CROSSOVER:
-    return std::max(0.0, params_.speed_crossover);
-  case SkidpadPhase::EXIT:
-    return std::max(0.0, params_.speed_exit);
-  default:
-    return std::max(0.0, params_.speed_entry);
+double SkidpadDetectionCore::GetRecommendedSpeedCap() const {
+  switch (phase_) {
+    case SkidpadPhase::ENTRY:
+      return std::max(0.0, params_.speed_entry);
+    case SkidpadPhase::RIGHT_WARMUP:
+    case SkidpadPhase::LEFT_WARMUP:
+      return std::max(0.0, params_.speed_warmup);
+    case SkidpadPhase::RIGHT_TIMED:
+    case SkidpadPhase::LEFT_TIMED:
+      return std::max(0.0, params_.speed_timed);
+    case SkidpadPhase::CROSSOVER:
+      return std::max(0.0, params_.speed_crossover);
+    case SkidpadPhase::EXIT:
+      return std::max(0.0, params_.speed_exit);
+    default:
+      return std::max(0.0, params_.speed_entry);
   }
 }
 
-void SkidpadDetectionCore::ProcessConeDetections(const std::vector<ConePoint> &cones)
-{
+void SkidpadDetectionCore::ProcessConeDetections(const std::vector<ConePoint>& cones) {
   skidpad_msg_ptr_->clear();
   cones_local_.clear();
   cone_colors_local_.clear();
   cones_local_.reserve(cones.size());
   cone_colors_local_.reserve(cones.size());
 
-  for (const auto &point : cones)
-  {
-    if (!std::isfinite(point.x) || !std::isfinite(point.y) || !std::isfinite(point.z))
-    {
+  for (const auto& point : cones) {
+    if (!std::isfinite(point.x) || !std::isfinite(point.y) || !std::isfinite(point.z)) {
       continue;
     }
     // Inline passthrough filter (same logic as PCL PassThrough)
-    if (point.x < params_.passthrough_x_min || point.x > params_.passthrough_x_max)
-    {
+    if (point.x < params_.passthrough_x_min || point.x > params_.passthrough_x_max) {
       continue;
     }
-    if (point.y < params_.passthrough_y_min || point.y > params_.passthrough_y_max)
-    {
+    if (point.y < params_.passthrough_y_min || point.y > params_.passthrough_y_max) {
       continue;
     }
     cones_local_.emplace_back(point.x, point.y);
@@ -108,13 +94,11 @@ void SkidpadDetectionCore::ProcessConeDetections(const std::vector<ConePoint> &c
   }
 }
 
-void SkidpadDetectionCore::UpdateVehicleState(const Trajectory &state)
-{
+void SkidpadDetectionCore::UpdateVehicleState(const Trajectory& state) {
   current_pose_ = state;
 }
 
-void SkidpadDetectionCore::PassThrough(pcl::PointCloud<pcl::PointXYZ>::Ptr &in_ptr)
-{
+void SkidpadDetectionCore::PassThrough(pcl::PointCloud<pcl::PointXYZ>::Ptr& in_ptr) {
   pcl::PassThrough<pcl::PointXYZ> pass;
   pass.setInputCloud(in_ptr);
   pass.setFilterFieldName("x");
@@ -126,15 +110,12 @@ void SkidpadDetectionCore::PassThrough(pcl::PointCloud<pcl::PointXYZ>::Ptr &in_p
   pass.filter(*in_ptr);
 }
 
-bool SkidpadDetectionCore::CircleFromThreePoints(const Eigen::Vector2d &a,
-                                                 const Eigen::Vector2d &b,
-                                                 const Eigen::Vector2d &c,
-                                                 Eigen::Vector2d *center,
-                                                 double *radius)
-{
-  const double d = 2.0 * (a.x() * (b.y() - c.y()) + b.x() * (c.y() - a.y()) + c.x() * (a.y() - b.y()));
-  if (std::abs(d) < 1e-8)
-  {
+bool SkidpadDetectionCore::CircleFromThreePoints(const Eigen::Vector2d& a, const Eigen::Vector2d& b,
+                                                 const Eigen::Vector2d& c, Eigen::Vector2d* center,
+                                                 double* radius) {
+  const double d =
+      2.0 * (a.x() * (b.y() - c.y()) + b.x() * (c.y() - a.y()) + c.x() * (a.y() - b.y()));
+  if (std::abs(d) < 1e-8) {
     return false;
   }
 
@@ -151,10 +132,9 @@ bool SkidpadDetectionCore::CircleFromThreePoints(const Eigen::Vector2d &a,
   return std::isfinite(*radius) && *radius > 1e-6;
 }
 
-bool SkidpadDetectionCore::FitCircleRansac(const std::vector<Eigen::Vector2d> &points, CircleModel *model) const
-{
-  if (!model || points.size() < 3)
-  {
+bool SkidpadDetectionCore::FitCircleRansac(const std::vector<Eigen::Vector2d>& points,
+                                           CircleModel* model) const {
+  if (!model || points.size() < 3) {
     return false;
   }
 
@@ -171,50 +151,42 @@ bool SkidpadDetectionCore::FitCircleRansac(const std::vector<Eigen::Vector2d> &p
   std::vector<int> best_inliers;
   double best_score = std::numeric_limits<double>::infinity();
 
-  for (int it = 0; it < iterations; ++it)
-  {
+  for (int it = 0; it < iterations; ++it) {
     int i0 = dist(rng);
     int i1 = dist(rng);
     int i2 = dist(rng);
-    if (i0 == i1 || i0 == i2 || i1 == i2)
-    {
+    if (i0 == i1 || i0 == i2 || i1 == i2) {
       continue;
     }
 
     Eigen::Vector2d center;
     double radius = 0.0;
-    if (!CircleFromThreePoints(points[i0], points[i1], points[i2], &center, &radius))
-    {
+    if (!CircleFromThreePoints(points[i0], points[i1], points[i2], &center, &radius)) {
       continue;
     }
-    if (radius < r_min || radius > r_max)
-    {
+    if (radius < r_min || radius > r_max) {
       continue;
     }
 
     std::vector<int> inliers;
     inliers.reserve(points.size());
     double residual_sum = 0.0;
-    for (size_t i = 0; i < points.size(); ++i)
-    {
+    for (size_t i = 0; i < points.size(); ++i) {
       const double err = std::abs((points[i] - center).norm() - radius);
-      if (err <= inlier_thr)
-      {
+      if (err <= inlier_thr) {
         inliers.push_back(static_cast<int>(i));
         residual_sum += err;
       }
     }
 
-    if (static_cast<int>(inliers.size()) < min_inliers)
-    {
+    if (static_cast<int>(inliers.size()) < min_inliers) {
       continue;
     }
 
     const double score = residual_sum / static_cast<double>(std::max<size_t>(1, inliers.size()));
     const bool better = inliers.size() > best_inliers.size() ||
                         (inliers.size() == best_inliers.size() && score < best_score);
-    if (better)
-    {
+    if (better) {
       best_inliers = inliers;
       best_score = score;
       best.center = center;
@@ -224,17 +196,15 @@ bool SkidpadDetectionCore::FitCircleRansac(const std::vector<Eigen::Vector2d> &p
     }
   }
 
-  if (!best.valid || best.inliers < min_inliers)
-  {
+  if (!best.valid || best.inliers < min_inliers) {
     return false;
   }
 
   // Least-squares refinement on inliers.
   Eigen::MatrixXd A(best.inliers, 3);
   Eigen::VectorXd b(best.inliers);
-  for (int r = 0; r < best.inliers; ++r)
-  {
-    const Eigen::Vector2d &p = points[best_inliers[static_cast<size_t>(r)]];
+  for (int r = 0; r < best.inliers; ++r) {
+    const Eigen::Vector2d& p = points[best_inliers[static_cast<size_t>(r)]];
     A(r, 0) = p.x();
     A(r, 1) = p.y();
     A(r, 2) = 1.0;
@@ -246,8 +216,7 @@ bool SkidpadDetectionCore::FitCircleRansac(const std::vector<Eigen::Vector2d> &p
   const double refined_r2 = sol(2) + refined_center.squaredNorm();
   const double refined_radius = (refined_r2 > 0.0) ? std::sqrt(refined_r2) : best.radius;
 
-  if (std::isfinite(refined_radius) && refined_radius >= r_min && refined_radius <= r_max)
-  {
+  if (std::isfinite(refined_radius) && refined_radius >= r_min && refined_radius <= r_max) {
     best.center = refined_center;
     best.radius = refined_radius;
   }
@@ -256,8 +225,7 @@ bool SkidpadDetectionCore::FitCircleRansac(const std::vector<Eigen::Vector2d> &p
   return true;
 }
 
-Eigen::Vector2d SkidpadDetectionCore::LocalToWorld(const Eigen::Vector2d &local) const
-{
+Eigen::Vector2d SkidpadDetectionCore::LocalToWorld(const Eigen::Vector2d& local) const {
   const double c = std::cos(current_pose_.yaw);
   const double s = std::sin(current_pose_.yaw);
   const double wx = c * local.x() - s * local.y() + current_pose_.x;
@@ -265,15 +233,12 @@ Eigen::Vector2d SkidpadDetectionCore::LocalToWorld(const Eigen::Vector2d &local)
   return Eigen::Vector2d(wx, wy);
 }
 
-Eigen::Vector2d SkidpadDetectionCore::CurrentWorldPosition() const
-{
+Eigen::Vector2d SkidpadDetectionCore::CurrentWorldPosition() const {
   return Eigen::Vector2d(current_pose_.x, current_pose_.y);
 }
 
-bool SkidpadDetectionCore::EstimateGeometry(GeometryModel *geometry)
-{
-  if (!geometry)
-  {
+bool SkidpadDetectionCore::EstimateGeometry(GeometryModel* geometry) {
+  if (!geometry) {
     return false;
   }
 
@@ -282,28 +247,22 @@ bool SkidpadDetectionCore::EstimateGeometry(GeometryModel *geometry)
   right_pts.reserve(cones_local_.size());
   left_pts.reserve(cones_local_.size());
 
-  for (size_t i = 0; i < cones_local_.size(); ++i)
-  {
-    const Eigen::Vector2d &p = cones_local_[i];
+  for (size_t i = 0; i < cones_local_.size(); ++i) {
+    const Eigen::Vector2d& p = cones_local_[i];
     const uint8_t color = (i < cone_colors_local_.size()) ? cone_colors_local_[i] : 4;
 
     if (color == 0)  // BLUE = right boundary
     {
       right_pts.push_back(p);
-    }
-    else if (color == 1 || color == 2 || color == 3)  // YELLOW_SMALL, YELLOW_BIG, or RED = left boundary
+    } else if (color == 1 || color == 2 ||
+               color == 3)  // YELLOW_SMALL, YELLOW_BIG, or RED = left boundary
     {
       left_pts.push_back(p);
-    }
-    else
-    {
+    } else {
       // NONE: fall back to geometric split
-      if (p.y() < 0.0)
-      {
+      if (p.y() < 0.0) {
         right_pts.push_back(p);
-      }
-      else
-      {
+      } else {
         left_pts.push_back(p);
       }
     }
@@ -314,49 +273,42 @@ bool SkidpadDetectionCore::EstimateGeometry(GeometryModel *geometry)
   const bool right_ok = FitCircleRansac(right_pts, &right_local);
   const bool left_ok = FitCircleRansac(left_pts, &left_local);
 
-  if (!right_ok && !left_ok)
-  {
+  if (!right_ok && !left_ok) {
     return false;
   }
 
   const double nominal_radius = std::max(0.5, params_.circle_radius);
   const double nominal_center_dist = std::max(1.0, params_.center_distance_nominal);
 
-  if (!right_ok)
-  {
+  if (!right_ok) {
     right_local = left_local;
     right_local.center.y() -= nominal_center_dist;
     right_local.radius = nominal_radius;
     right_local.valid = true;
   }
 
-  if (!left_ok)
-  {
+  if (!left_ok) {
     left_local = right_local;
     left_local.center.y() += nominal_center_dist;
     left_local.radius = nominal_radius;
     left_local.valid = true;
   }
 
-  if (right_local.center.y() > left_local.center.y())
-  {
+  if (right_local.center.y() > left_local.center.y()) {
     std::swap(right_local, left_local);
   }
 
   Eigen::Vector2d axis = left_local.center - right_local.center;
   double center_dist = axis.norm();
-  if (!std::isfinite(center_dist) || center_dist < 1e-3)
-  {
+  if (!std::isfinite(center_dist) || center_dist < 1e-3) {
     axis = Eigen::Vector2d(0.0, 1.0);
     center_dist = 1.0;
-  }
-  else
-  {
+  } else {
     axis /= center_dist;
   }
 
-  if (std::abs(center_dist - nominal_center_dist) > std::max(0.5, params_.center_distance_tolerance))
-  {
+  if (std::abs(center_dist - nominal_center_dist) >
+      std::max(0.5, params_.center_distance_tolerance)) {
     const Eigen::Vector2d mid = 0.5 * (left_local.center + right_local.center);
     left_local.center = mid + axis * (0.5 * nominal_center_dist);
     right_local.center = mid - axis * (0.5 * nominal_center_dist);
@@ -367,12 +319,10 @@ bool SkidpadDetectionCore::EstimateGeometry(GeometryModel *geometry)
   est.left = left_local;
   est.right.radius = std::clamp(est.right.radius, params_.fit_radius_min, params_.fit_radius_max);
   est.left.radius = std::clamp(est.left.radius, params_.fit_radius_min, params_.fit_radius_max);
-  if (!std::isfinite(est.right.radius))
-  {
+  if (!std::isfinite(est.right.radius)) {
     est.right.radius = nominal_radius;
   }
-  if (!std::isfinite(est.left.radius))
-  {
+  if (!std::isfinite(est.left.radius)) {
     est.left.radius = nominal_radius;
   }
 
@@ -384,59 +334,48 @@ bool SkidpadDetectionCore::EstimateGeometry(GeometryModel *geometry)
   return true;
 }
 
-void SkidpadDetectionCore::TransitionTo(SkidpadPhase next_phase)
-{
-  if (phase_ == next_phase)
-  {
+void SkidpadDetectionCore::TransitionTo(SkidpadPhase next_phase) {
+  if (phase_ == next_phase) {
     return;
   }
 
   phase_ = next_phase;
   phase_dwell_frames_ = 0;
 
-  if (next_phase == SkidpadPhase::RIGHT_WARMUP)
-  {
+  if (next_phase == SkidpadPhase::RIGHT_WARMUP) {
     right_laps_ = 0;
     right_accum_angle_ = 0.0;
     right_angle_initialized_ = false;
-  }
-  else if (next_phase == SkidpadPhase::LEFT_WARMUP)
-  {
+  } else if (next_phase == SkidpadPhase::LEFT_WARMUP) {
     left_laps_ = 0;
     left_accum_angle_ = 0.0;
     left_angle_initialized_ = false;
   }
 }
 
-double SkidpadDetectionCore::NormalizeAngle(double angle)
-{
-  if (!std::isfinite(angle)) { return 0.0; }
-  while (angle > M_PI)
-  {
+double SkidpadDetectionCore::NormalizeAngle(double angle) {
+  if (!std::isfinite(angle)) {
+    return 0.0;
+  }
+  while (angle > M_PI) {
     angle -= kTwoPi;
   }
-  while (angle < -M_PI)
-  {
+  while (angle < -M_PI) {
     angle += kTwoPi;
   }
   return angle;
 }
 
-void SkidpadDetectionCore::UpdateCircleProgress(const Eigen::Vector2d &center,
-                                                double *prev_angle,
-                                                bool *angle_initialized,
-                                                double *accumulated_angle,
-                                                int *lap_count)
-{
-  if (!prev_angle || !angle_initialized || !accumulated_angle || !lap_count)
-  {
+void SkidpadDetectionCore::UpdateCircleProgress(const Eigen::Vector2d& center, double* prev_angle,
+                                                bool* angle_initialized, double* accumulated_angle,
+                                                int* lap_count) {
+  if (!prev_angle || !angle_initialized || !accumulated_angle || !lap_count) {
     return;
   }
 
   const Eigen::Vector2d p = CurrentWorldPosition();
   const double angle = std::atan2(p.y() - center.y(), p.x() - center.x());
-  if (!*angle_initialized)
-  {
+  if (!*angle_initialized) {
     *prev_angle = angle;
     *angle_initialized = true;
     return;
@@ -446,17 +385,14 @@ void SkidpadDetectionCore::UpdateCircleProgress(const Eigen::Vector2d &center,
   *accumulated_angle += std::abs(delta);
   *prev_angle = angle;
 
-  while (*accumulated_angle >= (kTwoPi - 0.05))
-  {
+  while (*accumulated_angle >= (kTwoPi - 0.05)) {
     ++(*lap_count);
     *accumulated_angle -= kTwoPi;
   }
 }
 
-void SkidpadDetectionCore::UpdatePhaseMachine()
-{
-  if (!geometry_.valid)
-  {
+void SkidpadDetectionCore::UpdatePhaseMachine() {
+  if (!geometry_.valid) {
     return;
   }
 
@@ -464,109 +400,87 @@ void SkidpadDetectionCore::UpdatePhaseMachine()
   const int min_dwell = std::max(1, params_.phase_min_dwell_frames);
 
   const Eigen::Vector2d p = CurrentWorldPosition();
-  const Eigen::Vector2d right_start = geometry_.right.center + Eigen::Vector2d(0.0, geometry_.right.radius);
-  const Eigen::Vector2d left_start = geometry_.left.center + Eigen::Vector2d(0.0, -geometry_.left.radius);
+  const Eigen::Vector2d right_start =
+      geometry_.right.center + Eigen::Vector2d(0.0, geometry_.right.radius);
+  const Eigen::Vector2d left_start =
+      geometry_.left.center + Eigen::Vector2d(0.0, -geometry_.left.radius);
   const double entry_dist_thr = std::max(0.2, params_.phase_entry_switch_dist);
   const double crossover_dist_thr = std::max(0.3, params_.phase_crossover_switch_dist);
-  const double right_ring_residual = std::abs((p - geometry_.right.center).norm() - geometry_.right.radius);
-  const double left_ring_residual = std::abs((p - geometry_.left.center).norm() - geometry_.left.radius);
+  const double right_ring_residual =
+      std::abs((p - geometry_.right.center).norm() - geometry_.right.radius);
+  const double left_ring_residual =
+      std::abs((p - geometry_.left.center).norm() - geometry_.left.radius);
   const double ring_relax_entry = std::max(0.6, entry_dist_thr * 1.8);
   const double ring_relax_crossover = std::max(0.6, crossover_dist_thr * 1.8);
 
-  switch (phase_)
-  {
-  case SkidpadPhase::ENTRY:
-    if (((p - right_start).norm() <= entry_dist_thr || right_ring_residual <= ring_relax_entry) &&
-        phase_dwell_frames_ >= min_dwell)
-    {
-      TransitionTo(SkidpadPhase::RIGHT_WARMUP);
-    }
-    break;
-  case SkidpadPhase::RIGHT_WARMUP:
-    UpdateCircleProgress(geometry_.right.center,
-                         &prev_right_angle_,
-                         &right_angle_initialized_,
-                         &right_accum_angle_,
-                         &right_laps_);
-    if (right_laps_ >= 1 && phase_dwell_frames_ >= min_dwell)
-    {
-      TransitionTo(SkidpadPhase::RIGHT_TIMED);
-    }
-    break;
-  case SkidpadPhase::RIGHT_TIMED:
-    UpdateCircleProgress(geometry_.right.center,
-                         &prev_right_angle_,
-                         &right_angle_initialized_,
-                         &right_accum_angle_,
-                         &right_laps_);
-    if (right_laps_ >= 2 && phase_dwell_frames_ >= min_dwell)
-    {
-      TransitionTo(SkidpadPhase::CROSSOVER);
-    }
-    break;
-  case SkidpadPhase::CROSSOVER:
-    if (((p - left_start).norm() <= crossover_dist_thr || left_ring_residual <= ring_relax_crossover) &&
-        phase_dwell_frames_ >= min_dwell)
-    {
-      TransitionTo(SkidpadPhase::LEFT_WARMUP);
-    }
-    break;
-  case SkidpadPhase::LEFT_WARMUP:
-    UpdateCircleProgress(geometry_.left.center,
-                         &prev_left_angle_,
-                         &left_angle_initialized_,
-                         &left_accum_angle_,
-                         &left_laps_);
-    if (left_laps_ >= 1 && phase_dwell_frames_ >= min_dwell)
-    {
-      TransitionTo(SkidpadPhase::LEFT_TIMED);
-    }
-    break;
-  case SkidpadPhase::LEFT_TIMED:
-    UpdateCircleProgress(geometry_.left.center,
-                         &prev_left_angle_,
-                         &left_angle_initialized_,
-                         &left_accum_angle_,
-                         &left_laps_);
-    if (left_laps_ >= 2 && phase_dwell_frames_ >= min_dwell)
-    {
-      TransitionTo(SkidpadPhase::EXIT);
-    }
-    break;
-  case SkidpadPhase::EXIT:
-  default:
-    break;
+  switch (phase_) {
+    case SkidpadPhase::ENTRY:
+      if (((p - right_start).norm() <= entry_dist_thr || right_ring_residual <= ring_relax_entry) &&
+          phase_dwell_frames_ >= min_dwell) {
+        TransitionTo(SkidpadPhase::RIGHT_WARMUP);
+      }
+      break;
+    case SkidpadPhase::RIGHT_WARMUP:
+      UpdateCircleProgress(geometry_.right.center, &prev_right_angle_, &right_angle_initialized_,
+                           &right_accum_angle_, &right_laps_);
+      if (right_laps_ >= 1 && phase_dwell_frames_ >= min_dwell) {
+        TransitionTo(SkidpadPhase::RIGHT_TIMED);
+      }
+      break;
+    case SkidpadPhase::RIGHT_TIMED:
+      UpdateCircleProgress(geometry_.right.center, &prev_right_angle_, &right_angle_initialized_,
+                           &right_accum_angle_, &right_laps_);
+      if (right_laps_ >= 2 && phase_dwell_frames_ >= min_dwell) {
+        TransitionTo(SkidpadPhase::CROSSOVER);
+      }
+      break;
+    case SkidpadPhase::CROSSOVER:
+      if (((p - left_start).norm() <= crossover_dist_thr ||
+           left_ring_residual <= ring_relax_crossover) &&
+          phase_dwell_frames_ >= min_dwell) {
+        TransitionTo(SkidpadPhase::LEFT_WARMUP);
+      }
+      break;
+    case SkidpadPhase::LEFT_WARMUP:
+      UpdateCircleProgress(geometry_.left.center, &prev_left_angle_, &left_angle_initialized_,
+                           &left_accum_angle_, &left_laps_);
+      if (left_laps_ >= 1 && phase_dwell_frames_ >= min_dwell) {
+        TransitionTo(SkidpadPhase::LEFT_TIMED);
+      }
+      break;
+    case SkidpadPhase::LEFT_TIMED:
+      UpdateCircleProgress(geometry_.left.center, &prev_left_angle_, &left_angle_initialized_,
+                           &left_accum_angle_, &left_laps_);
+      if (left_laps_ >= 2 && phase_dwell_frames_ >= min_dwell) {
+        TransitionTo(SkidpadPhase::EXIT);
+      }
+      break;
+    case SkidpadPhase::EXIT:
+    default:
+      break;
   }
 }
 
-void SkidpadDetectionCore::AppendLine(const Eigen::Vector2d &a,
-                                      const Eigen::Vector2d &b,
-                                      std::vector<Pose> *path) const
-{
-  if (!path)
-  {
+void SkidpadDetectionCore::AppendLine(const Eigen::Vector2d& a, const Eigen::Vector2d& b,
+                                      std::vector<Pose>* path) const {
+  if (!path) {
     return;
   }
 
   const double step = std::max(0.05, params_.path_interval);
   const double dist = (b - a).norm();
   const int n = std::max(2, static_cast<int>(std::ceil(dist / step)));
-  for (int i = 0; i <= n; ++i)
-  {
+  for (int i = 0; i <= n; ++i) {
     const double t = static_cast<double>(i) / static_cast<double>(n);
     const Eigen::Vector2d p = a + t * (b - a);
     path->push_back(MakePose(p.x(), p.y()));
   }
 }
 
-void SkidpadDetectionCore::AppendArc(const Eigen::Vector2d &center,
-                                     double radius,
-                                     double start_angle,
-                                     double delta_angle,
-                                     std::vector<Pose> *path) const
-{
-  if (!path)
-  {
+void SkidpadDetectionCore::AppendArc(const Eigen::Vector2d& center, double radius,
+                                     double start_angle, double delta_angle,
+                                     std::vector<Pose>* path) const {
+  if (!path) {
     return;
   }
 
@@ -575,8 +489,7 @@ void SkidpadDetectionCore::AppendArc(const Eigen::Vector2d &center,
   const double arc_len = std::abs(delta_angle) * radius;
   const int n = std::max(30, static_cast<int>(std::ceil(arc_len / step)));
 
-  for (int i = 0; i <= n; ++i)
-  {
+  for (int i = 0; i <= n; ++i) {
     const double r = static_cast<double>(i) / static_cast<double>(n);
     const double angle = start_angle + r * delta_angle;
     const double x = center.x() + radius * std::cos(angle);
@@ -585,8 +498,7 @@ void SkidpadDetectionCore::AppendArc(const Eigen::Vector2d &center,
   }
 }
 
-std::vector<Pose> SkidpadDetectionCore::BuildFallbackPath() const
-{
+std::vector<Pose> SkidpadDetectionCore::BuildFallbackPath() const {
   std::vector<Pose> path;
   const Eigen::Vector2d start = CurrentWorldPosition();
   const Eigen::Vector2d goal(params_.targetX, params_.targetY);
@@ -594,10 +506,8 @@ std::vector<Pose> SkidpadDetectionCore::BuildFallbackPath() const
   return path;
 }
 
-std::vector<Pose> SkidpadDetectionCore::BuildPhasePath() const
-{
-  if (!geometry_.valid)
-  {
+std::vector<Pose> SkidpadDetectionCore::BuildPhasePath() const {
+  if (!geometry_.valid) {
     return BuildFallbackPath();
   }
 
@@ -612,56 +522,48 @@ std::vector<Pose> SkidpadDetectionCore::BuildPhasePath() const
   const Eigen::Vector2d right_start = right_center + Eigen::Vector2d(0.0, right_radius);
   const Eigen::Vector2d left_start = left_center + Eigen::Vector2d(0.0, -left_radius);
 
-  switch (phase_)
-  {
-  case SkidpadPhase::ENTRY:
-    AppendLine(cur, right_start, &path);
-    break;
-  case SkidpadPhase::RIGHT_WARMUP:
-  case SkidpadPhase::RIGHT_TIMED:
-  {
-    const double start_angle = std::atan2(cur.y() - right_center.y(), cur.x() - right_center.x());
-    AppendArc(right_center, right_radius, start_angle, -kTwoPi, &path);
-    break;
-  }
-  case SkidpadPhase::CROSSOVER:
-    AppendLine(cur, left_start, &path);
-    break;
-  case SkidpadPhase::LEFT_WARMUP:
-  case SkidpadPhase::LEFT_TIMED:
-  {
-    const double start_angle = std::atan2(cur.y() - left_center.y(), cur.x() - left_center.x());
-    AppendArc(left_center, left_radius, start_angle, kTwoPi, &path);
-    break;
-  }
-  case SkidpadPhase::EXIT:
-  default:
-  {
-    const Eigen::Vector2d goal(params_.FinTargetX, params_.FinTargetY);
-    AppendLine(cur, goal, &path);
-    break;
-  }
+  switch (phase_) {
+    case SkidpadPhase::ENTRY:
+      AppendLine(cur, right_start, &path);
+      break;
+    case SkidpadPhase::RIGHT_WARMUP:
+    case SkidpadPhase::RIGHT_TIMED: {
+      const double start_angle = std::atan2(cur.y() - right_center.y(), cur.x() - right_center.x());
+      AppendArc(right_center, right_radius, start_angle, -kTwoPi, &path);
+      break;
+    }
+    case SkidpadPhase::CROSSOVER:
+      AppendLine(cur, left_start, &path);
+      break;
+    case SkidpadPhase::LEFT_WARMUP:
+    case SkidpadPhase::LEFT_TIMED: {
+      const double start_angle = std::atan2(cur.y() - left_center.y(), cur.x() - left_center.x());
+      AppendArc(left_center, left_radius, start_angle, kTwoPi, &path);
+      break;
+    }
+    case SkidpadPhase::EXIT:
+    default: {
+      const Eigen::Vector2d goal(params_.FinTargetX, params_.FinTargetY);
+      AppendLine(cur, goal, &path);
+      break;
+    }
   }
 
   return path;
 }
 
-void SkidpadDetectionCore::UpdateApproaching()
-{
+void SkidpadDetectionCore::UpdateApproaching() {
   const Eigen::Vector2d p = CurrentWorldPosition();
   const Eigen::Vector2d goal(params_.FinTargetX, params_.FinTargetY);
   approaching_goal_ = ((p - goal).norm() <= std::max(0.5, params_.stopdistance));
 }
 
-void SkidpadDetectionCore::RunAlgorithm()
-{
+void SkidpadDetectionCore::RunAlgorithm() {
   path_updated_ = false;
 
   GeometryModel estimated;
-  if (EstimateGeometry(&estimated))
-  {
-    if (geometry_.valid)
-    {
+  if (EstimateGeometry(&estimated)) {
+    if (geometry_.valid) {
       const double w = 0.25;
       estimated.right.center = (1.0 - w) * geometry_.right.center + w * estimated.right.center;
       estimated.left.center = (1.0 - w) * geometry_.left.center + w * estimated.left.center;
@@ -671,10 +573,8 @@ void SkidpadDetectionCore::RunAlgorithm()
     geometry_ = estimated;
   }
 
-  if (!geometry_.valid)
-  {
-    if (cones_local_.empty())
-    {
+  if (!geometry_.valid) {
+    if (cones_local_.empty()) {
       path_output_.clear();
       path_updated_ = false;
       return;
@@ -691,4 +591,4 @@ void SkidpadDetectionCore::RunAlgorithm()
   UpdateApproaching();
 }
 
-} // namespace planning_core
+}  // namespace planning_core

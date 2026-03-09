@@ -102,4 +102,3 @@ Expected:
 - lower publish lag in overload conditions
 - some increase in `normal_merge` frames
 - same report schema as before
-

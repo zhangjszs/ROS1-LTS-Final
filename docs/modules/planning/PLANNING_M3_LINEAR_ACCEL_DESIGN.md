@@ -195,4 +195,3 @@ publish_pathlimits_v2(path, s, yaw, kappa, v_ref, a_ref, t_ref, mode=ACCEL)
 - 速度剖面通过共享模块 `planning_core::ComputeSpeedProfile` 生成
 - 加速/制动区 overlay 参数通过 `line_detection.yaml` 中的 `accel_zone_length` / `brake_zone_length` 配置
 - 输出话题由 `output_pathlimits_topic` 参数统一为 `planning/pathlimits`
-

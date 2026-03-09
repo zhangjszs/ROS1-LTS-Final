@@ -6,34 +6,29 @@
 #include <utility>
 #include <vector>
 
-namespace planning_core
-{
+namespace planning_core {
 
-struct HoughLine
-{
+struct HoughLine {
   double rho{0.0};
   double theta{0.0};
   int votes{0};
 };
 
-struct ConePoint
-{
+struct ConePoint {
   double x{0.0};
   double y{0.0};
   double z{0.0};
   uint8_t color_type{4};  // 4 = NONE (default, graceful degradation)
 };
 
-struct VehicleState
-{
+struct VehicleState {
   double x{0.0};
   double y{0.0};
   double theta{0.0};
   double v{0.0};
 };
 
-struct Pose
-{
+struct Pose {
   double x{0.0};
   double y{0.0};
   double z{0.0};
@@ -43,8 +38,7 @@ struct Pose
   double qw{1.0};
 };
 
-struct LineDetectionParams
-{
+struct LineDetectionParams {
   double hough_rho_resolution{0.1};
   double hough_theta_resolution{0.01};
   int hough_min_votes{3};
@@ -66,31 +60,30 @@ struct LineDetectionParams
   int max_lines_to_check{10};
 };
 
-class LineDetectionCore
-{
-public:
-  explicit LineDetectionCore(const LineDetectionParams &params);
+class LineDetectionCore {
+ public:
+  explicit LineDetectionCore(const LineDetectionParams& params);
 
-  void SetParams(const LineDetectionParams &params);
-  void UpdateCones(const std::vector<ConePoint> &cones);
-  void UpdateVehicleState(const VehicleState &state);
+  void SetParams(const LineDetectionParams& params);
+  void UpdateCones(const std::vector<ConePoint>& cones);
+  void UpdateVehicleState(const VehicleState& state);
 
   void RunAlgorithm();
 
   bool IsFinished() const { return finished_; }
   bool HasPlannedPath() const { return !planned_path_.empty(); }
-  const std::vector<Pose> &GetPlannedPath() const { return planned_path_; }
+  const std::vector<Pose>& GetPlannedPath() const { return planned_path_; }
 
   std::string GetLastError() const { return last_error_; }
 
-private:
-  std::vector<ConePoint> FilterCones(const std::vector<ConePoint> &cones) const;
-  std::vector<Pose> GenerateFallbackPathFromSparseCones(const std::vector<ConePoint> &cones) const;
-  std::vector<HoughLine> HoughTransform(const std::vector<ConePoint> &cones);
-  std::pair<HoughLine, HoughLine> SelectBoundaryLines(const std::vector<HoughLine> &lines) const;
-  HoughLine CalculateCenterLine(const HoughLine &left_line, const HoughLine &right_line) const;
-  std::vector<Pose> GeneratePath(const HoughLine &center_line) const;
-  std::vector<Pose> ConvertToWorldCoordinates(const std::vector<Pose> &path) const;
+ private:
+  std::vector<ConePoint> FilterCones(const std::vector<ConePoint>& cones) const;
+  std::vector<Pose> GenerateFallbackPathFromSparseCones(const std::vector<ConePoint>& cones) const;
+  std::vector<HoughLine> HoughTransform(const std::vector<ConePoint>& cones);
+  std::pair<HoughLine, HoughLine> SelectBoundaryLines(const std::vector<HoughLine>& lines) const;
+  HoughLine CalculateCenterLine(const HoughLine& left_line, const HoughLine& right_line) const;
+  std::vector<Pose> GeneratePath(const HoughLine& center_line) const;
+  std::vector<Pose> ConvertToWorldCoordinates(const std::vector<Pose>& path) const;
   bool CheckFinishLine(double current_x, double finish_x) const;
   void InitializeAccumulator(int num_rho, int num_theta);
 
@@ -112,6 +105,6 @@ private:
   mutable std::string last_error_;
 };
 
-} // namespace planning_core
+}  // namespace planning_core
 
-#endif // PLANNING_CORE_LINE_DETECTION_CORE_HPP_
+#endif  // PLANNING_CORE_LINE_DETECTION_CORE_HPP_

@@ -1,6 +1,8 @@
 #ifndef PLANNING_CORE_SKIDPAD_DETECTION_CORE_HPP_
 #define PLANNING_CORE_SKIDPAD_DETECTION_CORE_HPP_
 
+#include "planning_core/line_detection_core.hpp"
+
 #include <cmath>
 #include <iostream>
 #include <set>
@@ -12,13 +14,9 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 
-#include "planning_core/line_detection_core.hpp"
+namespace planning_core {
 
-namespace planning_core
-{
-
-struct SkidpadParams
-{
+struct SkidpadParams {
   double circle2lidar{15.0};
   double targetX{16.0};
   double targetY{-1.0};
@@ -63,8 +61,7 @@ struct SkidpadParams
   double passthrough_y_max{3.0};
 };
 
-enum class SkidpadPhase
-{
+enum class SkidpadPhase {
   ENTRY = 0,
   RIGHT_WARMUP = 1,
   RIGHT_TIMED = 2,
@@ -74,18 +71,15 @@ enum class SkidpadPhase
   EXIT = 6
 };
 
-struct Trajectory
-{
+struct Trajectory {
   double x{0.0};
   double y{0.0};
   double yaw{0.0};
   double v{0.0};
 };
 
-struct PointComparator
-{
-  bool operator()(const pcl::PointXYZ &a, const pcl::PointXYZ &b) const
-  {
+struct PointComparator {
+  bool operator()(const pcl::PointXYZ& a, const pcl::PointXYZ& b) const {
     if (a.x < b.x)
       return true;
     if (a.x > b.x)
@@ -100,20 +94,19 @@ struct PointComparator
   }
 };
 
-class SkidpadDetectionCore
-{
-public:
-  explicit SkidpadDetectionCore(const SkidpadParams &params);
+class SkidpadDetectionCore {
+ public:
+  explicit SkidpadDetectionCore(const SkidpadParams& params);
 
-  void SetParams(const SkidpadParams &params);
-  void ProcessConeDetections(const std::vector<ConePoint> &cones);
-  void UpdateVehicleState(const Trajectory &state);
+  void SetParams(const SkidpadParams& params);
+  void ProcessConeDetections(const std::vector<ConePoint>& cones);
+  void UpdateVehicleState(const Trajectory& state);
 
   void RunAlgorithm();
 
   bool HasNewPath() const { return path_updated_; }
   void ClearPathUpdated() { path_updated_ = false; }
-  const std::vector<Pose> &GetPath() const { return path_output_; }
+  const std::vector<Pose>& GetPath() const { return path_output_; }
   bool IsApproachingGoal() const { return approaching_goal_; }
   SkidpadPhase GetPhase() const { return phase_; }
   double GetRecommendedSpeedCap() const;
@@ -122,50 +115,39 @@ public:
   int GetLeftLaps() const { return left_laps_; }
   bool IsGeometryValid() const { return geometry_.valid; }
 
-private:
-  struct CircleModel
-  {
+ private:
+  struct CircleModel {
     Eigen::Vector2d center{0.0, 0.0};
     double radius{0.0};
     int inliers{0};
     bool valid{false};
   };
 
-  struct GeometryModel
-  {
+  struct GeometryModel {
     CircleModel right;
     CircleModel left;
     bool valid{false};
   };
 
-  void PassThrough(pcl::PointCloud<pcl::PointXYZ>::Ptr &in_ptr);
-  bool EstimateGeometry(GeometryModel *geometry);
-  bool FitCircleRansac(const std::vector<Eigen::Vector2d> &points, CircleModel *model) const;
-  static bool CircleFromThreePoints(const Eigen::Vector2d &a,
-                                    const Eigen::Vector2d &b,
-                                    const Eigen::Vector2d &c,
-                                    Eigen::Vector2d *center,
-                                    double *radius);
+  void PassThrough(pcl::PointCloud<pcl::PointXYZ>::Ptr& in_ptr);
+  bool EstimateGeometry(GeometryModel* geometry);
+  bool FitCircleRansac(const std::vector<Eigen::Vector2d>& points, CircleModel* model) const;
+  static bool CircleFromThreePoints(const Eigen::Vector2d& a, const Eigen::Vector2d& b,
+                                    const Eigen::Vector2d& c, Eigen::Vector2d* center,
+                                    double* radius);
   void UpdatePhaseMachine();
   void TransitionTo(SkidpadPhase next_phase);
-  void UpdateCircleProgress(const Eigen::Vector2d &center,
-                            double *prev_angle,
-                            bool *angle_initialized,
-                            double *accumulated_angle,
-                            int *lap_count);
+  void UpdateCircleProgress(const Eigen::Vector2d& center, double* prev_angle,
+                            bool* angle_initialized, double* accumulated_angle, int* lap_count);
   void UpdateApproaching();
   std::vector<Pose> BuildPhasePath() const;
   std::vector<Pose> BuildFallbackPath() const;
-  void AppendLine(const Eigen::Vector2d &a,
-                  const Eigen::Vector2d &b,
-                  std::vector<Pose> *path) const;
-  void AppendArc(const Eigen::Vector2d &center,
-                 double radius,
-                 double start_angle,
-                 double delta_angle,
-                 std::vector<Pose> *path) const;
+  void AppendLine(const Eigen::Vector2d& a, const Eigen::Vector2d& b,
+                  std::vector<Pose>* path) const;
+  void AppendArc(const Eigen::Vector2d& center, double radius, double start_angle,
+                 double delta_angle, std::vector<Pose>* path) const;
   static double NormalizeAngle(double angle);
-  Eigen::Vector2d LocalToWorld(const Eigen::Vector2d &local) const;
+  Eigen::Vector2d LocalToWorld(const Eigen::Vector2d& local) const;
   Eigen::Vector2d CurrentWorldPosition() const;
 
   SkidpadParams params_{};
@@ -192,6 +174,6 @@ private:
   bool left_angle_initialized_{false};
 };
 
-} // namespace planning_core
+}  // namespace planning_core
 
-#endif // PLANNING_CORE_SKIDPAD_DETECTION_CORE_HPP_
+#endif  // PLANNING_CORE_SKIDPAD_DETECTION_CORE_HPP_

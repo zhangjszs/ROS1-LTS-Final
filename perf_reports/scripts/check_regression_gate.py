@@ -114,7 +114,9 @@ def _write_markdown(output_md: Path, payload: Dict) -> None:
     lines.append(f"- pass_count: `{payload['summary']['pass_count']}`")
     lines.append(f"- skipped_count: `{payload['summary']['skipped_count']}`")
     lines.append("")
-    lines.append("| metric | category | baseline | candidate | regression(%) | threshold(%) | status |")
+    lines.append(
+        "| metric | category | baseline | candidate | regression(%) | threshold(%) | status |"
+    )
     lines.append("|---|---|---:|---:|---:|---:|---|")
 
     for item in payload["results"]:
@@ -165,9 +167,7 @@ def main() -> int:
         default=None,
         help="Candidate localization metrics json.",
     )
-    parser.add_argument(
-        "--node", type=str, default="lidar_cluster", help="Perf node name."
-    )
+    parser.add_argument("--node", type=str, default="lidar_cluster", help="Perf node name.")
     parser.add_argument(
         "--output-json",
         type=Path,

@@ -118,7 +118,7 @@ roslaunch fsd_launch trackdrive.launch simulation:=true bag:=/path/to/bag.bag rv
 - `src/fsd_launch/launch/tools/debug.launch`
 - `src/fsd_launch/launch/tools/topic_bridge.launch`
 
-> 说明：任务入口位于 `src/fsd_launch/launch/` 根目录，直接使用  
+> 说明：任务入口位于 `src/fsd_launch/launch/` 根目录，直接使用
 > `roslaunch fsd_launch trackdrive.launch ...`
 
 ## TrackDrive 启动参数说明

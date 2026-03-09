@@ -54,4 +54,3 @@ The success criteria for this round are:
 - lower `end_to_end_publish_lag_ms`
 - more `normal_merge` frames in `decision/trace`
 - no regression in adapter/runtime correctness
-

@@ -4,7 +4,6 @@
  */
 
 #include <gtest/gtest.h>
-
 #include <perception_core/confidence_scorer.hpp>
 
 namespace {
@@ -82,8 +81,8 @@ TEST(ConfidenceScorerTest, ContextHardRejectsIsolatedDetection) {
 
   const perception::ClusterFeatures feature = MakeNominalFeatures();
   std::vector<pcl::PointXYZ> centroids;
-  centroids.emplace_back(2.0f, 1.0f, 0.0f);     // self
-  centroids.emplace_back(30.0f, 30.0f, 0.0f);   // outside isolation radius
+  centroids.emplace_back(2.0f, 1.0f, 0.0f);    // self
+  centroids.emplace_back(30.0f, 30.0f, 0.0f);  // outside isolation radius
 
   const double conf = scorer.computeConfidenceWithContext(
       feature, pcl::PointCloud<perception::PointType>::Ptr(), centroids, 0);
@@ -106,9 +105,9 @@ TEST(ConfidenceScorerTest, ContextAcceptsStructuredNeighborhood) {
 
   const perception::ClusterFeatures feature = MakeNominalFeatures();
   std::vector<pcl::PointXYZ> centroids;
-  centroids.emplace_back(2.0f, 1.0f, 0.0f);    // self
-  centroids.emplace_back(7.0f, 1.0f, 0.0f);    // same side, spacing ~5m
-  centroids.emplace_back(2.0f, -2.0f, 0.0f);   // opposite side, width ~3m
+  centroids.emplace_back(2.0f, 1.0f, 0.0f);   // self
+  centroids.emplace_back(7.0f, 1.0f, 0.0f);   // same side, spacing ~5m
+  centroids.emplace_back(2.0f, -2.0f, 0.0f);  // opposite side, width ~3m
 
   const double conf = scorer.computeConfidenceWithContext(
       feature, pcl::PointCloud<perception::PointType>::Ptr(), centroids, 0);

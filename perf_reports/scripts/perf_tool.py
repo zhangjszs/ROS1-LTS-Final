@@ -13,24 +13,23 @@ Usage:
 import argparse
 import sys
 from pathlib import Path
-from common import Config
-from collect_perf_data import PerfDataCollector
-from generate_report import PerfReportGenerator
-from generate_charts import PerfChartGenerator
+
 from analyze_performance import PerformanceAnalyzer
+from collect_perf_data import PerfDataCollector
+from common import Config
+from generate_charts import PerfChartGenerator
+from generate_report import PerfReportGenerator
+
 
 class PerfTool:
     def __init__(self):
         self.config = Config()
 
     def collect(self, args):
-        tags = [tag.strip() for tag in args.tags.split(',')] if args.tags else []
+        tags = [tag.strip() for tag in args.tags.split(",")] if args.tags else []
         tags = [tag for tag in tags if tag]
         collector = PerfDataCollector(
-            log_file=args.log_file,
-            note=args.note,
-            scenario=args.scenario,
-            tags=tags
+            log_file=args.log_file, note=args.note, scenario=args.scenario, tags=tags
         )
         collector.collect_from_log()
         return collector.save_data()
@@ -77,37 +76,38 @@ class PerfTool:
 
         print("\n=== Performance reporting complete ===")
 
+
 def main():
-    parser = argparse.ArgumentParser(description='Unified Performance Reporting Tool')
-    subparsers = parser.add_subparsers(dest='command', help='Command to run')
+    parser = argparse.ArgumentParser(description="Unified Performance Reporting Tool")
+    subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
     # Collect command
-    collect_parser = subparsers.add_parser('collect', help='Collect performance data from ROS logs')
-    collect_parser.add_argument('--log-file', help='Path to ROS log file')
-    collect_parser.add_argument('--note', help='Short change note for this run')
-    collect_parser.add_argument('--scenario', help='Test scenario description')
-    collect_parser.add_argument('--tags', help='Comma-separated tags for this run')
+    collect_parser = subparsers.add_parser("collect", help="Collect performance data from ROS logs")
+    collect_parser.add_argument("--log-file", help="Path to ROS log file")
+    collect_parser.add_argument("--note", help="Short change note for this run")
+    collect_parser.add_argument("--scenario", help="Test scenario description")
+    collect_parser.add_argument("--tags", help="Comma-separated tags for this run")
 
     # Report command
-    report_parser = subparsers.add_parser('report', help='Generate performance report')
-    report_parser.add_argument('--compare', action='store_true', help='Generate comparison report')
-    report_parser.add_argument('--timeline', action='store_true', help='Generate timeline report')
-    report_parser.add_argument('--commits', help='Comma-separated commit prefixes to compare')
+    report_parser = subparsers.add_parser("report", help="Generate performance report")
+    report_parser.add_argument("--compare", action="store_true", help="Generate comparison report")
+    report_parser.add_argument("--timeline", action="store_true", help="Generate timeline report")
+    report_parser.add_argument("--commits", help="Comma-separated commit prefixes to compare")
 
     # Chart command
-    chart_parser = subparsers.add_parser('chart', help='Generate performance charts')
-    chart_parser.add_argument('--compare', action='store_true', help='Generate comparison charts')
+    chart_parser = subparsers.add_parser("chart", help="Generate performance charts")
+    chart_parser.add_argument("--compare", action="store_true", help="Generate comparison charts")
 
     # Analyze command
-    analyze_parser = subparsers.add_parser('analyze', help='Run performance analysis')
-    analyze_parser.add_argument('--data-file', help='Specific data file to analyze')
+    analyze_parser = subparsers.add_parser("analyze", help="Run performance analysis")
+    analyze_parser.add_argument("--data-file", help="Specific data file to analyze")
 
     # Full command
-    full_parser = subparsers.add_parser('full', help='Run complete workflow')
-    full_parser.add_argument('--note', help='Short change note for this run')
-    full_parser.add_argument('--scenario', help='Test scenario description')
-    full_parser.add_argument('--tags', help='Comma-separated tags for this run')
-    full_parser.add_argument('--log-file', help='Path to ROS log file')
+    full_parser = subparsers.add_parser("full", help="Run complete workflow")
+    full_parser.add_argument("--note", help="Short change note for this run")
+    full_parser.add_argument("--scenario", help="Test scenario description")
+    full_parser.add_argument("--tags", help="Comma-separated tags for this run")
+    full_parser.add_argument("--log-file", help="Path to ROS log file")
 
     args = parser.parse_args()
 
@@ -117,16 +117,17 @@ def main():
 
     tool = PerfTool()
 
-    if args.command == 'collect':
+    if args.command == "collect":
         tool.collect(args)
-    elif args.command == 'report':
+    elif args.command == "report":
         tool.report(args)
-    elif args.command == 'chart':
+    elif args.command == "chart":
         tool.chart(args)
-    elif args.command == 'analyze':
+    elif args.command == "analyze":
         tool.analyze(args)
-    elif args.command == 'full':
+    elif args.command == "full":
         tool.full(args)
+
 
 if __name__ == "__main__":
     main()

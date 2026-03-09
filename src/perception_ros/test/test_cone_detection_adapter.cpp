@@ -1,20 +1,19 @@
-#include <gtest/gtest.h>
+#include "perception_ros/cone_detection_adapter.hpp"
+
+#include <ros/time.h>
 
 #include <chrono>
 
 #include <autodrive_msgs/HUAT_ConeDetections.h>
 #include <autodrive_msgs/HUAT_FusedConeDetections.h>
 #include <geometry_msgs/Point32.h>
-#include <ros/time.h>
-
-#include "perception_ros/cone_detection_adapter.hpp"
+#include <gtest/gtest.h>
 
 namespace {
 
 using SteadyPoint = perception_ros::ConeDetectionAdapter::SteadyTimePoint;
 
-geometry_msgs::Point32 MakePoint(float x, float y, float z = 0.0f)
-{
+geometry_msgs::Point32 MakePoint(float x, float y, float z = 0.0f) {
   geometry_msgs::Point32 p;
   p.x = x;
   p.y = y;
@@ -22,14 +21,12 @@ geometry_msgs::Point32 MakePoint(float x, float y, float z = 0.0f)
   return p;
 }
 
-autodrive_msgs::HUAT_ConeDetections MakeRaw(const ros::Time &stamp,
-                                            const std::vector<uint8_t> &colors)
-{
+autodrive_msgs::HUAT_ConeDetections MakeRaw(const ros::Time& stamp,
+                                            const std::vector<uint8_t>& colors) {
   autodrive_msgs::HUAT_ConeDetections msg;
   msg.header.stamp = stamp;
   msg.header.frame_id = "velodyne";
-  for (size_t i = 0; i < colors.size(); ++i)
-  {
+  for (size_t i = 0; i < colors.size(); ++i) {
     msg.points.push_back(MakePoint(static_cast<float>(i + 1), static_cast<float>(i)));
     msg.maxPoints.push_back(MakePoint(static_cast<float>(i + 1), static_cast<float>(i), 0.4f));
     msg.minPoints.push_back(MakePoint(static_cast<float>(i + 1), static_cast<float>(i), 0.0f));
@@ -41,15 +38,13 @@ autodrive_msgs::HUAT_ConeDetections MakeRaw(const ros::Time &stamp,
   return msg;
 }
 
-autodrive_msgs::HUAT_FusedConeDetections MakeFused(const ros::Time &stamp,
-                                                   const std::vector<uint8_t> &colors)
-{
+autodrive_msgs::HUAT_FusedConeDetections MakeFused(const ros::Time& stamp,
+                                                   const std::vector<uint8_t>& colors) {
   autodrive_msgs::HUAT_FusedConeDetections msg;
   msg.header.stamp = stamp;
   msg.header.frame_id = "velodyne";
   msg.lidar_frame = "velodyne";
-  for (size_t i = 0; i < colors.size(); ++i)
-  {
+  for (size_t i = 0; i < colors.size(); ++i) {
     msg.points.push_back(MakePoint(static_cast<float>(i + 1), static_cast<float>(i)));
     msg.obj_dist.push_back(static_cast<float>(i + 2));
     msg.lidar_confidences.push_back(0.8f);
@@ -64,8 +59,7 @@ autodrive_msgs::HUAT_FusedConeDetections MakeFused(const ros::Time &stamp,
   return msg;
 }
 
-SteadyPoint MakeSteadyPoint(int64_t millis)
-{
+SteadyPoint MakeSteadyPoint(int64_t millis) {
   return SteadyPoint(std::chrono::milliseconds(millis));
 }
 
@@ -74,8 +68,7 @@ SteadyPoint MakeSteadyPoint(int64_t millis)
 namespace perception_ros {
 namespace {
 
-TEST(ConeDetectionAdapterTest, PublishesMergedMessageWhenRawAndFusedShareStamp)
-{
+TEST(ConeDetectionAdapterTest, PublishesMergedMessageWhenRawAndFusedShareStamp) {
   ConeDetectionAdapter::Config cfg;
   cfg.raw_holdoff = ros::Duration(0.05);
   cfg.finalized_ttl = ros::Duration(2.0);
@@ -99,8 +92,7 @@ TEST(ConeDetectionAdapterTest, PublishesMergedMessageWhenRawAndFusedShareStamp)
   EXPECT_EQ(outputs.front().msg.maxPoints.size(), raw.maxPoints.size());
 }
 
-TEST(ConeDetectionAdapterTest, PublishesRawAfterHoldoffWhenNoFusedArrives)
-{
+TEST(ConeDetectionAdapterTest, PublishesRawAfterHoldoffWhenNoFusedArrives) {
   ConeDetectionAdapter::Config cfg;
   cfg.raw_holdoff = ros::Duration(0.05);
   cfg.finalized_ttl = ros::Duration(2.0);
@@ -121,13 +113,12 @@ TEST(ConeDetectionAdapterTest, PublishesRawAfterHoldoffWhenNoFusedArrives)
   ASSERT_EQ(outputs.front().msg.color_types.size(), 2u);
   EXPECT_EQ(outputs.front().msg.color_types[0], 2);
   EXPECT_EQ(outputs.front().msg.color_types[1], 3);
-  const auto &stats = adapter.stats();
+  const auto& stats = adapter.stats();
   EXPECT_EQ(stats.published_raw_fallback, 1u);
   EXPECT_EQ(stats.no_fused, 1u);
 }
 
-TEST(ConeDetectionAdapterTest, PublishesMergedWhenFusedArrivesBeforeRaw)
-{
+TEST(ConeDetectionAdapterTest, PublishesMergedWhenFusedArrivesBeforeRaw) {
   ConeDetectionAdapter::Config cfg;
   cfg.raw_holdoff = ros::Duration(0.05);
   cfg.finalized_ttl = ros::Duration(2.0);
@@ -149,8 +140,7 @@ TEST(ConeDetectionAdapterTest, PublishesMergedWhenFusedArrivesBeforeRaw)
   EXPECT_EQ(outputs.front().msg.color_types[1], 1);
 }
 
-TEST(ConeDetectionAdapterTest, FallsBackToRawWhenFusedCountMismatches)
-{
+TEST(ConeDetectionAdapterTest, FallsBackToRawWhenFusedCountMismatches) {
   ConeDetectionAdapter::Config cfg;
   cfg.raw_holdoff = ros::Duration(0.05);
   cfg.finalized_ttl = ros::Duration(2.0);
@@ -170,13 +160,12 @@ TEST(ConeDetectionAdapterTest, FallsBackToRawWhenFusedCountMismatches)
   EXPECT_DOUBLE_EQ(outputs.front().wait_ms, 10.0);
   EXPECT_EQ(outputs.front().msg.color_types[0], 2);
   EXPECT_EQ(outputs.front().msg.color_types[1], 3);
-  const auto &stats = adapter.stats();
+  const auto& stats = adapter.stats();
   EXPECT_EQ(stats.count_mismatch, 1u);
   EXPECT_EQ(stats.published_raw_fallback, 1u);
 }
 
-TEST(ConeDetectionAdapterTest, RejectsOverdueFusedAndPublishesRawFallbackOnMergePath)
-{
+TEST(ConeDetectionAdapterTest, RejectsOverdueFusedAndPublishesRawFallbackOnMergePath) {
   ConeDetectionAdapter::Config cfg;
   cfg.raw_holdoff = ros::Duration(0.05);
   cfg.finalized_ttl = ros::Duration(2.0);
@@ -197,14 +186,13 @@ TEST(ConeDetectionAdapterTest, RejectsOverdueFusedAndPublishesRawFallbackOnMerge
   EXPECT_EQ(outputs.front().msg.color_types[0], 2);
   EXPECT_EQ(outputs.front().msg.color_types[1], 3);
 
-  const auto &stats = adapter.stats();
+  const auto& stats = adapter.stats();
   EXPECT_EQ(stats.published_raw_fallback, 1u);
   EXPECT_EQ(stats.no_fused, 1u);
   EXPECT_EQ(stats.late_fused, 1u);
 }
 
-TEST(ConeDetectionAdapterTest, IgnoresFusedAfterRawFallbackFinalized)
-{
+TEST(ConeDetectionAdapterTest, IgnoresFusedAfterRawFallbackFinalized) {
   ConeDetectionAdapter::Config cfg;
   cfg.raw_holdoff = ros::Duration(0.05);
   cfg.finalized_ttl = ros::Duration(2.0);
@@ -224,15 +212,14 @@ TEST(ConeDetectionAdapterTest, IgnoresFusedAfterRawFallbackFinalized)
 
   EXPECT_TRUE(adapter.HandleFused(fused, receive_time + std::chrono::milliseconds(70)).empty());
 
-  const auto &stats = adapter.stats();
+  const auto& stats = adapter.stats();
   EXPECT_EQ(stats.published_raw_fallback, 1u);
   EXPECT_EQ(stats.no_fused, 1u);
   EXPECT_EQ(stats.late_fused, 1u);
   EXPECT_EQ(stats.duplicate_after_finalize, 1u);
 }
 
-TEST(ConeDetectionAdapterTest, IgnoresRawAfterFusedPublishFinalized)
-{
+TEST(ConeDetectionAdapterTest, IgnoresRawAfterFusedPublishFinalized) {
   ConeDetectionAdapter::Config cfg;
   cfg.raw_holdoff = ros::Duration(0.05);
   cfg.finalized_ttl = ros::Duration(2.0);
@@ -252,13 +239,12 @@ TEST(ConeDetectionAdapterTest, IgnoresRawAfterFusedPublishFinalized)
 
   EXPECT_TRUE(adapter.HandleRaw(raw, receive_time + std::chrono::milliseconds(20)).empty());
 
-  const auto &stats = adapter.stats();
+  const auto& stats = adapter.stats();
   EXPECT_EQ(stats.published_fused, 1u);
   EXPECT_EQ(stats.duplicate_after_finalize, 1u);
 }
 
-TEST(ConeDetectionAdapterTest, CountsStaleFusedAndCacheEvictions)
-{
+TEST(ConeDetectionAdapterTest, CountsStaleFusedAndCacheEvictions) {
   ConeDetectionAdapter::Config cfg;
   cfg.raw_holdoff = ros::Duration(0.05);
   cfg.finalized_ttl = ros::Duration(2.0);
@@ -273,7 +259,7 @@ TEST(ConeDetectionAdapterTest, CountsStaleFusedAndCacheEvictions)
   EXPECT_TRUE(adapter.HandleFused(fused_b, receive_time + std::chrono::milliseconds(1)).empty());
   EXPECT_TRUE(adapter.Flush(receive_time + std::chrono::milliseconds(70)).empty());
 
-  const auto &stats = adapter.stats();
+  const auto& stats = adapter.stats();
   EXPECT_EQ(stats.cache_evicted, 1u);
   EXPECT_EQ(stats.stale_fused, 1u);
   EXPECT_EQ(stats.pending_cache_size_max, 2u);
@@ -282,8 +268,7 @@ TEST(ConeDetectionAdapterTest, CountsStaleFusedAndCacheEvictions)
 }  // namespace
 }  // namespace perception_ros
 
-int main(int argc, char **argv)
-{
+int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

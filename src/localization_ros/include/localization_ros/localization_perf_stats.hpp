@@ -5,11 +5,11 @@
 namespace localization_ros {
 
 struct LocPerfSample {
-  double t_opt_ms = 0.0;        // iSAM2 optimization time
-  double t_preint_ms = 0.0;     // IMU preintegration accumulation time
-  double t_assoc_ms = 0.0;      // data association time
-  double t_prune_ms = 0.0;      // landmark pruning time
-  double t_total_ms = 0.0;      // total keyframe processing time
+  double t_opt_ms = 0.0;     // iSAM2 optimization time
+  double t_preint_ms = 0.0;  // IMU preintegration accumulation time
+  double t_assoc_ms = 0.0;   // data association time
+  double t_prune_ms = 0.0;   // landmark pruning time
+  double t_total_ms = 0.0;   // total keyframe processing time
   double landmark_count = 0.0;
   double chi2_normalized = 0.0;
   double cone_match_ratio = 0.0;
@@ -35,15 +35,15 @@ class LocPerfStats : public fsd_common::perf::PerfStatsBase<LocPerfSample> {
 
   LocPerfStats() {
     SetDescriptors({
-        {"t_opt_ms", [](const LocPerfSample &s) { return s.t_opt_ms; }},
-        {"t_preint_ms", [](const LocPerfSample &s) { return s.t_preint_ms; }},
-        {"t_assoc_ms", [](const LocPerfSample &s) { return s.t_assoc_ms; }},
-        {"t_prune_ms", [](const LocPerfSample &s) { return s.t_prune_ms; }},
-        {"t_total_ms", [](const LocPerfSample &s) { return s.t_total_ms; }},
-        {"LM", [](const LocPerfSample &s) { return s.landmark_count; }},
-        {"chi2", [](const LocPerfSample &s) { return s.chi2_normalized; }},
-        {"match", [](const LocPerfSample &s) { return s.cone_match_ratio; }},
-        {"gnss", [](const LocPerfSample &s) { return s.gnss_availability; }},
+        {"t_opt_ms", [](const LocPerfSample& s) { return s.t_opt_ms; }},
+        {"t_preint_ms", [](const LocPerfSample& s) { return s.t_preint_ms; }},
+        {"t_assoc_ms", [](const LocPerfSample& s) { return s.t_assoc_ms; }},
+        {"t_prune_ms", [](const LocPerfSample& s) { return s.t_prune_ms; }},
+        {"t_total_ms", [](const LocPerfSample& s) { return s.t_total_ms; }},
+        {"LM", [](const LocPerfSample& s) { return s.landmark_count; }},
+        {"chi2", [](const LocPerfSample& s) { return s.chi2_normalized; }},
+        {"match", [](const LocPerfSample& s) { return s.cone_match_ratio; }},
+        {"gnss", [](const LocPerfSample& s) { return s.gnss_availability; }},
     });
   }
 

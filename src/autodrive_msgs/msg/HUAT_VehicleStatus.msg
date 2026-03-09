@@ -14,5 +14,3 @@ uint8 work_mode
 uint8 racing_num
 uint8 fault_type
 uint16 checksum
-
-

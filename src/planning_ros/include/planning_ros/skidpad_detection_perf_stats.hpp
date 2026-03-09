@@ -14,9 +14,9 @@ class SkidpadPerfStats : public fsd_common::perf::PerfStatsBase<SkidpadPerfSampl
  public:
   SkidpadPerfStats() {
     SetDescriptors({
-        {"t_total_ms", [](const SkidpadPerfSample &s) { return s.t_total_ms; }},
-        {"n_cones", [](const SkidpadPerfSample &s) { return s.n_cones; }},
-        {"path_size", [](const SkidpadPerfSample &s) { return s.path_size; }},
+        {"t_total_ms", [](const SkidpadPerfSample& s) { return s.t_total_ms; }},
+        {"n_cones", [](const SkidpadPerfSample& s) { return s.n_cones; }},
+        {"path_size", [](const SkidpadPerfSample& s) { return s.path_size; }},
     });
   }
 };

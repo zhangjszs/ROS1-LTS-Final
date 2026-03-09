@@ -1,7 +1,7 @@
 <!--
   FSD RViz Visualization Tool
   可视化工具
-  
+
   用法:
     roslaunch fsd_launch rviz.launch                     # 默认：主视图（综合）
     roslaunch fsd_launch rviz.launch mode:=global        # 全局俯视图

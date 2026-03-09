@@ -1,5 +1,6 @@
 #pragma once
 #include "vision_core/types.hpp"
+
 #include <vector>
 
 namespace vision_core {

@@ -3,13 +3,12 @@
 
 #include <string>
 
-namespace vehicle_racing_num_core
-{
+namespace vehicle_racing_num_core {
 
 std::string DefaultOutputPath();
 
-bool WriteRacingNum(const std::string &output_file, int racing_num);
+bool WriteRacingNum(const std::string& output_file, int racing_num);
 
-} // namespace vehicle_racing_num_core
+}  // namespace vehicle_racing_num_core
 
-#endif // VEHICLE_RACING_NUM_CORE_RACING_NUM_WRITER_HPP_
+#endif  // VEHICLE_RACING_NUM_CORE_RACING_NUM_WRITER_HPP_

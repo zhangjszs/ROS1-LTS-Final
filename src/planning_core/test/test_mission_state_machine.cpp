@@ -1,16 +1,15 @@
-#include <gtest/gtest.h>
 #include "planning_core/mission_state_machine.hpp"
 
-using planning_core::MissionState;
-using planning_core::MissionStateMachine;
+#include <gtest/gtest.h>
+
 using planning_core::MissionFSMConfig;
 using planning_core::MissionFSMInput;
+using planning_core::MissionState;
+using planning_core::MissionStateMachine;
 
-namespace
-{
+namespace {
 
-MissionFSMConfig DefaultCfg()
-{
+MissionFSMConfig DefaultCfg() {
   MissionFSMConfig cfg;
   cfg.required_laps = 2;
   cfg.finish_grace_frames = 5;
@@ -18,21 +17,18 @@ MissionFSMConfig DefaultCfg()
   return cfg;
 }
 
-MissionFSMInput EmptyInput()
-{
+MissionFSMInput EmptyInput() {
   MissionFSMInput in;
   return in;
 }
 
-TEST(MissionStateMachine, StartsInInit)
-{
+TEST(MissionStateMachine, StartsInInit) {
   MissionStateMachine fsm(DefaultCfg());
   EXPECT_EQ(fsm.GetState(), MissionState::INIT);
   EXPECT_EQ(fsm.TotalFrames(), 0);
 }
 
-TEST(MissionStateMachine, InitToMapBuilding)
-{
+TEST(MissionStateMachine, InitToMapBuilding) {
   MissionStateMachine fsm(DefaultCfg());
   MissionFSMInput in = EmptyInput();
   in.has_valid_path = true;
@@ -40,16 +36,14 @@ TEST(MissionStateMachine, InitToMapBuilding)
   EXPECT_EQ(fsm.GetState(), MissionState::MAP_BUILDING);
 }
 
-TEST(MissionStateMachine, StaysInInit)
-{
+TEST(MissionStateMachine, StaysInInit) {
   MissionStateMachine fsm(DefaultCfg());
   MissionFSMInput in = EmptyInput();
   EXPECT_FALSE(fsm.Update(in));
   EXPECT_EQ(fsm.GetState(), MissionState::INIT);
 }
 
-TEST(MissionStateMachine, MapBuildingToRacing)
-{
+TEST(MissionStateMachine, MapBuildingToRacing) {
   MissionStateMachine fsm(DefaultCfg());
   MissionFSMInput in = EmptyInput();
   in.has_valid_path = true;
@@ -59,8 +53,7 @@ TEST(MissionStateMachine, MapBuildingToRacing)
   EXPECT_EQ(fsm.GetState(), MissionState::RACING);
 }
 
-TEST(MissionStateMachine, RacingToMapBuilding)
-{
+TEST(MissionStateMachine, RacingToMapBuilding) {
   MissionStateMachine fsm(DefaultCfg());
   MissionFSMInput in = EmptyInput();
   in.has_valid_path = true;
@@ -72,21 +65,19 @@ TEST(MissionStateMachine, RacingToMapBuilding)
   EXPECT_EQ(fsm.GetState(), MissionState::MAP_BUILDING);
 }
 
-TEST(MissionStateMachine, RacingToFinishing)
-{
+TEST(MissionStateMachine, RacingToFinishing) {
   MissionStateMachine fsm(DefaultCfg());
   MissionFSMInput in = EmptyInput();
   in.has_valid_path = true;
   fsm.Update(in);  // -> MAP_BUILDING
   in.loop_closed = true;
-  fsm.Update(in);  // -> RACING
+  fsm.Update(in);    // -> RACING
   in.lap_count = 3;  // > required_laps (2)
   EXPECT_TRUE(fsm.Update(in));
   EXPECT_EQ(fsm.GetState(), MissionState::FINISHING);
 }
 
-TEST(MissionStateMachine, FinishingToStopped)
-{
+TEST(MissionStateMachine, FinishingToStopped) {
   MissionStateMachine fsm(DefaultCfg());
   MissionFSMInput in = EmptyInput();
   in.has_valid_path = true;
@@ -100,8 +91,7 @@ TEST(MissionStateMachine, FinishingToStopped)
   EXPECT_EQ(fsm.GetState(), MissionState::STOPPED);
 }
 
-TEST(MissionStateMachine, FinishingWaitsForFullPath)
-{
+TEST(MissionStateMachine, FinishingWaitsForFullPath) {
   MissionFSMConfig cfg = DefaultCfg();
   cfg.wait_full_before_stop = true;
   MissionStateMachine fsm(cfg);
@@ -118,8 +108,7 @@ TEST(MissionStateMachine, FinishingWaitsForFullPath)
   EXPECT_EQ(fsm.GetState(), MissionState::STOPPED);
 }
 
-TEST(MissionStateMachine, FinishingGraceExpired)
-{
+TEST(MissionStateMachine, FinishingGraceExpired) {
   MissionFSMConfig cfg = DefaultCfg();
   cfg.finish_grace_frames = 2;
   cfg.wait_full_before_stop = false;
@@ -132,30 +121,36 @@ TEST(MissionStateMachine, FinishingGraceExpired)
   in.lap_count = 3;
   fsm.Update(in);  // -> FINISHING
   // frames_in_state_ increments each Update; need > 2 frames
-  fsm.Update(in);  // frame 1
-  fsm.Update(in);  // frame 2
+  fsm.Update(in);               // frame 1
+  fsm.Update(in);               // frame 2
   EXPECT_TRUE(fsm.Update(in));  // frame 3 > 2
   EXPECT_EQ(fsm.GetState(), MissionState::STOPPED);
 }
 
-TEST(MissionStateMachine, EmergencyStopFromAnyState)
-{
-  for (int start = 0; start < 4; ++start)
-  {
+TEST(MissionStateMachine, EmergencyStopFromAnyState) {
+  for (int start = 0; start < 4; ++start) {
     MissionStateMachine fsm(DefaultCfg());
     MissionFSMInput in = EmptyInput();
     // Drive to desired start state
-    if (start >= 1) { in.has_valid_path = true; fsm.Update(in); }
-    if (start >= 2) { in.loop_closed = true; fsm.Update(in); }
-    if (start >= 3) { in.lap_count = 3; fsm.Update(in); }
+    if (start >= 1) {
+      in.has_valid_path = true;
+      fsm.Update(in);
+    }
+    if (start >= 2) {
+      in.loop_closed = true;
+      fsm.Update(in);
+    }
+    if (start >= 3) {
+      in.lap_count = 3;
+      fsm.Update(in);
+    }
     in.emergency_stop = true;
     EXPECT_TRUE(fsm.Update(in));
     EXPECT_EQ(fsm.GetState(), MissionState::STOPPED);
   }
 }
 
-TEST(MissionStateMachine, StoppedIsTerminal)
-{
+TEST(MissionStateMachine, StoppedIsTerminal) {
   MissionStateMachine fsm(DefaultCfg());
   MissionFSMInput in = EmptyInput();
   in.emergency_stop = true;
@@ -167,8 +162,7 @@ TEST(MissionStateMachine, StoppedIsTerminal)
   EXPECT_EQ(fsm.GetState(), MissionState::STOPPED);
 }
 
-TEST(MissionStateMachine, FrameCountTracking)
-{
+TEST(MissionStateMachine, FrameCountTracking) {
   MissionStateMachine fsm(DefaultCfg());
   MissionFSMInput in = EmptyInput();
   fsm.Update(in);
@@ -182,8 +176,7 @@ TEST(MissionStateMachine, FrameCountTracking)
   EXPECT_EQ(fsm.FramesInCurrentState(), 0);
 }
 
-TEST(MissionStateMachine, TransitionHistoryRecorded)
-{
+TEST(MissionStateMachine, TransitionHistoryRecorded) {
   MissionStateMachine fsm(DefaultCfg());
   MissionFSMInput in = EmptyInput();
   in.has_valid_path = true;
@@ -197,8 +190,7 @@ TEST(MissionStateMachine, TransitionHistoryRecorded)
   EXPECT_EQ(fsm.GetHistory()[1].to, MissionState::RACING);
 }
 
-TEST(MissionStateMachine, ResetClearsState)
-{
+TEST(MissionStateMachine, ResetClearsState) {
   MissionStateMachine fsm(DefaultCfg());
   MissionFSMInput in = EmptyInput();
   in.has_valid_path = true;
@@ -210,10 +202,9 @@ TEST(MissionStateMachine, ResetClearsState)
   EXPECT_TRUE(fsm.GetHistory().empty());
 }
 
-} // namespace
+}  // namespace
 
-int main(int argc, char **argv)
-{
+int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

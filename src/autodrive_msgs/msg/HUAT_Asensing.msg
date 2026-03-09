@@ -30,5 +30,3 @@ float32 temperature
 uint32 wheel_speed_status
 uint32 heading_type
 uint32 numsv
-
-

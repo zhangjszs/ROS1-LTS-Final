@@ -282,7 +282,7 @@ roslaunch fsd_launch tools/rviz.launch rviz_mode:=dual
 
 ### Legacy Topic Compatibility
 
-Canonical command topic is `/vehicle/cmd`.  
+Canonical command topic is `/vehicle/cmd`.
 Legacy topics (`/vehcileCMDMsg`, `/Carstate`) are optional compatibility paths and disabled by default.
 
 ### Startup Script Dependencies

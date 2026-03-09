@@ -1,5 +1,6 @@
-#include <gtest/gtest.h>
 #include "planning_core/line_detection_core.hpp"
+
+#include <gtest/gtest.h>
 
 TEST(LineDetectionCoreTest, Initialization) {
   planning_core::LineDetectionParams params;
@@ -33,7 +34,7 @@ TEST(LineDetectionCoreTest, SparseConeFallbackBuildsLongPath) {
   core.RunAlgorithm();
 
   ASSERT_TRUE(core.HasPlannedPath());
-  const auto &path = core.GetPlannedPath();
+  const auto& path = core.GetPlannedPath();
   EXPECT_GE(path.size(), 170u);
 }
 
@@ -116,7 +117,7 @@ TEST(LineDetectionCoreTest, NoColorFallsBackToGeometric) {
   EXPECT_GE(core.GetPlannedPath().size(), 170u);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

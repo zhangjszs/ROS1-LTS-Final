@@ -3,6 +3,10 @@
 #include <fsd_common/topic_contract.hpp>
 // Re-export into old namespace for backward compatibility
 namespace autodrive_msgs {
-  namespace topic_contract { using namespace fsd_common::topic_contract; }
-  namespace frame_contract { using namespace fsd_common::frame_contract; }
+namespace topic_contract {
+using namespace fsd_common::topic_contract;
 }
+namespace frame_contract {
+using namespace fsd_common::frame_contract;
+}
+}  // namespace autodrive_msgs

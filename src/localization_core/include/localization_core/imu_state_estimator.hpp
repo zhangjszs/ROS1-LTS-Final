@@ -1,7 +1,6 @@
 #pragma once
 
 #include <Eigen/Dense>
-
 #include <localization_core/types.hpp>
 
 namespace localization_core {
@@ -36,27 +35,25 @@ struct ImuStateEstimatorParams {
   double rear_to_imu_z = 0.0;
 
   // FSSIM-style low-speed kinematic correction
-  bool enable_kinematic_correction = true;   // 启用低速运动学修正
-  double wheelbase = 1.55;                   // 轴距 [m]
-  double cg_to_rear = 0.775;                 // 重心到后轴距离 [m]
-  double kinematic_blend_speed = 1.5;        // 混合速度阈值 [m/s]，低于此速度使用运动学模型
-  double kinematic_blend_range = 1.0;        // 混合过渡范围 [m/s]
+  bool enable_kinematic_correction = true;  // 启用低速运动学修正
+  double wheelbase = 1.55;                  // 轴距 [m]
+  double cg_to_rear = 0.775;                // 重心到后轴距离 [m]
+  double kinematic_blend_speed = 1.5;  // 混合速度阈值 [m/s]，低于此速度使用运动学模型
+  double kinematic_blend_range = 1.0;  // 混合过渡范围 [m/s]
 };
 
 class ImuStateEstimator {
  public:
-  explicit ImuStateEstimator(const ImuStateEstimatorParams &params);
+  explicit ImuStateEstimator(const ImuStateEstimatorParams& params);
 
-  bool Process(const Asensing &msg, double stamp_sec, CarState *out);
+  bool Process(const Asensing& msg, double stamp_sec, CarState* out);
 
   bool initialized() const { return initialized_; }
 
  private:
-  void Initialize(const Asensing &msg, double stamp_sec);
+  void Initialize(const Asensing& msg, double stamp_sec);
   void Predict(double dt, double ax, double ay, double gyro_z);
-  void Update(const Eigen::VectorXd &z,
-              const Eigen::MatrixXd &H,
-              const Eigen::MatrixXd &R,
+  void Update(const Eigen::VectorXd& z, const Eigen::MatrixXd& H, const Eigen::MatrixXd& R,
               int yaw_index);
 
   /**
@@ -75,13 +72,12 @@ class ImuStateEstimator {
    */
   void ApplyKinematicCorrection(double steering);
 
-  void GeoDeticToENU(double lat, double lon, double h,
-                     double lat0, double lon0, double h0,
-                     double &east, double &north, double &up) const;
+  void GeoDeticToENU(double lat, double lon, double h, double lat0, double lon0, double h0,
+                     double& east, double& north, double& up) const;
 
   double NormalizeAngle(double angle) const;
 
-  void ToMapFrame(double east, double north, double &x, double &y) const;
+  void ToMapFrame(double east, double north, double& x, double& y) const;
 
   ImuStateEstimatorParams params_;
 

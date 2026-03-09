@@ -529,14 +529,14 @@ stacked_cone_detection:
     layer_height: 0.25              # 每层高度 (m)
     max_layers: 3                   # 最大层数
     overlap_threshold: 0.5          # 层间重叠阈值
-  
+
   # 堆叠锥识别
   identification:
     min_points_per_layer: 5         # 每层最小点数 (个)
     max_xy_distance: 0.4            # XY平面最大距离 (m)
     height_variation_threshold: 0.1 # 高度变化阈值 (m)
     confidence_threshold: 0.3       # 堆叠锥识别置信度 [0-1]
-  
+
   # 去重策略
   deduplication:
     method: clustering              # 去重方法: clustering | grid | nearest
@@ -544,7 +544,7 @@ stacked_cone_detection:
     min_cluster_size: 2             # 最小聚类大小 (个)（堆叠锥至少2层）
     max_cluster_size: 10            # 最大聚类大小 (个)
     representative_selection: highest_confidence  # 代表点选择: highest_confidence | centroid | lowest
-    
+
   # 近距锥桶特殊处理（堆叠高发区）
   near_range:
     distance_threshold: 5.0         # 近距阈值 (m)
@@ -555,14 +555,14 @@ stacked_cone_detection:
 # 遮挡与缺锥处理
 occlusion_handling:
   enabled: true                     # 启用遮挡处理
-  
+
   # 遮挡检测
   detection:
     method: ray_tracing             # 检测方法: ray_tracing | angle_gap | density
     angle_gap_threshold: 15.0       # 角度间隙阈值 (deg)
     min_occluded_cones: 1           # 最小遮挡锥数 (个)
     occlusion_confidence_drop: 0.3  # 遮挡置信度下降 [0-1]
-  
+
   # 缺失锥桶预测
   missing_cone_prediction:
     enabled: true                   # 启用缺失预测
@@ -572,7 +572,7 @@ occlusion_handling:
     max_prediction_distance: 10.0   # 最大预测距离 (m)
     prediction_confidence: 0.25     # 预测锥桶置信度 [0-1]
     max_consecutive_predictions: 2  # 最大连续预测数 (帧)
-    
+
   # 几何插值
   geometric_interpolation:
     enabled: true                   # 启用几何插值
@@ -584,19 +584,19 @@ occlusion_handling:
 # 短检测抑制（Short Detection Suppression）
 short_detection_suppression:
   enabled: true                     # 启用短检测抑制
-  
+
   # 单帧抑制
   single_frame:
     min_detections_for_valid: 2     # 有效检测最小帧数 (帧)
     min_confidence: 0.3             # 最小置信度 [0-1]
-    
+
   # 空间连续性检查
   spatial_continuity:
     enabled: true                   # 启用空间连续性
     check_neighbor_detections: true # 检查邻居检测
     neighbor_radius: 3.0            # 邻居半径 (m)
     min_neighbors: 1                # 最小邻居数 (个)
-    
+
   # 时间连续性检查
   temporal_continuity:
     enabled: true                   # 启用时间连续性
@@ -606,21 +606,21 @@ short_detection_suppression:
 # 几何一致性检查（Geometric Consistency Check）
 geometric_consistency:
   enabled: true                     # 启用几何一致性检查
-  
+
   # 尺寸一致性
   size_consistency:
     check_height_variance: true     # 检查高度方差
     max_height_variance: 0.15       # 最大高度方差 (m)
     check_area_variance: true       # 检查面积方差
     max_area_variance: 0.05         # 最大面积方差 (m²)
-    
+
   # 空间分布一致性
   spatial_distribution:
     check_local_density: true       # 检查局部密度
     expected_density_range: [10, 100]  # 预期密度范围 (点/m²)
     check_spacing_uniformity: true  # 检查间距均匀性
     max_spacing_variance: 4.0       # 最大间距方差 (m²)
-    
+
   # 角度分布一致性
   angular_distribution:
     check_bearing_variance: true    # 检查方位角方差
@@ -631,20 +631,20 @@ geometric_consistency:
 # 回环场景优化（Loop Closure Optimization）
 loop_closure_optimization:
   enabled: true                     # 启用回环优化
-  
+
   # 特征稳定性
   feature_stability:
     min_feature_lifetime: 5         # 最小特征寿命 (帧)
     feature_reidentification: true  # 特征重识别
     reidentification_threshold: 0.7 # 重识别阈值 [0-1]
-    
+
   # 观测稳定性
   observation_stability:
     require_multi_frame_obs: true   # 要求多帧观测
     min_observation_frames: 3       # 最小观测帧数 (帧)
     observation_consistency_check: true  # 观测一致性检查
     max_observation_variance: 0.5   # 最大观测方差 (m)
-    
+
   # 几何验证
   geometric_verification:
     check_relative_geometry: true   # 检查相对几何

@@ -1,5 +1,6 @@
-#include <gtest/gtest.h>
 #include "vision_core/image_quality.hpp"
+
+#include <gtest/gtest.h>
 
 using namespace vision_core;
 

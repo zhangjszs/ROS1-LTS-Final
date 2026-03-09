@@ -5,9 +5,9 @@ import time
 from typing import Callable, Dict, List, Tuple
 
 import rospy
-from autodrive_msgs.msg import HUAT_ConeDetections, HUAT_FusedConeDetections
 from geometry_msgs.msg import Point32
 
+from autodrive_msgs.msg import HUAT_ConeDetections, HUAT_FusedConeDetections
 
 Event = Tuple[float, str, object]
 
@@ -58,8 +58,14 @@ def make_fused(stamp: rospy.Time, colors: List[int]) -> HUAT_FusedConeDetections
     return msg
 
 
-def add_frame_pair(events: List[Event], stamp: rospy.Time, raw_offset: float, fused_offset: float = None,
-                   raw_colors: List[int] = None, fused_colors: List[int] = None) -> None:
+def add_frame_pair(
+    events: List[Event],
+    stamp: rospy.Time,
+    raw_offset: float,
+    fused_offset: float = None,
+    raw_colors: List[int] = None,
+    fused_colors: List[int] = None,
+) -> None:
     raw_colors = raw_colors or [2, 3]
     fused_colors = fused_colors or [0, 1]
     events.append((raw_offset, "raw", make_raw(stamp, raw_colors)))
@@ -173,17 +179,25 @@ SCENARIOS: Dict[str, Callable[[], List[Event]]] = {
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Publish synthetic adapter replay scenarios at wall-clock rate.")
+    parser = argparse.ArgumentParser(
+        description="Publish synthetic adapter replay scenarios at wall-clock rate."
+    )
     parser.add_argument("--scenario", required=True, choices=sorted(SCENARIOS.keys()))
     parser.add_argument("--start-delay", type=float, default=1.0)
     args = parser.parse_args()
 
     rospy.init_node("adapter_replay_publisher", anonymous=True)
-    raw_pub = rospy.Publisher("perception/lidar_cluster/detections", HUAT_ConeDetections, queue_size=50)
-    fused_pub = rospy.Publisher("perception/fusion/detections", HUAT_FusedConeDetections, queue_size=50)
+    raw_pub = rospy.Publisher(
+        "perception/lidar_cluster/detections", HUAT_ConeDetections, queue_size=50
+    )
+    fused_pub = rospy.Publisher(
+        "perception/fusion/detections", HUAT_FusedConeDetections, queue_size=50
+    )
 
     deadline = time.time() + 10.0
-    while (raw_pub.get_num_connections() == 0 or fused_pub.get_num_connections() == 0) and time.time() < deadline:
+    while (
+        raw_pub.get_num_connections() == 0 or fused_pub.get_num_connections() == 0
+    ) and time.time() < deadline:
         rospy.sleep(0.05)
 
     events = sorted(SCENARIOS[args.scenario](), key=lambda item: item[0])

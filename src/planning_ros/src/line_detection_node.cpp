@@ -1,41 +1,36 @@
 #include "planning_ros/line_detection_node.hpp"
 
-#include <algorithm>
-#include <cmath>
-#include <autodrive_msgs/topic_contract.hpp>
-#include <geometry_msgs/Point32.h>
-#include <vector>
-
 #include "planning_core/speed_profile.hpp"
 #include "planning_core/track_constraints.hpp"
 #include "planning_ros/contract_utils.hpp"
 
-namespace
-{
-double PointDistance(const geometry_msgs::Point &a, const geometry_msgs::Point &b)
-{
+#include <algorithm>
+#include <cmath>
+#include <vector>
+
+#include <autodrive_msgs/topic_contract.hpp>
+#include <geometry_msgs/Point32.h>
+
+namespace {
+double PointDistance(const geometry_msgs::Point& a, const geometry_msgs::Point& b) {
   const double dx = b.x - a.x;
   const double dy = b.y - a.y;
   return std::sqrt(dx * dx + dy * dy);
 }
-} // namespace
+}  // namespace
 
-namespace planning_ros
-{
+namespace planning_ros {
 
-LineDetectionNode::LineDetectionNode(ros::NodeHandle &nh)
-  : nh_(nh), pnh_("~"), core_(params_)
-{
+LineDetectionNode::LineDetectionNode(ros::NodeHandle& nh) : nh_(nh), pnh_("~"), core_(params_) {
   LoadParameters();
   core_.SetParams(params_);
 
   // ApproximateTime消息同步：确保锥桶检测和车辆状态时间对齐
   cone_sub_.subscribe(nh_, cone_topic_, 1);
   car_state_sub_.subscribe(nh_, car_state_topic_, 1);
-  sync_ = std::make_unique<message_filters::Synchronizer<SyncPolicy>>(
-      SyncPolicy(10), cone_sub_, car_state_sub_);
-  sync_->registerCallback(
-      boost::bind(&LineDetectionNode::SyncCallback, this, _1, _2));
+  sync_ = std::make_unique<message_filters::Synchronizer<SyncPolicy>>(SyncPolicy(10), cone_sub_,
+                                                                      car_state_sub_);
+  sync_->registerCallback(boost::bind(&LineDetectionNode::SyncCallback, this, _1, _2));
 
   pathlimits_pub_ = nh_.advertise<autodrive_msgs::HUAT_PathLimits>(pathlimits_topic_, 1);
   finish_pub_ = nh_.advertise<std_msgs::Bool>(finish_topic_, 1);
@@ -54,8 +49,7 @@ LineDetectionNode::LineDetectionNode(ros::NodeHandle &nh)
   ROS_INFO("[LineDetection] Node initialized with ApproximateTime sync");
 }
 
-void LineDetectionNode::LoadParameters()
-{
+void LineDetectionNode::LoadParameters() {
   pnh_.param("hough/rho_resolution", params_.hough_rho_resolution, 0.1);
   pnh_.param("hough/theta_resolution", params_.hough_theta_resolution, 0.01);
   pnh_.param("hough/min_votes", params_.hough_min_votes, 3);
@@ -81,12 +75,16 @@ void LineDetectionNode::LoadParameters()
 
   pnh_.param("finish/threshold", params_.finish_line_threshold, 2.0);
 
-  pnh_.param<std::string>("topics/cone", cone_topic_, autodrive_msgs::topic_contract::kConeDetections);
-  pnh_.param<std::string>("topics/car_state", car_state_topic_, autodrive_msgs::topic_contract::kCarState);
-  pnh_.param<std::string>("topics/pathlimits", pathlimits_topic_, "planning/line_detection/pathlimits");
+  pnh_.param<std::string>("topics/cone", cone_topic_,
+                          autodrive_msgs::topic_contract::kConeDetections);
+  pnh_.param<std::string>("topics/car_state", car_state_topic_,
+                          autodrive_msgs::topic_contract::kCarState);
+  pnh_.param<std::string>("topics/pathlimits", pathlimits_topic_,
+                          "planning/line_detection/pathlimits");
   pnh_.param<std::string>("topics/finish", finish_topic_, "planning/line_detection/finish_signal");
 
-  pnh_.param<std::string>("frames/expected_cone", expected_cone_frame_, autodrive_msgs::frame_contract::kVelodyne);
+  pnh_.param<std::string>("frames/expected_cone", expected_cone_frame_,
+                          autodrive_msgs::frame_contract::kVelodyne);
   pnh_.param<std::string>("frames/output", output_frame_, autodrive_msgs::frame_contract::kWorld);
 
   pnh_.param("speed/speed_cap", speed_cap_, 20.0);
@@ -101,67 +99,62 @@ void LineDetectionNode::LoadParameters()
   pnh_.param("speed/brake_zone_length", brake_zone_length_, 100.0);
   pnh_.param("speed/timing_start_offset", timing_start_offset_, 0.3);
 
-  if (params_.accel_distance <= 0.0)
-  {
+  if (params_.accel_distance <= 0.0) {
     params_.accel_distance = accel_zone_length_;
   }
-  if (params_.brake_distance <= 0.0)
-  {
+  if (params_.brake_distance <= 0.0) {
     params_.brake_distance = brake_zone_length_;
   }
   const double min_total = params_.accel_distance + params_.brake_distance;
-  if (params_.max_path_distance < min_total)
-  {
+  if (params_.max_path_distance < min_total) {
     params_.max_path_distance = min_total;
   }
 
   // B22: critical parameter range validation
-  if (params_.hough_rho_resolution <= 0.0) { params_.hough_rho_resolution = 0.1; }
-  if (params_.path_interval <= 0.0) { params_.path_interval = 0.1; }
-  if (speed_cap_ < 0.0) { speed_cap_ = 0.0; }
+  if (params_.hough_rho_resolution <= 0.0) {
+    params_.hough_rho_resolution = 0.1;
+  }
+  if (params_.path_interval <= 0.0) {
+    params_.path_interval = 0.1;
+  }
+  if (speed_cap_ < 0.0) {
+    speed_cap_ = 0.0;
+  }
 }
 
-void LineDetectionNode::SyncCallback(const ConeMsg::ConstPtr &cone_msg,
-                                      const StateMsg::ConstPtr &car_state)
-{
+void LineDetectionNode::SyncCallback(const ConeMsg::ConstPtr& cone_msg,
+                                     const StateMsg::ConstPtr& car_state) {
   std::lock_guard<std::mutex> lock(data_mutex_);
 
   // 时间戳验证
   double time_diff = std::abs((cone_msg->header.stamp - car_state->header.stamp).toSec());
-  if (time_diff > max_data_age_)
-  {
-    ROS_WARN_THROTTLE(1.0, "[LineDetection] Large time diff between cone (%.3f) and state (%.3f): %.3fms",
-                      cone_msg->header.stamp.toSec(), car_state->header.stamp.toSec(), time_diff * 1000.0);
+  if (time_diff > max_data_age_) {
+    ROS_WARN_THROTTLE(
+        1.0, "[LineDetection] Large time diff between cone (%.3f) and state (%.3f): %.3fms",
+        cone_msg->header.stamp.toSec(), car_state->header.stamp.toSec(), time_diff * 1000.0);
     return;
   }
 
   latest_sync_time_ = std::max(cone_msg->header.stamp, car_state->header.stamp);
 
   // 处理锥桶数据
-  if (!cone_msg->header.frame_id.empty() &&
-      cone_msg->header.frame_id != expected_cone_frame_ &&
-      cone_msg->header.frame_id != autodrive_msgs::frame_contract::kVelodyne)
-  {
+  if (!cone_msg->header.frame_id.empty() && cone_msg->header.frame_id != expected_cone_frame_ &&
+      cone_msg->header.frame_id != autodrive_msgs::frame_contract::kVelodyne) {
     ROS_ERROR_THROTTLE(1.0, "[LineDetection] Unexpected cone frame: %s (expected: %s)",
                        cone_msg->header.frame_id.c_str(), expected_cone_frame_.c_str());
     return;
   }
 
-  if (cone_msg->points.empty())
-  {
+  if (cone_msg->points.empty()) {
     ROS_WARN_THROTTLE(1.0, "[LineDetection] Received empty cone message");
     core_.UpdateCones({});
-  }
-  else
-  {
+  } else {
     std::vector<planning_core::ConePoint> cones;
     cones.reserve(cone_msg->points.size());
 
-    for (size_t i = 0; i < cone_msg->points.size(); ++i)
-    {
-      const geometry_msgs::Point32 &point = cone_msg->points[i];
-      if (!std::isfinite(point.x) || !std::isfinite(point.y) || !std::isfinite(point.z))
-      {
+    for (size_t i = 0; i < cone_msg->points.size(); ++i) {
+      const geometry_msgs::Point32& point = cone_msg->points[i];
+      if (!std::isfinite(point.x) || !std::isfinite(point.y) || !std::isfinite(point.z)) {
         continue;
       }
 
@@ -178,11 +171,8 @@ void LineDetectionNode::SyncCallback(const ConeMsg::ConstPtr &cone_msg,
   }
 
   // 处理车辆状态
-  if (!std::isfinite(car_state->car_state.x) ||
-      !std::isfinite(car_state->car_state.y) ||
-      !std::isfinite(car_state->car_state.theta) ||
-      !std::isfinite(car_state->V))
-  {
+  if (!std::isfinite(car_state->car_state.x) || !std::isfinite(car_state->car_state.y) ||
+      !std::isfinite(car_state->car_state.theta) || !std::isfinite(car_state->V)) {
     ROS_ERROR("[LineDetection] Invalid vehicle state (NaN/Inf), ignoring update");
     return;
   }
@@ -192,16 +182,15 @@ void LineDetectionNode::SyncCallback(const ConeMsg::ConstPtr &cone_msg,
   state.y = car_state->car_state.y;
   state.theta = car_state->car_state.theta;
   state.v = car_state->V;
-  latest_vehicle_speed_ = std::isfinite(car_state->V) ? std::max(0.0, static_cast<double>(car_state->V)) : 0.0;
+  latest_vehicle_speed_ =
+      std::isfinite(car_state->V) ? std::max(0.0, static_cast<double>(car_state->V)) : 0.0;
 
   core_.UpdateVehicleState(state);
 }
 
-void LineDetectionNode::FillPathDynamics(autodrive_msgs::HUAT_PathLimits &msg) const
-{
+void LineDetectionNode::FillPathDynamics(autodrive_msgs::HUAT_PathLimits& msg) const {
   const size_t n = msg.path.size();
-  if (n == 0)
-  {
+  if (n == 0) {
     msg.curvatures.clear();
     msg.target_speeds.clear();
     return;
@@ -209,8 +198,7 @@ void LineDetectionNode::FillPathDynamics(autodrive_msgs::HUAT_PathLimits &msg) c
 
   // Convert to planning_core::Point2D for shared module
   std::vector<planning_core::Point2D> pts(n);
-  for (size_t i = 0; i < n; ++i)
-  {
+  for (size_t i = 0; i < n; ++i) {
     pts[i].x = msg.path[i].x;
     pts[i].y = msg.path[i].y;
   }
@@ -245,28 +233,22 @@ void LineDetectionNode::FillPathDynamics(autodrive_msgs::HUAT_PathLimits &msg) c
   const double accel_end_s = std::max(0.0, timing_start_offset_ + accel_zone_length_);
   const double brake_end_s = std::max(accel_end_s, accel_end_s + brake_zone_length_);
 
-  for (size_t i = 0; i < n; ++i)
-  {
-    if (s[i] >= brake_end_s)
-    {
+  for (size_t i = 0; i < n; ++i) {
+    if (s[i] >= brake_end_s) {
       msg.target_speeds[i] = 0.0;
       continue;
     }
-    if (s[i] >= accel_end_s)
-    {
+    if (s[i] >= accel_end_s) {
       const double remaining = std::max(0.0, brake_end_s - s[i]);
       const double brake_cap = std::sqrt(std::max(0.0, 2.0 * a_brake * remaining));
       msg.target_speeds[i] = std::min(msg.target_speeds[i], brake_cap);
-    }
-    else if (s[i] > accel_end_s)
-    {
+    } else if (s[i] > accel_end_s) {
       msg.target_speeds[i] = std::min(msg.target_speeds[i], v_cap);
     }
   }
 
   // Sanitize
-  for (size_t i = 0; i < n; ++i)
-  {
+  for (size_t i = 0; i < n; ++i) {
     if (!std::isfinite(msg.curvatures[i]))
       msg.curvatures[i] = 0.0;
     if (!std::isfinite(msg.target_speeds[i]) || msg.target_speeds[i] < 0.0)
@@ -274,14 +256,12 @@ void LineDetectionNode::FillPathDynamics(autodrive_msgs::HUAT_PathLimits &msg) c
   }
 }
 
-void LineDetectionNode::PublishPathLimits(const std::vector<planning_core::Pose> &path_points)
-{
+void LineDetectionNode::PublishPathLimits(const std::vector<planning_core::Pose>& path_points) {
   autodrive_msgs::HUAT_PathLimits msg;
   msg.replan = true;
   msg.path.reserve(path_points.size());
 
-  for (const auto &pose : path_points)
-  {
+  for (const auto& pose : path_points) {
     geometry_msgs::Point p;
     p.x = pose.x;
     p.y = pose.y;
@@ -295,12 +275,10 @@ void LineDetectionNode::PublishPathLimits(const std::vector<planning_core::Pose>
   pathlimits_pub_.publish(msg);
 }
 
-void LineDetectionNode::PublishFinishOnce()
-{
+void LineDetectionNode::PublishFinishOnce() {
   std::lock_guard<std::mutex> lock(data_mutex_);
 
-  if (finish_published_)
-  {
+  if (finish_published_) {
     return;
   }
 
@@ -312,8 +290,7 @@ void LineDetectionNode::PublishFinishOnce()
   ROS_INFO("[LineDetection] Finish line reached!");
 }
 
-void LineDetectionNode::RunOnce()
-{
+void LineDetectionNode::RunOnce() {
   const ros::Time tick = ros::Time::now();
   std::vector<planning_core::Pose> planned_path;
   bool finished = false;
@@ -324,24 +301,20 @@ void LineDetectionNode::RunOnce()
     core_.RunAlgorithm();
     finished = core_.IsFinished();
     error = core_.GetLastError();
-    if (core_.HasPlannedPath())
-    {
+    if (core_.HasPlannedPath()) {
       planned_path = core_.GetPlannedPath();
     }
   }
 
-  if (!error.empty())
-  {
+  if (!error.empty()) {
     ROS_WARN_THROTTLE(1.0, "[LineDetection] Planning failed: %s", error.c_str());
   }
 
-  if (!finished && !planned_path.empty())
-  {
+  if (!finished && !planned_path.empty()) {
     PublishPathLimits(planned_path);
   }
 
-  if (finished)
-  {
+  if (finished) {
     PublishFinishOnce();
   }
 
@@ -354,16 +327,29 @@ void LineDetectionNode::RunOnce()
 
   std::vector<diagnostic_msgs::KeyValue> kvs;
   diagnostic_msgs::KeyValue kv;
-  kv.key = "backend"; kv.value = "line"; kvs.push_back(kv);
-  kv.key = "phase"; kv.value = finished ? "finished" : "running"; kvs.push_back(kv);
-  kv.key = "error"; kv.value = error.empty() ? "none" : error; kvs.push_back(kv);
-  kv.key = "path_size"; kv.value = std::to_string(planned_path.size()); kvs.push_back(kv);
-  kv.key = "n_cones"; kv.value = std::to_string(cone_count_); kvs.push_back(kv);
-  kv.key = "safety_width"; kv.value = std::to_string(planning_core::getSafetyWidth("line")); kvs.push_back(kv);
+  kv.key = "backend";
+  kv.value = "line";
+  kvs.push_back(kv);
+  kv.key = "phase";
+  kv.value = finished ? "finished" : "running";
+  kvs.push_back(kv);
+  kv.key = "error";
+  kv.value = error.empty() ? "none" : error;
+  kvs.push_back(kv);
+  kv.key = "path_size";
+  kv.value = std::to_string(planned_path.size());
+  kvs.push_back(kv);
+  kv.key = "n_cones";
+  kv.value = std::to_string(cone_count_);
+  kvs.push_back(kv);
+  kv.key = "safety_width";
+  kv.value = std::to_string(planning_core::getSafetyWidth("line"));
+  kvs.push_back(kv);
 
-  uint8_t level = error.empty() ? diagnostic_msgs::DiagnosticStatus::OK : diagnostic_msgs::DiagnosticStatus::WARN;
-  diag_helper_.PublishStatus("planning/line", "line_detection", level,
-                            error.empty() ? "OK" : error, kvs, tick, true);
+  uint8_t level = error.empty() ? diagnostic_msgs::DiagnosticStatus::OK
+                                : diagnostic_msgs::DiagnosticStatus::WARN;
+  diag_helper_.PublishStatus("planning/line", "line_detection", level, error.empty() ? "OK" : error,
+                             kvs, tick, true);
 }
 
-} // namespace planning_ros
+}  // namespace planning_ros

@@ -4,7 +4,7 @@
  * @brief Contains the constants used throughout the project.
  * @version 1.0
  * @date 2023-05-01
- * 
+ *
  * @copyright Copyright (c) 2022 BCN eMotorsport
  */
 

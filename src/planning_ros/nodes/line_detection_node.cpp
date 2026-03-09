@@ -2,8 +2,7 @@
 
 #include <ros/ros.h>
 
-int main(int argc, char **argv)
-{
+int main(int argc, char** argv) {
   ros::init(argc, argv, "line_detection");
   ros::NodeHandle nh;
   ros::NodeHandle pnh("~");
@@ -15,13 +14,11 @@ int main(int argc, char **argv)
   ros::Rate loop_rate(rate);
   ROS_INFO("[LineDetection] Node started, running at %d Hz", rate);
 
-  while (ros::ok())
-  {
+  while (ros::ok()) {
     ros::spinOnce();
     node.RunOnce();
 
-    if (node.IsFinished())
-    {
+    if (node.IsFinished()) {
       ROS_INFO("[LineDetection] Path planning completed, waiting 2s before shutdown");
       ros::Duration(2.0).sleep();
       ros::shutdown();

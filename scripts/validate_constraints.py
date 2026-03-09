@@ -8,20 +8,29 @@ validate_constraints.py
     python3 scripts/validate_constraints.py docs/constraints/acceleration.yaml
 """
 
-import sys
 import os
-import yaml
+import sys
 from pathlib import Path
 
+import yaml
+
 REQUIRED_FIELDS = [
-    "constraint_id", "name", "name_en", "description",
-    "value", "unit", "applicable_missions",
-    "constraint_type", "violation_criteria",
-    "source_ref", "algorithm_usage",
+    "constraint_id",
+    "name",
+    "name_en",
+    "description",
+    "value",
+    "unit",
+    "applicable_missions",
+    "constraint_type",
+    "violation_criteria",
+    "source_ref",
+    "algorithm_usage",
 ]
 
 VALID_MISSIONS = {"acceleration", "skidpad", "autocross", "trackdrive", "all"}
 VALID_TYPES = {"hard", "soft"}
+
 
 def validate_constraint(entry, file_path):
     errors = []
@@ -40,6 +49,7 @@ def validate_constraint(entry, file_path):
                 errors.append(f"  [{cid}] 未知 mission: {m}")
 
     return errors
+
 
 def validate_file(file_path):
     with open(file_path, "r", encoding="utf-8") as f:
@@ -72,6 +82,7 @@ def validate_file(file_path):
 
     return errors
 
+
 def main():
     if len(sys.argv) > 1:
         files = [Path(f) for f in sys.argv[1:]]
@@ -103,6 +114,7 @@ def main():
 
     print(f"\n总计: {total_constraints} 条约束, {total_errors} 个错误")
     sys.exit(1 if total_errors > 0 else 0)
+
 
 if __name__ == "__main__":
     main()

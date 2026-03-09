@@ -29,7 +29,7 @@ graph LR
          ↑
          │
          │
-    Y ←──●──→ 
+    Y ←──●──→
   (Left)  │  (Right, 右)
          │
          ↓
@@ -240,7 +240,7 @@ rostopic echo /pbox_pub/Ins -n 1 | grep -E "V[ned]"
 ### Q4: IMU buffer empty 警告
 
 **原因**: IMU 消息未发布或时间戳不同步
-**解决**: 
+**解决**:
 1. 检查 `ins_bridge` 节点是否运行
 2. 确保 rosbag 使用 `--clock` 参数播放
 3. 检查 `use_sim_time` 设置
@@ -268,6 +268,6 @@ rostopic echo /pbox_pub/Ins -n 1 | grep -E "V[ned]"
 
 ---
 
-> 文档版本: 1.0  
-> 最后更新: 2026-01-29  
+> 文档版本: 1.0
+> 最后更新: 2026-01-29
 > 维护者: HUAT Racing Team

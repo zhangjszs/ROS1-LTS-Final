@@ -4,18 +4,18 @@
  * @brief Contains the Trace class specification
  * @version 1.0
  * @date 2022-10-31
- * 
+ *
  * @copyright Copyright (c) 2022 BCN eMotorsport
  */
 
 #pragma once
 
+#include "structures/Edge.hpp"
+
 #include <ros/ros.h>
 
 #include <iostream>
 #include <memory>
-
-#include "structures/Edge.hpp"
 
 /**
  * @brief Represents a trace, i.e. an edge path in the tree search.
@@ -64,29 +64,30 @@ class Trace {
 
     /**
      * @brief Construct a new Connection object.
-     * 
-     * @param[in] edgeInd 
-     * @param[in] heur 
-     * @param[in] edgeLen 
-     * @param[in] loopClosed 
-     * @param[in] before 
+     *
+     * @param[in] edgeInd
+     * @param[in] heur
+     * @param[in] edgeLen
+     * @param[in] loopClosed
+     * @param[in] before
      */
-    Connection(const size_t &edgeInd, const double &heur, const double &edgeLen, const bool &loopClosed, std::shared_ptr<Connection> before);
+    Connection(const size_t& edgeInd, const double& heur, const double& edgeLen,
+               const bool& loopClosed, std::shared_ptr<Connection> before);
 
     /**
      * @brief Returns if there is \a _edgeInd in the Connection chain.
-     * 
-     * @param[in] _edgeInd 
+     *
+     * @param[in] _edgeInd
      */
-    bool containsEdge(const size_t &_edgeInd) const;
+    bool containsEdge(const size_t& _edgeInd) const;
 
     /**
      * @brief Cout operator.
-     * 
-     * @param[in,out] os 
-     * @param[in] conn 
+     *
+     * @param[in,out] os
+     * @param[in] conn
      */
-    friend std::ostream &operator<<(std::ostream &os, const Connection &conn) {
+    friend std::ostream& operator<<(std::ostream& os, const Connection& conn) {
       if (conn.before != nullptr) {
         os << *(conn.before);
       }
@@ -102,8 +103,8 @@ class Trace {
   /**
    * @brief Construct a new Trace object having \a p as a pointer to the
    * Connection chain.
-   * 
-   * @param[in] p 
+   *
+   * @param[in] p
    */
   Trace(std::shared_ptr<Connection> p);
 
@@ -115,23 +116,25 @@ class Trace {
 
   /**
    * @brief Construct a new Trace object and the first Connection object.
-   * 
-   * @param[in] edgeInd 
-   * @param[in] heur 
-   * @param[in] edgeLen 
-   * @param[in] loopClosed 
+   *
+   * @param[in] edgeInd
+   * @param[in] heur
+   * @param[in] edgeLen
+   * @param[in] loopClosed
    */
-  Trace(const size_t &edgeInd, const double &heur, const double &edgeLen, const bool &loopClosed = false);
+  Trace(const size_t& edgeInd, const double& heur, const double& edgeLen,
+        const bool& loopClosed = false);
 
   /**
    * @brief Appends an Edge as a Connection with the following data.
-   * 
-   * @param[in] edgeInd 
-   * @param[in] heur 
-   * @param[in] edgeLen 
-   * @param[in] loopClosed 
+   *
+   * @param[in] edgeInd
+   * @param[in] heur
+   * @param[in] edgeLen
+   * @param[in] loopClosed
    */
-  void addEdge(const size_t &edgeInd, const double &heur, const double &edgeLen, const bool &loopClosed = false);
+  void addEdge(const size_t& edgeInd, const double& heur, const double& edgeLen,
+               const bool& loopClosed = false);
 
   /**
    * @brief Consults if the Trace is empty.
@@ -157,12 +160,12 @@ class Trace {
   /**
    * @brief Returns the last Edge index.
    */
-  const size_t &edgeInd() const;
+  const size_t& edgeInd() const;
 
   /**
    * @brief Returns the last Connection heuristic.
    */
-  const double &heur() const;
+  const double& heur() const;
 
   /**
    * @brief Returns the last Connection's average Edge length.
@@ -182,10 +185,10 @@ class Trace {
 
   /**
    * @brief Checks if there is any Connection with Edge index \a edgeInd.
-   * 
-   * @param[in] edgeInd 
+   *
+   * @param[in] edgeInd
    */
-  bool containsEdge(const size_t &edgeInd) const;
+  bool containsEdge(const size_t& edgeInd) const;
 
   /**
    * @brief Clears the Connection chain.
@@ -194,9 +197,9 @@ class Trace {
 
   /**
    * @brief Cout operator.
-   * 
-   * @param[in,out] os 
-   * @param[in] trace 
+   *
+   * @param[in,out] os
+   * @param[in] trace
    */
-  friend std::ostream &operator<<(std::ostream &os, const Trace &trace);
+  friend std::ostream& operator<<(std::ostream& os, const Trace& trace);
 };

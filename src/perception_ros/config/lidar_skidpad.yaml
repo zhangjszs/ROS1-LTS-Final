@@ -67,30 +67,30 @@ stacked_cone_detection:
     # 调大：分层更粗，可能遗漏堆叠信息
     # 调小：分层更细，计算量增加
     layer_height: 0.15
-    
+
     # 更多层数（应对复杂堆叠）
     # 影响：最多检测几层堆叠
     max_layers: 5
-  
+
   deduplication:
     # ⭐ 更严格的聚类（密集场景需要精确去重）
     # 单位：m | 建议范围：0.30-0.40
     # 调大：更激进的去重（可能误删真实锥桶）
     # 调小：保留更多检测（密集场景重复多）
     cluster_tolerance: 0.35
-  
+
   near_range:
     # 中等近距范围
     # 单位：m | 建议范围：5-8
     distance_threshold: 6.0
-    
+
     # ⭐ 非常严格的去重（密集场景避免重复）
     # 单位：m | 建议范围：0.15-0.25
     stricter_xy_threshold: 0.2
-    
+
     # 增强去重开关
     enhanced_dedup: true
-    
+
     # 更小的层间分离度
     # 单位：m
     layer_separation: 0.12
@@ -102,34 +102,34 @@ occlusion_handling:
     # 单位：度 | 建议范围：20-30
     # 调大：更容易判断为遮挡（更激进的预测）
     angle_gap_threshold: 25.0
-  
+
   missing_cone_prediction:
     # 中等预测距离（八字场地小）
     # 单位：m | 建议范围：6-10
     max_prediction_distance: 8.0
-    
+
     # 保守的预测置信度
     # 范围：0-1 | 建议：0.15-0.25
     prediction_confidence: 0.2
-    
+
     # 更多的连续预测（圆环需要连续性）
     # 影响：允许多少帧连续预测不出现
     max_consecutive_predictions: 4
-  
+
   geometric_interpolation:
     # ⭐ 使用圆弧插值（八字场景是圆环）
     # 重要！八字赛道是两个相切的圆
     # linear插值会走直线，穿过圆心（错误）
     # arc插值沿圆弧，符合实际赛道形状
     method: arc
-    
+
     # 中等插值间隙
     # 单位：m | 建议范围：5-8
     max_interpolation_gap: 6.0
-    
+
     # ⭐ 使用曲率（重要！八字是圆弧）
     use_track_curvature: true
-    
+
     # 更大的曲率估计窗口（圆环曲率稳定）
     # 影响：用多少点估计曲率
     curvature_estimate_window: 8
@@ -142,27 +142,27 @@ short_detection_suppression:
     # 调大：更严格，过滤更多瞬态噪声
     # 调小：更快响应（可能抖动）
     min_detections_for_valid: 4
-    
+
     # 高置信度门槛
     # 范围：0-1 | 建议：0.35-0.45
     min_confidence: 0.4
-  
+
   spatial_continuity:
     # 检查空间连续性
     check_neighbor_detections: true
-    
+
     # 邻居半径（单位：m）
     # 密集场景应较小，避免跨圆环匹配
     neighbor_radius: 2.5
-    
+
     # 较高的最小邻居数（密集场景应有邻居）
     min_neighbors: 2
-  
+
   temporal_continuity:
     # ⭐ 很长的跟踪长度（确保稳定性）
     # 影响：时序上需要连续多少帧
     min_track_length: 5
-    
+
     # ⭐ 很小的间隙容忍（密集场景连续性要求高）
     max_gap_frames: 1
 
@@ -172,33 +172,33 @@ geometric_consistency:
     # ⭐ 非常严格的高度方差（所有锥桶应一致）
     # 单位：m | 建议范围：0.08-0.12
     max_height_variance: 0.1
-    
+
     # ⭐ 非常严格的面积方差
     # 单位：m² | 建议范围：0.02-0.04
     max_area_variance: 0.03
-  
+
   spatial_distribution:
     # 检查圆环间距均匀性
     check_spacing_uniformity: true
-    
+
     # ⭐ 非常严格的间距方差（圆环应均匀分布）
     # 单位：m² | 建议范围：1.5-2.5
     max_spacing_variance: 2.0
-    
+
     # 检查局部密度
     check_local_density: true
     # 密集场景密度范围
     expected_density_range: [20, 150]
-  
+
   angular_distribution:
     # 检查方位角变化（圆环特征）
     check_bearing_variance: true
-    
+
     # 允许圆环方位角变化
     # 单位：度 | 建议范围：25-35
     # 圆环上方位角自然变化
     max_bearing_variance: 30.0
-    
+
     check_elevation_variance: true
     # 单位：度
     max_elevation_variance: 5.0
@@ -209,33 +209,33 @@ loop_closure_optimization:
     # ⭐ 最长的特征寿命（八字回环频繁且重复）
     # 影响：特征保留多少帧
     min_feature_lifetime: 10
-    
+
     # ⭐ 最高的重识别门槛（避免错误重识别）
     # 范围：0-1 | 建议：0.75-0.85
     reidentification_threshold: 0.8
-    
+
     feature_reidentification: true
-  
+
   observation_stability:
     # 要求多帧观测
     require_multi_frame_obs: true
-    
+
     # 较多的观测帧数
     # 影响：需要多少帧观测才确认
     min_observation_frames: 4
-    
+
     observation_consistency_check: true
-  
+
   geometric_verification:
     # ⭐ 检查圆环相对几何
     check_relative_geometry: true
-    
+
     check_distance_consistency: true
-    
+
     # ⭐ 非常严格的距离容差（圆环几何精确）
     # 单位：m | 建议范围：0.25-0.35
     distance_tolerance: 0.3
-    
+
     check_angle_consistency: true
     # 角度容差（单位：度）
     angle_tolerance: 8.0

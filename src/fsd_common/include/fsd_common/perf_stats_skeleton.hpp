@@ -22,7 +22,7 @@ class RollingStatsWindow {
  public:
   RollingStatsWindow() = default;
 
-  void Configure(const std::string &name, bool enabled, size_t window_size, size_t log_every) {
+  void Configure(const std::string& name, bool enabled, size_t window_size, size_t log_every) {
     name_ = name;
     enabled_ = enabled;
     window_size_ = window_size == 0 ? 1 : window_size;
@@ -33,8 +33,9 @@ class RollingStatsWindow {
     since_log_ = 0;
   }
 
-  bool PushSample(const SampleT &sample) {
-    if (!enabled_) return false;
+  bool PushSample(const SampleT& sample) {
+    if (!enabled_)
+      return false;
     samples_[index_] = sample;
     index_ = (index_ + 1) % window_size_;
     count_++;
@@ -48,7 +49,7 @@ class RollingStatsWindow {
 
   size_t SampleCount() const { return std::min(count_, window_size_); }
 
-  const std::string &Name() const { return name_; }
+  const std::string& Name() const { return name_; }
 
   template <typename Getter>
   MetricStats ComputeStatsFor(Getter getter) const {
@@ -63,13 +64,16 @@ class RollingStatsWindow {
 
  private:
   size_t SampleIndex(size_t i) const {
-    if (count_ < window_size_) return i;
+    if (count_ < window_size_)
+      return i;
     return (index_ + i) % window_size_;
   }
 
-  static double Percentile(const std::vector<double> &sorted, double p) {
-    if (sorted.empty()) return 0.0;
-    if (sorted.size() == 1) return sorted.front();
+  static double Percentile(const std::vector<double>& sorted, double p) {
+    if (sorted.empty())
+      return 0.0;
+    if (sorted.size() == 1)
+      return sorted.front();
     const double idx = p * (sorted.size() - 1);
     const size_t lo = static_cast<size_t>(std::floor(idx));
     const size_t hi = static_cast<size_t>(std::ceil(idx));
@@ -79,7 +83,8 @@ class RollingStatsWindow {
 
   static MetricStats ComputeStats(std::vector<double> values) {
     MetricStats stats;
-    if (values.empty()) return stats;
+    if (values.empty())
+      return stats;
     std::sort(values.begin(), values.end());
     const double sum = std::accumulate(values.begin(), values.end(), 0.0);
     stats.mean = sum / static_cast<double>(values.size());

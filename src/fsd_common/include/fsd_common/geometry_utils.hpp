@@ -3,8 +3,12 @@
 
 namespace fsd_common {
 
-inline constexpr double DegToRad(double deg) { return deg * M_PI / 180.0; }
-inline constexpr double RadToDeg(double rad) { return rad * 180.0 / M_PI; }
+inline constexpr double DegToRad(double deg) {
+  return deg * M_PI / 180.0;
+}
+inline constexpr double RadToDeg(double rad) {
+  return rad * 180.0 / M_PI;
+}
 
 inline double Distance2D(double x1, double y1, double x2, double y2) {
   const double dx = x2 - x1, dy = y2 - y1;

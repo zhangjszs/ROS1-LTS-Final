@@ -3,8 +3,8 @@
 #include <fsd_common/perf_stats_skeleton.hpp>
 // Re-export into old namespace for backward compatibility
 namespace autodrive_msgs {
-  namespace perf {
-    using fsd_common::perf::MetricStats;
-    using fsd_common::perf::RollingStatsWindow;
-  }
-}
+namespace perf {
+using fsd_common::perf::MetricStats;
+using fsd_common::perf::RollingStatsWindow;
+}  // namespace perf
+}  // namespace autodrive_msgs

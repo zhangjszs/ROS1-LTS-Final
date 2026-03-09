@@ -10,24 +10,25 @@
 
 #pragma once
 
-#include <autodrive_msgs/HUAT_CarState.h>
-#include <autodrive_msgs/HUAT_PathLimits.h>
-#include <autodrive_msgs/HUAT_TrackLimits.h>
-#include <eigen_conversions/eigen_msg.h>
+#include "structures/Trace.hpp"
+#include "structures/Vector.hpp"
+#include "structures/Way.hpp"
+#include "utils/Failsafe.hpp"
+#include "utils/KDTree.hpp"
+#include "utils/Params.hpp"
+#include "utils/constants.hpp"
+#include "utils/definitions.hpp"
+
 #include <ros/ros.h>
-#include <tf/transform_datatypes.h>
 
 #include <fstream>
 #include <queue>
 
-#include "structures/Trace.hpp"
-#include "structures/Vector.hpp"
-#include "structures/Way.hpp"
-#include "utils/KDTree.hpp"
-#include "utils/Params.hpp"
-#include "utils/Failsafe.hpp"
-#include "utils/constants.hpp"
-#include "utils/definitions.hpp"
+#include <autodrive_msgs/HUAT_CarState.h>
+#include <autodrive_msgs/HUAT_PathLimits.h>
+#include <autodrive_msgs/HUAT_TrackLimits.h>
+#include <eigen_conversions/eigen_msg.h>
+#include <tf/transform_datatypes.h>
 
 /**
  * @brief A class that has all tools and functions to compute the Way.
@@ -35,10 +36,7 @@
  */
 class WayComputer {
  public:
-  enum class LapMode {
-    MAP_BUILD_SAFE = 0,
-    FAST_LAP = 1
-  };
+  enum class LapMode { MAP_BUILD_SAFE = 0, FAST_LAP = 1 };
 
   LapMode lapMode() const { return lapMode_; }
 
@@ -55,7 +53,8 @@ class WayComputer {
 
   /**
    * @brief The result of the computation and last iteration's result.
-   * 当前迭代的路径计算结果。它是一个类型为 `Way` 的对象，用于存储路径的信息，包括路径的节点、方向、曲率等
+   * 当前迭代的路径计算结果。它是一个类型为 `Way`
+   * 的对象，用于存储路径的信息，包括路径的节点、方向、曲率等
    * 上一次迭代的路径计算结果。它也是一个类型为 `Way` 的对象，用于存储上一次迭代计算得到的路径信息。
    */
   Way way_, lastWay_;
@@ -111,7 +110,7 @@ class WayComputer {
 
   /**
    * @brief 车身位置
-  */
+   */
   geometry_msgs::Pose pose;
 
   autodrive_msgs::HUAT_CarState CarState;
@@ -121,7 +120,7 @@ class WayComputer {
    *
    * @param[in,out] triangulation
    */
-  void filterTriangulation(TriangleSet &triangulation) const;
+  void filterTriangulation(TriangleSet& triangulation) const;
 
   /**
    * @brief Filters the Edges by their midpoints and removes all unwanted Edge(s).
@@ -129,7 +128,7 @@ class WayComputer {
    * @param[in,out] edges
    * @param[in] triangulation
    */
-  void filterMidpoints(EdgeSet &edges, const TriangleSet &triangulation) const;
+  void filterMidpoints(EdgeSet& edges, const TriangleSet& triangulation) const;
 
   /**
    * @brief Computes and returns the heuristic based on angle and distance.
@@ -140,10 +139,8 @@ class WayComputer {
    * @param[in] dir
    * @param[in] params
    */
-  double getHeuristic(const Point &actPos,
-                      const Point &nextPos,
-                      const Vector &dir,
-                      const Params::WayComputer::Search &params) const;
+  double getHeuristic(const Point& actPos, const Point& nextPos, const Vector& dir,
+                      const Params::WayComputer::Search& params) const;
 
   /**
    * @brief Returns the average edge length of the Way and the Trace \a *trace
@@ -151,7 +148,7 @@ class WayComputer {
    *
    * @param[in] trace
    */
-  inline double avgEdgeLen(const Trace *trace) const;
+  inline double avgEdgeLen(const Trace* trace) const;
 
   /**
    * @brief Finds all possible next Edges according to all metrics and thresholds.
@@ -163,11 +160,9 @@ class WayComputer {
    * @param[in] edges
    * @param[in] params
    */
-  void findNextEdges(std::vector<HeurInd> &nextEdges,
-                     const Trace *actTrace,
-                     const KDTree &midpointsKDT,
-                     const std::vector<Edge> &edges,
-                     const Params::WayComputer::Search &params) const;
+  void findNextEdges(std::vector<HeurInd>& nextEdges, const Trace* actTrace,
+                     const KDTree& midpointsKDT, const std::vector<Edge>& edges,
+                     const Params::WayComputer::Search& params) const;
 
   /**
    * @brief Computes which is the best Trace from the best previous best Trace
@@ -177,7 +172,7 @@ class WayComputer {
    * @param t is the candidate to best Trace
    * @return Trace is the new best Trace
    */
-  Trace computeBestTraceWithFinishedT(const Trace &best, const Trace &t) const;
+  Trace computeBestTraceWithFinishedT(const Trace& best, const Trace& t) const;
 
   /**
    * @brief Performs a limited-height heuristic-ponderated tree search and
@@ -189,10 +184,9 @@ class WayComputer {
    * @param[in] edges
    * @param[in] params
    */
-  size_t treeSearch(std::vector<HeurInd> &nextEdges,
-                    const KDTree &midpointsKDT,
-                    const std::vector<Edge> &edges,
-                    const Params::WayComputer::Search &params) const;
+  size_t treeSearch(std::vector<HeurInd>& nextEdges, const KDTree& midpointsKDT,
+                    const std::vector<Edge>& edges,
+                    const Params::WayComputer::Search& params) const;
 
   /**
    * @brief Main function of the class, it takes all Edges and computes the best
@@ -201,13 +195,13 @@ class WayComputer {
    * @param[in] edges
    * @param[in] params
    */
-  void computeWay(const std::vector<Edge> &edges, const Params::WayComputer::Search &params);
+  void computeWay(const std::vector<Edge>& edges, const Params::WayComputer::Search& params);
 
   /**
    * @brief Fills per-point curvature and target speed arrays in HUAT_PathLimits.
    * Ensures output lengths are consistent with path[].
    */
-  void fillPathDynamics(autodrive_msgs::HUAT_PathLimits &msg) const;
+  void fillPathDynamics(autodrive_msgs::HUAT_PathLimits& msg) const;
 
   /**
    * @brief Update SAFE_LAP/FAST_LAP mode with debounce and minimum hold time.
@@ -220,14 +214,14 @@ class WayComputer {
    *
    * @param[in] params
    */
-  WayComputer(const Params::WayComputer &params);
+  WayComputer(const Params::WayComputer& params);
 
   /**
    * @brief Callback of the car's state.
    *
    * @param[in] data
    */
-  void stateCallback(const autodrive_msgs::HUAT_CarState::ConstPtr &data);
+  void stateCallback(const autodrive_msgs::HUAT_CarState::ConstPtr& data);
 
   /**
    * @brief Takes the Delaunay triangle set and computes the Way.
@@ -235,29 +229,29 @@ class WayComputer {
    * @param[in,out] triangulation
    * @param[in] stamp
    */
-  void update(TriangleSet &triangulation, const ros::Time &stamp);
+  void update(TriangleSet& triangulation, const ros::Time& stamp);
 
   /**
    * @brief Returns if the loop has been closed.
    */
-  const bool &isLoopClosed() const;
+  const bool& isLoopClosed() const;
 
   /**
    * @brief Writes the Way to the file path specified.
    *
    * @param[in] file_path
    */
-  void writeWayToFile(const std::string &file_path) const;
+  void writeWayToFile(const std::string& file_path) const;
 
   /**
    * @brief Returns if the attribute localTf is valid.
    */
-  const bool &isLocalTfValid() const;
+  const bool& isLocalTfValid() const;
 
   /**
    * @brief Returns the transformation from global to local.
    */
-  const Eigen::Affine3d &getLocalTf() const;
+  const Eigen::Affine3d& getLocalTf() const;
 
   /**
    * @brief Returns the centerline vector in global coordinates.
@@ -283,14 +277,14 @@ class WayComputer {
    *          2：局部路径插值
    *          3：全路径插值
    *          default:局部坐标系下的路径
-  */
+   */
   autodrive_msgs::HUAT_PathLimits getPathLimitsGlobal(int x = 0);
 
   autodrive_msgs::HUAT_CarState getCarState();
 
   size_t lastTriangleCount() const;
   size_t lastEdgeCount() const;
-  const TriangleSet &lastFilteredTriangulation() const;
-  const EdgeSet &lastFilteredEdges() const;
-  const Way &wayForVisualization() const;
+  const TriangleSet& lastFilteredTriangulation() const;
+  const EdgeSet& lastFilteredEdges() const;
+  const Way& wayForVisualization() const;
 };

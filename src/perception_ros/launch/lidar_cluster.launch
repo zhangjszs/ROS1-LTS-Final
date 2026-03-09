@@ -32,6 +32,6 @@
     <node if="$(arg launch_rviz)" pkg="rviz" type="rviz" name="rviz" args="-d $(arg rviz_config)" />
 
     <!-- Play rosbag with clock to publish /clock topic for sim time -->
-    <node pkg="rosbag" type="play" name="rosbag_play" output="screen" 
+    <node pkg="rosbag" type="play" name="rosbag_play" output="screen"
           args="--clock $(arg bag)" if="$(eval arg('bag') != '')" />
 </launch>

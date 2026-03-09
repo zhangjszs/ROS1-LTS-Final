@@ -2,12 +2,12 @@
  * @Description: IMU数据结构定义
  * @Author: Modified based on original code
  * @Date: 2026-01-29
- * 
+ *
  * 坐标系说明:
  * - 速度: NED坐标系 (North-East-Down)
  * - 加速度/角速度: FRD车体坐标系 (Front-Right-Down)
  * - 姿态角: 欧拉角 (Roll-Pitch-Yaw)
- * 
+ *
  * 单位:
  * - 速度: m/s
  * - 加速度: m/s²
@@ -20,7 +20,7 @@
 #define MULTI_SENSOR_FUSION_IMU_DATA_HPP_
 
 class IMUData {
-public:
+ public:
   /**
    * @brief 速度结构 (NED坐标系)
    * North-East-Down 坐标系，常用于导航系统
@@ -67,22 +67,22 @@ public:
    * 用于判断数据有效性
    */
   struct InsStatus {
-    uint8_t overall = 0;       ///< 总体状态: 0=NONE, 1=姿态初始化, 2=组合导航
-    bool pos_valid = false;    ///< 位置有效标志
-    bool vel_valid = false;    ///< 速度有效标志
-    bool att_valid = false;    ///< 姿态有效标志
-    bool heading_valid = false;///< 航向有效标志
-    uint8_t num_sv = 0;        ///< 卫星数量
-    double diff_age = 0.0;     ///< 差分龄期 (秒)
+    uint8_t overall = 0;         ///< 总体状态: 0=NONE, 1=姿态初始化, 2=组合导航
+    bool pos_valid = false;      ///< 位置有效标志
+    bool vel_valid = false;      ///< 速度有效标志
+    bool att_valid = false;      ///< 姿态有效标志
+    bool heading_valid = false;  ///< 航向有效标志
+    uint8_t num_sv = 0;          ///< 卫星数量
+    double diff_age = 0.0;       ///< 差分龄期 (秒)
   };
 
   // === 公共成员变量 ===
-  double time = 0.0;                     ///< 时间戳 (秒)
-  Velocity velocity;                     ///< 速度 (m/s, NED)
-  Acceleration acceleration;             ///< 加速度 (m/s², FRD)
-  AngularVelocity angular_velocity;      ///< 角速度 (rad/s, FRD)
-  Orientation orientation;               ///< 姿态角 (度)
-  InsStatus status;                      ///< INS 状态信息
+  double time = 0.0;                 ///< 时间戳 (秒)
+  Velocity velocity;                 ///< 速度 (m/s, NED)
+  Acceleration acceleration;         ///< 加速度 (m/s², FRD)
+  AngularVelocity angular_velocity;  ///< 角速度 (rad/s, FRD)
+  Orientation orientation;           ///< 姿态角 (度)
+  InsStatus status;                  ///< INS 状态信息
 };
 
 #endif  // MULTI_SENSOR_FUSION_IMU_DATA_HPP_

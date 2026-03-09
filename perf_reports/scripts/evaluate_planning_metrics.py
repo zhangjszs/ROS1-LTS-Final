@@ -91,7 +91,9 @@ def _load_pathlimits_from_bag(
                     target_speeds = msg.target_speeds if hasattr(msg, "target_speeds") else []
                     replan = msg.replan if hasattr(msg, "replan") else False
 
-                    stamp_s = msg.header.stamp.to_sec() if hasattr(msg.header, "stamp") else t.to_sec()
+                    stamp_s = (
+                        msg.header.stamp.to_sec() if hasattr(msg.header, "stamp") else t.to_sec()
+                    )
                     if t0 is not None and stamp_s < t0:
                         continue
                     if t1 is not None and stamp_s > t1:
@@ -144,8 +146,7 @@ def _compute_path_jumps(frames: List[Dict[str, Any]]) -> List[float]:
             continue
 
         jump = _distance_2d(
-            (prev_path[0], frames[i - 1]["path_y"][0]),
-            (curr_path[0], frames[i]["path_y"][0])
+            (prev_path[0], frames[i - 1]["path_y"][0]), (curr_path[0], frames[i]["path_y"][0])
         )
         jumps.append(jump)
 
@@ -158,9 +159,7 @@ def _infer_mission(frames: List[Dict[str, Any]]) -> str:
         return "unknown"
 
     mean_size = _safe_mean([f["path_size"] for f in frames])
-    mean_speed = _safe_mean([
-        _safe_mean(f["target_speeds"]) for f in frames if f["target_speeds"]
-    ])
+    mean_speed = _safe_mean([_safe_mean(f["target_speeds"]) for f in frames if f["target_speeds"]])
 
     if mean_speed > 15.0:
         return "high_speed"
@@ -300,7 +299,6 @@ def evaluate_planning_metrics(frames: List[Dict[str, Any]]) -> Dict[str, Any]:
         "empty_path_count": empty_path_count,
         "mean_frame_interval_s": round(mean_frame_interval, 4),
         "mission_type": mission,
-
         "mean_track_left_count": round(mean_track_left_count, 2),
         "mean_track_right_count": round(mean_track_right_count, 2),
         "track_total_count": track_total_count,
@@ -308,7 +306,6 @@ def evaluate_planning_metrics(frames: List[Dict[str, Any]]) -> Dict[str, Any]:
         "track_far_abs_y_p95": round(track_far_abs_y_p95, 3),
         "track_far_abs_y_p99": round(track_far_abs_y_p99, 3),
         "track_far_abs_y_max": round(track_far_abs_y_max, 3),
-
         "track_far_front_count": track_far_front_count,
         "track_far_front_abs_y_p95": round(track_far_front_abs_y_p95, 3),
         "track_far_front_abs_y_p99": round(track_far_front_abs_y_p99, 3),
@@ -317,25 +314,17 @@ def evaluate_planning_metrics(frames: List[Dict[str, Any]]) -> Dict[str, Any]:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Evaluate planning proxy metrics from rosbag"
-    )
+    parser = argparse.ArgumentParser(description="Evaluate planning proxy metrics from rosbag")
     parser.add_argument("bag", help="Path to rosbag file")
     parser.add_argument(
-        "-t", "--topic", default=DEFAULT_TOPIC,
-        help=f"PathLimits topic (default: {DEFAULT_TOPIC})"
+        "-t", "--topic", default=DEFAULT_TOPIC, help=f"PathLimits topic (default: {DEFAULT_TOPIC})"
+    )
+    parser.add_argument("-o", "--output", default=None, help="Output JSON file (default: stdout)")
+    parser.add_argument(
+        "--t0", type=float, default=None, help="Start time [s] (filter by message stamp, inclusive)"
     )
     parser.add_argument(
-        "-o", "--output", default=None,
-        help="Output JSON file (default: stdout)"
-    )
-    parser.add_argument(
-        "--t0", type=float, default=None,
-        help="Start time [s] (filter by message stamp, inclusive)"
-    )
-    parser.add_argument(
-        "--t1", type=float, default=None,
-        help="End time [s] (filter by message stamp, inclusive)"
+        "--t1", type=float, default=None, help="End time [s] (filter by message stamp, inclusive)"
     )
     args = parser.parse_args()
 

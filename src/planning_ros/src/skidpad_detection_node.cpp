@@ -1,31 +1,29 @@
 #include "planning_ros/skidpad_detection_node.hpp"
 
-#include <algorithm>
-#include <cmath>
-#include <autodrive_msgs/topic_contract.hpp>
-#include <geometry_msgs/Point32.h>
-#include <vector>
-
 #include "planning_core/speed_profile.hpp"
 #include "planning_core/track_constraints.hpp"
 #include "planning_ros/contract_utils.hpp"
 
-namespace planning_ros
-{
+#include <algorithm>
+#include <cmath>
+#include <vector>
 
-SkidpadDetectionNode::SkidpadDetectionNode(ros::NodeHandle &nh)
-  : nh_(nh), pnh_("~"), core_(params_)
-{
+#include <autodrive_msgs/topic_contract.hpp>
+#include <geometry_msgs/Point32.h>
+
+namespace planning_ros {
+
+SkidpadDetectionNode::SkidpadDetectionNode(ros::NodeHandle& nh)
+    : nh_(nh), pnh_("~"), core_(params_) {
   LoadParameters();
   core_.SetParams(params_);
 
   // ApproximateTime消息同步：确保锥桶检测和车辆状态时间对齐
   cone_sub_.subscribe(nh_, cone_topic_, 10);
   car_state_sub_.subscribe(nh_, car_state_topic_, 10);
-  sync_ = std::make_unique<message_filters::Synchronizer<SyncPolicy>>(
-      SyncPolicy(10), cone_sub_, car_state_sub_);
-  sync_->registerCallback(
-      boost::bind(&SkidpadDetectionNode::SyncCallback, this, _1, _2));
+  sync_ = std::make_unique<message_filters::Synchronizer<SyncPolicy>>(SyncPolicy(10), cone_sub_,
+                                                                      car_state_sub_);
+  sync_->registerCallback(boost::bind(&SkidpadDetectionNode::SyncCallback, this, _1, _2));
 
   pathlimits_pub_ = nh_.advertise<autodrive_msgs::HUAT_PathLimits>(pathlimits_topic_, 10, true);
   approaching_goal_pub_ = nh_.advertise<std_msgs::Bool>(approaching_goal_topic_, 10);
@@ -42,52 +40,44 @@ SkidpadDetectionNode::SkidpadDetectionNode(ros::NodeHandle &nh)
   pnh_.param("max_data_age", max_data_age_, 0.5);
 }
 
-void SkidpadDetectionNode::LoadParameters()
-{
+void SkidpadDetectionNode::LoadParameters() {
   ROS_INFO("skidpad_detection loading Parameters");
-  if (!pnh_.param("length/circle2lidar", params_.circle2lidar, 15.0))
-  {
+  if (!pnh_.param("length/circle2lidar", params_.circle2lidar, 15.0)) {
     ROS_WARN_STREAM("Did not load circle2lidar. Standard value is: " << params_.circle2lidar);
   }
 
   ROS_INFO("load parameters");
-  if (!pnh_.param("length/targetX", params_.targetX, 16.0))
-  {
+  if (!pnh_.param("length/targetX", params_.targetX, 16.0)) {
     ROS_WARN_STREAM("Did not load targetX. Standard value is: " << params_.targetX);
   }
 
-  if (!pnh_.param("length/targetY", params_.targetY, -1.0))
-  {
+  if (!pnh_.param("length/targetY", params_.targetY, -1.0)) {
     ROS_WARN_STREAM("Did not load targetY. Standard value is " << params_.targetY);
   }
 
-  if (!pnh_.param("length/FinTargetX", params_.FinTargetX, 40.0))
-  {
+  if (!pnh_.param("length/FinTargetX", params_.FinTargetX, 40.0)) {
     ROS_WARN_STREAM("Did not load FinTargetX. Standard value is: " << params_.FinTargetX);
   }
 
-  if (!pnh_.param("length/FinTargetY", params_.FinTargetY, 0.0))
-  {
+  if (!pnh_.param("length/FinTargetY", params_.FinTargetY, 0.0)) {
     ROS_WARN_STREAM("Did not load FinTargetY. Standard value is " << params_.FinTargetY);
   }
 
-  if (!pnh_.param("length/distanceThreshold", params_.distanceThreshold, 0.5))
-  {
-    ROS_WARN_STREAM("Did not load distanceThreshold. Standard value is " << params_.distanceThreshold);
+  if (!pnh_.param("length/distanceThreshold", params_.distanceThreshold, 0.5)) {
+    ROS_WARN_STREAM("Did not load distanceThreshold. Standard value is "
+                    << params_.distanceThreshold);
   }
 
-  if (!pnh_.param("length/leavedistanceThreshold", params_.leavedistanceThreshold, 1.0))
-  {
-    ROS_WARN_STREAM("Did not load leavedistanceThreshold. Standard value is " << params_.leavedistanceThreshold);
+  if (!pnh_.param("length/leavedistanceThreshold", params_.leavedistanceThreshold, 1.0)) {
+    ROS_WARN_STREAM("Did not load leavedistanceThreshold. Standard value is "
+                    << params_.leavedistanceThreshold);
   }
 
-  if (!pnh_.param("inverse_flag", params_.inverse_flag, 1))
-  {
+  if (!pnh_.param("inverse_flag", params_.inverse_flag, 1)) {
     ROS_WARN_STREAM("Did not load inverse_flag. Standard value is: " << params_.inverse_flag);
   }
 
-  if (!pnh_.param("length/stopdistance", params_.stopdistance, 5.0))
-  {
+  if (!pnh_.param("length/stopdistance", params_.stopdistance, 5.0)) {
     ROS_WARN_STREAM("Did not load stopdistance. Standard value is: " << params_.stopdistance);
   }
 
@@ -119,25 +109,24 @@ void SkidpadDetectionNode::LoadParameters()
   pnh_.param("passthrough/y_max", params_.passthrough_y_max, 3.0);
 
   if (!pnh_.param<std::string>("topics/cone", cone_topic_,
-                               std::string(autodrive_msgs::topic_contract::kConeDetections)))
-  {
+                               std::string(autodrive_msgs::topic_contract::kConeDetections))) {
     ROS_WARN_STREAM("Did not load topics/cone. Standard value is: " << cone_topic_);
   }
   if (!pnh_.param<std::string>("topics/car_state", car_state_topic_,
-                               autodrive_msgs::topic_contract::kCarState))
-  {
+                               autodrive_msgs::topic_contract::kCarState)) {
     ROS_WARN_STREAM("Did not load topics/car_state. Standard value is: " << car_state_topic_);
   }
-  if (!pnh_.param<std::string>("topics/pathlimits", pathlimits_topic_, "planning/skidpad/pathlimits"))
-  {
+  if (!pnh_.param<std::string>("topics/pathlimits", pathlimits_topic_,
+                               "planning/skidpad/pathlimits")) {
     ROS_WARN_STREAM("Did not load topics/pathlimits. Standard value is: " << pathlimits_topic_);
   }
   if (!pnh_.param<std::string>("topics/approaching_goal", approaching_goal_topic_,
-                               autodrive_msgs::topic_contract::kApproachingGoal))
-  {
-    ROS_WARN_STREAM("Did not load topics/approaching_goal. Standard value is: " << approaching_goal_topic_);
+                               autodrive_msgs::topic_contract::kApproachingGoal)) {
+    ROS_WARN_STREAM(
+        "Did not load topics/approaching_goal. Standard value is: " << approaching_goal_topic_);
   }
-  pnh_.param<std::string>("frames/expected_cone", expected_cone_frame_, autodrive_msgs::frame_contract::kVelodyne);
+  pnh_.param<std::string>("frames/expected_cone", expected_cone_frame_,
+                          autodrive_msgs::frame_contract::kVelodyne);
   pnh_.param<std::string>("frames/output", output_frame_, autodrive_msgs::frame_contract::kWorld);
 
   pnh_.param("speed/speed_cap", speed_cap_, 8.0);
@@ -150,22 +139,19 @@ void SkidpadDetectionNode::LoadParameters()
   pnh_.param("speed/decel_to_stop_at_end", decel_to_stop_at_end_, false);
 }
 
-void SkidpadDetectionNode::SyncCallback(const ConeMsg::ConstPtr &cone_msg,
-                                         const StateMsg::ConstPtr &car_state)
-{
+void SkidpadDetectionNode::SyncCallback(const ConeMsg::ConstPtr& cone_msg,
+                                        const StateMsg::ConstPtr& car_state) {
   std::lock_guard<std::mutex> lock(data_mutex_);
   latest_sync_time_ = std::max(cone_msg->header.stamp, car_state->header.stamp);
 
   // 时间戳验证
   double time_diff = std::abs((cone_msg->header.stamp - car_state->header.stamp).toSec());
-  if (time_diff > max_data_age_)
-  {
-    ROS_WARN_THROTTLE(1.0, "[Skidpad] Large time diff between cone and state: %.3fms", time_diff * 1000.0);
+  if (time_diff > max_data_age_) {
+    ROS_WARN_THROTTLE(1.0, "[Skidpad] Large time diff between cone and state: %.3fms",
+                      time_diff * 1000.0);
   }
-  if (!cone_msg->header.frame_id.empty() &&
-      cone_msg->header.frame_id != expected_cone_frame_ &&
-      cone_msg->header.frame_id != autodrive_msgs::frame_contract::kVelodyne)
-  {
+  if (!cone_msg->header.frame_id.empty() && cone_msg->header.frame_id != expected_cone_frame_ &&
+      cone_msg->header.frame_id != autodrive_msgs::frame_contract::kVelodyne) {
     ROS_WARN_THROTTLE(1.0, "[Skidpad] Unexpected cone frame_id: %s (expected %s or velodyne)",
                       cone_msg->header.frame_id.c_str(), expected_cone_frame_.c_str());
   }
@@ -174,11 +160,9 @@ void SkidpadDetectionNode::SyncCallback(const ConeMsg::ConstPtr &cone_msg,
   std::vector<planning_core::ConePoint> cones;
   cones.reserve(cone_msg->points.size());
 
-  for (size_t i = 0; i < cone_msg->points.size(); ++i)
-  {
-    const geometry_msgs::Point32 &point = cone_msg->points[i];
-    if (!std::isfinite(point.x) || !std::isfinite(point.y) || !std::isfinite(point.z))
-    {
+  for (size_t i = 0; i < cone_msg->points.size(); ++i) {
+    const geometry_msgs::Point32& point = cone_msg->points[i];
+    if (!std::isfinite(point.x) || !std::isfinite(point.y) || !std::isfinite(point.z)) {
       continue;
     }
     planning_core::ConePoint cone;
@@ -198,15 +182,14 @@ void SkidpadDetectionNode::SyncCallback(const ConeMsg::ConstPtr &cone_msg,
   state.y = car_state->car_state.y;
   state.yaw = car_state->car_state.theta;
   state.v = car_state->V;
-  latest_vehicle_speed_ = std::isfinite(car_state->V) ? std::max(0.0, static_cast<double>(car_state->V)) : 0.0;
+  latest_vehicle_speed_ =
+      std::isfinite(car_state->V) ? std::max(0.0, static_cast<double>(car_state->V)) : 0.0;
   core_.UpdateVehicleState(state);
 }
 
-void SkidpadDetectionNode::FillPathDynamics(autodrive_msgs::HUAT_PathLimits &msg) const
-{
+void SkidpadDetectionNode::FillPathDynamics(autodrive_msgs::HUAT_PathLimits& msg) const {
   const size_t n = msg.path.size();
-  if (n == 0)
-  {
+  if (n == 0) {
     msg.curvatures.clear();
     msg.target_speeds.clear();
     return;
@@ -214,8 +197,7 @@ void SkidpadDetectionNode::FillPathDynamics(autodrive_msgs::HUAT_PathLimits &msg
 
   // Convert to planning_core::Point2D for shared module
   std::vector<planning_core::Point2D> pts(n);
-  for (size_t i = 0; i < n; ++i)
-  {
+  for (size_t i = 0; i < n; ++i) {
     pts[i].x = msg.path[i].x;
     pts[i].y = msg.path[i].y;
   }
@@ -240,14 +222,12 @@ void SkidpadDetectionNode::FillPathDynamics(autodrive_msgs::HUAT_PathLimits &msg
   planning_core::ComputeSpeedProfile(pts, msg.curvatures, sp, msg.target_speeds);
 }
 
-void SkidpadDetectionNode::PublishPathLimits(const std::vector<planning_core::Pose> &path_points)
-{
+void SkidpadDetectionNode::PublishPathLimits(const std::vector<planning_core::Pose>& path_points) {
   autodrive_msgs::HUAT_PathLimits msg;
   msg.replan = true;
   msg.path.reserve(path_points.size());
 
-  for (const auto &pose : path_points)
-  {
+  for (const auto& pose : path_points) {
     geometry_msgs::Point p;
     p.x = pose.x;
     p.y = pose.y;
@@ -261,31 +241,27 @@ void SkidpadDetectionNode::PublishPathLimits(const std::vector<planning_core::Po
   pathlimits_pub_.publish(msg);
 }
 
-void SkidpadDetectionNode::PublishApproachingGoal(bool approaching)
-{
+void SkidpadDetectionNode::PublishApproachingGoal(bool approaching) {
   std_msgs::Bool msg;
   msg.data = approaching;
   approaching_goal_pub_.publish(msg);
 }
 
-void SkidpadDetectionNode::RunOnce()
-{
+void SkidpadDetectionNode::RunOnce() {
   const ros::Time tick = ros::Time::now();
 
   core_.RunAlgorithm();
 
   const planning_core::SkidpadPhase phase = core_.GetPhase();
-  if (!phase_initialized_ || phase != last_phase_)
-  {
+  if (!phase_initialized_ || phase != last_phase_) {
     ROS_INFO_STREAM("[Skidpad] Phase -> " << core_.GetPhaseName()
-                    << ", speed_cap=" << core_.GetRecommendedSpeedCap());
+                                          << ", speed_cap=" << core_.GetRecommendedSpeedCap());
     last_phase_ = phase;
     phase_initialized_ = true;
   }
 
   std::vector<planning_core::Pose> current_path;
-  if (core_.HasNewPath())
-  {
+  if (core_.HasNewPath()) {
     current_path = core_.GetPath();
     PublishPathLimits(current_path);
     core_.ClearPathUpdated();
@@ -302,19 +278,39 @@ void SkidpadDetectionNode::RunOnce()
 
   std::vector<diagnostic_msgs::KeyValue> kvs;
   diagnostic_msgs::KeyValue kv;
-  kv.key = "backend"; kv.value = "skidpad"; kvs.push_back(kv);
-  kv.key = "phase"; kv.value = core_.GetPhaseName(); kvs.push_back(kv);
-  kv.key = "path_size"; kv.value = std::to_string(current_path.size()); kvs.push_back(kv);
-  kv.key = "n_cones"; kv.value = std::to_string(cone_count_); kvs.push_back(kv);
-  kv.key = "speed_cap"; kv.value = std::to_string(core_.GetRecommendedSpeedCap()); kvs.push_back(kv);
-  kv.key = "approaching_goal"; kv.value = core_.IsApproachingGoal() ? "true" : "false"; kvs.push_back(kv);
-  kv.key = "safety_width"; kv.value = std::to_string(planning_core::getSafetyWidth("skidpad")); kvs.push_back(kv);
-  kv.key = "right_laps"; kv.value = std::to_string(core_.GetRightLaps()); kvs.push_back(kv);
-  kv.key = "left_laps"; kv.value = std::to_string(core_.GetLeftLaps()); kvs.push_back(kv);
-  kv.key = "geometry_valid"; kv.value = core_.IsGeometryValid() ? "true" : "false"; kvs.push_back(kv);
+  kv.key = "backend";
+  kv.value = "skidpad";
+  kvs.push_back(kv);
+  kv.key = "phase";
+  kv.value = core_.GetPhaseName();
+  kvs.push_back(kv);
+  kv.key = "path_size";
+  kv.value = std::to_string(current_path.size());
+  kvs.push_back(kv);
+  kv.key = "n_cones";
+  kv.value = std::to_string(cone_count_);
+  kvs.push_back(kv);
+  kv.key = "speed_cap";
+  kv.value = std::to_string(core_.GetRecommendedSpeedCap());
+  kvs.push_back(kv);
+  kv.key = "approaching_goal";
+  kv.value = core_.IsApproachingGoal() ? "true" : "false";
+  kvs.push_back(kv);
+  kv.key = "safety_width";
+  kv.value = std::to_string(planning_core::getSafetyWidth("skidpad"));
+  kvs.push_back(kv);
+  kv.key = "right_laps";
+  kv.value = std::to_string(core_.GetRightLaps());
+  kvs.push_back(kv);
+  kv.key = "left_laps";
+  kv.value = std::to_string(core_.GetLeftLaps());
+  kvs.push_back(kv);
+  kv.key = "geometry_valid";
+  kv.value = core_.IsGeometryValid() ? "true" : "false";
+  kvs.push_back(kv);
 
-  diag_helper_.PublishStatus("planning/skidpad", "skidpad_detection", diagnostic_msgs::DiagnosticStatus::OK,
-                            "OK", kvs, tick, true);
+  diag_helper_.PublishStatus("planning/skidpad", "skidpad_detection",
+                             diagnostic_msgs::DiagnosticStatus::OK, "OK", kvs, tick, true);
 }
 
-} // namespace planning_ros
+}  // namespace planning_ros

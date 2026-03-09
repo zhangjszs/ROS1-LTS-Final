@@ -58,11 +58,11 @@ stacked_cone_detection:
     # 调大：分层更粗，可能遗漏堆叠信息
     # 调小：分层更细，计算量增加
     layer_height: 0.25
-    
+
     # 最大层数
     # 影响：最多检测几层堆叠
     max_layers: 3
-  
+
   deduplication:
     # 聚类距离阈值（去重用）
     # 单位：m | 建议范围：0.3-0.6
@@ -70,14 +70,14 @@ stacked_cone_detection:
     # 调小：保留更多检测（堆叠锥桶残留）
     # 稀疏场景应宽松，避免过度去重
     cluster_tolerance: 0.5
-  
+
   near_range:
     # 近距处理距离阈值
     # 单位：m | 建议范围：5-15
     # 影响：多大范围内启用增强去重
     # 直线加速场景设置较大，因为需要处理近处堆叠
     distance_threshold: 10.0
-    
+
     # XY平面去重阈值（近距）
     # 单位：m | 建议范围：0.15-0.40
     # 调大：更严格的去重
@@ -93,33 +93,33 @@ occlusion_handling:
     # 调小：更保守，需要更大间隙才认为遮挡
     # 直线场景方向明确，可以设置较小值
     angle_gap_threshold: 12.0
-  
+
   missing_cone_prediction:
     # ⭐ 最大预测距离
     # 单位：m | 建议范围：8-20
     # 影响：多远处还会预测缺失锥桶
     # 直线加速需要看远，设置最大值
     max_prediction_distance: 15.0
-    
+
     # 预测锥桶的置信度
     # 范围：0-1 | 建议：0.2-0.4
     # 调大：更相信预测（可能引入假阳性）
     # 调小：更保守（可能遗漏真锥桶）
     prediction_confidence: 0.3
-    
+
     # 最大连续预测帧数
     # 影响：允许多少帧连续预测不出现
     # 调大：允许更长缺失（连续性↑，假阳性↑）
     # 调小：更保守（连续性↓）
     max_consecutive_predictions: 2
-  
+
   geometric_interpolation:
     # ⭐ 最大插值间隙
     # 单位：m | 建议范围：6-12
     # 影响：多远距离可以插值填充
     # 直线场景可以容忍更大间隙
     max_interpolation_gap: 10.0
-    
+
     # 是否使用赛道曲率
     # 直线场景应关闭，因为直线没有曲率
     use_track_curvature: false
@@ -133,13 +133,13 @@ short_detection_suppression:
     # 调小：更宽松，快速响应（但可能抖动）
     # 稀疏场景应放宽（2帧），充分利用每个检测
     min_detections_for_valid: 2
-    
+
     # 单帧最小置信度
     # 范围：0-1 | 建议：0.2-0.4
     # 调大：更严格，低置信度被过滤
     # 调小：更宽松，看到更多（可能噪声）
     min_confidence: 0.25
-  
+
   temporal_continuity:
     # 最小跟踪长度（帧）
     # 影响：时序上需要连续多少帧
@@ -152,17 +152,17 @@ geometric_consistency:
   spatial_distribution:
     # 检查间距均匀性
     check_spacing_uniformity: true
-    
+
     # ⭐ 最大间距方差
     # 单位：m² | 建议范围：3-6
     # 影响：允许锥桶间距多大变化
     # 直线加速段间距可能变化大，设置较宽松
     max_spacing_variance: 5.0
-  
+
   angular_distribution:
     # 检查方位角（判断是否在直线上）
     check_bearing_variance: true
-    
+
     # 最大方位角方差
     # 单位：度 | 建议范围：15-30
     # 影响：允许多大角度偏差

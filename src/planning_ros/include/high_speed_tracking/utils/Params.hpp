@@ -4,7 +4,7 @@
  * @brief Contains the Params class specification
  * @version 1.0
  * @date 2022-10-31
- * 
+ *
  * @copyright Copyright (c) 2022 BCN eMotorsport
  */
 
@@ -22,7 +22,7 @@
  */
 class Params {
  public:
-  Params(ros::NodeHandle *const nh);
+  Params(ros::NodeHandle* const nh);
   struct Main {
     std::string input_cones_topic, input_pose_topic, stop_topic;
     std::string markers_full_topic, markers_partial_topic;
@@ -43,7 +43,7 @@ class Params {
     double cone_geom_filter_abs_y_max;
     bool cone_geom_filter_front_only;
     int number_of_stopped_turns;
-    int the_mode_of_partial_path,the_mode_of_full_path;
+    int the_mode_of_partial_path, the_mode_of_full_path;
   } main;
   struct WayComputer {
     double max_triangle_edge_len, min_triangle_angle, max_dist_circum_midPoint;

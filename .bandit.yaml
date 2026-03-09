@@ -1,0 +1,16 @@
+exclude_dirs:
+  - tests
+  - test
+  - build
+  - devel
+  - install
+  - __pycache__
+  - perf_reports
+  - scripts
+
+skips:
+  - B101  # assert_used (common in test code)
+  - B108  # hardcoded_tmp_directory (common in test code)
+
+severity: medium
+confidence: medium

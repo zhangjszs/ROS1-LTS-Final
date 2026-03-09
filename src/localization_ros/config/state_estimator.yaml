@@ -133,17 +133,17 @@ kinematic_correction:
   #       (kinematic_correction/cg_to_rear)
   #       此处为 fallback 默认值，仅在 vehicle_geometry.yaml 未加载时生效
   cg_to_rear: 0.78
-  
+
   # 混合速度阈值
   # 单位: m/s
   # 低于此速度使用运动学模型
   blend_speed: 1.5
-  
+
   # 混合过渡范围
   # 单位: m/s
   # 在 blend_speed ~ blend_speed+blend_range 之间平滑过渡
   blend_range: 1.0
-  
+
   # 速度区域说明:
   #   0 ~ 1.5 m/s:      纯运动学模型
   #   1.5 ~ 2.5 m/s:    运动学↔动力学混合
@@ -156,7 +156,7 @@ topics:
   # INS数据输入
   # 消息类型: autodrive_msgs/HUAT_InsP2
   ins: "sensors/ins"
-  
+
   # 车辆状态输出
   # 消息类型: autodrive_msgs/HUAT_CarState
   car_state: "localization/car_state"

@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
-
 #include "localization_ros/localization_perf_stats.hpp"
+
+#include <gtest/gtest.h>
 
 TEST(LocalizationPerfStatsTest, SnapshotStatsBasic) {
   localization_ros::LocPerfStats stats;
@@ -105,7 +105,7 @@ TEST(LocalizationPerfStatsTest, KeepsLocalizationSpecificMetrics) {
   EXPECT_NEAR(snap.cone_match_ratio.max, 1.0, 1e-6);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

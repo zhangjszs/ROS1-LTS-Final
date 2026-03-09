@@ -14,9 +14,9 @@ class LinePerfStats : public fsd_common::perf::PerfStatsBase<LinePerfSample> {
  public:
   LinePerfStats() {
     SetDescriptors({
-        {"t_total_ms", [](const LinePerfSample &s) { return s.t_total_ms; }},
-        {"n_cones", [](const LinePerfSample &s) { return s.n_cones; }},
-        {"path_size", [](const LinePerfSample &s) { return s.path_size; }},
+        {"t_total_ms", [](const LinePerfSample& s) { return s.t_total_ms; }},
+        {"n_cones", [](const LinePerfSample& s) { return s.n_cones; }},
+        {"path_size", [](const LinePerfSample& s) { return s.path_size; }},
     });
   }
 };

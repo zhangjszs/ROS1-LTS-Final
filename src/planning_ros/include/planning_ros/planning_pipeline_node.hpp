@@ -1,33 +1,32 @@
 #ifndef PLANNING_ROS_PLANNING_PIPELINE_NODE_HPP_
 #define PLANNING_ROS_PLANNING_PIPELINE_NODE_HPP_
 
-#include <memory>
-#include <string>
-
-#include <autodrive_msgs/HUAT_ConeMap.h>
-#include <autodrive_msgs/HUAT_PathLimits.h>
-#include <autodrive_msgs/HUAT_Stop.h>
-#include <autodrive_msgs/HUAT_CarState.h>
-#include <diagnostic_msgs/DiagnosticArray.h>
-#include <ros/ros.h>
-#include <message_filters/subscriber.h>
-#include <message_filters/synchronizer.h>
-#include <message_filters/sync_policies/approximate_time.h>
-#include <autodrive_msgs/topic_contract.hpp>
-#include <autodrive_msgs/diagnostics_helper.hpp>
-
+#include "high_speed_tracking/modules/DelaunayTri.hpp"
+#include "high_speed_tracking/modules/Visualization.hpp"
+#include "high_speed_tracking/modules/WayComputer.hpp"
+#include "high_speed_tracking/utils/Params.hpp"
+#include "high_speed_tracking/utils/PerfStats.hpp"
 #include "planning_core/mission_state_machine.hpp"
 #include "planning_ros/line_detection_node.hpp"
 #include "planning_ros/skidpad_detection_node.hpp"
 
-#include "high_speed_tracking/modules/WayComputer.hpp"
-#include "high_speed_tracking/modules/Visualization.hpp"
-#include "high_speed_tracking/modules/DelaunayTri.hpp"
-#include "high_speed_tracking/utils/Params.hpp"
-#include "high_speed_tracking/utils/PerfStats.hpp"
+#include <ros/ros.h>
 
-namespace planning_ros
-{
+#include <memory>
+#include <string>
+
+#include <autodrive_msgs/HUAT_CarState.h>
+#include <autodrive_msgs/HUAT_ConeMap.h>
+#include <autodrive_msgs/HUAT_PathLimits.h>
+#include <autodrive_msgs/HUAT_Stop.h>
+#include <autodrive_msgs/diagnostics_helper.hpp>
+#include <autodrive_msgs/topic_contract.hpp>
+#include <diagnostic_msgs/DiagnosticArray.h>
+#include <message_filters/subscriber.h>
+#include <message_filters/sync_policies/approximate_time.h>
+#include <message_filters/synchronizer.h>
+
+namespace planning_ros {
 
 /**
  * @brief Unified planning pipeline node (Facade).
@@ -37,26 +36,25 @@ namespace planning_ros
  *   - "skidpad"                → SkidpadDetectionNode
  *   - "high_speed" / "trackdrive" / "autocross" → High-speed tracking
  */
-class PlanningPipelineNode
-{
-public:
-  PlanningPipelineNode(ros::NodeHandle &nh, const std::string &mission);
+class PlanningPipelineNode {
+ public:
+  PlanningPipelineNode(ros::NodeHandle& nh, const std::string& mission);
 
   /// Run one iteration. Returns true when the mission is finished and the node should shut down.
   bool SpinOnce();
 
-private:
+ private:
   // --- Backend initializers ---
-  void InitLine(ros::NodeHandle &nh);
-  void InitSkidpad(ros::NodeHandle &nh);
-  void InitHighSpeed(ros::NodeHandle &nh);
+  void InitLine(ros::NodeHandle& nh);
+  void InitSkidpad(ros::NodeHandle& nh);
+  void InitHighSpeed(ros::NodeHandle& nh);
 
   // --- High-speed specific ---
-  void HighSpeedSyncCallback(const autodrive_msgs::HUAT_ConeMap::ConstPtr &cone_msg,
-                             const autodrive_msgs::HUAT_CarState::ConstPtr &state_msg);
+  void HighSpeedSyncCallback(const autodrive_msgs::HUAT_ConeMap::ConstPtr& cone_msg,
+                             const autodrive_msgs::HUAT_CarState::ConstPtr& state_msg);
   bool HighSpeedFinishCheck();
-  void PublishDiagnostics(const diagnostic_msgs::DiagnosticArray &diag_arr);
-  void PublishEntryHealth(const ros::Time &stamp, bool force = false);
+  void PublishDiagnostics(const diagnostic_msgs::DiagnosticArray& diag_arr);
+  void PublishEntryHealth(const ros::Time& stamp, bool force = false);
 
   std::string mission_;
 
@@ -67,7 +65,7 @@ private:
   // High-speed: members migrated from main.cpp globals
   std::unique_ptr<Params> hs_params_;
   std::unique_ptr<WayComputer> hs_way_computer_;
-  Visualization *hs_viz_ = nullptr;
+  Visualization* hs_viz_ = nullptr;
   PerfStats hs_perf_;
 
   ros::Publisher pathlimits_pub_;
@@ -76,7 +74,8 @@ private:
 
   // B2: High-speed message synchronization
   typedef message_filters::sync_policies::ApproximateTime<autodrive_msgs::HUAT_ConeMap,
-                                                           autodrive_msgs::HUAT_CarState> SyncPolicy;
+                                                          autodrive_msgs::HUAT_CarState>
+      SyncPolicy;
   std::unique_ptr<message_filters::Subscriber<autodrive_msgs::HUAT_ConeMap>> hs_cone_sub_;
   std::unique_ptr<message_filters::Subscriber<autodrive_msgs::HUAT_CarState>> hs_state_sub_;
   std::unique_ptr<message_filters::Synchronizer<SyncPolicy>> hs_sync_;
@@ -111,8 +110,8 @@ private:
   // Debug file helpers
   bool debug_save_way_files_ = false;
   void TxtClear();
-  void DoWayMsg(const autodrive_msgs::HUAT_PathLimits &msgs);
-  void DoWayFullMsg(const autodrive_msgs::HUAT_PathLimits &msgs);
+  void DoWayMsg(const autodrive_msgs::HUAT_PathLimits& msgs);
+  void DoWayFullMsg(const autodrive_msgs::HUAT_PathLimits& msgs);
 
   // B5: Path quality violation counter
   int path_quality_violation_count_ = 0;
@@ -126,6 +125,6 @@ private:
   planning_core::MissionStateMachine mission_fsm_;
 };
 
-} // namespace planning_ros
+}  // namespace planning_ros
 
-#endif // PLANNING_ROS_PLANNING_PIPELINE_NODE_HPP_
+#endif  // PLANNING_ROS_PLANNING_PIPELINE_NODE_HPP_

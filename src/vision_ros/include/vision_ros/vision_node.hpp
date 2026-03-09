@@ -1,29 +1,28 @@
 #pragma once
 
+#include <ros/ros.h>
+
 #include <memory>
 #include <string>
 #include <vector>
 
-#include <ros/ros.h>
-#include <sensor_msgs/Image.h>
-#include <image_transport/image_transport.h>
-
 #include <autodrive_msgs/HUAT_VisionDetections.h>
 #include <fsd_common/diagnostics_helper.hpp>
 #include <fsd_common/topic_contract.hpp>
-
-#include <vision_core/types.hpp>
-#include <vision_core/image_quality.hpp>
-#include <vision_core/image_enhancer.hpp>
-#include <vision_core/inference_backend.hpp>
-#include <vision_core/fallback_detector.hpp>
-#include <vision_core/temporal_tracker.hpp>
+#include <image_transport/image_transport.h>
+#include <sensor_msgs/Image.h>
 #include <vision_core/detection_postprocess.hpp>
+#include <vision_core/fallback_detector.hpp>
+#include <vision_core/image_enhancer.hpp>
+#include <vision_core/image_quality.hpp>
+#include <vision_core/inference_backend.hpp>
+#include <vision_core/temporal_tracker.hpp>
+#include <vision_core/types.hpp>
 
 namespace vision_ros {
 
 class VisionNode {
-public:
+ public:
   enum class VisionState : uint8_t {
     NORMAL = 0,
     DEGRADED_MODE = 1,
@@ -34,26 +33,22 @@ public:
   VisionNode(ros::NodeHandle& nh, ros::NodeHandle& private_nh);
   void spin();
 
-private:
+ private:
   void loadParams();
   void imageCallback(const sensor_msgs::ImageConstPtr& msg);
   void processFrame(const cv::Mat& bgr, const std_msgs::Header& header);
   void publishDetections(const std::vector<vision_core::Detection>& dets,
-                         const std_msgs::Header& header,
-                         const vision_core::QualityMetrics& qm,
+                         const std_msgs::Header& header, const vision_core::QualityMetrics& qm,
                          uint32_t inference_us);
-  void publishDebugImage(const cv::Mat& bgr,
-                         const std::vector<vision_core::Detection>& dets,
+  void publishDebugImage(const cv::Mat& bgr, const std::vector<vision_core::Detection>& dets,
                          const std_msgs::Header& header);
-  void publishDiagnostics(const vision_core::QualityMetrics& qm,
-                          size_t n_detections,
+  void publishDiagnostics(const vision_core::QualityMetrics& qm, size_t n_detections,
                           uint32_t inference_us);
   void updateState(vision_core::ImageQuality quality);
   void remapModelDetections(std::vector<vision_core::Detection>& model_dets) const;
   std::vector<vision_core::Detection> fuseDetections(
       const std::vector<vision_core::Detection>& model_dets,
-      const std::vector<vision_core::Detection>& fallback_dets,
-      vision_core::ImageQuality quality,
+      const std::vector<vision_core::Detection>& fallback_dets, vision_core::ImageQuality quality,
       VisionState state);
 
   // ROS

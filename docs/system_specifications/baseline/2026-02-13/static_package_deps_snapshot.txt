@@ -134,4 +134,3 @@ vehicle_interface_core
 autodrive_msgs
 roscpp
 vehicle_racing_num_core
-

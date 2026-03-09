@@ -7,4 +7,3 @@ bool replan                      # B14: 路径变化标志
                                  # line/skidpad模式: 固定true (兼容历史行为)
 float64[] target_speeds          # per-point target speed [m/s], 1:1 with path[]
 float64[] curvatures             # per-point curvature [1/m], 1:1 with path[]
-

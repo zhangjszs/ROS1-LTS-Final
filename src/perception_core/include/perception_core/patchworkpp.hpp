@@ -4,8 +4,6 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-#include <Eigen/Dense>
-
 #include <cmath>
 #include <ctime>
 #include <iostream>
@@ -13,6 +11,8 @@
 #include <numeric>
 #include <utility>
 #include <vector>
+
+#include <Eigen/Dense>
 
 namespace patchwork {
 
@@ -33,12 +33,8 @@ struct RevertCandidate {
   Eigen::VectorXf pc_mean;
   std::vector<PointXYZ> regionwise_ground;
 
-  RevertCandidate(int _c_idx,
-                  int _s_idx,
-                  double _flatness,
-                  double _line_var,
-                  Eigen::VectorXf _pc_mean,
-                  std::vector<PointXYZ> _ground)
+  RevertCandidate(int _c_idx, int _s_idx, double _flatness, double _line_var,
+                  Eigen::VectorXf _pc_mean, std::vector<PointXYZ> _ground)
       : concentric_idx(_c_idx),
         sector_idx(_s_idx),
         ground_flatness(_flatness),
@@ -143,46 +139,41 @@ class PatchWorkpp {
   std::vector<PointXYZ> centers_;
   std::vector<PointXYZ> normals_;
 
-  Eigen::MatrixX3f toEigenCloud(const std::vector<PointXYZ> &cloud) const;
-  Eigen::VectorXi toIndices(const std::vector<PointXYZ> &cloud) const;
+  Eigen::MatrixX3f toEigenCloud(const std::vector<PointXYZ>& cloud) const;
+  Eigen::VectorXi toIndices(const std::vector<PointXYZ>& cloud) const;
 
-  void addCloud(std::vector<PointXYZ> &cloud, const std::vector<PointXYZ> &add);
+  void addCloud(std::vector<PointXYZ>& cloud, const std::vector<PointXYZ>& add);
 
-  void flush_patches(std::vector<Zone> &czm);
+  void flush_patches(std::vector<Zone>& czm);
 
-  void pc2czm(const Eigen::MatrixXf &src, std::vector<Zone> &czm);
+  void pc2czm(const Eigen::MatrixXf& src, std::vector<Zone>& czm);
 
-  void reflected_noise_removal(Eigen::MatrixXf &cloud_in);
+  void reflected_noise_removal(Eigen::MatrixXf& cloud_in);
 
   void temporal_ground_revert(std::vector<double> ring_flatness,
                               std::vector<patchwork::RevertCandidate> candidates,
                               int concentric_idx);
 
   double calc_point_to_plane_d(PointXYZ p, Eigen::VectorXf normal, double d);
-  void calc_mean_stdev(const std::vector<double> &vec, double &mean, double &stdev);
+  void calc_mean_stdev(const std::vector<double>& vec, double& mean, double& stdev);
 
   void update_elevation_thr();
   void update_flatness_thr();
 
-  double xy2theta(const double &x, const double &y);
+  double xy2theta(const double& x, const double& y);
 
-  double xy2radius(const double &x, const double &y);
+  double xy2radius(const double& x, const double& y);
 
-  void estimate_plane(const std::vector<PointXYZ> &ground);
+  void estimate_plane(const std::vector<PointXYZ>& ground);
 
-  void extract_piecewiseground(const int zone_idx,
-                               const std::vector<PointXYZ> &src,
-                               std::vector<PointXYZ> &dst,
-                               std::vector<PointXYZ> &non_ground_dst);
+  void extract_piecewiseground(const int zone_idx, const std::vector<PointXYZ>& src,
+                               std::vector<PointXYZ>& dst, std::vector<PointXYZ>& non_ground_dst);
 
-  void extract_initial_seeds(const int zone_idx,
-                             const std::vector<PointXYZ> &p_sorted,
-                             std::vector<PointXYZ> &init_seeds);
+  void extract_initial_seeds(const int zone_idx, const std::vector<PointXYZ>& p_sorted,
+                             std::vector<PointXYZ>& init_seeds);
 
-  void extract_initial_seeds(const int zone_idx,
-                             const std::vector<PointXYZ> &p_sorted,
-                             std::vector<PointXYZ> &init_seeds,
-                             double th_seed);
+  void extract_initial_seeds(const int zone_idx, const std::vector<PointXYZ>& p_sorted,
+                             std::vector<PointXYZ>& init_seeds, double th_seed);
 };
 
 }  // namespace patchwork

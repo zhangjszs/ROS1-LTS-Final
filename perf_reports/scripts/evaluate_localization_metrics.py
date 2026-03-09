@@ -147,9 +147,7 @@ def evaluate(input_csv: Path, dropout_gap_s: float) -> Dict:
         yaw_errors.append(_angle_diff_rad(est_yaw, ref_yaw))
         times.append(float(t_sec))
         valid_series.append(
-            _parse_bool(
-                row.get("est_valid", row.get("valid", row.get("estimate_valid", "")))
-            )
+            _parse_bool(row.get("est_valid", row.get("valid", row.get("estimate_valid", ""))))
         )
         used_rows += 1
 
@@ -163,9 +161,7 @@ def evaluate(input_csv: Path, dropout_gap_s: float) -> Dict:
     heading_rms_rad = _compute_rms(yaw_errors)
     heading_rms_deg = math.degrees(heading_rms_rad) if heading_rms_rad is not None else None
 
-    recovery_time, recovery_count, recovery_mode = _compute_recovery_from_valid(
-        times, valid_series
-    )
+    recovery_time, recovery_count, recovery_mode = _compute_recovery_from_valid(times, valid_series)
 
     if recovery_time is None:
         recovery_time, recovery_count, recovery_mode = _compute_recovery_from_gaps(

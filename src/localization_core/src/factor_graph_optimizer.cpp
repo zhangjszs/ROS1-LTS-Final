@@ -1,33 +1,32 @@
-#include <localization_core/factor_graph_optimizer.hpp>
-#include <localization_core/circle_constraint_factor.hpp>
-
-#include <gtsam/geometry/Pose2.h>
-#include <gtsam/geometry/Point2.h>
-#include <gtsam/inference/Symbol.h>
-#include <gtsam/nonlinear/ISAM2.h>
-#include <gtsam/nonlinear/NonlinearFactorGraph.h>
-#include <gtsam/nonlinear/NonlinearFactor.h>
-#include <gtsam/nonlinear/Values.h>
-#include <gtsam/slam/BetweenFactor.h>
-#include <gtsam/slam/BearingRangeFactor.h>
-#include <gtsam/slam/PriorFactor.h>
-#include <gtsam/nonlinear/ISAM2Params.h>
-#include <gtsam/nonlinear/DoglegOptimizerImpl.h>
-
-#include <chrono>
-#include <cstdio>
 #include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <cstdio>
+
+#include <gtsam/geometry/Point2.h>
+#include <gtsam/geometry/Pose2.h>
+#include <gtsam/inference/Symbol.h>
+#include <gtsam/nonlinear/DoglegOptimizerImpl.h>
+#include <gtsam/nonlinear/ISAM2.h>
+#include <gtsam/nonlinear/ISAM2Params.h>
+#include <gtsam/nonlinear/NonlinearFactor.h>
+#include <gtsam/nonlinear/NonlinearFactorGraph.h>
+#include <gtsam/nonlinear/Values.h>
+#include <gtsam/slam/BearingRangeFactor.h>
+#include <gtsam/slam/BetweenFactor.h>
+#include <gtsam/slam/PriorFactor.h>
+#include <localization_core/circle_constraint_factor.hpp>
+#include <localization_core/factor_graph_optimizer.hpp>
 
 namespace localization_core {
 
-using gtsam::Symbol;
 using gtsam::Point2;
+using gtsam::Symbol;
 using gtsam::Vector2;
 using gtsam::noiseModel::Diagonal;
 using gtsam::noiseModel::Robust;
-using gtsam::noiseModel::mEstimator::Huber;
 using gtsam::noiseModel::mEstimator::Cauchy;
+using gtsam::noiseModel::mEstimator::Huber;
 
 namespace {
 constexpr uint8_t kConeBlue = 0;
@@ -98,9 +97,9 @@ void FactorGraphOptimizer::Reset() {
 
 // ─── Sensor input ──────────────────────────────────────────────
 
-void FactorGraphOptimizer::AddImuMeasurement(double v_forward,
-                                              double wz, double dt) {
-  if (dt <= 0.0) return;
+void FactorGraphOptimizer::AddImuMeasurement(double v_forward, double wz, double dt) {
+  if (dt <= 0.0)
+    return;
 
   // Velocity-yaw-rate dead reckoning in body frame
   // Integrate position in world-relative delta using mid-point heading
@@ -115,8 +114,7 @@ void FactorGraphOptimizer::AddImuMeasurement(double v_forward,
   last_speed_ = v_forward;
 }
 
-void FactorGraphOptimizer::SetGnssObservation(double x, double y,
-                                               GnssQuality quality) {
+void FactorGraphOptimizer::SetGnssObservation(double x, double y, GnssQuality quality) {
   has_gnss_ = true;
   gnss_x_ = x;
   gnss_y_ = y;
@@ -128,15 +126,14 @@ void FactorGraphOptimizer::SetSpeedObservation(double v_forward) {
   speed_obs_ = v_forward;
 }
 
-void FactorGraphOptimizer::SetConeObservations(
-    const std::vector<ConeObservation>& obs) {
+void FactorGraphOptimizer::SetConeObservations(const std::vector<ConeObservation>& obs) {
   cone_obs_ = obs;
 }
 
 // ─── Update cycle ──────────────────────────────────────────────
 
 bool FactorGraphOptimizer::TryUpdate(const localization_core::Pose2& current_pose,
-                                      double timestamp) {
+                                     double timestamp) {
   if (!initialized_) {
     initializeFirstKeyframe(current_pose, timestamp);
     return true;
@@ -160,8 +157,7 @@ bool FactorGraphOptimizer::TryUpdate(const localization_core::Pose2& current_pos
   Symbol pose_key(fg_symbols::kPose, keyframe_idx_);
   Symbol vel_key(fg_symbols::kVelocity, keyframe_idx_);
 
-  new_values_->insert(pose_key,
-      gtsam::Pose2(current_pose.x, current_pose.y, current_pose.theta));
+  new_values_->insert(pose_key, gtsam::Pose2(current_pose.x, current_pose.y, current_pose.theta));
   new_values_->insert(vel_key, Vector2(last_speed_, 0.0));
 
   // Run optimization
@@ -170,8 +166,7 @@ bool FactorGraphOptimizer::TryUpdate(const localization_core::Pose2& current_pos
   // Compute health metrics and evaluate anomaly state
   last_chi2_normalized_ = computeChi2Normalized();
   const double match_ratio = computeConeMatchRatio();
-  anomaly_sm_.Evaluate(last_chi2_normalized_, match_ratio,
-                       gnss_quality_, timestamp);
+  anomaly_sm_.Evaluate(last_chi2_normalized_, match_ratio, gnss_quality_, timestamp);
 
   // Build and store descriptor for relocalization database
   if (anomaly_sm_.GetState() == AnomalyState::TRACKING) {
@@ -221,10 +216,9 @@ bool FactorGraphOptimizer::TryUpdate(const localization_core::Pose2& current_pos
       opt_pose_.x += rr.dx;
       opt_pose_.y += rr.dy;
       opt_pose_.theta += rr.dtheta;
-      opt_pose_.theta = std::atan2(std::sin(opt_pose_.theta),
-                                    std::cos(opt_pose_.theta));
-      fprintf(stderr, "[FG] RELOC_A success: dx=%.2f dy=%.2f dtheta=%.3f inliers=%d\n",
-              rr.dx, rr.dy, rr.dtheta, rr.inlier_count);
+      opt_pose_.theta = std::atan2(std::sin(opt_pose_.theta), std::cos(opt_pose_.theta));
+      fprintf(stderr, "[FG] RELOC_A success: dx=%.2f dy=%.2f dtheta=%.3f inliers=%d\n", rr.dx,
+              rr.dy, rr.dtheta, rr.inlier_count);
       // Force anomaly SM back to TRACKING on next evaluation
       anomaly_sm_.ForceState(AnomalyState::TRACKING);
     }
@@ -248,8 +242,8 @@ bool FactorGraphOptimizer::TryUpdate(const localization_core::Pose2& current_pos
     if (particle_reloc_.HasConverged()) {
       Pose2 reloc_pose = particle_reloc_.GetEstimate();
       opt_pose_ = reloc_pose;
-      fprintf(stderr, "[FG] RELOC_B converged: x=%.2f y=%.2f theta=%.3f\n",
-              reloc_pose.x, reloc_pose.y, reloc_pose.theta);
+      fprintf(stderr, "[FG] RELOC_B converged: x=%.2f y=%.2f theta=%.3f\n", reloc_pose.x,
+              reloc_pose.y, reloc_pose.theta);
       anomaly_sm_.ForceState(AnomalyState::TRACKING);
       particle_reloc_.Reset();
     }
@@ -298,16 +292,15 @@ double FactorGraphOptimizer::LastOptTimeMs() const {
 
 // ─── Internal helpers ──────────────────────────────────────────
 
-void FactorGraphOptimizer::initializeFirstKeyframe(
-    const localization_core::Pose2& pose, double timestamp) {
+void FactorGraphOptimizer::initializeFirstKeyframe(const localization_core::Pose2& pose,
+                                                   double timestamp) {
   Symbol pose_key(fg_symbols::kPose, 0);
   Symbol vel_key(fg_symbols::kVelocity, 0);
 
   gtsam::Pose2 gtsam_pose(pose.x, pose.y, pose.theta);
 
   // Strong prior on first pose
-  auto pose_noise = Diagonal::Sigmas(
-      (gtsam::Vector(3) << 0.1, 0.1, 0.05).finished());
+  auto pose_noise = Diagonal::Sigmas((gtsam::Vector(3) << 0.1, 0.1, 0.05).finished());
   new_factors_->addPrior(pose_key, gtsam_pose, pose_noise);
 
   // Velocity prior (assume stationary or slow)
@@ -332,61 +325,70 @@ void FactorGraphOptimizer::initializeFirstKeyframe(
   cone_obs_.clear();
 }
 
-bool FactorGraphOptimizer::shouldCreateKeyframe(
-    const localization_core::Pose2& pose, double timestamp) const {
+bool FactorGraphOptimizer::shouldCreateKeyframe(const localization_core::Pose2& pose,
+                                                double timestamp) const {
   const double dx = pose.x - last_keyframe_pose_.x;
   const double dy = pose.y - last_keyframe_pose_.y;
   const double dist = std::sqrt(dx * dx + dy * dy);
-  if (dist >= cfg_.keyframe.dist_threshold) return true;
+  if (dist >= cfg_.keyframe.dist_threshold)
+    return true;
 
-  const double dyaw = std::abs(
-      std::atan2(std::sin(pose.theta - last_keyframe_pose_.theta),
-                 std::cos(pose.theta - last_keyframe_pose_.theta)));
-  if (dyaw >= cfg_.keyframe.yaw_threshold) return true;
+  const double dyaw = std::abs(std::atan2(std::sin(pose.theta - last_keyframe_pose_.theta),
+                                          std::cos(pose.theta - last_keyframe_pose_.theta)));
+  if (dyaw >= cfg_.keyframe.yaw_threshold)
+    return true;
 
-  if ((timestamp - last_keyframe_time_) >= cfg_.keyframe.dt_threshold) return true;
+  if ((timestamp - last_keyframe_time_) >= cfg_.keyframe.dt_threshold)
+    return true;
 
   return false;
 }
 
 // FG-3: IMU preintegration factor
 void FactorGraphOptimizer::addImuFactor() {
-  if (accum_dt_ <= 0.0) return;
+  if (accum_dt_ <= 0.0)
+    return;
 
   Symbol prev_pose(fg_symbols::kPose, keyframe_idx_ - 1);
   Symbol curr_pose(fg_symbols::kPose, keyframe_idx_);
 
   // BetweenFactor<Pose2> approximating IMU preintegration
   gtsam::Pose2 delta(accum_dx_, accum_dy_, accum_dtheta_);
-  auto noise = Diagonal::Sigmas(
-      (gtsam::Vector(3) << cfg_.sigma_imu_xy * std::sqrt(accum_dt_),
-                           cfg_.sigma_imu_xy * std::sqrt(accum_dt_),
-                           cfg_.sigma_imu_theta * std::sqrt(accum_dt_))
-          .finished());
-  new_factors_->emplace_shared<gtsam::BetweenFactor<gtsam::Pose2>>(
-      prev_pose, curr_pose, delta, noise);
+  auto noise = Diagonal::Sigmas((gtsam::Vector(3) << cfg_.sigma_imu_xy * std::sqrt(accum_dt_),
+                                 cfg_.sigma_imu_xy * std::sqrt(accum_dt_),
+                                 cfg_.sigma_imu_theta * std::sqrt(accum_dt_))
+                                    .finished());
+  new_factors_->emplace_shared<gtsam::BetweenFactor<gtsam::Pose2>>(prev_pose, curr_pose, delta,
+                                                                   noise);
 
   // Velocity continuity factor (assume roughly constant speed between keyframes)
   Symbol prev_vel(fg_symbols::kVelocity, keyframe_idx_ - 1);
   Symbol curr_vel(fg_symbols::kVelocity, keyframe_idx_);
   Vector2 delta_vel(0.0, 0.0);
   auto vel_noise = Diagonal::Sigmas(
-      Vector2(cfg_.sigma_vel * std::sqrt(accum_dt_),
-              cfg_.sigma_vel * std::sqrt(accum_dt_)));
-  new_factors_->emplace_shared<gtsam::BetweenFactor<Vector2>>(
-      prev_vel, curr_vel, delta_vel, vel_noise);
+      Vector2(cfg_.sigma_vel * std::sqrt(accum_dt_), cfg_.sigma_vel * std::sqrt(accum_dt_)));
+  new_factors_->emplace_shared<gtsam::BetweenFactor<Vector2>>(prev_vel, curr_vel, delta_vel,
+                                                              vel_noise);
 }
 
 // FG-4: GNSS weak prior factor
 void FactorGraphOptimizer::addGnssFactor() {
-  if (!has_gnss_ || gnss_quality_ == GnssQuality::INVALID) return;
+  if (!has_gnss_ || gnss_quality_ == GnssQuality::INVALID)
+    return;
 
   double sigma;
   switch (gnss_quality_) {
-    case GnssQuality::GOOD:   sigma = cfg_.sigma_gnss_good; break;
-    case GnssQuality::MEDIUM: sigma = cfg_.sigma_gnss_medium; break;
-    case GnssQuality::POOR:   sigma = cfg_.sigma_gnss_poor; break;
-    default: return;
+    case GnssQuality::GOOD:
+      sigma = cfg_.sigma_gnss_good;
+      break;
+    case GnssQuality::MEDIUM:
+      sigma = cfg_.sigma_gnss_medium;
+      break;
+    case GnssQuality::POOR:
+      sigma = cfg_.sigma_gnss_poor;
+      break;
+    default:
+      return;
   }
 
   Symbol pose_key(fg_symbols::kPose, keyframe_idx_);
@@ -401,14 +403,14 @@ void FactorGraphOptimizer::addGnssFactor() {
 
 // FG-5: Vehicle speed / yaw-rate factors
 void FactorGraphOptimizer::addSpeedFactor() {
-  if (!has_speed_) return;
+  if (!has_speed_)
+    return;
 
   Symbol vel_key(fg_symbols::kVelocity, keyframe_idx_);
 
   // Speed prior: v_forward ≈ vx (assuming small slip angle)
   Vector2 speed_vec(speed_obs_, 0.0);
-  auto base_noise = Diagonal::Sigmas(
-      Vector2(cfg_.sigma_speed, cfg_.sigma_speed * 2.0));
+  auto base_noise = Diagonal::Sigmas(Vector2(cfg_.sigma_speed, cfg_.sigma_speed * 2.0));
   auto robust_noise = Robust::Create(Huber::Create(cfg_.huber_speed), base_noise);
   new_factors_->addPrior(vel_key, speed_vec, robust_noise);
 }
@@ -419,18 +421,22 @@ void FactorGraphOptimizer::addConeFactors(const localization_core::Pose2& ref_po
   matched_count_ = 0;
   total_obs_count_ = 0;
 
-  if (cone_obs_.empty()) return;
+  if (cone_obs_.empty())
+    return;
 
   Symbol pose_key(fg_symbols::kPose, keyframe_idx_);
 
   std::vector<const ConeObservation*> valid_obs;
   valid_obs.reserve(cone_obs_.size());
   for (const auto& obs : cone_obs_) {
-    if (obs.range <= 0.0 || obs.range > cfg_.new_landmark_range_max) continue;
-    if (obs.confidence < cfg_.min_cone_confidence) continue;
+    if (obs.range <= 0.0 || obs.range > cfg_.new_landmark_range_max)
+      continue;
+    if (obs.confidence < cfg_.min_cone_confidence)
+      continue;
     valid_obs.push_back(&obs);
   }
-  if (valid_obs.empty()) return;
+  if (valid_obs.empty())
+    return;
 
   std::sort(valid_obs.begin(), valid_obs.end(),
             [](const ConeObservation* a, const ConeObservation* b) {
@@ -454,7 +460,8 @@ void FactorGraphOptimizer::addConeFactors(const localization_core::Pose2& ref_po
     // Find or create landmark using mapper's reference pose for global coords
     int lm_idx = findOrCreateLandmark(obs, ref_pose);
     total_obs_count_++;
-    if (lm_idx < 0) continue;
+    if (lm_idx < 0)
+      continue;
 
     // Only count as "matched" if we associated with an existing landmark,
     // not if we created a new one
@@ -475,14 +482,12 @@ void FactorGraphOptimizer::addConeFactors(const localization_core::Pose2& ref_po
     auto robust_noise = Robust::Create(Huber::Create(cfg_.huber_cone), base_noise);
 
     new_factors_->emplace_shared<gtsam::BearingRangeFactor<gtsam::Pose2, Point2>>(
-        pose_key, lm_key,
-        gtsam::Rot2(obs.bearing), obs.range,
-        robust_noise);
+        pose_key, lm_key, gtsam::Rot2(obs.bearing), obs.range, robust_noise);
   }
 }
 
 int FactorGraphOptimizer::findOrCreateLandmark(const ConeObservation& obs,
-                                                const localization_core::Pose2& pose) {
+                                               const localization_core::Pose2& pose) {
   // Convert observation to global coordinates for matching
   const double c = std::cos(pose.theta);
   const double s = std::sin(pose.theta);
@@ -500,7 +505,8 @@ int FactorGraphOptimizer::findOrCreateLandmark(const ConeObservation& obs,
     const double d2 = dx * dx + dy * dy;
 
     // Skip if beyond merge distance (fast reject)
-    if (d2 > cfg_.merge_distance * cfg_.merge_distance) continue;
+    if (d2 > cfg_.merge_distance * cfg_.merge_distance)
+      continue;
 
     // Multi-dimensional cost: w_maha * d² + w_color * color_cost + w_topo * topo_cost
     double cost = cfg_.w_maha * d2;
@@ -538,7 +544,8 @@ int FactorGraphOptimizer::findOrCreateLandmark(const ConeObservation& obs,
 
   // Create new landmark
   if (static_cast<int>(landmarks_.size()) >= cfg_.max_landmarks) {
-    fprintf(stderr, "[FG] Landmark limit reached (%d), dropping new observation\n", cfg_.max_landmarks);
+    fprintf(stderr, "[FG] Landmark limit reached (%d), dropping new observation\n",
+            cfg_.max_landmarks);
     return -1;
   }
 
@@ -557,18 +564,16 @@ int FactorGraphOptimizer::findOrCreateLandmark(const ConeObservation& obs,
   new_values_->insert(lm_key, Point2(gx, gy));
 
   // Add weak prior on new landmark
-  auto lm_noise = Diagonal::Sigmas(
-      Vector2(cfg_.landmark_init_sigma, cfg_.landmark_init_sigma));
+  auto lm_noise = Diagonal::Sigmas(Vector2(cfg_.landmark_init_sigma, cfg_.landmark_init_sigma));
   new_factors_->addPrior(lm_key, Point2(gx, gy), lm_noise);
 
   // Add circle constraint once for skidpad mode
   if (cfg_.map_mode == "skidpad") {
     gtsam::Point2 c1(cfg_.circle_center1_x, cfg_.circle_center1_y);
     gtsam::Point2 c2(cfg_.circle_center2_x, cfg_.circle_center2_y);
-    auto circle_noise = Diagonal::Sigmas(
-        (gtsam::Vector(1) << cfg_.circle_sigma).finished());
-    new_factors_->emplace_shared<CircleConstraintFactor>(
-        lm_key, c1, c2, cfg_.circle_radius, circle_noise);
+    auto circle_noise = Diagonal::Sigmas((gtsam::Vector(1) << cfg_.circle_sigma).finished());
+    new_factors_->emplace_shared<CircleConstraintFactor>(lm_key, c1, c2, cfg_.circle_radius,
+                                                         circle_noise);
   }
 
   return idx;
@@ -624,9 +629,9 @@ AnomalyState FactorGraphOptimizer::GetAnomalyState() const {
   return anomaly_sm_.GetState();
 }
 
-double FactorGraphOptimizer::addColorTopologyFactor(
-    const ConeObservation& obs, int lm_idx) {
-  if (lm_idx < 0 || lm_idx >= static_cast<int>(landmarks_.size())) return 0.0;
+double FactorGraphOptimizer::addColorTopologyFactor(const ConeObservation& obs, int lm_idx) {
+  if (lm_idx < 0 || lm_idx >= static_cast<int>(landmarks_.size()))
+    return 0.0;
 
   double sigma_inflate = 0.0;
   const uint8_t obs_c = obs.color_type;
@@ -656,7 +661,8 @@ void FactorGraphOptimizer::addGeometryPriorFactors() {
 }
 
 double FactorGraphOptimizer::computeChi2Normalized() {
-  if (!isam_ || keyframe_idx_ == 0) return 0.0;
+  if (!isam_ || keyframe_idx_ == 0)
+    return 0.0;
 
   // Compute proper per-DOF chi²: sum of squared whitened residuals / total DOF
   try {
@@ -666,7 +672,8 @@ double FactorGraphOptimizer::computeChi2Normalized() {
     int total_dof = 0;
     for (size_t i = 0; i < factors.size(); ++i) {
       auto nf = boost::dynamic_pointer_cast<gtsam::NoiseModelFactor>(factors[i]);
-      if (!nf) continue;
+      if (!nf)
+        continue;
       // unwhitenedError → whitenedError via noise model
       gtsam::Vector uw = nf->unwhitenedError(result);
       gtsam::Vector w = nf->noiseModel()->whiten(uw);
@@ -680,14 +687,11 @@ double FactorGraphOptimizer::computeChi2Normalized() {
 }
 
 double FactorGraphOptimizer::computeConeMatchRatio() {
-  return (total_obs_count_ > 0)
-      ? static_cast<double>(matched_count_) / total_obs_count_
-      : 0.0;
+  return (total_obs_count_ > 0) ? static_cast<double>(matched_count_) / total_obs_count_ : 0.0;
 }
 
-TopoRelation FactorGraphOptimizer::classifyRelation(
-    const ConeObservation& obs, int lm_idx,
-    const Pose2& pose) const {
+TopoRelation FactorGraphOptimizer::classifyRelation(const ConeObservation& obs, int lm_idx,
+                                                    const Pose2& pose) const {
   if (lm_idx < 0 || lm_idx >= static_cast<int>(landmarks_.size()))
     return TopoRelation::UNKNOWN;
 
@@ -696,10 +700,12 @@ TopoRelation FactorGraphOptimizer::classifyRelation(
   const double bearing = obs.bearing;
   const uint8_t lm_color = landmarks_[lm_idx].color_type;
 
-  if (lm_color == kConeNone || obs.color_type == kConeNone) return TopoRelation::UNKNOWN;
+  if (lm_color == kConeNone || obs.color_type == kConeNone)
+    return TopoRelation::UNKNOWN;
 
   // Same color type → SAME_SIDE
-  if (obs.color_type == lm_color) return TopoRelation::SAME_SIDE;
+  if (obs.color_type == lm_color)
+    return TopoRelation::SAME_SIDE;
 
   if (!isBoundaryColor(lm_color) || !isBoundaryColor(obs.color_type)) {
     return TopoRelation::UNKNOWN;

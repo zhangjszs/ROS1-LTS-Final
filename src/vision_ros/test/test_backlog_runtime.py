@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 import importlib.util
+import os
+import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
-
 
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "vision_node_py.py"
 SPEC = importlib.util.spec_from_file_location("vision_node_py", SCRIPT_PATH)
@@ -35,7 +36,7 @@ class TestBacklogRuntime(unittest.TestCase):
         node.last_stage_timing = None
         node.max_detections = 20
         node.require_model = True
-        node.model_path = "/tmp/model.onnx"
+        node.model_path = str(Path(tempfile.gettempdir()) / "model.onnx")
         node.stale_frame_age_sec = 0.5
         node.latest_frame_buffer = SimpleNamespace(
             has_pending=lambda: newer_pending,
@@ -52,7 +53,9 @@ class TestBacklogRuntime(unittest.TestCase):
         node._update_state = lambda _quality: None
         node._enhance_image = lambda bgr, _quality: bgr
         node._detect_fallback_hsv = lambda _bgr: ["fallback"]
-        node._fuse_detections = lambda model, fallback, _quality, _state: fallback if fallback else model
+        node._fuse_detections = lambda model, fallback, _quality, _state: (
+            fallback if fallback else model
+        )
         node._filter_topk = lambda detections, _max_det: detections
         node._publish_detections = lambda *_args, **_kwargs: None
         node._publish_diagnostics = lambda *_args, **_kwargs: None

@@ -47,7 +47,7 @@ imu:
       #   3. 避免标定误差引入噪声
       # 如需启用: 设置为true，并填写下面的外参值
       enable: false
-      
+
       # IMU-LiDAR外参（平移）
       # 单位: m
       # 含义: LiDAR相对于IMU的偏移
@@ -55,7 +55,7 @@ imu:
       tx: 0.0
       ty: 0.0
       tz: 0.0
-      
+
       # IMU-LiDAR外参（旋转）
       # 单位: 度
       # 含义: LiDAR相对于IMU的旋转

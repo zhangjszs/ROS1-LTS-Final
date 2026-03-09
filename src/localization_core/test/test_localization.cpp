@@ -1,15 +1,14 @@
-#include <gtest/gtest.h>
-
-#include <cmath>
-#include <vector>
-
 #include "localization_core/anomaly_state_machine.hpp"
 #include "localization_core/circle_constraint_factor.hpp"
 #include "localization_core/descriptor_relocator.hpp"
 #include "localization_core/imu_state_estimator.hpp"
-#include "localization_core/particle_relocator.hpp"
 #include "localization_core/location_mapper.hpp"
+#include "localization_core/particle_relocator.hpp"
 
+#include <cmath>
+#include <vector>
+
+#include <gtest/gtest.h>
 #include <gtsam/base/numericalDerivative.h>
 #include <gtsam/geometry/Point2.h>
 #include <gtsam/inference/Symbol.h>
@@ -127,10 +126,11 @@ TEST_F(AnomalyStateMachineTest, TimeoutRelocAToRelocB) {
 TEST_F(AnomalyStateMachineTest, TimeoutRelocBToLost) {
   AnomalyStateMachine sm(cfg_);
   sm.ForceState(AnomalyState::LOST);
-  sm.Evaluate(20.0, 0.1, GnssQuality::GOOD, 100.0);  // -> RELOC_A
+  sm.Evaluate(20.0, 0.1, GnssQuality::GOOD, 100.0);                               // -> RELOC_A
   sm.Evaluate(20.0, 0.1, GnssQuality::GOOD, 100.0 + cfg_.reloc_a_timeout + 0.1);  // -> RELOC_B
   ASSERT_EQ(sm.GetState(), AnomalyState::RELOC_B);
-  sm.Evaluate(20.0, 0.1, GnssQuality::GOOD, 100.0 + cfg_.reloc_a_timeout + cfg_.reloc_b_timeout + 1.0);
+  sm.Evaluate(20.0, 0.1, GnssQuality::GOOD,
+              100.0 + cfg_.reloc_a_timeout + cfg_.reloc_b_timeout + 1.0);
   EXPECT_EQ(sm.GetState(), AnomalyState::LOST);
 }
 
@@ -196,8 +196,8 @@ class DescriptorRelocatorTest : public ::testing::Test {
     cfg_.ransac_inlier_thresh = 1.5;
   }
 
-  std::vector<FgLandmark> makeCircleLandmarks(
-      double cx, double cy, double r, int n, uint8_t color = 0) {
+  std::vector<FgLandmark> makeCircleLandmarks(double cx, double cy, double r, int n,
+                                              uint8_t color = 0) {
     std::vector<FgLandmark> lms;
     for (int i = 0; i < n; ++i) {
       double angle = 2.0 * M_PI * i / n;
@@ -218,8 +218,7 @@ TEST_F(DescriptorRelocatorTest, BuildDescriptorSize) {
   auto lms = makeCircleLandmarks(0, 0, 10.0, 20);
   Pose2 pose{0, 0, 0};
   auto desc = reloc.BuildDescriptor(lms, pose);
-  EXPECT_EQ(static_cast<int>(desc.size()),
-            cfg_.n_rings * cfg_.n_sectors * cfg_.n_channels);
+  EXPECT_EQ(static_cast<int>(desc.size()), cfg_.n_rings * cfg_.n_sectors * cfg_.n_channels);
 }
 
 TEST_F(DescriptorRelocatorTest, BuildDescriptorNormalized) {
@@ -228,7 +227,8 @@ TEST_F(DescriptorRelocatorTest, BuildDescriptorNormalized) {
   Pose2 pose{0, 0, 0};
   auto desc = reloc.BuildDescriptor(lms, pose);
   double norm = 0.0;
-  for (float v : desc) norm += v * v;
+  for (float v : desc)
+    norm += v * v;
   EXPECT_NEAR(std::sqrt(norm), 1.0, 1e-5);
 }
 
@@ -238,7 +238,8 @@ TEST_F(DescriptorRelocatorTest, EmptyLandmarksZeroDescriptor) {
   Pose2 pose{0, 0, 0};
   auto desc = reloc.BuildDescriptor(empty, pose);
   double sum = 0.0;
-  for (float v : desc) sum += std::abs(v);
+  for (float v : desc)
+    sum += std::abs(v);
   EXPECT_DOUBLE_EQ(sum, 0.0);
 }
 
@@ -338,14 +339,16 @@ TEST_F(ParticleRelocatorTest, PredictMovesParticles) {
   reloc.Initialize(seed);
 
   double mean_x_before = 0;
-  for (const auto& p : reloc.GetParticles()) mean_x_before += p.x;
+  for (const auto& p : reloc.GetParticles())
+    mean_x_before += p.x;
   mean_x_before /= reloc.GetParticles().size();
 
   // Predict forward at 5 m/s for 1 second
   reloc.Predict(5.0, 0.0, 1.0);
 
   double mean_x_after = 0;
-  for (const auto& p : reloc.GetParticles()) mean_x_after += p.x;
+  for (const auto& p : reloc.GetParticles())
+    mean_x_after += p.x;
   mean_x_after /= reloc.GetParticles().size();
 
   EXPECT_GT(mean_x_after, mean_x_before + 3.0);
@@ -481,8 +484,9 @@ TEST(CircleConstraintFactorTest, JacobianNumericalCheck) {
   auto numerical_H = gtsam::numericalDerivative11<gtsam::Vector, gtsam::Point2>(
       [&](const gtsam::Point2& pt) { return factor.evaluateError(pt); }, p2);
 
-  EXPECT_TRUE(H_analytical.isApprox(numerical_H, 1e-5))
-      << "Analytical:\n" << H_analytical << "\nNumerical:\n" << numerical_H;
+  EXPECT_TRUE(H_analytical.isApprox(numerical_H, 1e-5)) << "Analytical:\n"
+                                                        << H_analytical << "\nNumerical:\n"
+                                                        << numerical_H;
 }
 
 TEST(CircleConstraintFactorTest, Clone) {
@@ -513,7 +517,7 @@ class LocationMapperTest : public ::testing::Test {
   }
 
   // Helper: create a CarState at origin and feed it to mapper
-  void initMapper(LocationMapper &mapper) {
+  void initMapper(LocationMapper& mapper) {
     CarState cs;
     cs.car_state.x = 0.0;
     cs.car_state.y = 0.0;
@@ -523,7 +527,7 @@ class LocationMapperTest : public ::testing::Test {
   }
 
   // Helper: create detections along X axis at given positions
-  ConeDetections makeDetections(const std::vector<double> &x_positions, double y = 0.0) {
+  ConeDetections makeDetections(const std::vector<double>& x_positions, double y = 0.0) {
     ConeDetections dets;
     for (double x : x_positions) {
       ConeDetection d;
@@ -596,7 +600,7 @@ TEST_F(LocationMapperTest, MissingConeFallback_InterpolatesGap) {
   EXPECT_GT(static_cast<int>(map.cones.size()), 2);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

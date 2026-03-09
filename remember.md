@@ -103,7 +103,7 @@ roslaunch fsd_launch ebs_test.launch simulation:=true bag:=/path/to.bag enable_e
 
 ## 7) Planning 参数调优记录（先冻结，后续再调）
 
-> 决策：从现在开始先做“代码架构收敛”，暂停继续调参。  
+> 决策：从现在开始先做“代码架构收敛”，暂停继续调参。
 > 参数先按当前可跑通版本冻结，等架构完成后统一二次标定。
 
 ### 7.1 高速规划当前冻结参数（`src/planning_ros/config/high_speed_tracking.yml`）

@@ -64,17 +64,17 @@ run_single_validation() {
     local mission=$1
     local bag=$2
     local run_num=$3
-    
+
     local bag_name=$(basename "$bag")
     echo "[$mission] Run $run_num: $bag_name" | tee -a "$LOG_FILE"
-    
+
     # Run validation
     local result
     if ! result=$("${SCRIPT_DIR}/m5_validation.sh" --mission "$mission" --bag "$bag" --ci 2>/dev/null); then
         echo "  FAILED: Validation script error" | tee -a "$LOG_FILE"
         return 1
     fi
-    
+
     # Extract metrics
     local pl_hz=$(echo "$result" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['results']['$mission']['pathlimits_hz'])")
     local pl_max=$(echo "$result" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['results']['$mission']['pathlimits_max_interval'])")
@@ -82,10 +82,10 @@ run_single_validation() {
     local cmd_max=$(echo "$result" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['results']['$mission']['cmd_max_interval'])")
     local curvature=$(echo "$result" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['results']['$mission'].get('curvature_exceeds', 0))")
     local failsafe=$(echo "$result" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['results']['$mission'].get('general_failsafe', 0))")
-    
+
     # Check against baseline
     local passed=true
-    
+
     case $mission in
         trackdrive)
             if (( $(echo "$pl_hz < $BASELINE_TRACKDRIVE_PL_HZ" | bc -l) )); then
@@ -142,13 +142,13 @@ run_single_validation() {
             fi
             ;;
     esac
-    
+
     # Safety checks
     if [ "$failsafe" -ne 0 ]; then
         echo "  FAIL: GENERAL FAILSAFE = $failsafe (must be 0)" | tee -a "$LOG_FILE"
         passed=false
     fi
-    
+
     if [ "$passed" = true ]; then
         echo "  ✓ PASSED" | tee -a "$LOG_FILE"
         return 0
@@ -167,7 +167,7 @@ declare -A MISSIONS
 BAGS[0]="${BAG_DIR}/track.bag"
 MISSIONS[0]="trackdrive"
 
-# Acceleration bags  
+# Acceleration bags
 BAGS[1]="${BAG_DIR}/accel.bag"
 MISSIONS[1]="acceleration"
 
@@ -202,19 +202,19 @@ for ((repeat=1; repeat<=REPEATS; repeat++)); do
     echo "========================================" | tee -a "$LOG_FILE"
     echo "REPEAT $repeat / $REPEATS" | tee -a "$LOG_FILE"
     echo "========================================" | tee -a "$LOG_FILE"
-    
+
     for ((i=0; i<${#VALID_BAGS[@]}; i++)); do
         mission="${VALID_MISSIONS[$i]}"
         bag="${VALID_BAGS[$i]}"
-        
+
         TOTAL_RUNS=$((TOTAL_RUNS + 1))
-        
+
         if run_single_validation "$mission" "$bag" "$repeat"; then
             PASS_COUNT=$((PASS_COUNT + 1))
         else
             ALL_PASSED=false
         fi
-        
+
         # Small delay between runs
         sleep 2
     done

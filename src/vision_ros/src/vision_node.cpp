@@ -1,13 +1,13 @@
 #include "vision_ros/vision_node.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
-#include <algorithm>
 #include <stdexcept>
 
 #include <cv_bridge/cv_bridge.h>
-#include <opencv2/imgproc.hpp>
 #include <diagnostic_msgs/DiagnosticStatus.h>
+#include <opencv2/imgproc.hpp>
 #include <xmlrpcpp/XmlRpcValue.h>
 
 namespace vision_ros {
@@ -16,10 +16,14 @@ namespace tc = fsd_common::topic_contract;
 
 static const char* stateToString(VisionNode::VisionState s) {
   switch (s) {
-    case VisionNode::VisionState::NORMAL:        return "NORMAL";
-    case VisionNode::VisionState::DEGRADED_MODE: return "DEGRADED";
-    case VisionNode::VisionState::FALLBACK_MODE: return "FALLBACK";
-    case VisionNode::VisionState::VISION_LOST:   return "VISION_LOST";
+    case VisionNode::VisionState::NORMAL:
+      return "NORMAL";
+    case VisionNode::VisionState::DEGRADED_MODE:
+      return "DEGRADED";
+    case VisionNode::VisionState::FALLBACK_MODE:
+      return "FALLBACK";
+    case VisionNode::VisionState::VISION_LOST:
+      return "VISION_LOST";
   }
   return "UNKNOWN";
 }
@@ -32,8 +36,9 @@ VisionNode::VisionNode(ros::NodeHandle& nh, ros::NodeHandle& private_nh)
 
   const bool fallback_only = (backend_type_ == "fallback_only");
   if (!fallback_only && require_model_ && inference_cfg_.model_path.empty()) {
-    ROS_FATAL("[vision_node] inference/model_path is empty while node/require_model=true. "
-              "Set model_path or launch with mode:=fallback_only.");
+    ROS_FATAL(
+        "[vision_node] inference/model_path is empty while node/require_model=true. "
+        "Set model_path or launch with mode:=fallback_only.");
     throw std::runtime_error("vision_node requires non-empty inference/model_path");
   }
 
@@ -43,9 +48,10 @@ VisionNode::VisionNode(ros::NodeHandle& nh, ros::NodeHandle& private_nh)
     if (backend_) {
       if (!backend_->initialize(inference_cfg_)) {
         if (require_model_) {
-          ROS_FATAL("[vision_node] Backend '%s' failed to initialize with model='%s' and "
-                    "require_model=true",
-                    backend_type_.c_str(), inference_cfg_.model_path.c_str());
+          ROS_FATAL(
+              "[vision_node] Backend '%s' failed to initialize with model='%s' and "
+              "require_model=true",
+              backend_type_.c_str(), inference_cfg_.model_path.c_str());
           throw std::runtime_error("vision_node backend initialization failed");
         }
         ROS_WARN("[vision_node] Backend '%s' failed to initialize — running fallback only",
@@ -72,8 +78,7 @@ VisionNode::VisionNode(ros::NodeHandle& nh, ros::NodeHandle& private_nh)
   tracker_ = std::make_unique<vision_core::TemporalTracker>(tracker_cfg_);
 
   // Publishers
-  detections_pub_ = nh_.advertise<autodrive_msgs::HUAT_VisionDetections>(
-      tc::kVisionDetections, 1);
+  detections_pub_ = nh_.advertise<autodrive_msgs::HUAT_VisionDetections>(tc::kVisionDetections, 1);
   image_transport::ImageTransport it(nh_);
   debug_image_pub_ = it.advertise(tc::kVisionDebugImage, 1);
 
@@ -86,19 +91,16 @@ VisionNode::VisionNode(ros::NodeHandle& nh, ros::NodeHandle& private_nh)
 
   // Subscriber
   image_transport::ImageTransport it_sub(nh_);
-  image_sub_ = it_sub.subscribe(image_topic_, 1,
-      &VisionNode::imageCallback, this);
+  image_sub_ = it_sub.subscribe(image_topic_, 1, &VisionNode::imageCallback, this);
 
   const std::string runtime_mode =
       (backend_ && backend_->isReady()) ? "onnx_inference" : "fallback_only";
-  ROS_INFO("[vision_node] Initialized — mode=%s backend=%s model_path='%s' image_topic=%s "
-           "tracker=%s fallback=%s",
-           runtime_mode.c_str(),
-           backend_ ? backend_->backendName().c_str() : "none",
-           inference_cfg_.model_path.c_str(),
-           image_topic_.c_str(),
-           tracker_enabled_ ? "on" : "off",
-           fallback_enabled_ ? "on" : "off");
+  ROS_INFO(
+      "[vision_node] Initialized — mode=%s backend=%s model_path='%s' image_topic=%s "
+      "tracker=%s fallback=%s",
+      runtime_mode.c_str(), backend_ ? backend_->backendName().c_str() : "none",
+      inference_cfg_.model_path.c_str(), image_topic_.c_str(), tracker_enabled_ ? "on" : "off",
+      fallback_enabled_ ? "on" : "off");
 }
 
 void VisionNode::spin() {
@@ -148,8 +150,8 @@ void VisionNode::loadParams() {
         }
         int mapped = static_cast<int>(class_map_param[i]);
         if (mapped < 0 || mapped > 5) {
-          ROS_WARN("[vision_node] inference/class_to_color[%d]=%d out of range [0,5], ignored",
-                   i, mapped);
+          ROS_WARN("[vision_node] inference/class_to_color[%d]=%d out of range [0,5], ignored", i,
+                   mapped);
           continue;
         }
         class_to_color_map_.push_back(static_cast<uint8_t>(mapped));
@@ -193,11 +195,13 @@ void VisionNode::loadParams() {
   tracker_cfg_.iou_threshold = iou_thresh;
   private_nh_.param<int>("tracker/max_miss", tracker_cfg_.max_miss_frames, 1);
   if (!private_nh_.hasParam("tracker/max_miss")) {
-    private_nh_.param<int>("tracker_max_miss", tracker_cfg_.max_miss_frames, tracker_cfg_.max_miss_frames);
+    private_nh_.param<int>("tracker_max_miss", tracker_cfg_.max_miss_frames,
+                           tracker_cfg_.max_miss_frames);
   }
   private_nh_.param<int>("tracker/min_hits", tracker_cfg_.min_hits_to_output, 2);
   if (!private_nh_.hasParam("tracker/min_hits")) {
-    private_nh_.param<int>("tracker_min_hits", tracker_cfg_.min_hits_to_output, tracker_cfg_.min_hits_to_output);
+    private_nh_.param<int>("tracker_min_hits", tracker_cfg_.min_hits_to_output,
+                           tracker_cfg_.min_hits_to_output);
   }
 }
 
@@ -230,8 +234,7 @@ void VisionNode::processFrame(const cv::Mat& bgr, const std_msgs::Header& header
   std::vector<vision_core::Detection> model_dets;
   uint32_t inference_us = 0;
   bool skip_model = (qm.overall == vision_core::ImageQuality::UNUSABLE ||
-                     state_ == VisionState::VISION_LOST ||
-                     state_ == VisionState::FALLBACK_MODE);
+                     state_ == VisionState::VISION_LOST || state_ == VisionState::FALLBACK_MODE);
   if (!skip_model && backend_ && backend_->isReady()) {
     auto t0 = std::chrono::steady_clock::now();
     model_dets = backend_->detect(enhanced);
@@ -267,15 +270,14 @@ void VisionNode::processFrame(const cv::Mat& bgr, const std_msgs::Header& header
   publishDiagnostics(qm, final_dets.size(), inference_us);
 }
 
-void VisionNode::remapModelDetections(
-    std::vector<vision_core::Detection>& model_dets) const {
+void VisionNode::remapModelDetections(std::vector<vision_core::Detection>& model_dets) const {
   if (model_dets.empty()) {
     return;
   }
   // Vision outputs unified YELLOW (1), size classification done by LiDAR
   for (auto& det : model_dets) {
-    det.color_type = static_cast<uint8_t>(
-        vision_core::modelClassToColorType(det.class_id, class_to_color_map_));
+    det.color_type =
+        static_cast<uint8_t>(vision_core::modelClassToColorType(det.class_id, class_to_color_map_));
   }
 }
 
@@ -283,18 +285,16 @@ void VisionNode::remapModelDetections(
 
 std::vector<vision_core::Detection> VisionNode::fuseDetections(
     const std::vector<vision_core::Detection>& model_dets,
-    const std::vector<vision_core::Detection>& fallback_dets,
-    vision_core::ImageQuality quality,
+    const std::vector<vision_core::Detection>& fallback_dets, vision_core::ImageQuality quality,
     VisionState state) {
-
   // VISION_LOST or FALLBACK_MODE: only use fallback
   if (state == VisionState::VISION_LOST || state == VisionState::FALLBACK_MODE) {
     return fallback_dets;
   }
 
   // GOOD quality with model results in NORMAL state: trust model only
-  if (quality == vision_core::ImageQuality::GOOD && !model_dets.empty()
-      && state == VisionState::NORMAL) {
+  if (quality == vision_core::ImageQuality::GOOD && !model_dets.empty() &&
+      state == VisionState::NORMAL) {
     return model_dets;
   }
 
@@ -324,20 +324,16 @@ std::vector<vision_core::Detection> VisionNode::fuseDetections(
   return merged;
 }
 
-
 // ── Publish Detections ───────────────────────────────────────────
 
-void VisionNode::publishDetections(
-    const std::vector<vision_core::Detection>& dets,
-    const std_msgs::Header& header,
-    const vision_core::QualityMetrics& qm,
-    uint32_t inference_us) {
-
+void VisionNode::publishDetections(const std::vector<vision_core::Detection>& dets,
+                                   const std_msgs::Header& header,
+                                   const vision_core::QualityMetrics& qm, uint32_t inference_us) {
   autodrive_msgs::HUAT_VisionDetections msg;
   msg.header = header;
   msg.image_quality = static_cast<uint8_t>(qm.overall);
-  msg.quality_score = std::clamp(1.0f - (qm.blur_score > 0 ? 200.0f / qm.blur_score : 0.0f)
-                                  * 0.5f, 0.0f, 1.0f);
+  msg.quality_score =
+      std::clamp(1.0f - (qm.blur_score > 0 ? 200.0f / qm.blur_score : 0.0f) * 0.5f, 0.0f, 1.0f);
 
   const size_t n = dets.size();
   msg.x.resize(n);
@@ -356,8 +352,8 @@ void VisionNode::publishDetections(
     msg.bbox_heights[i] = dets[i].h;
   }
 
-  bool using_fallback = (!backend_ || !backend_->isReady() ||
-                         qm.overall == vision_core::ImageQuality::UNUSABLE);
+  bool using_fallback =
+      (!backend_ || !backend_->isReady() || qm.overall == vision_core::ImageQuality::UNUSABLE);
   msg.backend_name = backend_ ? backend_->backendName() : "none";
   msg.fallback_active = using_fallback;
   msg.inference_time_us = inference_us;
@@ -367,11 +363,9 @@ void VisionNode::publishDetections(
 
 // ── Publish Debug Image ──────────────────────────────────────────
 
-void VisionNode::publishDebugImage(
-    const cv::Mat& bgr,
-    const std::vector<vision_core::Detection>& dets,
-    const std_msgs::Header& header) {
-
+void VisionNode::publishDebugImage(const cv::Mat& bgr,
+                                   const std::vector<vision_core::Detection>& dets,
+                                   const std_msgs::Header& header) {
   // Throttle debug image publishing
   ros::Time now = ros::Time::now();
   if (last_debug_pub_.isValid() && debug_image_rate_ > 0.0) {
@@ -392,11 +386,21 @@ void VisionNode::publishDebugImage(
     // Updated cone types: BLUE=0, YELLOW_SMALL=1, YELLOW_BIG=2, RED=3, NONE=4
     // Note: ORANGE types removed, replaced with YELLOW_SMALL/YELLOW_BIG
     switch (d.color_type) {
-      case vision_core::BLUE:         color = cv::Scalar(255, 0, 0);     break;  // Blue
-      case vision_core::YELLOW_SMALL: color = cv::Scalar(0, 230, 255);   break;  // Yellow (light)
-      case vision_core::YELLOW_BIG:   color = cv::Scalar(0, 217, 255);   break;  // Yellow (dark)
-      case vision_core::RED:          color = cv::Scalar(0, 0, 255);     break;  // Red
-      default:                        color = cv::Scalar(200, 200, 200); break;  // Gray
+      case vision_core::BLUE:
+        color = cv::Scalar(255, 0, 0);
+        break;  // Blue
+      case vision_core::YELLOW_SMALL:
+        color = cv::Scalar(0, 230, 255);
+        break;  // Yellow (light)
+      case vision_core::YELLOW_BIG:
+        color = cv::Scalar(0, 217, 255);
+        break;  // Yellow (dark)
+      case vision_core::RED:
+        color = cv::Scalar(0, 0, 255);
+        break;  // Red
+      default:
+        color = cv::Scalar(200, 200, 200);
+        break;  // Gray
     }
     int x1 = static_cast<int>(d.x - d.w * 0.5f);
     int y1 = static_cast<int>(d.y - d.h * 0.5f);
@@ -406,8 +410,8 @@ void VisionNode::publishDebugImage(
   }
 
   // State overlay
-  cv::putText(canvas, stateToString(state_), cv::Point(10, 30),
-              cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 2);
+  cv::putText(canvas, stateToString(state_), cv::Point(10, 30), cv::FONT_HERSHEY_SIMPLEX, 0.8,
+              cv::Scalar(0, 255, 0), 2);
 
   sensor_msgs::ImagePtr out = cv_bridge::CvImage(header, "bgr8", canvas).toImageMsg();
   debug_image_pub_.publish(out);
@@ -415,11 +419,8 @@ void VisionNode::publishDebugImage(
 
 // ── Publish Diagnostics ──────────────────────────────────────────
 
-void VisionNode::publishDiagnostics(
-    const vision_core::QualityMetrics& qm,
-    size_t n_detections,
-    uint32_t inference_us) {
-
+void VisionNode::publishDiagnostics(const vision_core::QualityMetrics& qm, size_t n_detections,
+                                    uint32_t inference_us) {
   uint8_t level;
   std::string message;
   switch (state_) {
@@ -442,34 +443,26 @@ void VisionNode::publishDiagnostics(
   }
 
   std::vector<diagnostic_msgs::KeyValue> kvs;
-  kvs.push_back(fsd_common::DiagnosticsHelper::KV(
-      "state", stateToString(state_)));
-  kvs.push_back(fsd_common::DiagnosticsHelper::KV(
-      "n_detections", std::to_string(n_detections)));
-  kvs.push_back(fsd_common::DiagnosticsHelper::KV(
-      "inference_time_us", std::to_string(inference_us)));
-  kvs.push_back(fsd_common::DiagnosticsHelper::KV(
-      "image_quality", std::to_string(static_cast<int>(qm.overall))));
-  kvs.push_back(fsd_common::DiagnosticsHelper::KV(
-      "blur_score", std::to_string(qm.blur_score)));
-  kvs.push_back(fsd_common::DiagnosticsHelper::KV(
-      "brightness", std::to_string(qm.brightness)));
-  kvs.push_back(fsd_common::DiagnosticsHelper::KV(
-      "frame_count", std::to_string(frame_count_)));
-  kvs.push_back(fsd_common::DiagnosticsHelper::KV(
-      "backend", backend_ ? backend_->backendName() : "none"));
-  kvs.push_back(fsd_common::DiagnosticsHelper::KV(
-      "require_model", require_model_ ? "1" : "0"));
-  kvs.push_back(fsd_common::DiagnosticsHelper::KV(
-      "tracker_enabled", tracker_enabled_ ? "1" : "0"));
-  kvs.push_back(fsd_common::DiagnosticsHelper::KV(
-      "fallback_enabled", fallback_enabled_ ? "1" : "0"));
+  kvs.push_back(fsd_common::DiagnosticsHelper::KV("state", stateToString(state_)));
+  kvs.push_back(fsd_common::DiagnosticsHelper::KV("n_detections", std::to_string(n_detections)));
+  kvs.push_back(
+      fsd_common::DiagnosticsHelper::KV("inference_time_us", std::to_string(inference_us)));
+  kvs.push_back(fsd_common::DiagnosticsHelper::KV("image_quality",
+                                                  std::to_string(static_cast<int>(qm.overall))));
+  kvs.push_back(fsd_common::DiagnosticsHelper::KV("blur_score", std::to_string(qm.blur_score)));
+  kvs.push_back(fsd_common::DiagnosticsHelper::KV("brightness", std::to_string(qm.brightness)));
+  kvs.push_back(fsd_common::DiagnosticsHelper::KV("frame_count", std::to_string(frame_count_)));
+  kvs.push_back(
+      fsd_common::DiagnosticsHelper::KV("backend", backend_ ? backend_->backendName() : "none"));
+  kvs.push_back(fsd_common::DiagnosticsHelper::KV("require_model", require_model_ ? "1" : "0"));
+  kvs.push_back(fsd_common::DiagnosticsHelper::KV("tracker_enabled", tracker_enabled_ ? "1" : "0"));
+  kvs.push_back(
+      fsd_common::DiagnosticsHelper::KV("fallback_enabled", fallback_enabled_ ? "1" : "0"));
   kvs.push_back(fsd_common::DiagnosticsHelper::KV(
       "model_path", inference_cfg_.model_path.empty() ? "<empty>" : inference_cfg_.model_path));
 
   diag_helper_.PublishStatus("vision_node", "camera", level, message, kvs);
 }
-
 
 // ── State Machine ────────────────────────────────────────────────
 
@@ -542,8 +535,8 @@ void VisionNode::updateState(vision_core::ImageQuality quality) {
   }
 
   if (state_ != prev) {
-    ROS_INFO("[vision_node] State transition: %s -> %s",
-             stateToString(prev), stateToString(state_));
+    ROS_INFO("[vision_node] State transition: %s -> %s", stateToString(prev),
+             stateToString(state_));
   }
 }
 

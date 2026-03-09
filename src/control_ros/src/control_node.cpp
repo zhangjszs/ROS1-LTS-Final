@@ -1,3 +1,11 @@
+#include "control_core/high_controller.hpp"
+#include "control_core/line_controller.hpp"
+#include "control_core/skip_controller.hpp"
+#include "control_core/test_controller.hpp"
+#include "control_core/types.hpp"
+
+#include <ros/ros.h>
+
 #include <clocale>
 #include <cstdlib>
 #include <fstream>
@@ -6,89 +14,69 @@
 #include <string>
 #include <vector>
 
-#include <ros/ros.h>
-
 #include <autodrive_msgs/HUAT_CarState.h>
 #include <autodrive_msgs/HUAT_PathLimits.h>
 #include <autodrive_msgs/HUAT_VehicleCmd.h>
-#include <autodrive_msgs/topic_contract.hpp>
 #include <autodrive_msgs/diagnostics_helper.hpp>
-#include <fsd_common/control_mode.hpp>
+#include <autodrive_msgs/topic_contract.hpp>
 #include <diagnostic_msgs/DiagnosticArray.h>
+#include <fsd_common/control_mode.hpp>
 #include <std_msgs/Bool.h>
 
-#include "control_core/types.hpp"
+namespace control_ros {
 
-#include "control_core/high_controller.hpp"
-#include "control_core/line_controller.hpp"
-#include "control_core/skip_controller.hpp"
-#include "control_core/test_controller.hpp"
-
-namespace control_ros
-{
-
-std::string DefaultCommandPath()
-{
-  const char *home = std::getenv("HOME");
-  if (home == nullptr || home[0] == '\0')
-  {
+std::string DefaultCommandPath() {
+  const char* home = std::getenv("HOME");
+  if (home == nullptr || home[0] == '\0') {
     return "autoStartGkj/command";
   }
   return std::string(home) + "/autoStartGkj/command";
 }
 
-int ReadModeFromFile(const std::string &path, bool *read_ok)
-{
+int ReadModeFromFile(const std::string& path, bool* read_ok) {
   std::ifstream ifs(path.c_str(), std::ios::in);
-  if (!ifs.is_open())
-  {
-    if (read_ok != nullptr)
-    {
+  if (!ifs.is_open()) {
+    if (read_ok != nullptr) {
       *read_ok = false;
     }
     return 0;
   }
   int value = static_cast<char>(ifs.get()) - '0';
-  if (read_ok != nullptr)
-  {
+  if (read_ok != nullptr) {
     *read_ok = true;
   }
   return value;
 }
 
-class ControlNode
-{
-public:
-  ControlNode(ros::NodeHandle &nh,
-              ros::NodeHandle &pnh,
-              int mode,
-              int racing_num,
-              const std::string &mode_source,
-              bool enable_file_mode_fallback,
-              bool file_mode_fallback_used,
-              const std::string &mode_file_path,
+class ControlNode {
+ public:
+  ControlNode(ros::NodeHandle& nh, ros::NodeHandle& pnh, int mode, int racing_num,
+              const std::string& mode_source, bool enable_file_mode_fallback,
+              bool file_mode_fallback_used, const std::string& mode_file_path,
               int mode_file_read_error_count)
-    : nh_(nh),
-      pnh_(pnh),
-      mode_(mode),
-      racing_num_(racing_num),
-      mode_source_(mode_source),
-      enable_file_mode_fallback_(enable_file_mode_fallback),
-      file_mode_fallback_used_(file_mode_fallback_used),
-      mode_file_path_(mode_file_path),
-      mode_file_read_error_count_(mode_file_read_error_count)
-  {
+      : nh_(nh),
+        pnh_(pnh),
+        mode_(mode),
+        racing_num_(racing_num),
+        mode_source_(mode_source),
+        enable_file_mode_fallback_(enable_file_mode_fallback),
+        file_mode_fallback_used_(file_mode_fallback_used),
+        mode_file_path_(mode_file_path),
+        mode_file_read_error_count_(mode_file_read_error_count) {
     nh_.param("/use_sim_time", simulation_, false);
     pnh_.param("enable_external_stop_file", enable_external_stop_file_, false);
-    pnh_.param<std::string>("external_stop_file_path", external_stop_file_path_, DefaultCommandPath());
+    pnh_.param<std::string>("external_stop_file_path", external_stop_file_path_,
+                            DefaultCommandPath());
     pnh_.param<std::string>("cmd_topic", cmd_topic_, autodrive_msgs::topic_contract::kVehicleCmd);
-    pnh_.param<std::string>("carstate_topic", carstate_topic_, autodrive_msgs::topic_contract::kCarState);
+    pnh_.param<std::string>("carstate_topic", carstate_topic_,
+                            autodrive_msgs::topic_contract::kCarState);
     pnh_.param<std::string>("approaching_goal_topic", approaching_goal_topic_,
                             autodrive_msgs::topic_contract::kApproachingGoal);
-    // Planning input watchdog: use wall-time to avoid /clock validity/jumps during sim replay startup.
-    // Default is stricter on real vehicle, looser in simulation replay.
+    // Planning input watchdog: use wall-time to avoid /clock validity/jumps during sim replay
+    // startup. Default is stricter on real vehicle, looser in simulation replay.
     pnh_.param("input_timeout_sec", input_timeout_sec_, simulation_ ? 2.0 : 0.5);
-    if (input_timeout_sec_ <= 0.0) input_timeout_sec_ = simulation_ ? 2.0 : 0.5;
+    if (input_timeout_sec_ <= 0.0)
+      input_timeout_sec_ = simulation_ ? 2.0 : 0.5;
     pnh_.param("diagnostics_rate_hz", diagnostics_rate_hz_, 1.0);
     {
       std::string diag_topic, global_diag_topic;
@@ -105,14 +93,14 @@ public:
       dcfg.rate_hz = diagnostics_rate_hz_;
       diag_helper_.Init(nh_, dcfg);
     }
-    if (diagnostics_rate_hz_ <= 0.0)
-    {
+    if (diagnostics_rate_hz_ <= 0.0) {
       diagnostics_rate_hz_ = 1.0;
     }
 
-    if (enable_file_mode_fallback_ || enable_external_stop_file_)
-    {
-      ROS_WARN("[control][deprecated][target-removal:2026-09-30] File-based compatibility path is enabled.");
+    if (enable_file_mode_fallback_ || enable_external_stop_file_) {
+      ROS_WARN(
+          "[control][deprecated][target-removal:2026-09-30] File-based compatibility path is "
+          "enabled.");
     }
 
     external_stop_source_ = (simulation_ || !enable_external_stop_file_) ? "disabled" : "file";
@@ -132,13 +120,11 @@ public:
   //   P1: Input timeout (planning layer crash detection, 500ms)
   //   P2: Controller stop_requested (mission complete / planner stop)
   // EBS hardware stop is outside software control (handled by vehicle_interface)
-  void SpinOnce()
-  {
+  void SpinOnce() {
     PublishDiagnostics(false);
 
     // P0: External stop file
-    if (!simulation_ && enable_external_stop_file_ && CheckExternalStop())
-    {
+    if (!simulation_ && enable_external_stop_file_ && CheckExternalStop()) {
       stop_state_ = control_core::ControlStopState::EXTERNAL_STOP_FILE;
       PublishEmergencyStop();
       ++external_stop_trigger_count_;
@@ -148,17 +134,15 @@ public:
     }
 
     // P1: Input timeout
-    if (mode_ != fsd_common::ControlMode::kTest && mode_ != fsd_common::ControlMode::kEbs)
-    {
-      if (has_pathlimits_)
-      {
+    if (mode_ != fsd_common::ControlMode::kTest && mode_ != fsd_common::ControlMode::kEbs) {
+      if (has_pathlimits_) {
         const double timeout_sec = (ros::WallTime::now() - last_pathlimits_wall_time_).toSec();
-        if (timeout_sec > input_timeout_sec_)
-        {
+        if (timeout_sec > input_timeout_sec_) {
           stop_state_ = control_core::ControlStopState::INPUT_TIMEOUT;
-          ROS_ERROR("[control] PathLimits input timeout: %.3f sec (threshold: %.3f sec). "
-                    "Planning layer may have crashed. Triggering emergency stop.",
-                    timeout_sec, input_timeout_sec_);
+          ROS_ERROR(
+              "[control] PathLimits input timeout: %.3f sec (threshold: %.3f sec). "
+              "Planning layer may have crashed. Triggering emergency stop.",
+              timeout_sec, input_timeout_sec_);
           PublishEmergencyStop();
           ++input_timeout_count_;
           PublishDiagnostics(true);
@@ -168,18 +152,16 @@ public:
       }
     }
 
-    if (!path_ready_ && !(mode_ == fsd_common::ControlMode::kTest || mode_ == fsd_common::ControlMode::kEbs))
-    {
+    if (!path_ready_ &&
+        !(mode_ == fsd_common::ControlMode::kTest || mode_ == fsd_common::ControlMode::kEbs)) {
       ROS_WARN("得不到有效的惯导路径信息");
       return;
     }
 
-    if (controller_)
-    {
+    if (controller_) {
       auto output = controller_->ComputeOutput();
       // P2: Controller stop request (mission complete)
-      if (output.stop_requested)
-      {
+      if (output.stop_requested) {
         stop_state_ = control_core::ControlStopState::MISSION_COMPLETE;
         autodrive_msgs::HUAT_VehicleCmd stop_cmd;
         PublishCommand(stop_cmd);
@@ -201,9 +183,9 @@ public:
       cmd.working_mode = 1;
       cmd.racing_num = racing_num_;
       cmd.racing_status = output.racing_status;
-      cmd.checksum = cmd.head1 + cmd.head2 + cmd.length +
-                     cmd.steering + cmd.pedal_ratio + cmd.brake_force +
-                     cmd.gear_position + cmd.working_mode + cmd.racing_num + cmd.racing_status;
+      cmd.checksum = cmd.head1 + cmd.head2 + cmd.length + cmd.steering + cmd.pedal_ratio +
+                     cmd.brake_force + cmd.gear_position + cmd.working_mode + cmd.racing_num +
+                     cmd.racing_status;
 
       // B28: Track last output for diagnostics
       last_steering_ = cmd.steering;
@@ -215,9 +197,8 @@ public:
     }
   }
 
-private:
-  void InitController()
-  {
+ private:
+  void InitController() {
     if (mode_ == fsd_common::ControlMode::kTest)
       controller_ = std::make_unique<control_core::TestController>();
     else if (mode_ == fsd_common::ControlMode::kLine)
@@ -228,8 +209,7 @@ private:
       controller_ = std::make_unique<control_core::HighController>();
   }
 
-  void LoadParams()
-  {
+  void LoadParams() {
     control_core::ControlParams params;
     std::string ns = (mode_ == fsd_common::ControlMode::kSkidpad) ? "st" : "pp";
 
@@ -254,32 +234,29 @@ private:
     nh_.param("braking/brake_max", params.brake_max, 80.0);
     nh_.param("braking/brake_speed_margin", params.brake_speed_margin, 0.5);
 
-    if (controller_)
-    {
+    if (controller_) {
       controller_->SetParams(params);
     }
   }
 
-  void SetupSubscribers()
-  {
+  void SetupSubscribers() {
     sub_pose_ = nh_.subscribe(carstate_topic_, 10, &ControlNode::PoseCallback, this);
     sub_last_ = nh_.subscribe(approaching_goal_topic_, 100, &ControlNode::LastCallback, this);
 
     ROS_INFO("[control] Subscribed car state topic: %s", carstate_topic_.c_str());
     ROS_INFO("[control] Subscribed approaching-goal topic: %s", approaching_goal_topic_.c_str());
 
-    if (mode_ != fsd_common::ControlMode::kTest && mode_ != fsd_common::ControlMode::kEbs)
-    {
+    if (mode_ != fsd_common::ControlMode::kTest && mode_ != fsd_common::ControlMode::kEbs) {
       std::string pathlimits_topic;
       pnh_.param<std::string>("pathlimits_topic", pathlimits_topic,
                               autodrive_msgs::topic_contract::kPathLimits);
-      sub_pathlimits_ = nh_.subscribe(pathlimits_topic, 100, &ControlNode::PathLimitsCallback, this);
+      sub_pathlimits_ =
+          nh_.subscribe(pathlimits_topic, 100, &ControlNode::PathLimitsCallback, this);
       ROS_INFO("[control] Subscribed to pathlimits: %s", pathlimits_topic.c_str());
     }
   }
 
-  void PoseCallback(const autodrive_msgs::HUAT_CarState::ConstPtr &msgs)
-  {
+  void PoseCallback(const autodrive_msgs::HUAT_CarState::ConstPtr& msgs) {
     control_core::CarState state;
     state.x = msgs->car_state.x;
     state.y = msgs->car_state.y;
@@ -287,22 +264,19 @@ private:
     state.v = msgs->V;
 
     // FSSIM风格扩展状态 - 从IMU获取
-    state.vy = msgs->Vy;           // 横向速度
-    state.yaw_rate = msgs->Wz;     // 偏航角速度
-    state.ax = msgs->Ax;           // 纵向加速度
-    state.ay = msgs->Ay;           // 横向加速度
+    state.vy = msgs->Vy;        // 横向速度
+    state.yaw_rate = msgs->Wz;  // 偏航角速度
+    state.ax = msgs->Ax;        // 纵向加速度
+    state.ay = msgs->Ay;        // 横向加速度
 
-    if (controller_)
-    {
+    if (controller_) {
       controller_->UpdateCarState(state);
     }
     pose_ready_ = true;
   }
 
-  void PathLimitsCallback(const autodrive_msgs::HUAT_PathLimits::ConstPtr &msgs)
-  {
-    if (!pose_ready_)
-    {
+  void PathLimitsCallback(const autodrive_msgs::HUAT_PathLimits::ConstPtr& msgs) {
+    if (!pose_ready_) {
       return;
     }
     pose_ready_ = false;
@@ -313,11 +287,12 @@ private:
     const size_t speeds_len = msgs->target_speeds.size();
     const size_t curvatures_len = msgs->curvatures.size();
 
-    if (path_len != speeds_len || path_len != curvatures_len)
-    {
-      ROS_ERROR("[control] PathLimits array length mismatch: path=%zu, target_speeds=%zu, curvatures=%zu. "
-                "Rejecting invalid path to prevent array out-of-bounds access.",
-                path_len, speeds_len, curvatures_len);
+    if (path_len != speeds_len || path_len != curvatures_len) {
+      ROS_ERROR(
+          "[control] PathLimits array length mismatch: path=%zu, target_speeds=%zu, "
+          "curvatures=%zu. "
+          "Rejecting invalid path to prevent array out-of-bounds access.",
+          path_len, speeds_len, curvatures_len);
       ++pathlimits_validation_error_count_;
       path_ready_ = false;
       PublishDiagnostics(true);
@@ -325,8 +300,7 @@ private:
     }
 
     // B1: Additional safety checks
-    if (path_len == 0)
-    {
+    if (path_len == 0) {
       ROS_WARN_THROTTLE(1.0, "[control] Received empty path, ignoring.");
       path_ready_ = false;
       return;
@@ -334,16 +308,14 @@ private:
 
     std::vector<control_core::Position> path;
     path.reserve(msgs->path.size());
-    for (const auto &path_tem : msgs->path)
-    {
+    for (const auto& path_tem : msgs->path) {
       control_core::Position pt;
       pt.x = path_tem.x;
       pt.y = path_tem.y;
       path.push_back(pt);
     }
 
-    if (controller_)
-    {
+    if (controller_) {
       controller_->UpdatePath(path);
       // P0-1: Pass per-point target speeds from planning to controller
       std::vector<double> speeds(msgs->target_speeds.begin(), msgs->target_speeds.end());
@@ -358,60 +330,53 @@ private:
     last_pathlimits_wall_time_ = ros::WallTime::now();
 
     // B13: End-to-end latency tracking
-    if (msgs->header.stamp.isValid() && !msgs->header.stamp.isZero())
-    {
+    if (msgs->header.stamp.isValid() && !msgs->header.stamp.isZero()) {
       const ros::Time now = ros::Time::now();
       const double e2e = (now - msgs->header.stamp).toSec();
       if (e2e >= 0.0 && e2e < 10.0)  // sanity: ignore negative or huge values
       {
         e2e_latency_sum_ += e2e;
-        if (e2e > e2e_latency_max_) e2e_latency_max_ = e2e;
+        if (e2e > e2e_latency_max_)
+          e2e_latency_max_ = e2e;
         ++latency_sample_count_;
         const double warn_threshold = simulation_ ? 0.5 : kE2eLatencyWarnSec;
-        if (e2e > warn_threshold)
-        {
+        if (e2e > warn_threshold) {
           ++e2e_latency_warn_count_;
           ROS_WARN_THROTTLE(2.0, "[control] E2E latency %.1fms exceeds threshold %.0fms",
                             e2e * 1000.0, warn_threshold * 1000.0);
         }
       }
       // Planning-to-control segment
-      if (msgs->stamp.isValid() && !msgs->stamp.isZero())
-      {
+      if (msgs->stamp.isValid() && !msgs->stamp.isZero()) {
         const double p2c = (now - msgs->stamp).toSec();
-        if (p2c >= 0.0 && p2c < 10.0)
-        {
+        if (p2c >= 0.0 && p2c < 10.0) {
           planning_latency_sum_ += p2c;
-          if (p2c > planning_latency_max_) planning_latency_max_ = p2c;
+          if (p2c > planning_latency_max_)
+            planning_latency_max_ = p2c;
         }
       }
     }
   }
 
-  void LastCallback(const std_msgs::Bool::ConstPtr &msg)
-  {
+  void LastCallback(const std_msgs::Bool::ConstPtr& msg) {
     finish_signal_ = msg->data;
-    if (controller_)
-    {
+    if (controller_) {
       controller_->SetFinishSignal(finish_signal_);
     }
   }
 
-  bool CheckExternalStop()
-  {
+  bool CheckExternalStop() {
     std::ifstream ifs(external_stop_file_path_.c_str(), std::ios::in);
-    if (!ifs.is_open())
-    {
+    if (!ifs.is_open()) {
       ++external_stop_file_open_error_count_;
       ROS_WARN_THROTTLE(1, "文件打开失败 (External Stop Check Failed to Open File)");
-      return false; // Don't stop on read error, just warn
+      return false;  // Don't stop on read error, just warn
     }
     int value = static_cast<char>(ifs.get()) - '0';
     return value == 0;
   }
 
-  void PublishEmergencyStop()
-  {
+  void PublishEmergencyStop() {
     autodrive_msgs::HUAT_VehicleCmd cmd;
     cmd.head1 = 0XAA;
     cmd.head2 = 0X55;
@@ -423,51 +388,42 @@ private:
     cmd.working_mode = 1;
     cmd.racing_num = racing_num_;
     cmd.racing_status = 5;
-    cmd.checksum = cmd.head1 + cmd.head2 + cmd.length +
-                   cmd.steering + cmd.pedal_ratio + cmd.brake_force +
-                   cmd.gear_position + cmd.working_mode + cmd.racing_num + cmd.racing_status;
+    cmd.checksum = cmd.head1 + cmd.head2 + cmd.length + cmd.steering + cmd.pedal_ratio +
+                   cmd.brake_force + cmd.gear_position + cmd.working_mode + cmd.racing_num +
+                   cmd.racing_status;
 
     PublishCommand(cmd);
   }
 
-  void PublishCommand(const autodrive_msgs::HUAT_VehicleCmd &cmd)
-  {
-    pub_cmd_.publish(cmd);
-  }
+  void PublishCommand(const autodrive_msgs::HUAT_VehicleCmd& cmd) { pub_cmd_.publish(cmd); }
 
-  void PublishDiagnostics(bool force)
-  {
+  void PublishDiagnostics(bool force) {
     using DH = autodrive_msgs::DiagnosticsHelper;
 
     uint8_t level = diagnostic_msgs::DiagnosticStatus::OK;
     std::string message = "OK";
 
     // B4: Check for input timeout
-    if (input_timeout_count_ > 0)
-    {
+    if (input_timeout_count_ > 0) {
       level = diagnostic_msgs::DiagnosticStatus::ERROR;
       message = "INPUT_TIMEOUT";
     }
 
     // B1: Check for PathLimits validation errors
-    if (pathlimits_validation_error_count_ > 0)
-    {
+    if (pathlimits_validation_error_count_ > 0) {
       level = diagnostic_msgs::DiagnosticStatus::ERROR;
       message = "PATHLIMITS_VALIDATION_ERROR";
     }
 
-    if (mode_source_ != "param")
-    {
+    if (mode_source_ != "param") {
       level = diagnostic_msgs::DiagnosticStatus::WARN;
       message = "COMPAT_MODE_SOURCE";
     }
-    if (mode_file_read_error_count_ > 0 || external_stop_file_open_error_count_ > 0)
-    {
+    if (mode_file_read_error_count_ > 0 || external_stop_file_open_error_count_ > 0) {
       level = diagnostic_msgs::DiagnosticStatus::WARN;
       message = "FILE_IO_WARN";
     }
-    if (mode_source_ != "param" && !enable_file_mode_fallback_)
-    {
+    if (mode_source_ != "param" && !enable_file_mode_fallback_) {
       level = diagnostic_msgs::DiagnosticStatus::ERROR;
       message = "INVALID_MODE_SOURCE";
     }
@@ -475,35 +431,43 @@ private:
     std::vector<diagnostic_msgs::KeyValue> kvs;
     kvs.push_back(DH::KV("mode_source", mode_source_));
     kvs.push_back(DH::KV("mode", std::to_string(mode_)));
-    kvs.push_back(DH::KV("enable_file_mode_fallback", enable_file_mode_fallback_ ? "true" : "false"));
+    kvs.push_back(
+        DH::KV("enable_file_mode_fallback", enable_file_mode_fallback_ ? "true" : "false"));
     kvs.push_back(DH::KV("file_mode_fallback_used", file_mode_fallback_used_ ? "true" : "false"));
     kvs.push_back(DH::KV("mode_file_path", mode_file_path_));
-    kvs.push_back(DH::KV("mode_file_read_error_count", std::to_string(mode_file_read_error_count_)));
+    kvs.push_back(
+        DH::KV("mode_file_read_error_count", std::to_string(mode_file_read_error_count_)));
     kvs.push_back(DH::KV("external_stop_source", external_stop_source_));
-    kvs.push_back(DH::KV("external_stop_file_open_error_count", std::to_string(external_stop_file_open_error_count_)));
-    kvs.push_back(DH::KV("external_stop_trigger_count", std::to_string(external_stop_trigger_count_)));
+    kvs.push_back(DH::KV("external_stop_file_open_error_count",
+                         std::to_string(external_stop_file_open_error_count_)));
+    kvs.push_back(
+        DH::KV("external_stop_trigger_count", std::to_string(external_stop_trigger_count_)));
 
     // B1: Add PathLimits validation error count
-    kvs.push_back(DH::KV("pathlimits_validation_error_count", std::to_string(pathlimits_validation_error_count_)));
+    kvs.push_back(DH::KV("pathlimits_validation_error_count",
+                         std::to_string(pathlimits_validation_error_count_)));
 
     // B4: Add input timeout count
     kvs.push_back(DH::KV("input_timeout_count", std::to_string(input_timeout_count_)));
 
     // B13: End-to-end latency metrics
     {
-      const double e2e_mean = latency_sample_count_ > 0
-          ? (e2e_latency_sum_ / latency_sample_count_) * 1000.0 : 0.0;
+      const double e2e_mean =
+          latency_sample_count_ > 0 ? (e2e_latency_sum_ / latency_sample_count_) * 1000.0 : 0.0;
       const double p2c_mean = latency_sample_count_ > 0
-          ? (planning_latency_sum_ / latency_sample_count_) * 1000.0 : 0.0;
+                                  ? (planning_latency_sum_ / latency_sample_count_) * 1000.0
+                                  : 0.0;
       kvs.push_back(DH::KV("e2e_latency_mean_ms", std::to_string(e2e_mean)));
       kvs.push_back(DH::KV("e2e_latency_max_ms", std::to_string(e2e_latency_max_ * 1000.0)));
       kvs.push_back(DH::KV("planning_to_control_mean_ms", std::to_string(p2c_mean)));
-      kvs.push_back(DH::KV("planning_to_control_max_ms", std::to_string(planning_latency_max_ * 1000.0)));
+      kvs.push_back(
+          DH::KV("planning_to_control_max_ms", std::to_string(planning_latency_max_ * 1000.0)));
       kvs.push_back(DH::KV("e2e_latency_warn_count", std::to_string(e2e_latency_warn_count_)));
       kvs.push_back(DH::KV("latency_samples", std::to_string(latency_sample_count_)));
     }
 
-    kvs.push_back(DH::KV("enable_external_stop_file", enable_external_stop_file_ ? "true" : "false"));
+    kvs.push_back(
+        DH::KV("enable_external_stop_file", enable_external_stop_file_ ? "true" : "false"));
     kvs.push_back(DH::KV("external_stop_file_path", external_stop_file_path_));
     kvs.push_back(DH::KV("simulation", simulation_ ? "true" : "false"));
     kvs.push_back(DH::KV("stop_reason", control_core::ControlStopStateName(stop_state_)));
@@ -517,11 +481,11 @@ private:
     kvs.push_back(DH::KV("last_brake", std::to_string(last_brake_)));
     kvs.push_back(DH::KV("has_target_speeds", has_target_speeds_ ? "true" : "false"));
 
-    diag_helper_.PublishStatus("control_entry_health", "control_ros/control_node",
-                               level, message, kvs, ros::Time(0), force);
+    diag_helper_.PublishStatus("control_entry_health", "control_ros/control_node", level, message,
+                               kvs, ros::Time(0), force);
   }
 
-private:
+ private:
   ros::NodeHandle nh_;
   ros::NodeHandle pnh_;
 
@@ -586,10 +550,9 @@ private:
   bool has_target_speeds_{false};
 };
 
-} // namespace control_ros
+}  // namespace control_ros
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char* argv[]) {
   setlocale(LC_ALL, "");
 
   ros::init(argc, argv, "control_new");
@@ -604,53 +567,39 @@ int main(int argc, char *argv[])
   int mode_file_read_error_count = 0;
 
   private_nh.param("enable_file_mode_fallback", enable_file_mode_fallback, false);
-  private_nh.param<std::string>("mode_file_path", mode_file_path, control_ros::DefaultCommandPath());
+  private_nh.param<std::string>("mode_file_path", mode_file_path,
+                                control_ros::DefaultCommandPath());
 
-  if (private_nh.getParam("mode", mode))
-  {
+  if (private_nh.getParam("mode", mode)) {
     ROS_INFO("Loaded mode from param: %d", mode);
     mode_source = "param";
-  }
-  else if (enable_file_mode_fallback)
-  {
+  } else if (enable_file_mode_fallback) {
     file_mode_fallback_used = true;
     bool read_ok = false;
     mode = control_ros::ReadModeFromFile(mode_file_path, &read_ok);
-    if (!read_ok)
-    {
+    if (!read_ok) {
       ++mode_file_read_error_count;
       ROS_ERROR("Failed to read mode from file: %s", mode_file_path.c_str());
     }
     mode_source = read_ok ? "file" : "none";
     ROS_WARN("Loaded mode from file fallback: %d", mode);
-  }
-  else
-  {
+  } else {
     ROS_ERROR("Mode is missing and file fallback is disabled. Please set private param '~mode'.");
     return 1;
   }
 
-  if (mode == 0)
-  {
+  if (mode == 0) {
     ROS_ERROR("Control mode is 0 (invalid for runtime). mode_source=%s", mode_source.c_str());
     return 1;
   }
 
-  control_ros::ControlNode node(
-      nh,
-      private_nh,
-      mode,
-      mode,
-      mode_source,
-      enable_file_mode_fallback,
-      file_mode_fallback_used,
-      mode_file_path,
-      mode_file_read_error_count);
+  control_ros::ControlNode node(nh, private_nh, mode, mode, mode_source, enable_file_mode_fallback,
+                                file_mode_fallback_used, mode_file_path,
+                                mode_file_read_error_count);
 
   ros::Rate rate(10);
   ros::Duration(1).sleep();
-  while (ros::ok())
-  {
+  while (ros::ok()) {
     ros::spinOnce();
     node.SpinOnce();
     rate.sleep();

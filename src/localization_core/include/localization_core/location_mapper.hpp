@@ -11,36 +11,57 @@ namespace localization_core {
 
 class LocationMapper {
  public:
-  explicit LocationMapper(const LocationParams &params);
+  explicit LocationMapper(const LocationParams& params);
 
-  void Configure(const LocationParams &params);
-  void SetDataDirectory(const std::string &path);
+  void Configure(const LocationParams& params);
+  void SetDataDirectory(const std::string& path);
 
-  bool has_carstate() const { std::lock_guard<std::mutex> lk(state_mutex_); return has_carstate_; }
-  CarState car_state() const { std::lock_guard<std::mutex> lk(state_mutex_); return car_state_; }
-  double standard_azimuth() const { std::lock_guard<std::mutex> lk(state_mutex_); return standard_azimuth_; }
+  bool has_carstate() const {
+    std::lock_guard<std::mutex> lk(state_mutex_);
+    return has_carstate_;
+  }
+  CarState car_state() const {
+    std::lock_guard<std::mutex> lk(state_mutex_);
+    return car_state_;
+  }
+  double standard_azimuth() const {
+    std::lock_guard<std::mutex> lk(state_mutex_);
+    return standard_azimuth_;
+  }
 
-  bool UpdateFromIns(const Asensing &imu, CarState *state_out);
-  void UpdateFromCarState(const CarState &state);
-  bool UpdateFromCones(const ConeDetections &detections,
-                       ConeMap *map_out,
-                       PointCloudPtr *cloud_out,
-                       MapUpdateStats *stats_out = nullptr);
+  bool UpdateFromIns(const Asensing& imu, CarState* state_out);
+  void UpdateFromCarState(const CarState& state);
+  bool UpdateFromCones(const ConeDetections& detections, ConeMap* map_out, PointCloudPtr* cloud_out,
+                       MapUpdateStats* stats_out = nullptr);
 
-  bool map_frozen() const { std::lock_guard<std::mutex> lk(state_mutex_); return map_frozen_; }
-  int map_size() const { std::lock_guard<std::mutex> lk(state_mutex_); return static_cast<int>(cloud_->size()); }
-  int cone_update_frames() const { std::lock_guard<std::mutex> lk(state_mutex_); return cone_update_frames_; }
-  int map_update_seq() const { std::lock_guard<std::mutex> lk(state_mutex_); return map_update_seq_; }
-  bool has_checkpoint() const { std::lock_guard<std::mutex> lk(state_mutex_); return has_checkpoint_; }
+  bool map_frozen() const {
+    std::lock_guard<std::mutex> lk(state_mutex_);
+    return map_frozen_;
+  }
+  int map_size() const {
+    std::lock_guard<std::mutex> lk(state_mutex_);
+    return static_cast<int>(cloud_->size());
+  }
+  int cone_update_frames() const {
+    std::lock_guard<std::mutex> lk(state_mutex_);
+    return cone_update_frames_;
+  }
+  int map_update_seq() const {
+    std::lock_guard<std::mutex> lk(state_mutex_);
+    return map_update_seq_;
+  }
+  bool has_checkpoint() const {
+    std::lock_guard<std::mutex> lk(state_mutex_);
+    return has_checkpoint_;
+  }
 
   void ResetMap(bool keep_checkpoint = false);
   bool RollbackToCheckpoint();
-  bool SaveMapToFile(const std::string &path, std::string *error_msg = nullptr) const;
-  bool LoadMapFromFile(const std::string &path, std::string *error_msg = nullptr);
+  bool SaveMapToFile(const std::string& path, std::string* error_msg = nullptr) const;
+  bool LoadMapFromFile(const std::string& path, std::string* error_msg = nullptr);
 
  private:
-  void GeoDeticToENU(double lat, double lon, double h,
-                     double lat0, double lon0, double h0,
+  void GeoDeticToENU(double lat, double lon, double h, double lat0, double lon0, double h0,
                      double enu_xyz[3]);
 
   int getNewId();
@@ -49,7 +70,7 @@ class LocationMapper {
 
   bool passesGeometryFilter(double lx, double ly) const;
 
-  void interpolateMissingCones(ConeMap *map_out);
+  void interpolateMissingCones(ConeMap* map_out);
 
   LocationParams params_;
   std::string data_root_;
@@ -73,7 +94,7 @@ class LocationMapper {
 
   PointCloudPtr cloud_;
   std::vector<int> point_ids_;
-  std::vector<int> point_obs_counts_;  // 每个锥桶的观测次数（用于加权合并）
+  std::vector<int> point_obs_counts_;      // 每个锥桶的观测次数（用于加权合并）
   std::vector<std::uint8_t> point_types_;  // 每个锥桶类型: 0/1/2/3/4
   std::vector<double> point_confidences_;  // 每个锥桶的置信度 [0.0, 1.0]
   pcl::KdTreeFLANN<pcl::PointXYZ> kdtree_;

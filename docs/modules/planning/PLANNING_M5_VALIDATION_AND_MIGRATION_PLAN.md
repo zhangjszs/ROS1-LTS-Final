@@ -1,8 +1,8 @@
 # M5 Unified Planner Validation & Migration Plan
 
-**Version:** 1.1  
-**Date:** 2026-02-11  
-**Baseline Tag:** `m5-baseline`  
+**Version:** 1.1
+**Date:** 2026-02-11
+**Baseline Tag:** `m5-baseline`
 **Status:** ✅ VALIDATED & FROZEN
 
 ---
@@ -346,7 +346,7 @@ echo "Rollback complete. Monitor with: rostopic hz /planning/pathlimits"
 **Files to Remove:**
 ```
 src/planning_ros/launch/line_detection.launch
-src/planning_ros/launch/skidpad_detection.launch  
+src/planning_ros/launch/skidpad_detection.launch
 src/planning_ros/launch/high_speed_tracking.launch (redundant)
 ```
 
@@ -375,7 +375,7 @@ src/planning_ros/launch/high_speed_tracking.launch (redundant)
 ```
 Symptom: rostopic hz /planning/pathlimits shows no data
 Cause: Backend not publishing to correct topic
-Fix: 
+Fix:
   1. Ensure using commit ac94ea2 or later
   2. Check node initialization logs
   3. Verify mission parameter: rosparam get /planning_pipeline/mission
