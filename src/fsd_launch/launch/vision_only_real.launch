@@ -1,0 +1,43 @@
+<!--
+  Vision Only preset (real vehicle).
+  Only starts camera-based vision module. No LiDAR, no localization, no planning, no control.
+  Use for camera/model debugging and inference latency profiling.
+
+  Note: perception/decision/detections will NOT be published (cone_detection_adapter is
+  part of perception.launch which is disabled here). Vision output is available at
+  perception/vision/detections.
+
+  Usage:
+    roslaunch fsd_launch vision_only_real.launch
+    roslaunch fsd_launch vision_only_real.launch vision_debug:=true
+    roslaunch fsd_launch vision_only_real.launch vision_require_model:=false
+-->
+<launch>
+    <arg name="vehicle" default="A13"/>
+    <arg name="launch_rviz" default="false"/>
+    <arg name="launch_viz" default="false"/>
+    <arg name="vision_image_topic" default="/camera/image_raw"/>
+    <arg name="vision_mode" default="standard" doc="standard | lightweight | fallback_only"/>
+    <arg name="vision_impl" default="py" doc="py | cpp"/>
+    <arg name="vision_model_path" default="$(find vision_ros)/models/exp26l_gpu/best.onnx"/>
+    <arg name="vision_require_model" default="true" doc="缺模型时是否 fail-fast"/>
+    <arg name="vision_debug" default="false" doc="是否发布调试图像"/>
+
+    <include file="$(find fsd_launch)/launch/subsystems/mission_stack.launch">
+        <arg name="simulation" value="false"/>
+        <arg name="vehicle" value="$(arg vehicle)"/>
+        <arg name="launch_rviz" value="$(arg launch_rviz)"/>
+        <arg name="launch_viz" value="$(arg launch_viz)"/>
+        <arg name="enable_perception" value="false"/>
+        <arg name="enable_vision" value="true"/>
+        <arg name="enable_localization" value="false"/>
+        <arg name="enable_planning" value="false"/>
+        <arg name="enable_control" value="false"/>
+        <arg name="vision_image_topic" value="$(arg vision_image_topic)"/>
+        <arg name="vision_mode" value="$(arg vision_mode)"/>
+        <arg name="vision_impl" value="$(arg vision_impl)"/>
+        <arg name="vision_model_path" value="$(arg vision_model_path)"/>
+        <arg name="vision_require_model" value="$(arg vision_require_model)"/>
+        <arg name="vision_debug" value="$(arg vision_debug)"/>
+    </include>
+</launch>

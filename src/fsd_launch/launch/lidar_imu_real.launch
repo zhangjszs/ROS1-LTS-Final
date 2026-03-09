@@ -1,0 +1,28 @@
+<!--
+  LiDAR + IMU preset (real vehicle).
+  Starts LiDAR perception + localization. No vision, no planning, no control.
+  IMU/vehicle state comes from vehicle_interface (CAN/UDP).
+  Use for perception+localization debugging without camera.
+
+  Usage:
+    roslaunch fsd_launch lidar_imu_real.launch
+    roslaunch fsd_launch lidar_imu_real.launch enable_vehicle_interface:=false
+-->
+<launch>
+    <arg name="vehicle" default="A13"/>
+    <arg name="launch_rviz" default="false"/>
+    <arg name="launch_viz" default="false"/>
+    <arg name="rviz_mode" default="dual"/>
+    <arg name="enable_vehicle_interface" default="true" doc="实车IMU/车辆状态数据源（vehicle_interface_ros）"/>
+
+    <!-- sensing_real 已包含 perception+localization+vehicle_interface；
+         强制 enable_vision=false 即可得到 lidar+imu 组合。 -->
+    <include file="$(find fsd_launch)/launch/sensing_real.launch">
+        <arg name="vehicle" value="$(arg vehicle)"/>
+        <arg name="launch_rviz" value="$(arg launch_rviz)"/>
+        <arg name="launch_viz" value="$(arg launch_viz)"/>
+        <arg name="rviz_mode" value="$(arg rviz_mode)"/>
+        <arg name="enable_vision" value="false"/>
+        <arg name="enable_vehicle_interface" value="$(arg enable_vehicle_interface)"/>
+    </include>
+</launch>

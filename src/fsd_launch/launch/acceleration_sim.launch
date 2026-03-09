@@ -8,6 +8,8 @@
     <arg name="vehicle" default="A13"/>
     <arg name="launch_rviz" default="true"/>
     <arg name="launch_viz" default="true"/>
+    <arg name="enable_vision" default="true"/>
+    <arg name="vision_image_topic" default="/camera/image_raw"/>
 
     <include file="$(find fsd_launch)/launch/acceleration.launch">
         <arg name="simulation" value="true"/>
@@ -17,5 +19,7 @@
         <arg name="vehicle" value="$(arg vehicle)"/>
         <arg name="launch_rviz" value="$(arg launch_rviz)"/>
         <arg name="launch_viz" value="$(arg launch_viz)"/>
+        <arg name="enable_vision" value="$(arg enable_vision)"/>
+        <arg name="vision_image_topic" value="$(arg vision_image_topic)"/>
     </include>
 </launch>

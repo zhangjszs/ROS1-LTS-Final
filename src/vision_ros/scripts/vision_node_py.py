@@ -772,7 +772,16 @@ class VisionNodePy:
             )
             return []
 
+        # 自动检测输出格式并统一为 [4+num_classes, num_anchors]（features-first）。
+        # YOLOv8 默认导出为 [num_anchors, 4+num_classes]（anchors-first），需要转置。
+        # 判断依据：当 rows > cols 时，小的那一维才是 4+num_classes。
         rows, cols = int(output.shape[0]), int(output.shape[1])
+        if rows > cols:
+            # anchors-first (YOLOv8 默认 ONNX 格式) → 转为 features-first
+            output = output.T
+            rows, cols = cols, rows
+            rospy.logdebug("[vision_node_py] Transposed ONNX output to [%d, %d]", rows, cols)
+
         if rows <= 4 or cols <= 0:
             return []
 

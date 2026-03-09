@@ -1,0 +1,32 @@
+<!--
+  LiDAR + IMU preset (simulation + rosbag).
+  Starts LiDAR perception + localization. No vision, no planning, no control.
+  IMU comes from bag + ins_bridge.
+  Use for perception+localization debugging with recorded data.
+
+  Usage:
+    roslaunch fsd_launch lidar_imu_sim.launch bag:=/path/to/bag.bag
+    roslaunch fsd_launch lidar_imu_sim.launch bag:=/path/to/bag.bag rate:=0.5
+-->
+<launch>
+    <arg name="bag" default="" doc="Rosbag 路径（必填）"/>
+    <arg name="rate" default="1.0"/>
+    <arg name="loop" default="false"/>
+    <arg name="vehicle" default="A13"/>
+    <arg name="launch_rviz" default="false"/>
+    <arg name="launch_viz" default="false"/>
+    <arg name="rviz_mode" default="dual"/>
+
+    <!-- sensing_sim 已包含 perception+localization；
+         强制 enable_vision=false 即可得到 lidar+imu 组合。 -->
+    <include file="$(find fsd_launch)/launch/sensing_sim.launch">
+        <arg name="bag" value="$(arg bag)"/>
+        <arg name="rate" value="$(arg rate)"/>
+        <arg name="loop" value="$(arg loop)"/>
+        <arg name="vehicle" value="$(arg vehicle)"/>
+        <arg name="launch_rviz" value="$(arg launch_rviz)"/>
+        <arg name="launch_viz" value="$(arg launch_viz)"/>
+        <arg name="rviz_mode" value="$(arg rviz_mode)"/>
+        <arg name="enable_vision" value="false"/>
+    </include>
+</launch>

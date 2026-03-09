@@ -88,8 +88,6 @@ bool ConeModelFitter::fitCircleRANSAC(const std::vector<Eigen::Vector2f>& points
     // Compute circle from 3 points
     double ax = p1.x() - p2.x();
     double ay = p1.y() - p2.y();
-    double bx = p1.x() - p3.x();
-    double by = p1.y() - p3.y();
 
     double d = 2.0 * (ax * (p2.y() - p3.y()) - ay * (p2.x() - p3.x()));
 

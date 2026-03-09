@@ -9,7 +9,7 @@
     <arg name="launch_rviz" default="true"/>
     <arg name="launch_viz" default="true"/>
     <arg name="enable_vision" default="true"/>
-    <arg name="vision_image_topic" default="/camera/image_raw"/>
+    <arg name="vision_image_topic" default="/resize_img_out" doc="仿真bag中相机话题；与trackdrive.launch保持一致"/>
 
     <include file="$(find fsd_launch)/launch/trackdrive.launch">
         <arg name="simulation" value="true"/>

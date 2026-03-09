@@ -6,18 +6,25 @@
     mission: track | skidpad | accel (selects config overlay)
     mode: standard | lightweight | fallback_only
     debug: true/false (enable debug image publishing)
+    rviz: true/false (launch RViz visualization)
 -->
 <launch>
   <arg name="mission" default="track"/>
   <arg name="mode" default="standard"/>
   <arg name="impl" default="py" doc="vision implementation: cpp|py"/>
   <arg name="debug" default="false"/>
+  <arg name="rviz" default="false" doc="launch RViz for visualization"/>
   <arg name="image_topic" default="/camera/image_raw"/>
   <arg name="model_path" default="$(find vision_ros)/models/exp26l_gpu/best.onnx"/>
   <arg name="require_model" default="true"/>
   <arg name="ns" default="perception/vision"/>
   <arg name="extra_config" default="" doc="Vehicle overlay config"/>
   <arg name="extra_local_config" default="" doc="Local override config"/>
+
+  <!-- Simulation time for rosbag playback -->
+  <arg name="simulation" default="false" doc="use sim time for rosbag playback"/>
+  <arg name="bag" default="" doc="rosbag file path for playback"/>
+  <param name="/use_sim_time" value="$(arg simulation)" if="$(arg simulation)"/>
 
   <group ns="$(arg ns)">
     <node pkg="vision_ros"
@@ -90,4 +97,11 @@
       <param name="node/image_topic" value="$(arg image_topic)"/>
     </node>
   </group>
+
+  <!-- RViz visualization -->
+  <node if="$(arg rviz)" pkg="rviz" type="rviz" name="rviz" output="screen" args="-d $(find vision_ros)/config/vision_debug.rviz"/>
+
+  <!-- Rosbag playback with clock -->
+  <node pkg="rosbag" type="play" name="rosbag_play" output="screen"
+        args="--clock $(arg bag)" if="$(eval arg('bag') != '')"/>
 </launch>

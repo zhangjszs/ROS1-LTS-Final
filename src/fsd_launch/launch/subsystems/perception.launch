@@ -3,6 +3,7 @@
   感知子系统：点云处理、锥桶检测
 -->
 <launch>
+    <arg name="simulation" default="false" doc="仿真模式"/>
     <arg name="input_topic" default="/velodyne_points"/>
     <arg name="carstate_topic" default="localization/car_state" doc="感知输入车辆状态话题（canonical）"/>
     <arg name="lidar_cluster_ns" default="perception/lidar_cluster"/>
@@ -24,6 +25,7 @@
         <arg name="carstate_topic" value="$(arg carstate_topic)"/>
         <arg name="launch_rviz" value="$(arg launch_rviz)"/>
         <arg name="mode" value="$(arg mode)"/>
+        <arg name="simulation" value="$(arg simulation)"/>
         <arg name="decision_fusion_budget_sec" value="$(arg decision_fusion_budget_sec)"/>
         <arg name="mission_config" value="$(arg mission_config)"/>
         <arg name="extra_config" value="$(arg vehicle_config)"/>

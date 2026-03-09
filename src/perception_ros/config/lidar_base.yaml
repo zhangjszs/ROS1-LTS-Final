@@ -361,12 +361,6 @@ mode_presets:
       distance_segments: [5.0, 10.0, 15.0, 20.0]
       cluster_tolerance: [0.15, 0.3, 0.5, 0.6, 0.6]
 
-# 锥桶类型输出
-cone_size_typing:
-  enable: true                    # 按几何尺寸区分小橙桶/大橙桶
-  big_height_threshold: 0.45      # 高度阈值 (m)
-  big_area_threshold: 0.09        # footprint阈值 (m²)
-
 # ==========================
 # Cone Tracker (时序跟踪)
 # ==========================
@@ -665,3 +659,13 @@ vision_inject:
   match_angle_deg: 5.0
   camera_hfov_deg: 60.0
   camera_width_px: 640
+
+# === Cone Size Typing ===
+# Classify cones by geometric size (YELLOW_SMALL vs YELLOW_BIG).
+# When position_coloring is enabled and no vision available,
+# cones are colored by Y position: left (Y>0) = RED, right (Y<0) = BLUE.
+cone_size_typing:
+  enable: true
+  big_height_threshold: 0.45
+  big_area_threshold: 0.09
+  position_coloring: true  # 无视觉时基于Y位置着色（左红右蓝）

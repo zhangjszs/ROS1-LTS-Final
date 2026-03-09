@@ -20,16 +20,30 @@ namespace {
 
 // Updated cone type constants: Removed ORANGE, replaced with YELLOW_SMALL/YELLOW_BIG
 // 0=BLUE, 1=YELLOW_SMALL, 2=YELLOW_BIG, 3=RED, 4=NONE
+constexpr std::uint8_t kConeBlue = 0;
 constexpr std::uint8_t kConeYellowSmall = 1;
 constexpr std::uint8_t kConeYellowBig = 2;
+constexpr std::uint8_t kConeRed = 3;
 constexpr std::uint8_t kConeNone = 4;
 
 std::uint8_t classifyConeTypeBySize(const ConeDetection& det, bool enable_size_typing,
-                                    double big_height_threshold, double big_area_threshold) {
+                                    double big_height_threshold, double big_area_threshold,
+                                    bool enable_position_coloring = false) {
   // LiDAR-only pipeline: geometry typing emits YELLOW_SMALL/YELLOW_BIG/NONE.
-  // BLUE/RED are reserved for camera-fused color outputs.
+  // When enable_position_coloring is true (no vision available), use position-based coloring:
+  //   Y > 0 (left side)  -> RED
+  //   Y < 0 (right side) -> BLUE
+  // This provides "left-red right-blue" visualization when camera data is unavailable.
   if (!enable_size_typing) {
     return kConeNone;
+  }
+
+  if (enable_position_coloring) {
+    const double y_pos = static_cast<double>(det.centroid.y);
+    if (y_pos > 0.0) {
+      return kConeRed;
+    }
+    return kConeBlue;
   }
 
   const double height = std::max(0.0, static_cast<double>(det.max.z - det.min.z));
@@ -851,6 +865,8 @@ void LidarClusterRos::loadParams() {
   private_nh_.param<double>("cone_size_typing/big_height_threshold", big_cone_height_threshold_,
                             0.45);
   private_nh_.param<double>("cone_size_typing/big_area_threshold", big_cone_area_threshold_, 0.09);
+  // Position-based coloring: when no vision available, color by Y position (left=RED, right=BLUE)
+  private_nh_.param<bool>("cone_size_typing/position_coloring", enable_position_coloring_, true);
 
   // Fusion params (new contract). Legacy vision_inject keys are still supported.
   const bool has_fusion_cfg = private_nh_.hasParam("fusion/enabled");
@@ -1041,9 +1057,9 @@ void LidarClusterRos::loadParams() {
   ROS_INFO("roi/center_exclusion: %s (y_half=%.2f, start_distance=%.1fm)",
            config_.roi.center_exclusion.enable ? "on" : "off", config_.roi.center_exclusion.y_half,
            config_.roi.center_exclusion.start_distance);
-  ROS_INFO("cone_size_typing: %s (big_height_thr=%.2f, big_area_thr=%.3f)",
+  ROS_INFO("cone_size_typing: %s (big_height_thr=%.2f, big_area_thr=%.3f, position_coloring=%s)",
            enable_cone_size_typing_ ? "on" : "off", big_cone_height_threshold_,
-           big_cone_area_threshold_);
+           big_cone_area_threshold_, enable_position_coloring_ ? "on" : "off");
   if (config_.cluster.method == "dbscan") {
     ROS_INFO("cluster/dbscan: eps=%f, min_pts=%d, adaptive_eps=%s (near=%f, far=%f)",
              config_.cluster.dbscan.eps, config_.cluster.dbscan.min_pts,
@@ -1385,8 +1401,11 @@ void LidarClusterRos::publishOutput(const LidarClusterOutput& output) {
     detections.obj_dist.push_back(static_cast<float>(det.distance));
     detections.track_ids.push_back(static_cast<int32_t>(det.track_id));
 
-    uint8_t geo_color = classifyConeTypeBySize(
-        det, enable_cone_size_typing_, big_cone_height_threshold_, big_cone_area_threshold_);
+    // When fusion is disabled or no vision available, use position-based coloring
+    const bool use_position_coloring = enable_position_coloring_ && !fusion_enabled_;
+    uint8_t geo_color =
+        classifyConeTypeBySize(det, enable_cone_size_typing_, big_cone_height_threshold_,
+                               big_cone_area_threshold_, use_position_coloring);
     detections.color_types.push_back(geo_color);
 
     if (det.cluster) {

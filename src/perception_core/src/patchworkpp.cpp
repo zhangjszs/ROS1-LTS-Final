@@ -243,8 +243,6 @@ void PatchWorkpp::estimateGround(Eigen::MatrixXf cloud_in) {
     reflected_noise_removal(cloud_in);
   }
 
-  clock_t t1 = clock();
-
   // 2. Concentric Zone Model (CZM)
   flush_patches(ConcentricZoneModel_);
 
@@ -263,7 +261,6 @@ void PatchWorkpp::estimateGround(Eigen::MatrixXf cloud_in) {
   double t_pca = 0.0;
   double t_gle = 0.0;
   double t_revert = 0.0;
-  double t_update = 0.0;
 
   std::vector<patchwork::RevertCandidate> candidates;
   std::vector<double> ringwise_flatness;
@@ -403,12 +400,8 @@ void PatchWorkpp::estimateGround(Eigen::MatrixXf cloud_in) {
     }
   }
 
-  clock_t t_bef_update = clock();
   update_elevation_thr();
   update_flatness_thr();
-  clock_t t_aft_update = clock();
-
-  t_update = t_aft_update - t_bef_update;
 
   clock_t end = clock();
   time_taken_ = end - beg;

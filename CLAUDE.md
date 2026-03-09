@@ -48,6 +48,12 @@ The codebase separates algorithm logic (core) from ROS integration (ros):
 - **`*_core/`** packages: Pure C++ algorithms with no ROS dependencies (PCL, Eigen only)
 - **`*_ros/`** packages: ROS wrappers that handle topics, services, and parameters
 
+#### Architecture Advantages
+- **Testability:** Core packages can be unit tested independently without a ROS environment
+- **Portability:** Algorithm core can be ported to non-ROS systems
+- **Clear separation:** Algorithm logic and communication layer have distinct responsibilities
+- **Maintainability:** Modify algorithms without touching ROS details, update interfaces without changing algorithm logic
+
 Core packages:
 - `perception_core/` - LiDAR clustering, ground segmentation, cone detection
 - `planning_core/` - Line detection (Hough transform), skidpad detection, path generation
@@ -114,6 +120,19 @@ roslaunch fsd_launch trackdrive.launch simulation:=true bag:=/path/to/bag.bag rv
 # Custom playback rate
 roslaunch fsd_launch trackdrive.launch simulation:=true bag:=/path/to/bag.bag rate:=0.5
 ```
+
+#### Launch Parameters
+All mission launch files support these common parameters:
+
+| Parameter | Default | Purpose |
+|-----------|---------|---------|
+| `simulation` | `false` | Enable simulation mode (uses `/use_sim_time` and plays rosbag) |
+| `bag` | `""` | Path to rosbag file (required for simulation mode) |
+| `rate` | `1.0` | Rosbag playback rate |
+| `loop` | `false` | Loop rosbag playback |
+| `launch_rviz` | `true` | Launch RViz visualization |
+| `launch_viz` | `true` | Launch `fsd_visualization` nodes |
+| `rviz_mode` | `main` | RViz display mode: `main`/`global`/`pointcloud`/`dual` |
 
 ### Real Vehicle Mode
 
@@ -277,6 +296,23 @@ rosrun tf tf_echo velodyne base_link
 # Visualize in RViz
 roslaunch fsd_launch tools/rviz.launch rviz_mode:=dual
 ```
+
+## Project Documentation
+Additional documentation files:
+- `HANDOFF.md` - Current code state and phase handoff notes
+- `RESTRUCTURE_PLAN.md` - Codebase refactoring plan and implementation records
+- `docs/README.md` - Documentation navigation index
+- `docs/remaining_work_audit_*.md` - Audit of incomplete features and missing dependencies
+- `src/*/README.md` - Package-specific documentation for each module
+
+## Project Status
+✅ All packages build successfully
+✅ All core packages have unit tests
+✅ All core packages have documentation
+✅ Unified package version: 1.0.0
+✅ Unified license: BSD-3-Clause
+✅ CI/CD automation: ROS CI, Code Coverage, Static Analysis
+✅ File permissions standardized
 
 ## Important Notes
 

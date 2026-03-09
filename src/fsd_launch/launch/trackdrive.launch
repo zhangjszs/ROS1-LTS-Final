@@ -20,7 +20,7 @@
     <arg name="enable_vision" default="true" doc="启用视觉模块"/>
     <arg name="vision_mode" default="standard" doc="视觉模式: standard/lightweight/fallback_only"/>
     <arg name="vision_impl" default="py" doc="视觉实现: py/cpp"/>
-    <arg name="vision_image_topic" default="/camera/image_raw" doc="视觉输入图像话题"/>
+    <arg name="vision_image_topic" default="/resize_img_out" doc="视觉输入图像话题"/>
     <arg name="vision_model_path" default="$(find vision_ros)/models/exp26l_gpu/best.onnx" doc="视觉模型路径"/>
     <arg name="vision_require_model" default="true" doc="缺模型时是否fail-fast"/>
     <arg name="vision_debug" default="false" doc="视觉调试图像"/>

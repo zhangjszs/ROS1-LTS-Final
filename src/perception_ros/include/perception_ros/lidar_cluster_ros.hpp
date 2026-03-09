@@ -160,6 +160,7 @@ class LidarClusterRos {
   bool enable_cone_size_typing_ = true;  // 基于几何尺寸推断 YELLOW_SMALL / YELLOW_BIG
   double big_cone_height_threshold_ = 0.45;
   double big_cone_area_threshold_ = 0.08;
+  bool enable_position_coloring_ = true;  // 无视觉时基于Y位置着色（左红右蓝）
 
   // 零拷贝优化：复用发布消息缓冲区
   sensor_msgs::PointCloud2 pub_pc_msg_;     // 复用的PointCloud2消息

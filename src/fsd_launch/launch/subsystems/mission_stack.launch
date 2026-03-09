@@ -83,6 +83,7 @@
 
     <!-- ========== Subsystems ========== -->
     <include if="$(arg enable_perception)" file="$(find fsd_launch)/launch/subsystems/perception.launch">
+        <arg name="simulation" value="$(arg simulation)"/>
         <arg name="launch_rviz" value="false"/>
         <arg name="mode" value="$(arg perception_mode)"/>
         <arg name="carstate_topic" value="$(arg carstate_topic)"/>
@@ -97,6 +98,7 @@
     <!-- Vision (optional, parallel to LiDAR perception) -->
     <include if="$(arg enable_vision)"
              file="$(find fsd_launch)/launch/subsystems/vision.launch">
+        <arg name="simulation" value="$(arg simulation)"/>
         <arg name="mission" value="$(arg perception_mode)"/>
         <arg name="mode" value="$(arg vision_mode)"/>
         <arg name="impl" value="$(arg vision_impl)"/>
