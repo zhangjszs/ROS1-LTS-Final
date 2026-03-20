@@ -66,6 +66,8 @@ class LocationNode {
   ros::Subscriber cone_sub_;
 
   ros::Publisher carstate_pub_;
+  ros::Publisher fg_carstate_pub_;
+  ros::Publisher mapper_carstate_pub_;
   ros::Publisher map_pub_;
   ros::Publisher global_map_pub_;
   ros::Publisher pose_pub_;
@@ -86,6 +88,8 @@ class LocationNode {
   std::string carstate_in_topic_;
   std::string cone_topic_;
   std::string carstate_out_topic_;
+  std::string fg_carstate_topic_;
+  std::string mapper_carstate_topic_;
   std::string cone_map_topic_;
   std::string global_map_topic_;
   std::string pose_topic_;
@@ -93,6 +97,7 @@ class LocationNode {
   std::string world_frame_;
   std::string base_link_frame_;
   std::string status_topic_;
+  bool publish_dual_backends_ = false;
   double diagnostics_rate_hz_ = 1.0;
 
   bool has_last_state_ = false;
@@ -106,6 +111,12 @@ class LocationNode {
   std::string backend_;  // "mapper" (default) or "factor_graph"
   std::unique_ptr<localization_core::FactorGraphOptimizer> fg_optimizer_;
   localization_core::FactorGraphConfig fg_config_;
+  bool fg_shadow_mode_ = true;
+  bool fg_mainline_enable_mapper_fallback_ = true;
+  bool fg_has_optimized_state_ = false;
+  localization_core::CarState fg_last_state_;
+  ros::Time fg_last_state_stamp_;
+  std::string active_backend_source_ = "mapper";
   double fg_start_time_ = -1.0;
   // B21: Relocalization success rate tracking
   localization_core::AnomalyState fg_last_anomaly_state_ =
@@ -114,7 +125,7 @@ class LocationNode {
   int fg_reloc_success_count_ = 0;
   double fg_reloc_total_ms_ = 0.0;
   ros::WallTime fg_reloc_start_time_;
-  void feedFactorGraph(const autodrive_msgs::HUAT_InsP2& msg);
+  bool feedFactorGraph(const autodrive_msgs::HUAT_InsP2& msg);
   void feedFactorGraphCones(const autodrive_msgs::HUAT_ConeDetections& msg);
   void updateMapperStateMachine(bool frame_good);
   bool shouldProcessConeFusion();

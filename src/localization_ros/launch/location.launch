@@ -8,6 +8,12 @@
   <arg name="publish_global_diagnostics" default="true" />
   <arg name="global_diagnostics_topic" default="/diagnostics" />
   <arg name="diagnostics_rate_hz" default="1.0" />
+  <arg name="backend" default="mapper" />
+  <arg name="publish_dual_backends" default="false" />
+  <arg name="fg_carstate_topic" default="localization/fg/car_state" />
+  <arg name="mapper_carstate_topic" default="localization/mapper/car_state" />
+  <arg name="fg_shadow_mode" default="true" />
+  <arg name="fg_mainline_enable_mapper_fallback" default="true" />
   <!-- <include file="$(find velodyne_pointcloud)/launch/VLP-32C_points.launch"/>
   <include file="$(find perception_ros)/launch/lidar_cluster.launch"/> -->
 
@@ -18,6 +24,12 @@
     <param name="topics/car_state_in" value="$(arg carstate_topic)" />
     <param name="topics/car_state_out" value="$(arg carstate_topic)" />
     <param name="topics/cone" value="$(arg cone_topic)" />
+    <param name="backend" value="$(arg backend)" />
+    <param name="publish_dual_backends" value="$(arg publish_dual_backends)" />
+    <param name="topics/fg_car_state_out" value="$(arg fg_carstate_topic)" />
+    <param name="topics/mapper_car_state_out" value="$(arg mapper_carstate_topic)" />
+    <param name="fg/shadow_mode" value="$(arg fg_shadow_mode)" />
+    <param name="fg/mainline_enable_mapper_fallback" value="$(arg fg_mainline_enable_mapper_fallback)" />
     <param name="diagnostics_topic" value="$(arg diagnostics_topic)" />
     <param name="publish_global_diagnostics" value="$(arg publish_global_diagnostics)" />
     <param name="global_diagnostics_topic" value="$(arg global_diagnostics_topic)" />

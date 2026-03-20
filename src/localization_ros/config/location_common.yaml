@@ -159,8 +159,14 @@ ins_quality:
 # 因子图参数（实验性功能）
 # ==========================
 # ⚠️ 仅在 backend=factor_graph 时生效
-# 当前作为影子模式运行，用于与mapper后端对比
 fg:
+  # true: 仅影子模式（mapper 继续主输出，FG 仅对比）
+  # false: FG 主链输出（可按 mainline_enable_mapper_fallback 回退 mapper）
+  shadow_mode: true
+
+  # FG 主链模式下，当 FG 尚未产出稳定状态时，是否临时回退 mapper 输出
+  mainline_enable_mapper_fallback: true
+
   # 关键帧生成阈值
   keyframe_dist: 1.0                 # 距离阈值 (m)
   keyframe_yaw: 0.1                  # 航向变化阈值 (rad)

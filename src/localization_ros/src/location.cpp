@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <iomanip>
 #include <sstream>
 
@@ -17,6 +18,26 @@ namespace localization_ros {
 
 namespace {
 using autodrive_msgs::LoadParam;
+constexpr std::uint8_t kConeBlue = 0;
+constexpr std::uint8_t kConeYellowSmall = 1;
+constexpr std::uint8_t kConeYellowBig = 2;
+constexpr std::uint8_t kConeRed = 3;
+constexpr std::uint8_t kConeNone = 4;
+
+std::uint8_t normalizeConeType(std::uint8_t raw_type) {
+  switch (raw_type) {
+    case kConeBlue:
+    case kConeYellowSmall:
+    case kConeYellowBig:
+    case kConeRed:
+    case kConeNone:
+      return raw_type;
+    case 5:  // Legacy RED value
+      return kConeRed;
+    default:
+      return kConeNone;
+  }
+}
 
 geometry_msgs::Quaternion YawToQuaternion(double yaw) {
   geometry_msgs::Quaternion q;
@@ -70,6 +91,10 @@ LocationNode::LocationNode(ros::NodeHandle& nh) : nh_(nh), pnh_("~"), mapper_(pa
                                                                  &LocationNode::coneCallback, this);
 
   carstate_pub_ = nh_.advertise<autodrive_msgs::HUAT_CarState>(carstate_out_topic_, 10);
+  if (publish_dual_backends_) {
+    fg_carstate_pub_ = nh_.advertise<autodrive_msgs::HUAT_CarState>(fg_carstate_topic_, 10);
+    mapper_carstate_pub_ = nh_.advertise<autodrive_msgs::HUAT_CarState>(mapper_carstate_topic_, 10);
+  }
   map_pub_ = nh_.advertise<autodrive_msgs::HUAT_ConeMap>(cone_map_topic_, 10);
   global_map_pub_ = nh_.advertise<sensor_msgs::PointCloud2>(global_map_topic_, 10);
   pose_pub_ = nh_.advertise<geometry_msgs::PoseStamped>(pose_topic_, 10);
@@ -119,7 +144,12 @@ LocationNode::LocationNode(ros::NodeHandle& nh) : nh_(nh), pnh_("~"), mapper_(pa
   // Initialize factor graph backend if configured
   if (backend_ == "factor_graph") {
     fg_optimizer_ = std::make_unique<localization_core::FactorGraphOptimizer>(fg_config_);
-    ROS_INFO("Factor graph backend enabled (shadow mode)");
+    ROS_INFO("Factor graph backend enabled (shadow_mode=%s, mainline_mapper_fallback=%s)",
+             fg_shadow_mode_ ? "true" : "false",
+             fg_mainline_enable_mapper_fallback_ ? "true" : "false");
+    active_backend_source_ = fg_shadow_mode_ ? "mapper-shadow" : "mapper-fallback";
+  } else {
+    active_backend_source_ = "mapper";
   }
 
   // Performance statistics
@@ -179,6 +209,19 @@ void LocationNode::loadParameters() {
                  std::string(autodrive_msgs::topic_contract::kCarState))) {
     ROS_WARN_STREAM(
         "Did not load topics/car_state_out. Standard value is: " << carstate_out_topic_);
+  }
+  if (!LoadParam(pnh_, nh_, "topics/fg_car_state_out", fg_carstate_topic_,
+                 std::string("localization/fg/car_state"))) {
+    ROS_WARN_STREAM(
+        "Did not load topics/fg_car_state_out. Standard value is: " << fg_carstate_topic_);
+  }
+  if (!LoadParam(pnh_, nh_, "topics/mapper_car_state_out", mapper_carstate_topic_,
+                 std::string("localization/mapper/car_state"))) {
+    ROS_WARN_STREAM(
+        "Did not load topics/mapper_car_state_out. Standard value is: " << mapper_carstate_topic_);
+  }
+  if (!LoadParam(pnh_, nh_, "publish_dual_backends", publish_dual_backends_, false)) {
+    ROS_WARN_STREAM("Did not load publish_dual_backends. Standard value is: false");
   }
   if (!LoadParam(pnh_, nh_, "topics/cone_map", cone_map_topic_,
                  std::string(autodrive_msgs::topic_contract::kConeMap))) {
@@ -323,7 +366,7 @@ void LocationNode::loadParameters() {
 
   ROS_INFO_STREAM("Localization map_mode: " << params_.map_mode);
 
-  // Backend selection: "mapper" (default) or "factor_graph" (shadow mode)
+  // Backend selection: "mapper" (default) or "factor_graph"
   LoadParam(pnh_, nh_, "backend", backend_, std::string("mapper"));
   ROS_INFO_STREAM("Localization backend: " << backend_);
 
@@ -435,6 +478,9 @@ void LocationNode::loadParameters() {
 
   // Factor graph config
   if (backend_ == "factor_graph") {
+    LoadParam(pnh_, nh_, "fg/shadow_mode", fg_shadow_mode_, true);
+    LoadParam(pnh_, nh_, "fg/mainline_enable_mapper_fallback",
+              fg_mainline_enable_mapper_fallback_, true);
     LoadParam(pnh_, nh_, "fg/keyframe_dist", fg_config_.keyframe.dist_threshold, 1.0);
     LoadParam(pnh_, nh_, "fg/keyframe_yaw", fg_config_.keyframe.yaw_threshold, 0.1);
     LoadParam(pnh_, nh_, "fg/keyframe_dt", fg_config_.keyframe.dt_threshold, 0.5);
@@ -941,6 +987,11 @@ void LocationNode::publishState(const localization_core::CarState& state, const 
     out.header.stamp = stamp;
     out.header.frame_id = world_frame_;
     carstate_pub_.publish(out);
+
+    // Publish mapper state to dedicated topic if dual backend publishing is enabled
+    if (publish_dual_backends_) {
+      mapper_carstate_pub_.publish(out);
+    }
   }
 
   geometry_msgs::PoseStamped pose_msg;
@@ -998,6 +1049,13 @@ void LocationNode::publishEntryHealth(const std::string& source, const ros::Time
   std::vector<diagnostic_msgs::KeyValue> kvs;
   kvs.push_back(KV::KV("source", source));
   kvs.push_back(KV::KV("backend", backend_));
+  kvs.push_back(KV::KV("active_backend_source", active_backend_source_));
+  kvs.push_back(KV::KV("fg_optimizer_enabled", fg_optimizer_ ? "true" : "false"));
+  kvs.push_back(KV::KV("fg_shadow_mode", fg_shadow_mode_ ? "true" : "false"));
+  kvs.push_back(KV::KV("fg_has_optimized_state", fg_has_optimized_state_ ? "true" : "false"));
+  kvs.push_back(
+      KV::KV("fg_mainline_enable_mapper_fallback",
+             fg_mainline_enable_mapper_fallback_ ? "true" : "false"));
   kvs.push_back(KV::KV("has_carstate", mapper_.has_carstate() ? "true" : "false"));
   kvs.push_back(KV::KV("use_external_carstate", use_external_carstate_ ? "true" : "false"));
   kvs.push_back(KV::KV("world_frame", world_frame_));
@@ -1130,9 +1188,22 @@ void LocationNode::imuCallback(const autodrive_msgs::HUAT_InsP2::ConstPtr& msg) 
   }
 
   localization_core::CarState state;
+  const bool mapper_updated = mapper_.UpdateFromIns(core_msg, &state);
+  bool fg_updated = false;
+  if (fg_optimizer_) {
+    fg_updated = feedFactorGraph(*msg);
+  }
 
-  if (mapper_.UpdateFromIns(core_msg, &state)) {
-    publishState(state, stamp, true);
+  if (mapper_updated) {
+    if (backend_ == "factor_graph" && !fg_shadow_mode_) {
+      if (!fg_updated && fg_mainline_enable_mapper_fallback_) {
+        publishState(state, stamp, true);
+        active_backend_source_ = "mapper-fallback";
+      }
+    } else {
+      publishState(state, stamp, true);
+      active_backend_source_ = (backend_ == "factor_graph") ? "mapper-shadow" : "mapper";
+    }
 
     // Log Heading_init once after first successful INS update
     if (!heading_init_logged_ && mapper_.has_carstate()) {
@@ -1140,11 +1211,6 @@ void LocationNode::imuCallback(const autodrive_msgs::HUAT_InsP2::ConstPtr& msg) 
                mapper_.standard_azimuth());
       heading_init_logged_ = true;
     }
-  }
-
-  // Shadow-mode factor graph feeding
-  if (fg_optimizer_) {
-    feedFactorGraph(*msg);
   }
 
   // B9: Update last INS timestamp after successful processing
@@ -1158,7 +1224,15 @@ void LocationNode::carstateCallback(const autodrive_msgs::HUAT_CarState::ConstPt
   mapper_.UpdateFromCarState(ToCore(*msg));
   const ros::Time stamp = msg->header.stamp.isZero() ? ros::Time::now() : msg->header.stamp;
   const bool publish_carstate = carstate_out_topic_ != carstate_in_topic_;
-  publishState(mapper_.car_state(), stamp, publish_carstate);
+  if (backend_ == "factor_graph" && !fg_shadow_mode_) {
+    if (fg_mainline_enable_mapper_fallback_) {
+      publishState(mapper_.car_state(), stamp, publish_carstate);
+      active_backend_source_ = "mapper-fallback";
+    }
+  } else {
+    publishState(mapper_.car_state(), stamp, publish_carstate);
+    active_backend_source_ = (backend_ == "factor_graph") ? "mapper-shadow" : "mapper";
+  }
   publishEntryHealth("carstate", stamp);
 }
 
@@ -1430,7 +1504,7 @@ void LocationNode::ToRos(const localization_core::ConeMap& map, autodrive_msgs::
   }
 }
 
-void LocationNode::feedFactorGraph(const autodrive_msgs::HUAT_InsP2& msg) {
+bool LocationNode::feedFactorGraph(const autodrive_msgs::HUAT_InsP2& msg) {
   const double stamp = msg.header.stamp.toSec();
   if (fg_start_time_ < 0.0)
     fg_start_time_ = stamp;
@@ -1477,6 +1551,29 @@ void LocationNode::feedFactorGraph(const autodrive_msgs::HUAT_InsP2& msg) {
   if (fg_optimizer_->TryUpdate(current_pose, t)) {
     auto fg_pose = fg_optimizer_->GetOptimizedPose();
     const auto anomaly_state = fg_optimizer_->GetAnomalyState();
+
+    localization_core::CarState fg_state = mapper_.car_state();
+    fg_state.car_state.x = fg_pose.x;
+    fg_state.car_state.y = fg_pose.y;
+    fg_state.car_state.theta = fg_pose.theta;
+    fg_last_state_ = fg_state;
+    fg_last_state_stamp_ = msg.header.stamp;
+    fg_has_optimized_state_ = true;
+
+    // Publish FG car state if dual backend publishing is enabled
+    if (publish_dual_backends_) {
+      autodrive_msgs::HUAT_CarState fg_out;
+      ToRos(fg_state, &fg_out);
+      fg_out.header.stamp = msg.header.stamp;
+      fg_out.header.frame_id = world_frame_;
+      fg_carstate_pub_.publish(fg_out);
+    }
+
+    if (backend_ == "factor_graph" && !fg_shadow_mode_) {
+      publishState(fg_state, msg.header.stamp, true);
+      active_backend_source_ = "factor_graph";
+    }
+
     const char* state_names[] = {"TRACKING", "DEGRADED", "LOST", "RELOC_A", "RELOC_B"};
     const int state_idx = static_cast<int>(anomaly_state);
     const char* state_name = (state_idx >= 0 && state_idx < 5) ? state_names[state_idx] : "UNKNOWN";
@@ -1581,7 +1678,9 @@ void LocationNode::feedFactorGraph(const autodrive_msgs::HUAT_InsP2& msg) {
       sample.gnss_availability = (quality != localization_core::GnssQuality::INVALID) ? 1.0 : 0.0;
       perf_stats_.Add(sample);
     }
+    return true;
   }
+  return false;
 }
 
 void LocationNode::feedFactorGraphCones(const autodrive_msgs::HUAT_ConeDetections& msg) {
@@ -1596,7 +1695,8 @@ void LocationNode::feedFactorGraphCones(const autodrive_msgs::HUAT_ConeDetection
     localization_core::ConeObservation co;
     co.range = range;
     co.bearing = bearing;
-    co.color_type = (i < msg.color_types.size()) ? msg.color_types[i] : 4;
+    co.color_type = normalizeConeType(
+        (i < msg.color_types.size()) ? static_cast<std::uint8_t>(msg.color_types[i]) : kConeNone);
     co.confidence = (i < msg.confidence.size()) ? msg.confidence[i] : 0.0;
     obs.push_back(co);
   }

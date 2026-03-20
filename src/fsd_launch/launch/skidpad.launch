@@ -15,13 +15,25 @@
     <arg name="launch_viz" default="true" doc="启动可视化节点"/>
     <arg name="rviz_mode" default="dual" doc="RViz模式: main/global/pointcloud/dual"/>
     <arg name="vehicle" default="A13" doc="车辆型谱ID"/>
+    <arg name="backend" default="mapper" doc="定位后端: mapper | factor_graph"/>
+    <arg name="publish_dual_backends" default="false" doc="是否发布 mapper/fg 双后端输出"/>
+    <arg name="fg_carstate_topic" default="localization/fg/car_state" doc="FG后端输出话题"/>
+    <arg name="mapper_carstate_topic" default="localization/mapper/car_state" doc="Mapper后端输出话题"/>
+    <arg name="fg_shadow_mode" default="true" doc="FG是否仅影子模式运行"/>
+    <arg name="fg_mainline_enable_mapper_fallback" default="true" doc="FG主链模式下是否回退mapper输出"/>
     <arg name="control_mode" default="3" doc="控制模式: 1(accel)/2(line)/3(skidpad)/4(track)"/>
+    <arg name="control_pathlimits_v2_topic" default="planning/pathlimits_v2" doc="控制侧 PathLimitsV2 输入话题"/>
+    <arg name="control_enable_pathlimits_v1_subscribe" default="true" doc="控制侧是否订阅 PathLimits V1"/>
+    <arg name="control_enable_pathlimits_v2_subscribe" default="false" doc="控制侧是否订阅 PathLimits V2"/>
+    <arg name="control_prefer_pathlimits_v2" default="false" doc="控制侧双订阅时是否优先消费 V2"/>
+    <arg name="control_enable_pathlimits_v2_auto_fallback" default="true" doc="V2 优先时是否自动回退到 V1"/>
+    <arg name="control_pathlimits_source_stale_timeout_sec" default="-1.0" doc="控制侧 PathLimits 源超时阈值，&lt;=0 沿用 input_timeout_sec"/>
     <arg name="decision_fusion_budget_sec" default="0.15" doc="统一主链路融合等待预算"/>
     <arg name="enable_vision" default="true" doc="启用视觉模块"/>
     <arg name="vision_mode" default="standard" doc="视觉模式: standard/lightweight/fallback_only"/>
     <arg name="vision_impl" default="py" doc="视觉实现: py/cpp"/>
-    <arg name="vision_image_topic" default="/camera/image_raw" doc="视觉输入图像话题"/>
-    <arg name="vision_model_path" default="$(find vision_ros)/models/exp26l_gpu/best.onnx" doc="视觉模型路径"/>
+    <arg name="vision_image_topic" default="/resize_img_out" doc="视觉输入图像话题"/>
+    <arg name="vision_model_path" default="$(find vision_ros)/models/yolo26l_48g/weights/best.pt" doc="视觉模型路径"/>
     <arg name="vision_require_model" default="true" doc="缺模型时是否fail-fast"/>
     <arg name="vision_debug" default="false" doc="视觉调试图像"/>
 
@@ -37,9 +49,21 @@
         <arg name="vehicle" value="$(arg vehicle)"/>
         <arg name="perception_mode" value="skidpad"/>
         <arg name="localization_mode" value="skidpad"/>
+        <arg name="backend" value="$(arg backend)"/>
+        <arg name="publish_dual_backends" value="$(arg publish_dual_backends)"/>
+        <arg name="fg_carstate_topic" value="$(arg fg_carstate_topic)"/>
+        <arg name="mapper_carstate_topic" value="$(arg mapper_carstate_topic)"/>
+        <arg name="fg_shadow_mode" value="$(arg fg_shadow_mode)"/>
+        <arg name="fg_mainline_enable_mapper_fallback" value="$(arg fg_mainline_enable_mapper_fallback)"/>
         <arg name="planning_mission" value="skidpad"/>
         <arg name="control_mode_profile" value="skidpad"/>
         <arg name="control_mode" value="$(arg control_mode)"/>
+        <arg name="control_pathlimits_v2_topic" value="$(arg control_pathlimits_v2_topic)"/>
+        <arg name="control_enable_pathlimits_v1_subscribe" value="$(arg control_enable_pathlimits_v1_subscribe)"/>
+        <arg name="control_enable_pathlimits_v2_subscribe" value="$(arg control_enable_pathlimits_v2_subscribe)"/>
+        <arg name="control_prefer_pathlimits_v2" value="$(arg control_prefer_pathlimits_v2)"/>
+        <arg name="control_enable_pathlimits_v2_auto_fallback" value="$(arg control_enable_pathlimits_v2_auto_fallback)"/>
+        <arg name="control_pathlimits_source_stale_timeout_sec" value="$(arg control_pathlimits_source_stale_timeout_sec)"/>
         <arg name="decision_fusion_budget_sec" value="$(arg decision_fusion_budget_sec)"/>
         <arg name="enable_vision" value="$(arg enable_vision)"/>
         <arg name="vision_mode" value="$(arg vision_mode)"/>
