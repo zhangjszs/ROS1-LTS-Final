@@ -1,0 +1,12 @@
+# Local override for direct YOLO PT inference on yolo26l_48g.
+# Classes: 0=cone_red, 1=cone_blue, 2=cone_yellow.
+inference:
+  backend_type: "yolo_pt"
+  model_path: "/home/kerwin/2025huat/src/vision_ros/models/yolo26l_48g/weights/best.pt"
+  input_width: 1152
+  input_height: 1152
+  class_to_color: [3, 0, 1]
+  device: "auto"
+
+node:
+  require_model: true

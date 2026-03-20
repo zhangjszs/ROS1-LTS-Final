@@ -1,0 +1,29 @@
+{
+  "version": 2,
+  "generated_at": "2026-03-15T21:24:03.175183",
+  "source_bag": "/tmp/perception_baseline_seed/track_detections.bag",
+  "topic": "/perception/lidar_cluster/detections",
+  "metrics": {
+    "n_frames": 1105,
+    "mean_detections": 10.645,
+    "std_detections": 4.492,
+    "spike_rate": 0.0027,
+    "zero_frame_rate": 0.0,
+    "mean_confidence": 0.6565,
+    "std_confidence": 0.2102,
+    "mean_distance_m": 14.791,
+    "symmetry_ratio": 0.9927,
+    "mean_frame_interval_s": 0.100195,
+    "precision": 0.4217,
+    "recall": 0.4081,
+    "f1": 0.4148,
+    "rmse_m": 0.5478,
+    "total_tp": 4960,
+    "total_fp": 6803,
+    "total_fn": 7195,
+    "mean_gt_visible": 11,
+    "gt_match_threshold_m": 1.0,
+    "gt_max_range_m": 50.0
+  },
+  "gt_file": "perf_reports/gt/track_gt.csv"
+}

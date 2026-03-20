@@ -1,0 +1,180 @@
+{
+  "date": "2026-03-17",
+  "rule": {
+    "right_boundary": "BLUE(y<0)",
+    "left_boundary": "RED/YELLOW_SMALL/YELLOW_BIG(y>0)"
+  },
+  "bags": {
+    "track": {
+      "bag": "/tmp/color_semantics_fix_track/track_fused.bag",
+      "topics": {
+        "fused": {
+          "frames": 1153,
+          "detections_total": 12243,
+          "counts": {
+            "blue": 4949,
+            "yellow_small": 314,
+            "yellow_big": 0,
+            "red": 6980,
+            "none": 0
+          },
+          "blue_right_consistency": {
+            "ok": 4033,
+            "total": 4949,
+            "rate": 0.8149
+          },
+          "left_boundary_consistency": {
+            "ok": 5250,
+            "total": 7294,
+            "rate": 0.7198
+          },
+          "overall_boundary_consistency": {
+            "ok": 9283,
+            "total": 12243,
+            "rate": 0.7582
+          }
+        },
+        "raw": {
+          "frames": 1153,
+          "detections_total": 12243,
+          "counts": {
+            "blue": 0,
+            "yellow_small": 9333,
+            "yellow_big": 2910,
+            "red": 0,
+            "none": 0
+          },
+          "blue_right_consistency": {
+            "ok": 0,
+            "total": 0,
+            "rate": null
+          },
+          "left_boundary_consistency": {
+            "ok": 6166,
+            "total": 12243,
+            "rate": 0.5036
+          },
+          "overall_boundary_consistency": {
+            "ok": 6166,
+            "total": 12243,
+            "rate": 0.5036
+          }
+        }
+      }
+    },
+    "accel": {
+      "bag": "/tmp/color_semantics_fix_accel/accel_fused.bag",
+      "topics": {
+        "fused": {
+          "frames": 932,
+          "detections_total": 1889,
+          "counts": {
+            "blue": 1114,
+            "yellow_small": 0,
+            "yellow_big": 0,
+            "red": 775,
+            "none": 0
+          },
+          "blue_right_consistency": {
+            "ok": 1114,
+            "total": 1114,
+            "rate": 1.0
+          },
+          "left_boundary_consistency": {
+            "ok": 775,
+            "total": 775,
+            "rate": 1.0
+          },
+          "overall_boundary_consistency": {
+            "ok": 1889,
+            "total": 1889,
+            "rate": 1.0
+          }
+        },
+        "raw": {
+          "frames": 932,
+          "detections_total": 1887,
+          "counts": {
+            "blue": 0,
+            "yellow_small": 1599,
+            "yellow_big": 288,
+            "red": 0,
+            "none": 0
+          },
+          "blue_right_consistency": {
+            "ok": 0,
+            "total": 0,
+            "rate": null
+          },
+          "left_boundary_consistency": {
+            "ok": 774,
+            "total": 1887,
+            "rate": 0.4102
+          },
+          "overall_boundary_consistency": {
+            "ok": 774,
+            "total": 1887,
+            "rate": 0.4102
+          }
+        }
+      }
+    },
+    "skidpad": {
+      "bag": "/tmp/color_semantics_fix_skidpad/skidpad_fused.bag",
+      "topics": {
+        "fused": {
+          "frames": 1683,
+          "detections_total": 95810,
+          "counts": {
+            "blue": 53738,
+            "yellow_small": 522,
+            "yellow_big": 0,
+            "red": 41550,
+            "none": 0
+          },
+          "blue_right_consistency": {
+            "ok": 53438,
+            "total": 53738,
+            "rate": 0.9944
+          },
+          "left_boundary_consistency": {
+            "ok": 40779,
+            "total": 42072,
+            "rate": 0.9693
+          },
+          "overall_boundary_consistency": {
+            "ok": 94217,
+            "total": 95810,
+            "rate": 0.9834
+          }
+        },
+        "raw": {
+          "frames": 1683,
+          "detections_total": 95847,
+          "counts": {
+            "blue": 0,
+            "yellow_small": 45671,
+            "yellow_big": 50176,
+            "red": 0,
+            "none": 0
+          },
+          "blue_right_consistency": {
+            "ok": 0,
+            "total": 0,
+            "rate": null
+          },
+          "left_boundary_consistency": {
+            "ok": 41092,
+            "total": 95847,
+            "rate": 0.4287
+          },
+          "overall_boundary_consistency": {
+            "ok": 41092,
+            "total": 95847,
+            "rate": 0.4287
+          }
+        }
+      }
+    }
+  }
+}

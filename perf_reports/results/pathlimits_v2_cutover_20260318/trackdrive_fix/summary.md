@@ -1,0 +1,6 @@
+# PathLimitsV2 Cutover Replay Acceptance
+
+| scenario | status | active_source | fallback_count | recover_count | v1_count | v2_count | v2_seen | notes |
+|---|---|---|---:|---:|---:|---:|---|---|
+| v2_primary | PASS | v2 | 0 | 0 | 0 | 0 | yes | ok(launch_log) |
+| v2_fallback_no_v2_publish | PASS | v1-fallback | 0 | 0 | 0 | 0 | no | ok |

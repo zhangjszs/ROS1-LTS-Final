@@ -1,0 +1,29 @@
+{
+  "version": 2,
+  "generated_at": "2026-03-15T21:05:09.351172",
+  "source_bag": "/tmp/perception_baseline_seed/accel_detections.bag",
+  "topic": "/perception/lidar_cluster/detections",
+  "metrics": {
+    "n_frames": 891,
+    "mean_detections": 2.061,
+    "std_detections": 1.789,
+    "spike_rate": 0.0011,
+    "zero_frame_rate": 0.2334,
+    "mean_confidence": 0.6833,
+    "std_confidence": 0.2113,
+    "mean_distance_m": 3.975,
+    "symmetry_ratio": 0.6891,
+    "mean_frame_interval_s": 0.100197,
+    "precision": 0.469,
+    "recall": 0.3221,
+    "f1": 0.3819,
+    "rmse_m": 0.2493,
+    "total_tp": 861,
+    "total_fp": 975,
+    "total_fn": 1812,
+    "mean_gt_visible": 3,
+    "gt_match_threshold_m": 1.0,
+    "gt_max_range_m": 50.0
+  },
+  "gt_file": "perf_reports/gt/accel_gt.csv"
+}

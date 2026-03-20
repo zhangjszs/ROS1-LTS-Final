@@ -1,0 +1,17 @@
+{
+  "mission": "trackdrive",
+  "status": "PASS",
+  "samples": 339,
+  "metrics": {
+    "pos_error_p95_m": 0.726427,
+    "heading_error_p95_deg": 5.495607,
+    "velocity_error_p95_mps": 0.050401,
+    "time_diff_p95_s": 0.080743
+  },
+  "checks": {
+    "backend_factor_graph_seen": true,
+    "active_source_fg_seen": true,
+    "fg_shadow_false_seen": true
+  },
+  "notes": "ok"
+}

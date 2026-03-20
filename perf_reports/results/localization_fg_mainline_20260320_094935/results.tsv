@@ -1,0 +1,2 @@
+mission	status	samples	backend_factor_graph_seen	active_source_fg_seen	fg_shadow_false_seen	pos_p95_m	heading_p95_deg	vel_p95_mps	time_diff_p95_s	notes
+trackdrive	PASS	339	yes	yes	yes	0.726427	5.495607	0.050401	0.080743	ok

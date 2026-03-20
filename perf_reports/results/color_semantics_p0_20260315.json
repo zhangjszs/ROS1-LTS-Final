@@ -1,0 +1,91 @@
+{
+  "date": "2026-03-15",
+  "topic": "/perception/lidar_cluster/detections",
+  "rule": {
+    "right_boundary": "BLUE(y<0)",
+    "left_boundary": "RED/YELLOW_SMALL/YELLOW_BIG(y>0)"
+  },
+  "modes": {
+    "track": {
+      "bag": "/tmp/perception_baseline_seed/track_detections.bag",
+      "frames": 1105,
+      "detections_total": 11763,
+      "color_counts": {
+        "blue": 0,
+        "yellow_small": 8977,
+        "yellow_big": 2786,
+        "red": 0,
+        "none": 0
+      },
+      "blue_right_consistency": {
+        "ok": 0,
+        "total": 0,
+        "rate": null
+      },
+      "left_boundary_consistency": {
+        "ok": 5903,
+        "total": 11763,
+        "rate": 0.5018
+      },
+      "overall_boundary_consistency": {
+        "ok": 5903,
+        "total": 11763,
+        "rate": 0.5018
+      }
+    },
+    "accel": {
+      "bag": "/tmp/perception_baseline_seed/accel_detections.bag",
+      "frames": 891,
+      "detections_total": 1836,
+      "color_counts": {
+        "blue": 0,
+        "yellow_small": 1548,
+        "yellow_big": 288,
+        "red": 0,
+        "none": 0
+      },
+      "blue_right_consistency": {
+        "ok": 0,
+        "total": 0,
+        "rate": null
+      },
+      "left_boundary_consistency": {
+        "ok": 749,
+        "total": 1836,
+        "rate": 0.408
+      },
+      "overall_boundary_consistency": {
+        "ok": 749,
+        "total": 1836,
+        "rate": 0.408
+      }
+    },
+    "skidpad": {
+      "bag": "/tmp/perception_baseline_seed/skidpad_detections.bag",
+      "frames": 1708,
+      "detections_total": 98252,
+      "color_counts": {
+        "blue": 0,
+        "yellow_small": 46227,
+        "yellow_big": 52025,
+        "red": 0,
+        "none": 0
+      },
+      "blue_right_consistency": {
+        "ok": 0,
+        "total": 0,
+        "rate": null
+      },
+      "left_boundary_consistency": {
+        "ok": 41988,
+        "total": 98252,
+        "rate": 0.4274
+      },
+      "overall_boundary_consistency": {
+        "ok": 41988,
+        "total": 98252,
+        "rate": 0.4274
+      }
+    }
+  }
+}

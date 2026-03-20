@@ -1,0 +1,24 @@
+[
+  {
+    "scenario": "v2_primary",
+    "status": "PASS",
+    "active_source": "v2",
+    "fallback_count": "0",
+    "recover_count": "0",
+    "v1_count": "0",
+    "v2_count": "0",
+    "v2_seen": "yes",
+    "notes": "ok"
+  },
+  {
+    "scenario": "v2_fallback_no_v2_publish",
+    "status": "PASS",
+    "active_source": "v1-fallback",
+    "fallback_count": "0",
+    "recover_count": "0",
+    "v1_count": "0",
+    "v2_count": "0",
+    "v2_seen": "no",
+    "notes": "ok"
+  }
+]

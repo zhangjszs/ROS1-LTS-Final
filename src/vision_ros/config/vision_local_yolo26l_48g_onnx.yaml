@@ -1,0 +1,11 @@
+# Local override for yolo26l_48g ONNX export.
+# Classes: 0=cone_red, 1=cone_blue, 2=cone_yellow.
+inference:
+  backend_type: "onnx"
+  model_path: "/home/kerwin/2025huat/src/vision_ros/models/yolo26l_48g/weights/best.onnx"
+  input_width: 1152
+  input_height: 1152
+  class_to_color: [3, 0, 1]
+
+node:
+  require_model: true

@@ -1,0 +1,24 @@
+[
+  {
+    "scenario": "v2_primary",
+    "status": "FAIL",
+    "active_source": "__NO_V1_PATHLIMITS__",
+    "fallback_count": "0",
+    "recover_count": "0",
+    "v1_count": "0",
+    "v2_count": "0",
+    "v2_seen": "unknown",
+    "notes": "no /planning/pathlimits"
+  },
+  {
+    "scenario": "v2_fallback_no_v2_publish",
+    "status": "PASS",
+    "active_source": "v1-fallback",
+    "fallback_count": "0",
+    "recover_count": "0",
+    "v1_count": "0",
+    "v2_count": "0",
+    "v2_seen": "no",
+    "notes": "ok"
+  }
+]

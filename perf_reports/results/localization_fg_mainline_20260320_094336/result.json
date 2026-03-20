@@ -1,0 +1,17 @@
+{
+  "mission": "trackdrive",
+  "status": "FAIL",
+  "samples": 359,
+  "metrics": {
+    "pos_error_p95_m": 1.759248,
+    "heading_error_p95_deg": 76.72701,
+    "velocity_error_p95_mps": 0.040485,
+    "time_diff_p95_s": 0.0
+  },
+  "checks": {
+    "backend_factor_graph_seen": true,
+    "active_source_fg_seen": false,
+    "fg_shadow_false_seen": false
+  },
+  "notes": "active_backend_source!=factor_graph in diagnostics; fg_shadow_mode!=false in diagnostics"
+}

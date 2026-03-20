@@ -1,0 +1,29 @@
+{
+  "version": 2,
+  "generated_at": "2026-03-15T21:24:04.001693",
+  "source_bag": "/tmp/perception_baseline_seed/skidpad_detections.bag",
+  "topic": "/perception/lidar_cluster/detections",
+  "metrics": {
+    "n_frames": 1708,
+    "mean_detections": 57.525,
+    "std_detections": 10.78,
+    "spike_rate": 0.0035,
+    "zero_frame_rate": 0.0,
+    "mean_confidence": 0.5246,
+    "std_confidence": 0.1631,
+    "mean_distance_m": 29.008,
+    "symmetry_ratio": 0.7463,
+    "mean_frame_interval_s": 0.100549,
+    "precision": 0.1165,
+    "recall": 0.1425,
+    "f1": 0.1282,
+    "rmse_m": 0.6464,
+    "total_tp": 11443,
+    "total_fp": 86809,
+    "total_fn": 68833,
+    "mean_gt_visible": 47,
+    "gt_match_threshold_m": 1.0,
+    "gt_max_range_m": 50.0
+  },
+  "gt_file": "perf_reports/gt/skidpad_gt.csv"
+}
