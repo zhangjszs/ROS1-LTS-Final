@@ -35,6 +35,7 @@ add_definitions(${PCL_DEFINITIONS})
 add_library(${PROJECT_NAME}
   src/line_detection_core.cpp
   src/skidpad_detection_core.cpp
+  src/boundary_graph.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}

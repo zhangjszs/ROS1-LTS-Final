@@ -211,7 +211,14 @@ class SimulationNode {
 
     msg.V = std::hypot(state.vehicle.vx, state.vehicle.vy);
     msg.W = state.vehicle.yaw_rate;
-    msg.A = 0.0;  // TODO: calculate acceleration
+    // Calculate acceleration from velocity change (numerical differentiation)
+    double dt = 1.0 / sim_rate_;
+    double ax = (state.vehicle.vx - prev_vx_) / dt;
+    double ay = (state.vehicle.vy - prev_vy_) / dt;
+    msg.A = std::hypot(ax, ay);  // Total acceleration magnitude
+    // Store current velocity for next iteration
+    prev_vx_ = state.vehicle.vx;
+    prev_vy_ = state.vehicle.vy;
 
     pub_car_state_.publish(msg);
   }
@@ -395,6 +402,10 @@ class SimulationNode {
   // Control input
   ControlInput current_input_;
   std::mutex cmd_mutex_;
+
+  // Previous velocity for acceleration calculation
+  double prev_vx_ = 0.0;
+  double prev_vy_ = 0.0;
 };
 
 int main(int argc, char** argv) {

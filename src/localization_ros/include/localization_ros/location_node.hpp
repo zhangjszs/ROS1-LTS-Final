@@ -118,6 +118,7 @@ class LocationNode {
   ros::Time fg_last_state_stamp_;
   std::string active_backend_source_ = "mapper";
   double fg_start_time_ = -1.0;
+  double fg_last_imu_time_ = -1.0;  // Replaces static variable in feedFactorGraph()
   // B21: Relocalization success rate tracking
   localization_core::AnomalyState fg_last_anomaly_state_ =
       localization_core::AnomalyState::TRACKING;

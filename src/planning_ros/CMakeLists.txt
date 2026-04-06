@@ -119,4 +119,24 @@ if(CATKIN_ENABLE_TESTING)
       ${catkin_LIBRARIES}
     )
   endif()
+
+  catkin_add_gtest(test_way_color_semantics
+    test/test_way_color_semantics.cpp
+  )
+  if(TARGET test_way_color_semantics)
+    target_link_libraries(test_way_color_semantics
+      ${PROJECT_NAME}_high_speed
+      ${catkin_LIBRARIES}
+    )
+  endif()
+
+  catkin_add_gtest(test_pathlimits_v2_contract
+    test/test_pathlimits_v2_contract.cpp
+  )
+  if(TARGET test_pathlimits_v2_contract)
+    target_link_libraries(test_pathlimits_v2_contract
+      ${PROJECT_NAME}
+      ${catkin_LIBRARIES}
+    )
+  endif()
 endif()

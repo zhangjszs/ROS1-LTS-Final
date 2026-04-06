@@ -103,8 +103,10 @@ length:
   # 前轴到IMU的距离（车辆几何参数）
   # 单位: m
   # 用于车辆运动学模型、轴距计算
-  # TODO: 标定后填入实际值，当前 IMU 近似在质心位置
-  frontToIMUdistanceX: 0.0
+  # Note: 当前IMU近似在质心位置（与前后轴距离相等）
+  # Calibration: Measure actual IMU position relative to axles
+  # Typical for A13 (wheelbase=1.55m): CG at 0.775m from each axle
+  frontToIMUdistanceX: 0.775  # Wheelbase/2, IMU at CG
   frontToIMUdistanceY: 0.0
   frontToIMUdistanceZ: 0.0
 

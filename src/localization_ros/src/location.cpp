@@ -479,8 +479,8 @@ void LocationNode::loadParameters() {
   // Factor graph config
   if (backend_ == "factor_graph") {
     LoadParam(pnh_, nh_, "fg/shadow_mode", fg_shadow_mode_, true);
-    LoadParam(pnh_, nh_, "fg/mainline_enable_mapper_fallback",
-              fg_mainline_enable_mapper_fallback_, true);
+    LoadParam(pnh_, nh_, "fg/mainline_enable_mapper_fallback", fg_mainline_enable_mapper_fallback_,
+              true);
     LoadParam(pnh_, nh_, "fg/keyframe_dist", fg_config_.keyframe.dist_threshold, 1.0);
     LoadParam(pnh_, nh_, "fg/keyframe_yaw", fg_config_.keyframe.yaw_threshold, 0.1);
     LoadParam(pnh_, nh_, "fg/keyframe_dt", fg_config_.keyframe.dt_threshold, 0.5);
@@ -1053,9 +1053,8 @@ void LocationNode::publishEntryHealth(const std::string& source, const ros::Time
   kvs.push_back(KV::KV("fg_optimizer_enabled", fg_optimizer_ ? "true" : "false"));
   kvs.push_back(KV::KV("fg_shadow_mode", fg_shadow_mode_ ? "true" : "false"));
   kvs.push_back(KV::KV("fg_has_optimized_state", fg_has_optimized_state_ ? "true" : "false"));
-  kvs.push_back(
-      KV::KV("fg_mainline_enable_mapper_fallback",
-             fg_mainline_enable_mapper_fallback_ ? "true" : "false"));
+  kvs.push_back(KV::KV("fg_mainline_enable_mapper_fallback",
+                       fg_mainline_enable_mapper_fallback_ ? "true" : "false"));
   kvs.push_back(KV::KV("has_carstate", mapper_.has_carstate() ? "true" : "false"));
   kvs.push_back(KV::KV("use_external_carstate", use_external_carstate_ ? "true" : "false"));
   kvs.push_back(KV::KV("world_frame", world_frame_));
@@ -1511,15 +1510,14 @@ bool LocationNode::feedFactorGraph(const autodrive_msgs::HUAT_InsP2& msg) {
   const double t = stamp - fg_start_time_;
 
   // IMU measurement (velocity + yaw rate preintegration)
-  static double last_imu_time = -1.0;
   const double v_fwd = std::sqrt(msg.Vn * msg.Vn + msg.Ve * msg.Ve);
-  if (last_imu_time >= 0.0) {
-    const double dt = stamp - last_imu_time;
+  if (fg_last_imu_time_ >= 0.0) {
+    const double dt = stamp - fg_last_imu_time_;
     if (dt > 0.0 && dt < 1.0) {
       fg_optimizer_->AddImuMeasurement(v_fwd, msg.gyro_z, dt);
     }
   }
-  last_imu_time = stamp;
+  fg_last_imu_time_ = stamp;
 
   // GNSS observation
   localization_core::GnssQuality quality = localization_core::GnssQuality::INVALID;

@@ -123,7 +123,7 @@ Launch 会按顺序加载：
 
 - [x] 修复由 `marker_array_all` 引起的 euc 错误问题
 
-- [ ] 代码风格统一化
+- [x] 代码风格统一化
 
 
 ## Rviz Config 解析 （使用 lidar_cluster(_c).rviz）

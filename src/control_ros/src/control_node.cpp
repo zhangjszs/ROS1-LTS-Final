@@ -1,3 +1,4 @@
+#include "control_core/ebs_controller.hpp"
 #include "control_core/high_controller.hpp"
 #include "control_core/line_controller.hpp"
 #include "control_core/skip_controller.hpp"
@@ -183,9 +184,11 @@ class ControlNode {
       cmd.working_mode = 1;
       cmd.racing_num = racing_num_;
       cmd.racing_status = output.racing_status;
-      cmd.checksum = cmd.head1 + cmd.head2 + cmd.length + cmd.steering + cmd.pedal_ratio +
+      // Compute checksum with overflow protection (8-bit wraparound)
+      int checksum = cmd.head1 + cmd.head2 + cmd.length + cmd.steering + cmd.pedal_ratio +
                      cmd.brake_force + cmd.gear_position + cmd.working_mode + cmd.racing_num +
                      cmd.racing_status;
+      cmd.checksum = static_cast<uint8_t>(checksum & 0xFF);  // Keep only low 8 bits
 
       // B28: Track last output for diagnostics
       last_steering_ = cmd.steering;
@@ -205,6 +208,8 @@ class ControlNode {
       controller_ = std::make_unique<control_core::LineController>();
     else if (mode_ == fsd_common::ControlMode::kSkidpad)
       controller_ = std::make_unique<control_core::SkipController>();
+    else if (mode_ == fsd_common::ControlMode::kEbs)
+      controller_ = std::make_unique<control_core::EbsController>();
     else
       controller_ = std::make_unique<control_core::HighController>();
   }
@@ -560,6 +565,7 @@ int main(int argc, char* argv[]) {
   ros::NodeHandle private_nh("~");
 
   int mode = 0;
+  int racing_num = 0;
   std::string mode_source = "none";
   bool enable_file_mode_fallback = false;
   bool file_mode_fallback_used = false;
@@ -593,8 +599,14 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  control_ros::ControlNode node(nh, private_nh, mode, mode, mode_source, enable_file_mode_fallback,
-                                file_mode_fallback_used, mode_file_path,
+  // Load racing_num from param (defaults to 0 if not set)
+  private_nh.param("racing_num", racing_num, 0);
+  if (racing_num > 0) {
+    ROS_INFO("Loaded racing_num from param: %d", racing_num);
+  }
+
+  control_ros::ControlNode node(nh, private_nh, mode, racing_num, mode_source,
+                                enable_file_mode_fallback, file_mode_fallback_used, mode_file_path,
                                 mode_file_read_error_count);
 
   ros::Rate rate(10);

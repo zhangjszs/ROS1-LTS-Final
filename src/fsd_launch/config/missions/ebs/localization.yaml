@@ -15,4 +15,12 @@ map:
       min_confidence_to_merge: 0.12
       track_width: 3.0
 
-# TODO(real-car): fill GNSS/INS quality gating if EBS uses absolute stop-zone logic.
+# GNSS/INS quality gating for EBS absolute stop-zone logic
+# Note: Enable if EBS requires GNSS-based absolute positioning for stop zone
+ins:
+  quality_gating:
+    enable: false  # Set to true if EBS uses absolute stop-zone logic
+    # Minimum GNSS quality for EBS operation
+    min_nsv: 8           # Minimum number of satellites
+    max_age: 10.0        # Maximum differential age [s]
+    min_status: 2        # Minimum RTK status (2=RTK float, 3=RTK fixed)

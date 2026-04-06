@@ -1,10 +1,10 @@
 #include "planning_ros/contract_utils.hpp"
 
-#include <gtest/gtest.h>
 #include <ros/ros.h>
 
 #include <autodrive_msgs/HUAT_PathLimits.h>
 #include <autodrive_msgs/HUAT_PathLimitsV2.h>
+#include <gtest/gtest.h>
 
 namespace {
 
@@ -26,7 +26,7 @@ TEST(PathLimitsV2ContractTest, ConvertPreservesShapeAndMode) {
 
   autodrive_msgs::HUAT_PathLimitsV2 v2;
   planning_ros::contract::ConvertPathLimitsV1ToV2(v1, v2,
-                                                   autodrive_msgs::HUAT_PathLimitsV2::MODE_TRACK);
+                                                  autodrive_msgs::HUAT_PathLimitsV2::MODE_TRACK);
 
   EXPECT_EQ(v2.mode, autodrive_msgs::HUAT_PathLimitsV2::MODE_TRACK);
   EXPECT_EQ(v2.path.size(), v1.path.size());
@@ -53,6 +53,8 @@ TEST(PathLimitsV2ContractTest, ConvertHandlesEmptyTargetSpeeds) {
 TEST(PathLimitsV2ContractTest, FinalizeAndValidateShape) {
   autodrive_msgs::HUAT_PathLimitsV2 v2;
   v2.path = {MakePoint(0.0, 0.0), MakePoint(1.0, 0.0), MakePoint(2.0, 0.0)};
+  v2.s = {0.0, 1.0, 2.0};    // Arc length
+  v2.yaw = {0.0, 0.0, 0.0};  // Heading
   v2.target_speeds = {1.0, 1.1, 1.2};
   v2.curvatures = {0.0, 0.05, 0.05};
   v2.target_accels = {0.0, 0.0, 0.0};

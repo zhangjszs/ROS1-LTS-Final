@@ -25,7 +25,15 @@ tracker:
 topology:
   enable: false
 
-# TODO(real-car): tune obstacle gating for target obstacle set.
+# Obstacle height filter for EBS emergency braking trigger
+# Filters out ground-level noise while preserving actual obstacles
 filters:
   obstacle_height:
     enable: true
+    # Height range for valid obstacles [m]
+    # Default: 0.05-0.5m (typical cone height range)
+    min_height: 0.05
+    max_height: 0.50
+    # Additional gating parameters for EBS target set
+    # Note: Fine-tune based on actual EBS target obstacle characteristics
+    min_points: 3  # Minimum points to consider as valid obstacle

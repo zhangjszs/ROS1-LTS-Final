@@ -21,6 +21,7 @@ add_library(${PROJECT_NAME}
   src/high_controller.cpp
   src/skip_controller.cpp
   src/test_controller.cpp
+  src/ebs_controller.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC
