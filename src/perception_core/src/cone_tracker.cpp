@@ -191,7 +191,12 @@ void ConeTracker::updateTrack(TrackedCone& track, const Detection& det) {
   track.hit_count++;
   track.miss_count = 0;
 
-  if (track.hit_count >= config_.confirm_frames) {
+  // Task 24A: distance-adaptive confirmation threshold
+  double distance = std::sqrt(track.x * track.x + track.y * track.y);
+  int required_frames = (distance >= config_.confirm_distance_threshold)
+                            ? config_.confirm_frames_far
+                            : config_.confirm_frames;
+  if (track.hit_count >= required_frames) {
     track.confirmed = true;
   }
 }
