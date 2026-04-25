@@ -290,7 +290,15 @@ loop_closure_optimization:
 # 6. 如回环时误识别（绕完一圈识别错锥桶）：
 #    - 提高 loop_closure_optimization/feature_stability/reidentification_threshold (0.8→0.85)
 #    - 增大 min_feature_lifetime (10→12)
-#
+
+# ==========================
+# Fusion Overrides (视觉-LiDAR融合)
+# ==========================
+# Skidpad: 使用base默认值，密集场景不需要特殊调整
+# fusion:
+#   projection:
+#     max_pixel_distance: 50.0   # 保持base默认值
+
 # 【观测命令】
 #   rostopic echo /perception/lidar_cluster/detections | grep -E "(confidence|obj_dist)"
 #   rostopic hz /perception/lidar_cluster/detections

@@ -196,7 +196,15 @@ geometric_consistency:
 #    - 直线场景 cluster_tolerance 远端值应更小（0.2）
 #    - 因为远处点云极度稀疏，需要更紧的聚类阈值
 #    - 如果远处锥桶分裂为多个检测，减小 cluster_tolerance
-#
+
+# ==========================
+# Fusion Overrides (视觉-LiDAR融合)
+# ==========================
+# Acceleration: 更少锥桶，更严格的匹配
+fusion:
+  projection:
+    max_pixel_distance: 40.0   # 比base 50.0更严格，减少误匹配
+
 # 【观测命令】
 #   rostopic echo /perception/lidar_cluster/detections | grep -E "(confidence|obj_dist)"
 #   rostopic hz /perception/lidar_cluster/detections

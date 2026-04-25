@@ -284,15 +284,15 @@ class VisionNodePy:
 
     def _load_params(self):
         self.image_topic = rospy.get_param("~node/image_topic", "/camera/image_raw")
-        self.max_detections = int(rospy.get_param("~detection/max_detections", 20))
+        self.max_detections = int(rospy.get_param("~detection/max_detections", 50))
         self.require_model = bool(rospy.get_param("~node/require_model", True))
 
         self.backend_type = rospy.get_param("~inference/backend_type", "onnx")
         self.model_path = rospy.get_param("~inference/model_path", "")
-        self.input_width = int(rospy.get_param("~inference/input_width", 640))
-        self.input_height = int(rospy.get_param("~inference/input_height", 640))
-        self.conf_threshold = float(rospy.get_param("~detection/conf_threshold", 0.5))
-        self.nms_threshold = float(rospy.get_param("~detection/nms_threshold", 0.45))
+        self.input_width = int(rospy.get_param("~inference/input_width", 1152))
+        self.input_height = int(rospy.get_param("~inference/input_height", 1152))
+        self.conf_threshold = float(rospy.get_param("~detection/conf_threshold", 0.55))
+        self.nms_threshold = float(rospy.get_param("~detection/nms_threshold", 0.35))
         self.num_threads = int(rospy.get_param("~inference/num_threads", 2))
 
         self.publish_debug_image = bool(rospy.get_param("~output/publish_debug_image", False))
@@ -312,7 +312,7 @@ class VisionNodePy:
         self.fallback_max_area = float(rospy.get_param("~fallback/max_contour_area", 50000.0))
 
         self.tracker_enabled = bool(rospy.get_param("~tracker/enabled", True))
-        self.tracker_iou_threshold = float(rospy.get_param("~tracker/iou_threshold", 0.3))
+        self.tracker_iou_threshold = float(rospy.get_param("~tracker/iou_threshold", 0.4))
         self.tracker_max_miss = int(rospy.get_param("~tracker/max_miss", 1))
         self.tracker_min_hits = int(rospy.get_param("~tracker/min_hits", 2))
 

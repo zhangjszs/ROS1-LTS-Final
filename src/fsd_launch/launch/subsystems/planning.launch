@@ -21,6 +21,11 @@
     <arg name="vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/planning.yaml"/>
     <arg name="vehicle_local_config" default="" doc="本地覆盖参数文件"/>
 
+    <!-- V2 PathLimits 预留参数（mission_stack 传入，planning 侧暂未实现双发布） -->
+    <arg name="output_pathlimits_v2_topic" default="planning/pathlimits_v2" doc="V2路径输出话题（预留）"/>
+    <arg name="enable_pathlimits_v1_publish" default="true" doc="是否发布 V1 PathLimits（预留）"/>
+    <arg name="enable_pathlimits_v2_publish" default="true" doc="是否发布 V2 PathLimits（预留）"/>
+
     <!-- Unified Planning Pipeline -->
     <include if="$(eval arg('planner') == 'unified')" file="$(find planning_ros)/launch/planning_pipeline.launch">
         <arg name="mission" value="$(arg mission)"/>

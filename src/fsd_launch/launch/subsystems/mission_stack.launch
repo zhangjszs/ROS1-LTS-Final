@@ -17,7 +17,7 @@
     <arg name="planning_mission" default="high_speed"/>
     <arg name="control_mode_profile" default="track"/>
     <arg name="control_mode" default="4"/>
-    <arg name="decision_fusion_budget_sec" default="0.15"/>
+    <arg name="decision_fusion_budget_sec" default="0.20"/>
     <arg name="enable_perception" default="true"/>
     <arg name="enable_vision" default="true" doc="Enable camera-based vision module"/>
     <arg name="enable_localization" default="true"/>
@@ -27,7 +27,7 @@
     <arg name="vision_mode" default="standard" doc="standard | lightweight | fallback_only"/>
     <arg name="vision_impl" default="py" doc="py | cpp"/>
     <arg name="vision_image_topic" default="/camera/image_raw"/>
-    <arg name="vision_model_path" default="$(find vision_ros)/models/yolo26l_48g/weights/best.pt"/>
+    <arg name="vision_model_path" default="$(find vision_ros)/models/yolo26l_48g/weights/best.onnx"/>
     <arg name="vision_require_model" default="true"/>
     <arg name="vision_debug" default="false"/>
 
@@ -66,6 +66,7 @@
     <!-- ========== Tools args ========== -->
     <arg name="bag" default=""/>
     <arg name="rate" default="1.0"/>
+    <arg name="start" default="0"/>
     <arg name="loop" default="false"/>
     <arg name="launch_rviz" default="true"/>
     <arg name="launch_viz" default="true"/>
@@ -146,9 +147,6 @@
         <arg name="planner" value="$(arg planner)"/>
         <arg name="mission" value="$(arg planning_mission)"/>
         <arg name="output_pathlimits_topic" value="$(arg pathlimits_topic)"/>
-        <arg name="output_pathlimits_v2_topic" value="$(arg pathlimits_v2_topic)"/>
-        <arg name="enable_pathlimits_v1_publish" value="$(arg planning_enable_pathlimits_v1_publish)"/>
-        <arg name="enable_pathlimits_v2_publish" value="$(arg planning_enable_pathlimits_v2_publish)"/>
         <arg name="input_car_state_topic" value="$(arg carstate_topic)"/>
         <arg name="input_cone_topic" value="$(arg mainline_cone_topic)"/>
         <arg name="output_approaching_goal_topic" value="$(arg approaching_goal_topic)"/>
@@ -163,12 +161,6 @@
             <arg name="control_mode" value="$(arg control_mode)"/>
             <arg name="cmd_topic" value="$(arg cmd_topic)"/>
             <arg name="pathlimits_topic" value="$(arg pathlimits_topic)"/>
-            <arg name="pathlimits_v2_topic" value="$(arg control_pathlimits_v2_topic)"/>
-            <arg name="enable_pathlimits_v1_subscribe" value="$(arg control_enable_pathlimits_v1_subscribe)"/>
-            <arg name="enable_pathlimits_v2_subscribe" value="$(arg control_enable_pathlimits_v2_subscribe)"/>
-            <arg name="prefer_pathlimits_v2" value="$(arg control_prefer_pathlimits_v2)"/>
-            <arg name="enable_pathlimits_v2_auto_fallback" value="$(arg control_enable_pathlimits_v2_auto_fallback)"/>
-            <arg name="pathlimits_source_stale_timeout_sec" value="$(arg control_pathlimits_source_stale_timeout_sec)"/>
             <arg name="carstate_topic" value="$(arg carstate_topic)"/>
             <arg name="approaching_goal_topic" value="$(arg approaching_goal_topic)"/>
             <arg name="mission_config" value="$(arg control_mission_config)"/>
@@ -186,6 +178,7 @@
     <include if="$(arg simulation)" file="$(find fsd_launch)/launch/tools/rosbag_play.launch">
         <arg name="bag" value="$(arg bag)"/>
         <arg name="rate" value="$(arg rate)"/>
+        <arg name="start" value="$(arg start)"/>
         <arg name="loop" value="$(arg loop)"/>
     </include>
 

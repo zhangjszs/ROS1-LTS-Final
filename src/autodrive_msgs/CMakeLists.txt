@@ -24,6 +24,7 @@ add_message_files(  # Tell catkin which custom message files to include
   HUAT_HighSpeedViz.msg
   HUAT_InsP2.msg
   HUAT_PathLimits.msg
+  HUAT_PathLimitsV2.msg
   HUAT_SimState.msg
   HUAT_Stop.msg
   HUAT_TrackLimits.msg

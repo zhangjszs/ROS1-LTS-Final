@@ -15,7 +15,7 @@ number_of_stopped_turns:        1       # int    [-]   赛车停止的圈数（�
 wait_full_before_stop:          true    # bool   [-]   触发完成圈数后，若尚未发布 full 路径则先延迟停车
 finish_grace_frames:            300     # int    [frame] 延迟停车最大帧数（等待 partial->full 切换）
 enable_loop_fallback_by_lap_counter: true # bool [-]   几何回环未触发时，按圈计数触发 full 发布兜底
-loop_fallback_min_laps:         2       # int    [lap]  延后兜底触发，优先让原始几何回环先接管 full 切换
+loop_fallback_min_laps:         3       # int    [lap]  延后兜底触发，优先让原始几何回环先接管 full 切换
 debug_save_way_files:           false   # bool   [-]   调试开关：是否把路径写入testData与loops文件（默认关闭）
 
 # finish zone
@@ -36,34 +36,34 @@ the_mode_of_partial_path:       2       # int    [-]   选择发布路径的方�
 the_mode_of_full_path:          3       # int    [-]   选择发布路径的方式(已回环)
 
 # Filtering
-min_cone_confidence:            0.8     # float  [-]   置信度阈值：低于此值的锥桶不会参与规划
-min_cone_confidence_far_front_center: 0.86 # float [-]  前向窄带(|y|很小)远距更严格阈值（抑制正前方连续结构误检）
+min_cone_confidence:            0.55    # float  [-]   置信度阈值：低于此值的锥桶不会参与规划（匹配2024感知层0.5硬阈值风格）
+min_cone_confidence_far_front_center: 0.60 # float [-]  前向窄带(|y|很小)远距更严格阈值（放宽，避免远距真锥被双杀）
 far_front_center_dist_threshold: 18.0  # double [m]   前向窄带远距阈值：x>=0 且 dist>=该值才启用 front_center 阈值
 far_front_center_abs_y_threshold: 1.2  # double [m]   前向窄带阈值：|y|<=该值时启用 front_center 阈值
-min_cone_confidence_far_side:   0.86    # float  [-]   远距侧向(|y|大)更严格阈值（抑制墙/护栏类连续结构误检）
-min_cone_confidence_far_side_strict: 0.90 # float [-]  远距极侧向(|y|很大)更严格阈值（针对墙/护栏类连续结构）
+min_cone_confidence_far_side:   0.55    # float  [-]   远距侧向(|y|大)阈值（放宽匹配base）
+min_cone_confidence_far_side_strict: 0.60 # float [-]  远距极侧向(|y|很大)阈值（放宽，抑制双杀）
 far_side_dist_threshold:        16.0    # double [m]   远距分段阈值：x>=0 且 dist>=该值才启用 far_side 阈值
 far_side_abs_y_threshold:       1.2     # double [m]   侧向分段阈值：|y|>该值才启用 far_side 阈值
-far_side_abs_y_strict_threshold: 11.8 # double [m]   极侧向阈值：|y|>该值时使用 strict 置信度阈值
+far_side_abs_y_strict_threshold: 8.0  # double [m]   极侧向阈值：|y|>该值时使用 strict 置信度阈值
 cone_geom_filter_enable:        true    # bool   [-]   输入锥桶几何过滤（影响搜索/三角剖分）：抑制远距墙/护栏类离群 cone
 cone_geom_filter_dist_th:       18.0    # double [m]   dist>=该值才启用几何过滤
-cone_geom_filter_abs_y_max:     23.0    # double [m]   远距 cone 最大允许 |y|（超过认为离群）
+cone_geom_filter_abs_y_max:     10.0    # double [m]   远距 cone 最大允许 |y|（收紧：赛道宽度通常<5m，18m外几乎不可能是真锥）
 cone_geom_filter_front_only:    true    # bool   [-]   仅对前向(x>=0) cone 应用几何过滤
 tracklimits_filter_enable:      true    # bool   [-]   发布前过滤轨道边界离群点（不影响搜索，仅影响 tracklimits 输出）
 tracklimits_filter_dist_th:     16.0    # double [m]   仅对远距 cone 应用过滤
-tracklimits_filter_abs_y_max:   20.0    # double [m]   远距 tracklimits 最大允许 |y|（更严格，优先压制墙/护栏离群）
+tracklimits_filter_abs_y_max:   10.0    # double [m]   远距 tracklimits 最大允许 |y|（收紧，配合放宽的置信度门槛压制墙/护栏离群）
 tracklimits_filter_front_only:  true    # bool   [-]   仅对前向(x>=0) cone 应用过滤
-max_triangle_edge_len:          7.5     # double [m]   过滤掉有边长大于此值的三角形
+max_triangle_edge_len:          8.5     # double [m]   过滤掉有边长大于此值的三角形
 min_triangle_angle:             0.24    # double [-]   内角小于此值的三角形被删除(弧度制)
 max_dist_circum_midPoint:       14.0    # double [m]   中点与三角形外接圆心之间的最大距离限制,超过此限制会被删除
 
 # Search
 max_way_horizon_size:           0       # int    [num] 车前方路径点的最大值,0等于无穷,也就是有多少就找多少路径点
 max_search_tree_height:         8       # int    [num] 树搜索的最大值, 越大越好（提高可行路径覆盖）
-search_radius:                  18.0    # double [m]   搜索路径半径（降低 short-path 触发频率）
+search_radius:                  22.0    # double [m]   搜索路径半径（降低 short-path 触发频率）
 edge_len_diff_factor:           0.95    # double [-]   边长相对均匀约束（越小越严格）
 max_angle_diff:                 1.20    # double [rad] 角度差略收紧，减少尖角/反弹式边选择
-max_search_options:             3       # int    [num] 每节点最大分支数（更高分支=更易搜到，但可能更抖/更爆炸）；当前 sweep 选 3
+max_search_options:             4       # int    [num] 每节点最大分支数（收紧到3以减少噪声引入）
 max_next_heuristic:             4.5     # double [-]   启发值门槛（略放宽以抵消分支数降低）
 heur_dist_ponderation:          0.4     # float  [-]   范围( 0.0,  1.0)计算启发值的时候给长度的权重
 heur_lateral_penalty_weight:   0.10     # double [-]   远距侧向(y大)启发式惩罚权重（0=关闭）
@@ -79,7 +79,7 @@ max_angle_diff_loop_closure:    0.65    # double [rad] 用于确定闭环中首�
 
 # Speed Profile (P1)
 speed_cap_safe:                 11.11   # double [m/s] SAFE_LAP 速度上限（约 40 km/h）
-speed_cap_fast:                 13.33   # double [m/s] FAST_LAP 速度上限（约 48 km/h）
+speed_cap_fast:                 14.0    # double [m/s] FAST_LAP 速度上限（约 50.4 km/h）
 max_lateral_acc:                6.5     # double [m/s^2] 曲率限速使用的横向加速度上限
 max_accel:                      2.5     # double [m/s^2] 前向积分加速度上限
 max_brake:                      4.0     # double [m/s^2] 后向积分制动上限（正值）
@@ -93,7 +93,7 @@ curvature_smoothing_max_iters:  15      # int    [iter] 曲率平滑最大迭代
 curvature_smoothing_alpha:      0.45    # double [-]   平滑步长（更强的拉回力度）
 curvature_warn_ratio:           0.15    # double [-]   超限点比例达到该阈值才告警（更敏感，优先hold稳定路径）
 curvature_warn_min_points:      5       # int    [num] 超限点最小数量门槛
-min_publish_path_size:          13      # int    [num] 可发布路径最小点数，低于该值视为短路径
+min_publish_path_size:          13      # int    [num] 可发布路径最小点数，低于该值视为短路径（收紧以减少不稳定路径）
 short_path_stable_relax_points: 5       # int    [num] 已有稳定路径时，短路径阈值放宽点数（减少持有回退触发）
 hold_last_valid_path:           true    # bool   [-]   短路径时保留上次有效路径
 hold_last_valid_max_frames:     30      # int    [frame] 最多连续保留帧数（更抗瞬时误检/短路径）

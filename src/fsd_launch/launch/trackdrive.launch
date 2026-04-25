@@ -10,6 +10,7 @@
     <arg name="simulation" default="false" doc="仿真模式"/>
     <arg name="bag" default="" doc="Rosbag 路径（仿真模式必填）"/>
     <arg name="rate" default="1.0" doc="回放速率"/>
+    <arg name="start" default="0" doc="rosbag起始时间(秒)"/>
     <arg name="loop" default="false" doc="rosbag 是否循环播放"/>
     <arg name="launch_rviz" default="true" doc="启动 RViz"/>
     <arg name="launch_viz" default="true" doc="启动可视化节点"/>
@@ -28,12 +29,12 @@
     <arg name="control_prefer_pathlimits_v2" default="false" doc="控制侧双订阅时是否优先消费 V2"/>
     <arg name="control_enable_pathlimits_v2_auto_fallback" default="true" doc="V2 优先时是否自动回退到 V1"/>
     <arg name="control_pathlimits_source_stale_timeout_sec" default="-1.0" doc="控制侧 PathLimits 源超时阈值，&lt;=0 沿用 input_timeout_sec"/>
-    <arg name="decision_fusion_budget_sec" default="0.12" doc="统一主链路融合等待预算"/>
+    <arg name="decision_fusion_budget_sec" default="0.20" doc="统一主链路融合等待预算"/>
     <arg name="enable_vision" default="true" doc="启用视觉模块"/>
     <arg name="vision_mode" default="standard" doc="视觉模式: standard/lightweight/fallback_only"/>
     <arg name="vision_impl" default="py" doc="视觉实现: py/cpp"/>
     <arg name="vision_image_topic" default="/resize_img_out" doc="视觉输入图像话题"/>
-    <arg name="vision_model_path" default="$(find vision_ros)/models/yolo26l_48g/weights/best.pt" doc="视觉模型路径"/>
+    <arg name="vision_model_path" default="$(find vision_ros)/models/yolo26l_48g/weights/best.onnx" doc="视觉模型路径（ONNX 格式）"/>
     <arg name="vision_require_model" default="true" doc="缺模型时是否fail-fast"/>
     <arg name="vision_debug" default="false" doc="视觉调试图像"/>
     <arg name="viz_prefer_fused_detections" default="true" doc="可视化优先使用融合锥桶"/>
@@ -44,6 +45,7 @@
         <arg name="simulation" value="$(arg simulation)"/>
         <arg name="bag" value="$(arg bag)"/>
         <arg name="rate" value="$(arg rate)"/>
+        <arg name="start" value="$(arg start)"/>
         <arg name="loop" value="$(arg loop)"/>
         <arg name="launch_rviz" value="$(arg launch_rviz)"/>
         <arg name="launch_viz" value="$(arg launch_viz)"/>

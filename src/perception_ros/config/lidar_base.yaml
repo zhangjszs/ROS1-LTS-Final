@@ -191,92 +191,82 @@ roi:
 # Filters (滤波)
 # ==========================
 filters:
-  sor:
-    enable: false                 # SOR统计离群点剔除
-    mean_k: 50                    # 邻域点数
-    stddev_mul: 1.0               # 标准差倍数阈值
-  voxel:
-    enable: false                 # 普通体素滤波
-    leaf_size: 0.05               # 5cm体素
-  adaptive_voxel:
-    enable: false                 # 自适应体素滤波
-    leaf_size: 0.1                # 基础体素大小
-    density_thr: 8                # 密度阈值
+  # 体素滤波（统一为distance_adaptive_voxel，删除voxel/adaptive_voxel冗余）
   distance_adaptive_voxel:
-    enable: true                  # 推荐启用，替代普通voxel滤波
-    near_leaf: 0.08               # 近距离体素大小 8cm
-    far_leaf: 0.03                # 远距离体素大小 3cm
-    dist_threshold: 10.0          # 距离分界点 (m)
+    enable: true
+    near_leaf: 0.08
+    far_leaf: 0.03
+    dist_threshold: 10.0
   intensity:
-    enable: false                 # 强度滤波
-    min_intensity: 5.0            # 最小强度值
+    enable: true                  # 强度滤波 - 启用以抑制低反射率物体（草/灌木）
+    min_intensity: 12.0           # 最小强度值 - 降低以允许更多远处低反射锥桶通过
   use_cropbox: true               # 用CropBox单次遍历替代多次PassThrough
   obstacle_height:
     enable: true                  # 柱状障碍物滤波
     grid_size: 0.5                # 2D栅格大小 (m)
-    max_z_span: 0.4               # 栅格内最大z跨度 (m)
-    min_points_to_judge: 3        # 栅格内最少点数
-    min_distance: 10.0            # 生效距离下限 (m)
+    max_z_span: 0.3               # 栅格内最大z跨度 (m) — 再收紧以过滤墙/护栏竖直结构
+    min_points_to_judge: 4        # 栅格内最少点数 — 增加以提高远处灌木检测鲁棒性
+    min_distance: 5.0             # 生效距离下限 (m) — 降低以更早过滤远处灌木/围栏
 
 # ==========================
 # Cone Cluster & Confidence (锥桶聚类与置信度)
 # ==========================
 min_height: 0.05                  # 锥桶高度下限 (m)
-max_height: 0.75                  # 锥桶高度上限 (m)
+max_height: 0.55                  # 锥桶高度上限 (m) - 收紧以抑制墙/护栏碎片
 min_area: 0.01                    # 底面积下限 (m²)
 max_area: 0.25                    # 底面积上限 (m²)
 max_box_altitude: 0.05            # bbox最低点高度上限 (m)
 
 confidence:
   # Size constraints
-  min_height: 0.05                # 锥桶最小高度 (m)
-  max_height: 0.75                # 锥桶最大高度 (m)
+  min_height: 0.10                # 锥桶最小高度 (m) - 提高以抑制低矮物体（草/碎石）
+  max_height: 0.55                # 锥桶最大高度 (m) - 收紧以抑制墙/护栏碎片
   min_area: 0.01                  # 最小底面积 (m²)
-  max_area: 0.25                  # 最大底面积 (m²)
+  max_area: 0.35                  # 最大底面积 (m²) - 进一步放宽以允许30-50m稀疏簇的较大bbox
   max_box_altitude: 0.05          # bbox最低点最大高度 (m)
 
   # Shape constraints
   min_aspect_ratio: 0.9           # 最小纵横比
-  min_verticality: 0.7            # 最小垂直度
-  max_linearity: 0.85             # PCA线性度上限
+  min_verticality: 0.65           # 最小垂直度 - 进一步降低以容忍30-50m稀疏点云的PCA估计误差
+  max_linearity: 0.80             # PCA线性度上限 - 降低以抑制细长物体（草/树枝）
 
   # Density constraints
-  min_density_near: 50.0          # 近距离最小点密度
-  min_density_far: 10.0           # 远距离最小点密度
+  min_density_near: 60.0          # 近距离最小点密度 - 提高以抑制稀疏物体（草）
+  min_density_far: 8.0            # 远距离最小点密度 - 进一步降低以提升30-50m稀疏锥桶召回
   distance_threshold: 5.0          # 近远距离分界 (m)
 
   # Intensity constraints
-  min_intensity_mean: 15.0        # 最小平均强度
+  min_intensity_mean: 45.0        # 最小平均强度 - 放宽以允许更多低反射远处锥桶
 
   # Feature weights [0-1, sum should ≈ 1.0]
-  weight_size: 0.35               # 尺寸特征权重
-  weight_shape: 0.3               # 形状特征权重
-  weight_density: 0.2             # 密度特征权重
-  weight_intensity: 0.05          # 强度特征权重
-  weight_position: 0.1            # 位置特征权重
+  weight_size: 0.20               # 尺寸特征权重 - 降低，远处size不可靠（护栏碎片可能很大）
+  weight_shape: 0.30              # 形状特征权重 - 降低以平衡distance扩展
+  weight_density: 0.20            # 密度特征权重 - 降低以平衡position权重启用
+  weight_intensity: 0.20          # 强度特征权重 - 提高，远距离强度是重要判别特征
+  weight_position: 0.10           # 位置特征权重 - 启用，地面高度在远处仍可靠
 
   # Model fitting
   enable_model_fitting: true       # 启用几何模型拟合
-  model_fit_bonus: 0.2            # 拟合成功奖励 [0-1]
-  model_fit_penalty: 0.05         # 拟合失败惩罚 [0-1]
+  model_fit_bonus: 0.65           # 拟合成功奖励 [0-1] - 进一步提高以奖励远处真锥
+  model_fit_penalty: 0.06         # 拟合失败惩罚 [0-1] - 进一步降低以避免远处稀疏点云被过度惩罚
 
   # 距离自适应置信度门槛 [0-1]
-  min_confidence_near: 0.2        # 近处门槛 - trackdrive标准门槛
-  min_confidence_far: 0.5        # 远处门槛 - 抑制远处噪声误检
-  confidence_ramp_start: 8.0      # 开始升高门槛的距离 (m)
-  confidence_ramp_end: 28.0       # 达到最大门槛的距离 (m)
+  min_confidence_near: 0.20       # 近处门槛
+  min_confidence_far: 0.45        # 远处门槛 - 进一步放宽以提升30-50m锥桶召回
+  confidence_ramp_start: 8.0      # 8m开始升高门槛
+  confidence_ramp_end: 40.0       # 40m达到最大门槛（更慢ramp，覆盖更多远距段）
 
   # Track semantic confidence (邻域上下文评分)
   # 利用赛道几何先验评估检测的合理性
   track_semantic:
     enable: true                  # 语义评分开关
-    weight: 0.15                  # 语义维度权重 [0-1]
+    weight: 0.10                  # 语义维度权重 [0-1] - 降低以减少对均值的拖累
     expected_track_width: 3.5     # 预期赛道宽度 (m) - trackdrive赛道宽度略大
     expected_cone_spacing: 5.0    # 预期同侧锥桶间距 (m)
     spacing_tolerance: 2.0         # 间距评分容差 (m)
     width_tolerance: 1.0          # 宽度评分容差 (m)
     isolation_radius: 8.0         # 邻居搜索半径 (m)
-    min_neighbors_hard: 0          # 硬剔除邻居数阈值 (个)
+    min_neighbors_hard: 1          # 硬剔除邻居数阈值 (个)
     max_isolation_distance: 12.0   # 最大孤立距离 (m)
 
 # 模式覆盖（由 roi/mode 选择）
@@ -291,13 +281,13 @@ mode_presets:
       obstacle_height:
         enable: true
     confidence:
-      min_confidence_near: 0.2
-      min_confidence_far: 0.5
+      min_confidence_near: 0.20
+      min_confidence_far: 0.45
       confidence_ramp_start: 8.0
-      confidence_ramp_end: 28.0
+      confidence_ramp_end: 40.0
       track_semantic:
         enable: true
-        weight: 0.15
+        weight: 0.10
         expected_track_width: 3.5
         expected_cone_spacing: 5.0
     adaptive_y:
@@ -367,7 +357,9 @@ mode_presets:
 tracker:
   enable: true                    # 跟踪器总开关
   association_threshold: 2.0      # 关联距离阈值 (m)
-  confirm_frames: 3               # 确认所需连续帧数 (帧)
+  confirm_frames: 4               # 确认所需连续帧数 - 提高以过滤瞬态噪声
+  confirm_frames_far: 2           # Task 24A: 远距确认帧数 (distance >= confirm_distance_threshold)
+  confirm_distance_threshold: 30.0 # Task 24A: 远距确认距离阈值 [m]
   delete_frames: 5                # 删除所需连续丢失帧数 (帧)
   process_noise: 0.1              # 过程噪声 (m²，卡尔曼Q矩阵)
   measurement_noise: 0.05         # 测量噪声 (m²，卡尔曼R矩阵)
@@ -379,7 +371,7 @@ tracker:
 # ==========================
 dedup:
   enable: true                     # 去重总开关
-  radius: 0.5                      # 抑制半径 (m)
+  radius: 0.6                      # 抑制半径 - 增大以减少重复检测导致的规划抖动
 
 # ==========================
 # Topology Repair (拓扑修复)
@@ -420,7 +412,7 @@ cluster:
     near_min_size: 3              # 近距离最小聚类点数 (个)
     near_max_size: 100            # 近距离最大聚类点数 (个)
     far_min_size: 2               # 远距离最小聚类点数 (个)
-    far_max_size: 30              # 远距离最大聚类点数 (个)
+    far_max_size: 40              # 远距离最大聚类点数 (个) - 放宽以允许远处稀疏大簇
 
   min_cluster_size: 1              # 固定最小聚类点数 (个)
   max_cluster_size: 50              # 固定最大聚类点数 (个)
@@ -464,16 +456,16 @@ length:
 # ==========================
 # Installation extrinsics should be overridden by vehicle overlay.
 imu:
-  enable: false                   # IMU功能总开关
-  topic: /pbox_pub/Ins            # IMU数据话题
+  enable: false                   # IMU功能总开关（当前低速包验证无收益，高速场景可开启）
+  topic: /sensors/ins             # IMU数据话题（与 ins_bridge 输出匹配）
   buffer_size: 200                # IMU数据缓冲区大小 (条)
 
   # 畸变补偿
   distortion:
-    enable: false                 # 畸变补偿开关
+    enable: false                 # 畸变补偿开关（当前低速包验证无收益，高速场景可开启）
     scan_period: 0.1              # 激光扫描周期 (s)
     mode: velocity_accel          # 补偿模式
-    point_time_source: auto       # 点云时间源
+    point_time_source: angle      # 点云无 time 字段，显式使用角度计算
     ref_time: scan_end            # 参考时刻
     debug:
       enable: false               # 调试模式
@@ -503,149 +495,19 @@ perf_stats_window: 300            # 统计窗口大小 (帧)
 perf_stats_log_every: 50          # 打印频率 (帧)
 
 # ==========================
-# GEOMETRY ROBUSTNESS ENHANCEMENT
-# 几何鲁棒性增强配置 - 非视觉模式
+# Stacked Cone Detection (partial wiring)
+# Only the following 5 params are loaded in lidar_cluster_ros.cpp:972-981.
+# Other params in this group (overlap_threshold, deduplication/*, near_range/*)
+# are YAML orphans with no code loading.
 # ==========================
-
-# 非视觉模式标识
-vision_independent_mode:
-  enabled: true                     # 启用视觉无关模式
-  pure_geometry_output: true        # 仅输出几何信息
-  skip_color_classification: true   # 跳过颜色分类
-  geometry_only_confidence: true    # 仅基于几何计算置信度
-
-# 堆叠锥检测与去重增强
 stacked_cone_detection:
-  enabled: true                     # 启用堆叠锥检测
-  # 垂直分层检测
+  enabled: true
   vertical_layers:
-    enabled: true                   # 启用垂直分层
-    layer_height: 0.25              # 每层高度 (m)
-    max_layers: 3                   # 最大层数
-    overlap_threshold: 0.5          # 层间重叠阈值
-
-  # 堆叠锥识别
+    layer_height: 0.25
+    max_layers: 3
   identification:
-    min_points_per_layer: 5         # 每层最小点数 (个)
-    max_xy_distance: 0.4            # XY平面最大距离 (m)
-    height_variation_threshold: 0.1 # 高度变化阈值 (m)
-    confidence_threshold: 0.3       # 堆叠锥识别置信度 [0-1]
-
-  # 去重策略
-  deduplication:
-    method: clustering              # 去重方法: clustering | grid | nearest
-    cluster_tolerance: 0.5          # 聚类距离阈值 (m)
-    min_cluster_size: 2             # 最小聚类大小 (个)（堆叠锥至少2层）
-    max_cluster_size: 10            # 最大聚类大小 (个)
-    representative_selection: highest_confidence  # 代表点选择: highest_confidence | centroid | lowest
-
-  # 近距锥桶特殊处理（堆叠高发区）
-  near_range:
-    distance_threshold: 5.0         # 近距阈值 (m)
-    enhanced_dedup: true            # 增强去重
-    stricter_xy_threshold: 0.25     # 更严格的XY阈值 (m)
-    layer_separation: 0.15          # 层间分离度 (m)
-
-# 遮挡与缺锥处理
-occlusion_handling:
-  enabled: true                     # 启用遮挡处理
-
-  # 遮挡检测
-  detection:
-    method: ray_tracing             # 检测方法: ray_tracing | angle_gap | density
-    angle_gap_threshold: 15.0       # 角度间隙阈值 (deg)
-    min_occluded_cones: 1           # 最小遮挡锥数 (个)
-    occlusion_confidence_drop: 0.3  # 遮挡置信度下降 [0-1]
-
-  # 缺失锥桶预测
-  missing_cone_prediction:
-    enabled: true                   # 启用缺失预测
-    use_spacing_model: true         # 使用间距模型
-    expected_spacing: 5.0           # 预期间距 (m)
-    spacing_tolerance: 1.5          # 间距容差 (m)
-    max_prediction_distance: 10.0   # 最大预测距离 (m)
-    prediction_confidence: 0.25     # 预测锥桶置信度 [0-1]
-    max_consecutive_predictions: 2  # 最大连续预测数 (帧)
-
-  # 几何插值
-  geometric_interpolation:
-    enabled: true                   # 启用几何插值
-    method: linear                  # 插值方法: linear | spline | arc
-    max_interpolation_gap: 8.0      # 最大插值间隙 (m)
-    use_track_curvature: true       # 使用赛道曲率
-    curvature_estimate_window: 5    # 曲率估计窗口 (个锥桶)
-
-# 短检测抑制（Short Detection Suppression）
-short_detection_suppression:
-  enabled: true                     # 启用短检测抑制
-
-  # 单帧抑制
-  single_frame:
-    min_detections_for_valid: 2     # 有效检测最小帧数 (帧)
-    min_confidence: 0.3             # 最小置信度 [0-1]
-
-  # 空间连续性检查
-  spatial_continuity:
-    enabled: true                   # 启用空间连续性
-    check_neighbor_detections: true # 检查邻居检测
-    neighbor_radius: 3.0            # 邻居半径 (m)
-    min_neighbors: 1                # 最小邻居数 (个)
-
-  # 时间连续性检查
-  temporal_continuity:
-    enabled: true                   # 启用时间连续性
-    min_track_length: 3             # 最小跟踪长度 (帧)
-    max_gap_frames: 2               # 最大间隙帧数 (帧)
-
-# 几何一致性检查（Geometric Consistency Check）
-geometric_consistency:
-  enabled: true                     # 启用几何一致性检查
-
-  # 尺寸一致性
-  size_consistency:
-    check_height_variance: true     # 检查高度方差
-    max_height_variance: 0.15       # 最大高度方差 (m)
-    check_area_variance: true       # 检查面积方差
-    max_area_variance: 0.05         # 最大面积方差 (m²)
-
-  # 空间分布一致性
-  spatial_distribution:
-    check_local_density: true       # 检查局部密度
-    expected_density_range: [10, 100]  # 预期密度范围 (点/m²)
-    check_spacing_uniformity: true  # 检查间距均匀性
-    max_spacing_variance: 4.0       # 最大间距方差 (m²)
-
-  # 角度分布一致性
-  angular_distribution:
-    check_bearing_variance: true    # 检查方位角方差
-    max_bearing_variance: 45.0      # 最大方位角方差 (deg)
-    check_elevation_variance: true  # 检查俯仰角方差
-    max_elevation_variance: 10.0    # 最大俯仰角方差 (deg)
-
-# 回环场景优化（Loop Closure Optimization）
-loop_closure_optimization:
-  enabled: true                     # 启用回环优化
-
-  # 特征稳定性
-  feature_stability:
-    min_feature_lifetime: 5         # 最小特征寿命 (帧)
-    feature_reidentification: true  # 特征重识别
-    reidentification_threshold: 0.7 # 重识别阈值 [0-1]
-
-  # 观测稳定性
-  observation_stability:
-    require_multi_frame_obs: true   # 要求多帧观测
-    min_observation_frames: 3       # 最小观测帧数 (帧)
-    observation_consistency_check: true  # 观测一致性检查
-    max_observation_variance: 0.5   # 最大观测方差 (m)
-
-  # 几何验证
-  geometric_verification:
-    check_relative_geometry: true   # 检查相对几何
-    check_distance_consistency: true # 检查距离一致性
-    distance_tolerance: 0.5         # 距离容差 (m)
-    check_angle_consistency: true   # 检查角度一致性
-    angle_tolerance: 10.0           # 角度容差 (deg)
+    max_xy_distance: 0.4
+    height_variation_threshold: 0.1
 
 # === Vision Color Injection ===
 # When enabled, subscribes to vision detections and overrides color_types

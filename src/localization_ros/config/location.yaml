@@ -161,7 +161,7 @@ map:
   # 影响: 什么质量的检测可以进入地图
   # 调大: 更严格的入图（减少假阳性，可能漏真阳性）
   # 调小: 更宽松的入图（增加地图密度，可能有噪声）
-  min_confidence_to_add: 0.3
+  min_confidence_to_add: 0.35
 
   # 合并已有锥桶的最低置信度
   # 范围: 0-1 | 建议: 0.1-0.2
@@ -231,13 +231,13 @@ backend: mapper
 # ==========================
 mapper_recovery:
   enabled: true
-  fail_frames_to_degraded: 3
+  fail_frames_to_degraded: 5
   fail_frames_to_ins_only: 8
   success_frames_to_tracking: 3
   recovery_cooldown_frames: 20
   recovery_probe_interval_frames: 3
   min_local_cones_for_tracking: 3
-  min_match_ratio_for_tracking: 0.25
+  min_match_ratio_for_tracking: 0.30
   publish_stale_map_on_failure: true
 
 # ==========================

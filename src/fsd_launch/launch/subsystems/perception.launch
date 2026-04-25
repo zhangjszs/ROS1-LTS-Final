@@ -14,7 +14,7 @@
     <arg name="vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/perception.yaml"/>
     <arg name="vehicle_local_config" default="" doc="本地覆盖参数文件（*.local.yaml）"/>
     <arg name="decision_cone_topic" default="perception/decision/detections" doc="统一主链路锥桶输入话题"/>
-    <arg name="decision_fusion_budget_sec" default="0.15" doc="统一主链路融合等待预算"/>
+    <arg name="decision_fusion_budget_sec" default="0.20" doc="统一主链路融合等待预算"/>
     <arg name="raw_cone_topic" default="perception/lidar_cluster/detections" doc="raw LiDAR锥桶话题"/>
     <arg name="fused_cone_topic" default="perception/fusion/detections" doc="融合锥桶话题"/>
 

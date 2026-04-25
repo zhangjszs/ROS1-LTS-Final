@@ -8,8 +8,8 @@
     <arg name="summary_period_sec" default="1.0"/>
     <arg name="max_pending" default="100"/>
 
-    <param name="/perception/lidar_cluster/lidar_cluster_node/vision_inject/enabled" value="true"/>
-    <param name="/perception/lidar_cluster/lidar_cluster_node/vision_inject/max_age_sec" value="$(arg legacy_budget_sec)"/>
+    <param name="/perception/lidar_cluster/lidar_cluster_node/fusion/enabled" value="true"/>
+    <param name="/perception/lidar_cluster/lidar_cluster_node/fusion/sync/slop_sec" value="$(arg legacy_budget_sec)"/>
 
     <node pkg="perception_ros" type="cone_detection_adapter_node" name="cone_detection_adapter" output="screen">
         <param name="topics/raw_input" value="$(arg raw_topic)"/>

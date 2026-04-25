@@ -18,6 +18,8 @@ bool Application::VerifyVehicleChecksum(const uint8_t* buf, int len) {
 }
 
 Application::Application(int argc, char** argv) : userNode(argc, argv), is_running(true) {
+  userNode.init();  // ros::init() must happen before any NodeHandle
+
   start();
 
   vehicleThread = std::make_unique<boost::thread>(
@@ -26,8 +28,6 @@ Application::Application(int argc, char** argv) : userNode(argc, argv), is_runni
       std::make_unique<boost::thread>(boost::bind(&Application::processPendingDatagramsIns, this));
 
   userNode.setVehicleCallBack(std::bind(&Application::vehicleSendUdp, this));
-
-  userNode.init();
 }
 
 Application::~Application() {
