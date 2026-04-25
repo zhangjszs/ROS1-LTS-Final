@@ -47,13 +47,16 @@ class ConeTracker {
   };
 
   struct Config {
-    double association_threshold = 0.5;        // 关联距离阈值 [m]
-    int confirm_frames = 3;                    // 确认所需连续帧数（近距）
-    int confirm_frames_far = 2;                // 确认所需连续帧数（远距）
-    double confirm_distance_threshold = 30.0;  // 远距确认阈值 [m]
-    int delete_frames = 5;                     // 删除所需连续丢失帧数
-    double process_noise = 0.1;                // 过程噪声
-    double measurement_noise = 0.05;           // 测量噪声
+    double association_threshold = 0.5;            // 关联距离阈值（近距）[m]
+    double association_threshold_far = 1.0;        // 关联距离阈值（远距@35m+）[m]
+    double association_distance_threshold = 35.0;  // 远距关联距离分界 [m]
+    int confirm_frames = 3;                        // 确认所需连续帧数（近距）
+    int confirm_frames_far = 2;                    // 确认所需连续帧数（远距）
+    double confirm_distance_threshold = 30.0;      // 远距确认阈值 [m]
+    int delete_frames = 5;                         // 删除所需连续丢失帧数（近距）
+    int delete_frames_far = 8;                     // 删除所需连续丢失帧数（远距）
+    double process_noise = 0.1;                    // 过程噪声
+    double measurement_noise = 0.05;               // 测量噪声
     bool enable_velocity_prediction = true;
     bool only_output_confirmed = true;        // 仅输出已确认的锥桶
     double confirmed_confidence_boost = 0.1;  // 确认后的置信度加成

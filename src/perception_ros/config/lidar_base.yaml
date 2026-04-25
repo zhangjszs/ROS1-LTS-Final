@@ -357,10 +357,13 @@ mode_presets:
 tracker:
   enable: true                    # 跟踪器总开关
   association_threshold: 2.0      # 关联距离阈值 (m)
+  association_threshold_far: 2.0  # Task 24B: 远距关联阈值，保持与近距一致 [m] (1.0 无收益且增加 tentative)
+  association_distance_threshold: 35.0  # Task 24B: 远距关联距离分界 [m]
   confirm_frames: 4               # 确认所需连续帧数 - 提高以过滤瞬态噪声
   confirm_frames_far: 2           # Task 24A: 远距确认帧数 (distance >= confirm_distance_threshold)
   confirm_distance_threshold: 30.0 # Task 24A: 远距确认距离阈值 [m]
   delete_frames: 5                # 删除所需连续丢失帧数 (帧)
+  delete_frames_far: 8            # Task 24B: 远距删除帧数 (distance >= confirm_distance_threshold)
   process_noise: 0.1              # 过程噪声 (m²，卡尔曼Q矩阵)
   measurement_noise: 0.05         # 测量噪声 (m²，卡尔曼R矩阵)
   only_output_confirmed: true     # 仅输出已确认的锥桶

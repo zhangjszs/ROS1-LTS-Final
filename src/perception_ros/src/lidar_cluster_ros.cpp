@@ -912,11 +912,16 @@ void LidarClusterRos::loadParams() {
   private_nh_.param<bool>("tracker/enable", config_.tracker.enable, false);
   private_nh_.param<double>("tracker/association_threshold", config_.tracker.association_threshold,
                             0.5);
+  private_nh_.param<double>("tracker/association_threshold_far",
+                            config_.tracker.association_threshold_far, 1.0);
+  private_nh_.param<double>("tracker/association_distance_threshold",
+                            config_.tracker.association_distance_threshold, 35.0);
   private_nh_.param<int>("tracker/confirm_frames", config_.tracker.confirm_frames, 3);
   private_nh_.param<int>("tracker/confirm_frames_far", config_.tracker.confirm_frames_far, 2);
   private_nh_.param<double>("tracker/confirm_distance_threshold",
                             config_.tracker.confirm_distance_threshold, 30.0);
   private_nh_.param<int>("tracker/delete_frames", config_.tracker.delete_frames, 5);
+  private_nh_.param<int>("tracker/delete_frames_far", config_.tracker.delete_frames_far, 8);
   private_nh_.param<double>("tracker/process_noise", config_.tracker.process_noise, 0.1);
   private_nh_.param<double>("tracker/measurement_noise", config_.tracker.measurement_noise, 0.05);
   private_nh_.param<bool>("tracker/only_output_confirmed", config_.tracker.only_output_confirmed,

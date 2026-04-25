@@ -438,10 +438,13 @@ struct LidarClusterConfig {
   struct TrackerConfig {
     bool enable = false;
     double association_threshold = 0.5;
+    double association_threshold_far = 1.0;
+    double association_distance_threshold = 35.0;
     int confirm_frames = 3;
     int confirm_frames_far = 2;
     double confirm_distance_threshold = 30.0;
     int delete_frames = 5;
+    int delete_frames_far = 8;
     double process_noise = 0.1;
     double measurement_noise = 0.05;
     bool only_output_confirmed = true;

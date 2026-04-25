@@ -73,24 +73,30 @@ std::vector<std::pair<int, int>> ConeTracker::associate(const std::vector<Detect
     return {};
   }
 
-  // Build cost matrix (Euclidean distance)
+  // Build cost matrix (Euclidean distance) with distance-adaptive thresholds
   const int n_tracks = static_cast<int>(tracks_.size());
   const int n_dets = static_cast<int>(detections.size());
   std::vector<std::vector<double>> cost_matrix(
       n_tracks, std::vector<double>(n_dets, std::numeric_limits<double>::max()));
 
+  double max_threshold = 0.0;
   for (int i = 0; i < n_tracks; ++i) {
+    double dist_track = std::sqrt(tracks_[i].x * tracks_[i].x + tracks_[i].y * tracks_[i].y);
+    double local_thresh = (dist_track >= config_.association_distance_threshold)
+                              ? config_.association_threshold_far
+                              : config_.association_threshold;
+    max_threshold = std::max(max_threshold, local_thresh);
     for (int j = 0; j < n_dets; ++j) {
       double dx = tracks_[i].x - detections[j].x;
       double dy = tracks_[i].y - detections[j].y;
       double dist = std::sqrt(dx * dx + dy * dy);
-      if (dist <= config_.association_threshold) {
+      if (dist <= local_thresh) {
         cost_matrix[i][j] = dist;
       }
     }
   }
 
-  return hungarianAssign(cost_matrix, n_tracks, n_dets, config_.association_threshold);
+  return hungarianAssign(cost_matrix, n_tracks, n_dets, max_threshold);
 }
 
 // PLACEHOLDER_HUNGARIAN
@@ -221,7 +227,12 @@ void ConeTracker::createTrack(const Detection& det) {
 void ConeTracker::pruneDeadTracks() {
   tracks_.erase(std::remove_if(tracks_.begin(), tracks_.end(),
                                [this](const TrackedCone& track) {
-                                 return track.miss_count >= config_.delete_frames;
+                                 double distance = std::sqrt(track.x * track.x + track.y * track.y);
+                                 int required_miss =
+                                     (distance >= config_.confirm_distance_threshold)
+                                         ? config_.delete_frames_far
+                                         : config_.delete_frames;
+                                 return track.miss_count >= required_miss;
                                }),
                 tracks_.end());
 }

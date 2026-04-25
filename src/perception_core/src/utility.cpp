@@ -290,10 +290,13 @@ void lidar_cluster::Configure(const LidarClusterConfig& config) {
   if (tracker_enabled_) {
     perception::ConeTracker::Config tracker_config;
     tracker_config.association_threshold = config.tracker.association_threshold;
+    tracker_config.association_threshold_far = config.tracker.association_threshold_far;
+    tracker_config.association_distance_threshold = config.tracker.association_distance_threshold;
     tracker_config.confirm_frames = config.tracker.confirm_frames;
     tracker_config.confirm_frames_far = config.tracker.confirm_frames_far;
     tracker_config.confirm_distance_threshold = config.tracker.confirm_distance_threshold;
     tracker_config.delete_frames = config.tracker.delete_frames;
+    tracker_config.delete_frames_far = config.tracker.delete_frames_far;
     tracker_config.process_noise = config.tracker.process_noise;
     tracker_config.measurement_noise = config.tracker.measurement_noise;
     tracker_config.only_output_confirmed = config.tracker.only_output_confirmed;
