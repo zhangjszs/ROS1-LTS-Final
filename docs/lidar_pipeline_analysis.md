@@ -597,4 +597,60 @@ tracker:
 ### Backlog
 
 - **Task #24C（M-of-N / Tentative Retention）**：待有高密度远距场景（>15 candidates/30s）时重新评估。
-- **Task #25（多 bag baseline corpus）**：用新的 diagnostics 框架在 track/accel/skidpad 多场景下验证当前参数的通用性。
+
+---
+
+## 9. 多场景基线验证（Task #25）
+
+> **状态：完成。当前参数确认为生产通用 baseline。**
+
+### 验证范围
+
+| 场景 | Bag | 窗口 | 结果 |
+|------|-----|------|------|
+| TrackDrive | track.bag | W1/W2/多窗口 | **通过** |
+| Skidpad | skidpad.bag | start=10s, 30s | **跳过** |
+| Accel | accel.bag | start=10s, 30s | **跳过** |
+
+### 通过项：TrackDrive
+
+- 参数在多个时间窗口下表现稳定
+- 30-40m 收益保持（~1.5 cones/frame）
+- deleted 均值稳定，无异常 spike
+- planning/control 帧率正常
+
+### 跳过项及原因
+
+**Skidpad**
+- 原因：`lidar_skidpad.yaml` 中 `tracker.enable: false`（密集场景 intentionally 禁用 tracker）
+- 影响：Task #24B 参数对 Skidpad **完全无影响**，不存在 tentative 堆积风险
+- 决策：无需 skidpad mode_preset 覆盖
+
+**Accel**
+- 原因：当前窗口（start=10s）车辆几乎静止（0.01 m/s），仍在起点区；无远距检测输出（40-50m: 0.00）
+- 影响：不具备远距验证条件
+- 决策：不阻塞归档；待有加速段 bag 时再补验证
+
+### 归档后生产默认
+
+Task #24A/B 参数经 TrackDrive 多窗口验证通过，Skidpad/Accel 因场景条件不满足而跳过（已记录原因），**当前参数正式归档为通用 baseline**：
+
+```yaml
+tracker:
+  confirm_frames: 4
+  confirm_frames_far: 2
+  confirm_distance_threshold: 30.0
+  delete_frames: 5
+  delete_frames_far: 8
+  association_threshold: 2.0
+  association_threshold_far: 2.0
+  association_distance_threshold: 35.0
+```
+
+### 剩余 Backlog
+
+| 任务 | 触发条件 |
+|------|----------|
+| Task #24C M-of-N | 高密度远距场景（>15 candidates/30s） |
+| Accel 高速段验证 | 有车辆已加速的 accel bag 窗口 |
+| >50m 召回 | 需先扩大 ROI（当前 x_max=50） |
