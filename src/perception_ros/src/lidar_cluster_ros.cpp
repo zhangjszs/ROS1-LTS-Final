@@ -1744,15 +1744,23 @@ void LidarClusterRos::publishDiagnostics(const LidarClusterOutput& output, int n
       kvs.push_back(DH::KV("postconf_20_30", std::to_string(output.postconf_20_30)));
       kvs.push_back(DH::KV("postconf_30_40", std::to_string(output.postconf_30_40)));
       kvs.push_back(DH::KV("postconf_40_50", std::to_string(output.postconf_40_50)));
+      kvs.push_back(DH::KV("postconf_50_60", std::to_string(output.postconf_50_60)));
+      kvs.push_back(DH::KV("postconf_60_80", std::to_string(output.postconf_60_80)));
       kvs.push_back(DH::KV("after_dedup_20_30", std::to_string(output.after_dedup_20_30)));
       kvs.push_back(DH::KV("after_dedup_30_40", std::to_string(output.after_dedup_30_40)));
       kvs.push_back(DH::KV("after_dedup_40_50", std::to_string(output.after_dedup_40_50)));
+      kvs.push_back(DH::KV("after_dedup_50_60", std::to_string(output.after_dedup_50_60)));
+      kvs.push_back(DH::KV("after_dedup_60_80", std::to_string(output.after_dedup_60_80)));
       kvs.push_back(DH::KV("after_tracker_20_30", std::to_string(output.after_tracker_20_30)));
       kvs.push_back(DH::KV("after_tracker_30_40", std::to_string(output.after_tracker_30_40)));
       kvs.push_back(DH::KV("after_tracker_40_50", std::to_string(output.after_tracker_40_50)));
+      kvs.push_back(DH::KV("after_tracker_50_60", std::to_string(output.after_tracker_50_60)));
+      kvs.push_back(DH::KV("after_tracker_60_80", std::to_string(output.after_tracker_60_80)));
       kvs.push_back(DH::KV("after_topology_20_30", std::to_string(output.after_topology_20_30)));
       kvs.push_back(DH::KV("after_topology_30_40", std::to_string(output.after_topology_30_40)));
       kvs.push_back(DH::KV("after_topology_40_50", std::to_string(output.after_topology_40_50)));
+      kvs.push_back(DH::KV("after_topology_50_60", std::to_string(output.after_topology_50_60)));
+      kvs.push_back(DH::KV("after_topology_60_80", std::to_string(output.after_topology_60_80)));
       kvs.push_back(
           DH::KV("tracker_confirmed_20_30", std::to_string(output.tracker_confirmed_20_30)));
       kvs.push_back(
@@ -1760,11 +1768,19 @@ void LidarClusterRos::publishDiagnostics(const LidarClusterOutput& output, int n
       kvs.push_back(
           DH::KV("tracker_confirmed_40_50", std::to_string(output.tracker_confirmed_40_50)));
       kvs.push_back(
+          DH::KV("tracker_confirmed_50_60", std::to_string(output.tracker_confirmed_50_60)));
+      kvs.push_back(
+          DH::KV("tracker_confirmed_60_80", std::to_string(output.tracker_confirmed_60_80)));
+      kvs.push_back(
           DH::KV("topo_interpolated_20_30", std::to_string(output.topo_interpolated_20_30)));
       kvs.push_back(
           DH::KV("topo_interpolated_30_40", std::to_string(output.topo_interpolated_30_40)));
       kvs.push_back(
           DH::KV("topo_interpolated_40_50", std::to_string(output.topo_interpolated_40_50)));
+      kvs.push_back(
+          DH::KV("topo_interpolated_50_60", std::to_string(output.topo_interpolated_50_60)));
+      kvs.push_back(
+          DH::KV("topo_interpolated_60_80", std::to_string(output.topo_interpolated_60_80)));
     }
   }
 

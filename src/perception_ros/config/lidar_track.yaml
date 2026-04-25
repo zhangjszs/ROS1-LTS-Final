@@ -18,6 +18,7 @@ mode_presets:
       far_y_half: 3.0
       near_y_half: 10.0
     cluster:
+      distance_segments: [5.0, 10.0, 15.0, 25.0, 35.0, 50.0, 70.0]
       cluster_tolerance:
       - 0.15
       - 0.25
@@ -26,6 +27,7 @@ mode_presets:
       - 0.38
       - 0.4
       - 0.42
+      - 0.3
     center_exclusion:
       enable: true
       y_half: 1.5

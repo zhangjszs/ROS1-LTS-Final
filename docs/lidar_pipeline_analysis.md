@@ -654,3 +654,55 @@ tracker:
 | Task #24C M-of-N | 高密度远距场景（>15 candidates/30s） |
 | Accel 高速段验证 | 有车辆已加速的 accel bag 窗口 |
 | >50m 召回 | 需先扩大 ROI（当前 x_max=50） |
+
+---
+
+## Experiment Task #3: ROI x_max 50m → 70m (TrackDrive)
+
+**Date**: 2026-04-25
+**Decision**: 提交为生产默认（已归档）
+
+### 变更摘要
+
+- `roi.track.x_max`: 50 → 70
+- `roi.custom.x_max`: 50 → 70
+- `cluster.distance_segments`: 增加 70.0 边界
+- `cluster.cluster_tolerance`: 50–70m 段设为 0.3（避免稀疏远距簇分裂）
+- `str_range`: `"15,30,45,60"` → `"15,30,45,60,80"`
+
+### A/B 结果（Baseline x50 vs Candidate x70）
+
+| Metric | Baseline (x50) | Candidate (x70) | Delta |
+|--------|---------------|-----------------|-------|
+| Mean cones/frame | 13.97 | **17.62** | **+26%** |
+| 40–50m | 0.12 | 0.49 | +0.37 |
+| **>50m** | **0.00** | **1.89** | **+1.89** |
+| Tracker confirmed (50–60m) | 0 | **~3.8/frame** | New |
+| Tracker confirmed (60–80m) | 0 | **~0.03/frame** | 边界偶发 |
+| Short path rate | 0.48% | **0.00%** | **Eliminated** |
+| Far threshold acceptance | 89.95% | 89.98% | 无噪声代价 |
+| Total latency p50 | 12.51ms | 15.46ms | +2.95ms（可控） |
+| Total latency p95 | 34.04ms | 31.51ms | 略有改善 |
+
+### 关键结论
+
+1. **50–60m 为有效输出区**：平均每帧 3.8 个 confirmed cones，acceptance 率与 baseline 持平（~90%），无额外噪声代价。
+2. **60–70m 为边界区域而非稳定输出区**：整个 30s 窗口仅 1 个 confirmed cone。该段存在性价值大于数量价值——用于提前感知弯道/终点，但不应依赖其作为路径规划的主输入。
+3. **近距提升（20–40m）部分来自 adaptive_y ramp 副作用**：x_max 扩大后，adaptive_y 的梯形 ROI 远端锚点外推，导致 20–40m 区间的 Y 半宽略大于 x_max=50 时的实际裁剪区，从而保留了更多侧向锥桶。这不是噪声，是之前被硬边界误裁剪的真锥桶回收。
+4. **Planning 正收益**：Short path 完全消除（0.48% → 0%），推测原因是更多远距边界锥桶让 Delaunay triangulation 获得更完整的赛道轮廓，减少了路径截断。
+
+### 归档参数
+
+```yaml
+roi:
+  track:
+    x_max: 70
+  custom:
+    x_max: 70
+
+cluster:
+  distance_segments: [5.0, 10.0, 15.0, 25.0, 35.0, 50.0, 70.0]
+  cluster_tolerance: [0.15, 0.3, 0.5, 0.5, 0.4, 0.3, 0.3, 0.25]
+
+str_range: "15,30,45,60,80"
+```

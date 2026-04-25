@@ -16,13 +16,18 @@ std::string num2Str(const Type value, unsigned int precision) {
 }
 
 // Task 23D: helper to count cones by far-range distance bands
-inline void countFarBands(const ConeDetection& det, int& b20_30, int& b30_40, int& b40_50) {
+inline void countFarBands(const ConeDetection& det, int& b20_30, int& b30_40, int& b40_50,
+                          int& b50_60, int& b60_80) {
   if (det.distance > 20.0 && det.distance <= 30.0)
     ++b20_30;
   else if (det.distance > 30.0 && det.distance <= 40.0)
     ++b30_40;
   else if (det.distance > 40.0 && det.distance <= 50.0)
     ++b40_50;
+  else if (det.distance > 50.0 && det.distance <= 60.0)
+    ++b50_60;
+  else if (det.distance > 60.0 && det.distance <= 80.0)
+    ++b60_80;
 }
 
 }  // namespace
@@ -69,14 +74,20 @@ bool lidar_cluster::Process(LidarClusterOutput* output) {
   }
 
   // Task 23D: reset post-confidence funnel diagnostics
-  output->postconf_20_30 = output->postconf_30_40 = output->postconf_40_50 = 0;
-  output->after_dedup_20_30 = output->after_dedup_30_40 = output->after_dedup_40_50 = 0;
-  output->after_tracker_20_30 = output->after_tracker_30_40 = output->after_tracker_40_50 = 0;
-  output->after_topology_20_30 = output->after_topology_30_40 = output->after_topology_40_50 = 0;
+  output->postconf_20_30 = output->postconf_30_40 = output->postconf_40_50 =
+      output->postconf_50_60 = output->postconf_60_80 = 0;
+  output->after_dedup_20_30 = output->after_dedup_30_40 = output->after_dedup_40_50 =
+      output->after_dedup_50_60 = output->after_dedup_60_80 = 0;
+  output->after_tracker_20_30 = output->after_tracker_30_40 = output->after_tracker_40_50 =
+      output->after_tracker_50_60 = output->after_tracker_60_80 = 0;
+  output->after_topology_20_30 = output->after_topology_30_40 = output->after_topology_40_50 =
+      output->after_topology_50_60 = output->after_topology_60_80 = 0;
   output->tracker_confirmed_20_30 = output->tracker_confirmed_30_40 =
-      output->tracker_confirmed_40_50 = 0;
+      output->tracker_confirmed_40_50 = output->tracker_confirmed_50_60 =
+          output->tracker_confirmed_60_80 = 0;
   output->topo_interpolated_20_30 = output->topo_interpolated_30_40 =
-      output->topo_interpolated_40_50 = 0;
+      output->topo_interpolated_40_50 = output->topo_interpolated_50_60 =
+          output->topo_interpolated_60_80 = 0;
 
   std::unique_lock<std::mutex> lock(lidar_mutex);
   const size_t input_points = current_pc_ptr->points.size();
@@ -126,7 +137,8 @@ bool lidar_cluster::Process(LidarClusterOutput* output) {
 
   // Task 23D: count post-confidence candidates (funnel entry)
   for (const auto& cone : output->cones) {
-    countFarBands(cone, output->postconf_20_30, output->postconf_30_40, output->postconf_40_50);
+    countFarBands(cone, output->postconf_20_30, output->postconf_30_40, output->postconf_40_50,
+                  output->postconf_50_60, output->postconf_60_80);
   }
 
   // ⑤b Proximity deduplication: remove stacked/duplicate cones
@@ -137,7 +149,7 @@ bool lidar_cluster::Process(LidarClusterOutput* output) {
   // Task 23D: count after dedup
   for (const auto& cone : output->cones) {
     countFarBands(cone, output->after_dedup_20_30, output->after_dedup_30_40,
-                  output->after_dedup_40_50);
+                  output->after_dedup_40_50, output->after_dedup_50_60, output->after_dedup_60_80);
   }
 
   // ⑤ Cone tracker: temporal consistency filtering
@@ -229,7 +241,8 @@ bool lidar_cluster::Process(LidarClusterOutput* output) {
   // Task 23D: count after tracker + confirmed tracks by band
   for (const auto& cone : output->cones) {
     countFarBands(cone, output->after_tracker_20_30, output->after_tracker_30_40,
-                  output->after_tracker_40_50);
+                  output->after_tracker_40_50, output->after_tracker_50_60,
+                  output->after_tracker_60_80);
   }
   // Count confirmed tracks that were matched back (from filtered_cones before assignment to output)
   // Note: we already counted after_tracker from output->cones, which IS the confirmed set.
@@ -237,6 +250,8 @@ bool lidar_cluster::Process(LidarClusterOutput* output) {
   output->tracker_confirmed_20_30 = output->after_tracker_20_30;
   output->tracker_confirmed_30_40 = output->after_tracker_30_40;
   output->tracker_confirmed_40_50 = output->after_tracker_40_50;
+  output->tracker_confirmed_50_60 = output->after_tracker_50_60;
+  output->tracker_confirmed_60_80 = output->after_tracker_60_80;
 
   // ⑥ Topology repair: fill gaps and remove outliers
   if (config_.topology.enable && !output->cones.empty()) {
@@ -295,7 +310,8 @@ bool lidar_cluster::Process(LidarClusterOutput* output) {
   // Task 23D: count after topology + interpolated cones by band
   for (const auto& cone : output->cones) {
     countFarBands(cone, output->after_topology_20_30, output->after_topology_30_40,
-                  output->after_topology_40_50);
+                  output->after_topology_40_50, output->after_topology_50_60,
+                  output->after_topology_60_80);
   }
   // Interpolated count = after_topology - (non-interpolated kept from before topology)
   // Approximate: topo_interpolated = after_topology - after_tracker (if topology enabled)
@@ -306,6 +322,10 @@ bool lidar_cluster::Process(LidarClusterOutput* output) {
         std::max(0, output->after_topology_30_40 - output->after_tracker_30_40);
     output->topo_interpolated_40_50 =
         std::max(0, output->after_topology_40_50 - output->after_tracker_40_50);
+    output->topo_interpolated_50_60 =
+        std::max(0, output->after_topology_50_60 - output->after_tracker_50_60);
+    output->topo_interpolated_60_80 =
+        std::max(0, output->after_topology_60_80 - output->after_tracker_60_80);
   }
 
   auto endTimeTotal = std::chrono::steady_clock::now();

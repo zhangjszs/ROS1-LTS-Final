@@ -104,21 +104,33 @@ class TrackDriveBenchmark:
         self.diag_postconf_20_30 = []
         self.diag_postconf_30_40 = []
         self.diag_postconf_40_50 = []
+        self.diag_postconf_50_60 = []
+        self.diag_postconf_60_80 = []
         self.diag_after_dedup_20_30 = []
         self.diag_after_dedup_30_40 = []
         self.diag_after_dedup_40_50 = []
+        self.diag_after_dedup_50_60 = []
+        self.diag_after_dedup_60_80 = []
         self.diag_after_tracker_20_30 = []
         self.diag_after_tracker_30_40 = []
         self.diag_after_tracker_40_50 = []
+        self.diag_after_tracker_50_60 = []
+        self.diag_after_tracker_60_80 = []
         self.diag_after_topology_20_30 = []
         self.diag_after_topology_30_40 = []
         self.diag_after_topology_40_50 = []
+        self.diag_after_topology_50_60 = []
+        self.diag_after_topology_60_80 = []
         self.diag_tracker_confirmed_20_30 = []
         self.diag_tracker_confirmed_30_40 = []
         self.diag_tracker_confirmed_40_50 = []
+        self.diag_tracker_confirmed_50_60 = []
+        self.diag_tracker_confirmed_60_80 = []
         self.diag_topo_interpolated_20_30 = []
         self.diag_topo_interpolated_30_40 = []
         self.diag_topo_interpolated_40_50 = []
+        self.diag_topo_interpolated_50_60 = []
+        self.diag_topo_interpolated_60_80 = []
         # Performance (direct per-frame latencies from output.t_*_ms)
         self.diag_t_total_ms = []
         self.diag_t_ground_ms = []
@@ -268,21 +280,33 @@ class TrackDriveBenchmark:
                 ("postconf_20_30", self.diag_postconf_20_30),
                 ("postconf_30_40", self.diag_postconf_30_40),
                 ("postconf_40_50", self.diag_postconf_40_50),
+                ("postconf_50_60", self.diag_postconf_50_60),
+                ("postconf_60_80", self.diag_postconf_60_80),
                 ("after_dedup_20_30", self.diag_after_dedup_20_30),
                 ("after_dedup_30_40", self.diag_after_dedup_30_40),
                 ("after_dedup_40_50", self.diag_after_dedup_40_50),
+                ("after_dedup_50_60", self.diag_after_dedup_50_60),
+                ("after_dedup_60_80", self.diag_after_dedup_60_80),
                 ("after_tracker_20_30", self.diag_after_tracker_20_30),
                 ("after_tracker_30_40", self.diag_after_tracker_30_40),
                 ("after_tracker_40_50", self.diag_after_tracker_40_50),
+                ("after_tracker_50_60", self.diag_after_tracker_50_60),
+                ("after_tracker_60_80", self.diag_after_tracker_60_80),
                 ("after_topology_20_30", self.diag_after_topology_20_30),
                 ("after_topology_30_40", self.diag_after_topology_30_40),
                 ("after_topology_40_50", self.diag_after_topology_40_50),
+                ("after_topology_50_60", self.diag_after_topology_50_60),
+                ("after_topology_60_80", self.diag_after_topology_60_80),
                 ("tracker_confirmed_20_30", self.diag_tracker_confirmed_20_30),
                 ("tracker_confirmed_30_40", self.diag_tracker_confirmed_30_40),
                 ("tracker_confirmed_40_50", self.diag_tracker_confirmed_40_50),
+                ("tracker_confirmed_50_60", self.diag_tracker_confirmed_50_60),
+                ("tracker_confirmed_60_80", self.diag_tracker_confirmed_60_80),
                 ("topo_interpolated_20_30", self.diag_topo_interpolated_20_30),
                 ("topo_interpolated_30_40", self.diag_topo_interpolated_30_40),
                 ("topo_interpolated_40_50", self.diag_topo_interpolated_40_50),
+                ("topo_interpolated_50_60", self.diag_topo_interpolated_50_60),
+                ("topo_interpolated_60_80", self.diag_topo_interpolated_60_80),
             ]:
                 val = self._parse_diag_int(v, key)
                 if val is not None:
@@ -634,33 +658,49 @@ class TrackDriveBenchmark:
                     "20_30": _sum_band(self.diag_postconf_20_30),
                     "30_40": _sum_band(self.diag_postconf_30_40),
                     "40_50": _sum_band(self.diag_postconf_40_50),
-                    "total_20_50": _sum_band(self.diag_postconf_20_30)
+                    "50_60": _sum_band(self.diag_postconf_50_60),
+                    "60_80": _sum_band(self.diag_postconf_60_80),
+                    "total_20_80": _sum_band(self.diag_postconf_20_30)
                     + _sum_band(self.diag_postconf_30_40)
-                    + _sum_band(self.diag_postconf_40_50),
+                    + _sum_band(self.diag_postconf_40_50)
+                    + _sum_band(self.diag_postconf_50_60)
+                    + _sum_band(self.diag_postconf_60_80),
                 },
                 "after_dedup": {
                     "20_30": _sum_band(self.diag_after_dedup_20_30),
                     "30_40": _sum_band(self.diag_after_dedup_30_40),
                     "40_50": _sum_band(self.diag_after_dedup_40_50),
-                    "total_20_50": _sum_band(self.diag_after_dedup_20_30)
+                    "50_60": _sum_band(self.diag_after_dedup_50_60),
+                    "60_80": _sum_band(self.diag_after_dedup_60_80),
+                    "total_20_80": _sum_band(self.diag_after_dedup_20_30)
                     + _sum_band(self.diag_after_dedup_30_40)
-                    + _sum_band(self.diag_after_dedup_40_50),
+                    + _sum_band(self.diag_after_dedup_40_50)
+                    + _sum_band(self.diag_after_dedup_50_60)
+                    + _sum_band(self.diag_after_dedup_60_80),
                 },
                 "after_tracker": {
                     "20_30": _sum_band(self.diag_after_tracker_20_30),
                     "30_40": _sum_band(self.diag_after_tracker_30_40),
                     "40_50": _sum_band(self.diag_after_tracker_40_50),
-                    "total_20_50": _sum_band(self.diag_after_tracker_20_30)
+                    "50_60": _sum_band(self.diag_after_tracker_50_60),
+                    "60_80": _sum_band(self.diag_after_tracker_60_80),
+                    "total_20_80": _sum_band(self.diag_after_tracker_20_30)
                     + _sum_band(self.diag_after_tracker_30_40)
-                    + _sum_band(self.diag_after_tracker_40_50),
+                    + _sum_band(self.diag_after_tracker_40_50)
+                    + _sum_band(self.diag_after_tracker_50_60)
+                    + _sum_band(self.diag_after_tracker_60_80),
                 },
                 "after_topology": {
                     "20_30": _sum_band(self.diag_after_topology_20_30),
                     "30_40": _sum_band(self.diag_after_topology_30_40),
                     "40_50": _sum_band(self.diag_after_topology_40_50),
-                    "total_20_50": _sum_band(self.diag_after_topology_20_30)
+                    "50_60": _sum_band(self.diag_after_topology_50_60),
+                    "60_80": _sum_band(self.diag_after_topology_60_80),
+                    "total_20_80": _sum_band(self.diag_after_topology_20_30)
                     + _sum_band(self.diag_after_topology_30_40)
-                    + _sum_band(self.diag_after_topology_40_50),
+                    + _sum_band(self.diag_after_topology_40_50)
+                    + _sum_band(self.diag_after_topology_50_60)
+                    + _sum_band(self.diag_after_topology_60_80),
                 },
                 "loss_dedup": {
                     "20_30": _sum_band(self.diag_postconf_20_30)
@@ -669,15 +709,23 @@ class TrackDriveBenchmark:
                     - _sum_band(self.diag_after_dedup_30_40),
                     "40_50": _sum_band(self.diag_postconf_40_50)
                     - _sum_band(self.diag_after_dedup_40_50),
-                    "total_20_50": (
+                    "50_60": _sum_band(self.diag_postconf_50_60)
+                    - _sum_band(self.diag_after_dedup_50_60),
+                    "60_80": _sum_band(self.diag_postconf_60_80)
+                    - _sum_band(self.diag_after_dedup_60_80),
+                    "total_20_80": (
                         _sum_band(self.diag_postconf_20_30)
                         + _sum_band(self.diag_postconf_30_40)
                         + _sum_band(self.diag_postconf_40_50)
+                        + _sum_band(self.diag_postconf_50_60)
+                        + _sum_band(self.diag_postconf_60_80)
                     )
                     - (
                         _sum_band(self.diag_after_dedup_20_30)
                         + _sum_band(self.diag_after_dedup_30_40)
                         + _sum_band(self.diag_after_dedup_40_50)
+                        + _sum_band(self.diag_after_dedup_50_60)
+                        + _sum_band(self.diag_after_dedup_60_80)
                     ),
                 },
                 "loss_tracker": {
@@ -687,15 +735,23 @@ class TrackDriveBenchmark:
                     - _sum_band(self.diag_after_tracker_30_40),
                     "40_50": _sum_band(self.diag_after_dedup_40_50)
                     - _sum_band(self.diag_after_tracker_40_50),
-                    "total_20_50": (
+                    "50_60": _sum_band(self.diag_after_dedup_50_60)
+                    - _sum_band(self.diag_after_tracker_50_60),
+                    "60_80": _sum_band(self.diag_after_dedup_60_80)
+                    - _sum_band(self.diag_after_tracker_60_80),
+                    "total_20_80": (
                         _sum_band(self.diag_after_dedup_20_30)
                         + _sum_band(self.diag_after_dedup_30_40)
                         + _sum_band(self.diag_after_dedup_40_50)
+                        + _sum_band(self.diag_after_dedup_50_60)
+                        + _sum_band(self.diag_after_dedup_60_80)
                     )
                     - (
                         _sum_band(self.diag_after_tracker_20_30)
                         + _sum_band(self.diag_after_tracker_30_40)
                         + _sum_band(self.diag_after_tracker_40_50)
+                        + _sum_band(self.diag_after_tracker_50_60)
+                        + _sum_band(self.diag_after_tracker_60_80)
                     ),
                 },
                 "loss_topology": {
@@ -705,26 +761,38 @@ class TrackDriveBenchmark:
                     - _sum_band(self.diag_after_topology_30_40),
                     "40_50": _sum_band(self.diag_after_tracker_40_50)
                     - _sum_band(self.diag_after_topology_40_50),
-                    "total_20_50": (
+                    "50_60": _sum_band(self.diag_after_tracker_50_60)
+                    - _sum_band(self.diag_after_topology_50_60),
+                    "60_80": _sum_band(self.diag_after_tracker_60_80)
+                    - _sum_band(self.diag_after_topology_60_80),
+                    "total_20_80": (
                         _sum_band(self.diag_after_tracker_20_30)
                         + _sum_band(self.diag_after_tracker_30_40)
                         + _sum_band(self.diag_after_tracker_40_50)
+                        + _sum_band(self.diag_after_tracker_50_60)
+                        + _sum_band(self.diag_after_tracker_60_80)
                     )
                     - (
                         _sum_band(self.diag_after_topology_20_30)
                         + _sum_band(self.diag_after_topology_30_40)
                         + _sum_band(self.diag_after_topology_40_50)
+                        + _sum_band(self.diag_after_topology_50_60)
+                        + _sum_band(self.diag_after_topology_60_80)
                     ),
                 },
                 "tracker_confirmed": {
                     "20_30": _sum_band(self.diag_tracker_confirmed_20_30),
                     "30_40": _sum_band(self.diag_tracker_confirmed_30_40),
                     "40_50": _sum_band(self.diag_tracker_confirmed_40_50),
+                    "50_60": _sum_band(self.diag_tracker_confirmed_50_60),
+                    "60_80": _sum_band(self.diag_tracker_confirmed_60_80),
                 },
                 "topology_interpolated": {
                     "20_30": _sum_band(self.diag_topo_interpolated_20_30),
                     "30_40": _sum_band(self.diag_topo_interpolated_30_40),
                     "40_50": _sum_band(self.diag_topo_interpolated_40_50),
+                    "50_60": _sum_band(self.diag_topo_interpolated_50_60),
+                    "60_80": _sum_band(self.diag_topo_interpolated_60_80),
                 },
             }
             diag["performance"] = {
@@ -883,10 +951,10 @@ class TrackDriveBenchmark:
         # Task 23D: post-confidence publication funnel markdown
         pcf = d.get("post_confidence_funnel", {})
         if pcf:
-            lines.append("## Post-Confidence Publication Funnel (20-50m)")
+            lines.append("## Post-Confidence Publication Funnel (20-80m)")
             lines.append("")
-            lines.append("| Stage | 20-30m | 30-40m | 40-50m | Total |")
-            lines.append("|-------|--------|--------|--------|-------|")
+            lines.append("| Stage | 20-30m | 30-40m | 40-50m | 50-60m | 60-80m | Total |")
+            lines.append("|-------|--------|--------|--------|--------|--------|-------|")
             postconf = pcf.get("postconf", {})
             after_dedup = pcf.get("after_dedup", {})
             after_tracker = pcf.get("after_tracker", {})
@@ -896,28 +964,28 @@ class TrackDriveBenchmark:
             loss_topology = pcf.get("loss_topology", {})
             topo_interp = pcf.get("topology_interpolated", {})
             lines.append(
-                f"| Post-confidence | {postconf.get('20_30', 0)} | {postconf.get('30_40', 0)} | {postconf.get('40_50', 0)} | {postconf.get('total_20_50', 0)} |"
+                f"| Post-confidence | {postconf.get('20_30', 0)} | {postconf.get('30_40', 0)} | {postconf.get('40_50', 0)} | {postconf.get('50_60', 0)} | {postconf.get('60_80', 0)} | {postconf.get('total_20_80', 0)} |"
             )
             lines.append(
-                f"| After dedup | {after_dedup.get('20_30', 0)} | {after_dedup.get('30_40', 0)} | {after_dedup.get('40_50', 0)} | {after_dedup.get('total_20_50', 0)} |"
+                f"| After dedup | {after_dedup.get('20_30', 0)} | {after_dedup.get('30_40', 0)} | {after_dedup.get('40_50', 0)} | {after_dedup.get('50_60', 0)} | {after_dedup.get('60_80', 0)} | {after_dedup.get('total_20_80', 0)} |"
             )
             lines.append(
-                f"| Loss (dedup) | {loss_dedup.get('20_30', 0)} | {loss_dedup.get('30_40', 0)} | {loss_dedup.get('40_50', 0)} | {loss_dedup.get('total_20_50', 0)} |"
+                f"| Loss (dedup) | {loss_dedup.get('20_30', 0)} | {loss_dedup.get('30_40', 0)} | {loss_dedup.get('40_50', 0)} | {loss_dedup.get('50_60', 0)} | {loss_dedup.get('60_80', 0)} | {loss_dedup.get('total_20_80', 0)} |"
             )
             lines.append(
-                f"| After tracker | {after_tracker.get('20_30', 0)} | {after_tracker.get('30_40', 0)} | {after_tracker.get('40_50', 0)} | {after_tracker.get('total_20_50', 0)} |"
+                f"| After tracker | {after_tracker.get('20_30', 0)} | {after_tracker.get('30_40', 0)} | {after_tracker.get('40_50', 0)} | {after_tracker.get('50_60', 0)} | {after_tracker.get('60_80', 0)} | {after_tracker.get('total_20_80', 0)} |"
             )
             lines.append(
-                f"| Loss (tracker) | {loss_tracker.get('20_30', 0)} | {loss_tracker.get('30_40', 0)} | {loss_tracker.get('40_50', 0)} | {loss_tracker.get('total_20_50', 0)} |"
+                f"| Loss (tracker) | {loss_tracker.get('20_30', 0)} | {loss_tracker.get('30_40', 0)} | {loss_tracker.get('40_50', 0)} | {loss_tracker.get('50_60', 0)} | {loss_tracker.get('60_80', 0)} | {loss_tracker.get('total_20_80', 0)} |"
             )
             lines.append(
-                f"| After topology | {after_topology.get('20_30', 0)} | {after_topology.get('30_40', 0)} | {after_topology.get('40_50', 0)} | {after_topology.get('total_20_50', 0)} |"
+                f"| After topology | {after_topology.get('20_30', 0)} | {after_topology.get('30_40', 0)} | {after_topology.get('40_50', 0)} | {after_topology.get('50_60', 0)} | {after_topology.get('60_80', 0)} | {after_topology.get('total_20_80', 0)} |"
             )
             lines.append(
-                f"| Loss (topology) | {loss_topology.get('20_30', 0)} | {loss_topology.get('30_40', 0)} | {loss_topology.get('40_50', 0)} | {loss_topology.get('total_20_50', 0)} |"
+                f"| Loss (topology) | {loss_topology.get('20_30', 0)} | {loss_topology.get('30_40', 0)} | {loss_topology.get('40_50', 0)} | {loss_topology.get('50_60', 0)} | {loss_topology.get('60_80', 0)} | {loss_topology.get('total_20_80', 0)} |"
             )
             lines.append(
-                f"| Topo interpolated | {topo_interp.get('20_30', 0)} | {topo_interp.get('30_40', 0)} | {topo_interp.get('40_50', 0)} | {topo_interp.get('20_30', 0)+topo_interp.get('30_40', 0)+topo_interp.get('40_50', 0)} |"
+                f"| Topo interpolated | {topo_interp.get('20_30', 0)} | {topo_interp.get('30_40', 0)} | {topo_interp.get('40_50', 0)} | {topo_interp.get('50_60', 0)} | {topo_interp.get('60_80', 0)} | {topo_interp.get('20_30', 0)+topo_interp.get('30_40', 0)+topo_interp.get('40_50', 0)+topo_interp.get('50_60', 0)+topo_interp.get('60_80', 0)} |"
             )
             lines.append("")
         lines.append("## Performance")

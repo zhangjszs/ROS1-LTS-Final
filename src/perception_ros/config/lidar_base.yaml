@@ -165,12 +165,12 @@ roi:
     y_max: 5
   track:
     x_min: 0.1
-    x_max: 50
+    x_max: 70
     y_min: -10
     y_max: 10
   custom:
     x_min: 0.1
-    x_max: 50
+    x_max: 70
     y_min: -10
     y_max: 10
 
@@ -296,8 +296,8 @@ mode_presets:
       far_y_half: 4.0
       ramp_start_x: 15.0
     cluster:
-      distance_segments: [5.0, 10.0, 15.0, 25.0, 35.0, 50.0]
-      cluster_tolerance: [0.15, 0.3, 0.5, 0.5, 0.4, 0.3, 0.25]
+      distance_segments: [5.0, 10.0, 15.0, 25.0, 35.0, 50.0, 70.0]
+      cluster_tolerance: [0.15, 0.3, 0.5, 0.5, 0.4, 0.3, 0.3, 0.25]
   accel:
     tracker:
       enable: true
@@ -322,8 +322,8 @@ mode_presets:
       far_y_half: 1.8
       ramp_start_x: 5.0
     cluster:
-      distance_segments: [5.0, 10.0, 20.0, 35.0, 50.0, 70.0]
-      cluster_tolerance: [0.15, 0.3, 0.5, 0.4, 0.3, 0.25, 0.2]
+      distance_segments: [5.0, 10.0, 20.0, 35.0, 50.0]
+      cluster_tolerance: [0.15, 0.3, 0.5, 0.4, 0.3, 0.25]
   skidpad:
     tracker:
       enable: false
@@ -395,7 +395,7 @@ sensor_model: 32                  # velodyne product type (16/32)
 # Legacy fallback: utility.cpp still reads road_type_ in some branches.
 # Keep it consistent with roi.mode in overlays.
 road_type: 3                      # 1=skidpad, 2=accel, 3=track
-str_range: "15,30,45,60"                # 距离分段 (m)，逗号分隔
+str_range: "15,30,45,60,80"                # 距离分段 (m)，逗号分隔
 str_seg_distance: "0.5,1.1,1.6,2.1,2.6"  # 各段聚类距离 (m)，逗号分隔
 
 # ==========================
@@ -405,9 +405,9 @@ cluster:
   method: euclidean               # 聚类方法：euclidean | dbscan
 
   # 距离分段阈值 (m)，由近到远
-  distance_segments: [5.0, 10.0, 15.0, 25.0, 35.0, 50.0]
+  distance_segments: [5.0, 10.0, 15.0, 25.0, 35.0, 50.0, 70.0]
   # 各分段聚类距离阈值 (m)，数量 = distance_segments + 1
-  cluster_tolerance: [0.15, 0.3, 0.5, 0.5, 0.4, 0.3, 0.25]
+  cluster_tolerance: [0.15, 0.3, 0.5, 0.5, 0.4, 0.3, 0.3, 0.25]
 
   # 自适应聚类大小
   adaptive_size:

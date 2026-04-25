@@ -103,12 +103,18 @@ struct LidarClusterOutput {
   int far_rejected_count_for_avg = 0;
   // Task 23D: post-confidence publication funnel diagnostics
   // Counts after each post-processing stage for far-range bands (diagnostic only)
-  int postconf_20_30 = 0, postconf_30_40 = 0, postconf_40_50 = 0;
-  int after_dedup_20_30 = 0, after_dedup_30_40 = 0, after_dedup_40_50 = 0;
-  int after_tracker_20_30 = 0, after_tracker_30_40 = 0, after_tracker_40_50 = 0;
-  int after_topology_20_30 = 0, after_topology_30_40 = 0, after_topology_40_50 = 0;
-  int tracker_confirmed_20_30 = 0, tracker_confirmed_30_40 = 0, tracker_confirmed_40_50 = 0;
-  int topo_interpolated_20_30 = 0, topo_interpolated_30_40 = 0, topo_interpolated_40_50 = 0;
+  int postconf_20_30 = 0, postconf_30_40 = 0, postconf_40_50 = 0, postconf_50_60 = 0,
+      postconf_60_80 = 0;
+  int after_dedup_20_30 = 0, after_dedup_30_40 = 0, after_dedup_40_50 = 0, after_dedup_50_60 = 0,
+      after_dedup_60_80 = 0;
+  int after_tracker_20_30 = 0, after_tracker_30_40 = 0, after_tracker_40_50 = 0,
+      after_tracker_50_60 = 0, after_tracker_60_80 = 0;
+  int after_topology_20_30 = 0, after_topology_30_40 = 0, after_topology_40_50 = 0,
+      after_topology_50_60 = 0, after_topology_60_80 = 0;
+  int tracker_confirmed_20_30 = 0, tracker_confirmed_30_40 = 0, tracker_confirmed_40_50 = 0,
+      tracker_confirmed_50_60 = 0, tracker_confirmed_60_80 = 0;
+  int topo_interpolated_20_30 = 0, topo_interpolated_30_40 = 0, topo_interpolated_40_50 = 0,
+      topo_interpolated_50_60 = 0, topo_interpolated_60_80 = 0;
 };
 
 struct LidarClusterConfig {
