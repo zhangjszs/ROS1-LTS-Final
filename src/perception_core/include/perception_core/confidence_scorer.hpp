@@ -67,6 +67,24 @@ class ConfidenceScorer {
     TrackSemanticConfig track_semantic;
   };
 
+  struct ProfilingStats {
+    uint64_t fitting_calls_total = 0;  // Total calls where fitting was attempted or skipped
+    uint64_t fitting_skipped_count =
+        0;  // Calls skipped due to far-range/sparse or low-confidence rules
+    uint64_t fitting_success_count = 0;  // Calls where model fitting returned is_valid=true
+    uint64_t fitting_fail_count = 0;     // Calls where model fitting returned is_valid=false
+  };
+
+  struct ComponentScores {
+    double size_score = 0.0;
+    double shape_score = 0.0;
+    double density_score = 0.0;
+    double intensity_score = 0.0;
+    double position_score = 0.0;
+    double semantic_score = 0.0;
+    bool semantic_hard_rejected = false;  // true if semantic scoring returned sentinel -1.0
+  };
+
   ConfidenceScorer() = default;
   explicit ConfidenceScorer(const Config& config) : config_(config) {}
 
@@ -88,6 +106,25 @@ class ConfidenceScorer {
                                       const std::vector<pcl::PointXYZ>& all_centroids,
                                       int self_index);
 
+  ProfilingStats getProfilingStats() const {
+    return {fitting_calls_total_, fitting_skipped_count_, fitting_success_count_,
+            fitting_fail_count_};
+  }
+  void resetProfilingStats() {
+    fitting_calls_total_ = 0;
+    fitting_skipped_count_ = 0;
+    fitting_success_count_ = 0;
+    fitting_fail_count_ = 0;
+  }
+
+  /**
+   * @brief Compute and return per-component scores for diagnostics
+   */
+  ComponentScores computeComponentScores(const ClusterFeatures& features,
+                                         const pcl::PointCloud<PointType>::Ptr& cluster,
+                                         const std::vector<pcl::PointXYZ>& all_centroids,
+                                         int self_index);
+
  private:
   double scoreSizeConstraints(const ClusterFeatures& f);
   double scoreShapeConstraints(const ClusterFeatures& f);
@@ -100,6 +137,12 @@ class ConfidenceScorer {
 
   Config config_;
   ConeModelFitter model_fitter_;
+
+  // Profiling counters for model fitting skip optimization
+  uint64_t fitting_calls_total_ = 0;
+  uint64_t fitting_skipped_count_ = 0;
+  uint64_t fitting_success_count_ = 0;
+  uint64_t fitting_fail_count_ = 0;
 };
 
 }  // namespace perception

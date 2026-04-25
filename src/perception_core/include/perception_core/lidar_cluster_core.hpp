@@ -61,6 +61,54 @@ struct LidarClusterOutput {
   double t_ground_ms = 0.0;
   double t_cluster_ms = 0.0;
   double t_total_ms = 0.0;
+  // Per-stage pipeline statistics (populated by core, consumed by ROS wrapper diagnostics)
+  std::size_t roi_points = 0;         // Points after ROI crop
+  std::size_t roi_dropped = 0;        // Points dropped by ROI crop
+  std::size_t intensity_dropped = 0;  // Points dropped by intensity filter
+  std::size_t ground_removed = 0;     // Points classified as ground
+  std::size_t obstacle_dropped = 0;   // Points dropped by obstacle height filter
+  std::size_t clusters_far = 0;       // Clusters with centroid > 30m
+  // Confidence/Rejection diagnostics (populated by core)
+  int rejected_by_roi = 0;
+  int rejected_by_confidence = 0;
+  int rejected_by_semantic = 0;
+  int rejected_by_tracker = 0;
+  double sum_size_score = 0.0;
+  double sum_shape_score = 0.0;
+  double sum_density_score = 0.0;
+  double sum_intensity_score = 0.0;
+  double sum_position_score = 0.0;
+  double sum_semantic_score = 0.0;
+  int scored_count = 0;
+  uint64_t fitting_calls_total = 0;
+  uint64_t fitting_skipped = 0;
+  uint64_t fitting_success = 0;
+  uint64_t fitting_fail = 0;
+  int tracker_tentative = 0;
+  int tracker_confirmed = 0;
+  int tracker_deleted = 0;
+  int semantic_kills = 0;
+  // Task 23C: near-threshold diagnostic histogram for far-range (20-50m) candidates
+  // Populated by core, consumed by diagnostics. Does NOT affect threshold logic.
+  int far_candidates_total = 0;
+  int far_accepted = 0;
+  int far_rejected_by_confidence = 0;
+  int far_conf_lt_025 = 0;
+  int far_conf_025_035 = 0;
+  int far_conf_035_040 = 0;
+  int far_conf_040_045 = 0;
+  int far_conf_045_050 = 0;
+  int far_conf_gt_050 = 0;
+  double far_sum_confidence_rejected = 0.0;
+  int far_rejected_count_for_avg = 0;
+  // Task 23D: post-confidence publication funnel diagnostics
+  // Counts after each post-processing stage for far-range bands (diagnostic only)
+  int postconf_20_30 = 0, postconf_30_40 = 0, postconf_40_50 = 0;
+  int after_dedup_20_30 = 0, after_dedup_30_40 = 0, after_dedup_40_50 = 0;
+  int after_tracker_20_30 = 0, after_tracker_30_40 = 0, after_tracker_40_50 = 0;
+  int after_topology_20_30 = 0, after_topology_30_40 = 0, after_topology_40_50 = 0;
+  int tracker_confirmed_20_30 = 0, tracker_confirmed_30_40 = 0, tracker_confirmed_40_50 = 0;
+  int topo_interpolated_20_30 = 0, topo_interpolated_30_40 = 0, topo_interpolated_40_50 = 0;
 };
 
 struct LidarClusterConfig {
@@ -391,6 +439,8 @@ struct LidarClusterConfig {
     bool enable = false;
     double association_threshold = 0.5;
     int confirm_frames = 3;
+    int confirm_frames_far = 2;
+    double confirm_distance_threshold = 30.0;
     int delete_frames = 5;
     double process_noise = 0.1;
     double measurement_noise = 0.05;
@@ -474,9 +524,9 @@ class lidar_cluster {
   // filter
   void PassThrough(pcl::PointCloud<PointType>::Ptr& cloud_filtered);
   /// ROI裁剪 + 强度滤波（地面分割之前）
-  void PassThroughROI(pcl::PointCloud<PointType>::Ptr& cloud_filtered);
+  void PassThroughROI(pcl::PointCloud<PointType>::Ptr& cloud_filtered, LidarClusterOutput* output);
   /// 降采样 + SOR（地面分割之后，仅对非地面点）
-  void PostGroundFilter(pcl::PointCloud<PointType>::Ptr& cloud);
+  void PostGroundFilter(pcl::PointCloud<PointType>::Ptr& cloud, LidarClusterOutput* output);
   /// 多帧累积（远处点累积多帧提升检测率）
   void AccumulateFrames(pcl::PointCloud<PointType>::Ptr& cloud);
 

@@ -23,6 +23,7 @@ struct ClusterFeatures {
   double intensity_mean = 0.0;
   double intensity_std = 0.0;
   double intensity_max = 0.0;
+  double intensity_compensated_mean = 0.0;  // I * R^2 range-compensated intensity
 
   // Shape features (PCA-based)
   double shape_elongation = 0.0;  // ratio of eigenvalues

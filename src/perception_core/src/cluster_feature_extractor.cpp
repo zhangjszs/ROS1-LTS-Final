@@ -62,14 +62,20 @@ void ClusterFeatureExtractor::computeIntensityFeatures(
 
   double sum = 0.0;
   double max_intensity = 0.0;
+  double sum_compensated = 0.0;
 
   for (const auto& pt : cluster->points) {
     sum += pt.intensity;
     max_intensity = std::max(max_intensity, static_cast<double>(pt.intensity));
+
+    // Range-compensated intensity: I * R^2 (SOTA for retroreflective cone detection)
+    float range_sq = pt.x * pt.x + pt.y * pt.y + pt.z * pt.z;
+    sum_compensated += pt.intensity * static_cast<double>(range_sq);
   }
 
   features.intensity_mean = sum / cluster->points.size();
   features.intensity_max = max_intensity;
+  features.intensity_compensated_mean = sum_compensated / cluster->points.size();
 
   double variance = 0.0;
   for (const auto& pt : cluster->points) {

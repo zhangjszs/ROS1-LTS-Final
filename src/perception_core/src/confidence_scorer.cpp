@@ -12,6 +12,10 @@ void ConfidenceScorer::setConfig(const Config& config) {
   // Configure model fitter
   ConeModelFitter::Config fitter_config;
   fitter_config.enable = config.enable_model_fitting;
+  fitter_config.ransac_iterations = 100;
+  fitter_config.min_points_for_fitting = 5;
+  fitter_config.use_pca_axis_check = true;
+  fitter_config.use_least_squares_refinement = true;
   model_fitter_.setConfig(fitter_config);
 }
 
@@ -40,16 +44,43 @@ double ConfidenceScorer::computeConfidenceWithFitting(
   double confidence = computeConfidence(features);
 
   // Apply model fitting if enabled
-  if (config_.enable_model_fitting && cluster && features.point_count >= 8) {
+  // Lowered threshold from 8 to 5: SOTA 3D cone fitting (PCA + LS) works with sparse clusters
+  if (config_.enable_model_fitting && cluster && features.point_count >= 5) {
+    fitting_calls_total_++;
+
+    // Skip model fitting for far sparse clusters or very low base confidence
+    bool skip_far_sparse = (features.distance_to_sensor > 30.0 && features.point_count < 8);
+    bool skip_low_confidence = (confidence < 0.25);
+    if (skip_far_sparse || skip_low_confidence) {
+      fitting_skipped_count_++;
+      return std::max(0.0, std::min(1.0, confidence));
+    }
+
     ConeModelFitter::FitResult fit = model_fitter_.fitConeModel(cluster);
 
     if (fit.is_valid) {
-      // Good fit: boost confidence
+      fitting_success_count_++;
+      // Good fit: boost confidence based on 3D geometric error and cone angle consistency
       double fit_quality = 1.0 - std::min(1.0, fit.fit_error);
-      confidence += config_.model_fit_bonus * fit_quality;
+
+      // Bonus for cone angle close to expected (~17.6 deg for FS standard cone)
+      double angle_quality = 1.0;
+      if (fit.cone_angle > 1e-6) {
+        double expected = 0.307;  // ~17.6 degrees
+        double angle_diff = std::fabs(fit.cone_angle - expected);
+        angle_quality = std::max(0.0, 1.0 - angle_diff / 0.209);  // tolerance ~12 deg
+      }
+
+      double combined_quality = 0.7 * fit_quality + 0.3 * angle_quality;
+      confidence += config_.model_fit_bonus * combined_quality;
     } else {
-      // Failed to fit cone model: penalize
-      confidence -= config_.model_fit_penalty;
+      fitting_fail_count_++;
+      // Failed to fit cone model: penalize (but less aggressively for sparse clusters)
+      double penalty = config_.model_fit_penalty;
+      if (features.point_count < 8) {
+        penalty *= 0.3;  // Reduce penalty for sparse clusters where fitting is harder
+      }
+      confidence -= penalty;
     }
   }
 
@@ -124,11 +155,31 @@ double ConfidenceScorer::scoreDensityConstraints(const ClusterFeatures& f) {
 }
 
 double ConfidenceScorer::scoreIntensityConstraints(const ClusterFeatures& f) {
-  double score = 1.0;
-
-  if (f.intensity_mean < config_.min_intensity_mean) {
-    score -= 0.15;
+  // 比例评分：强度越高分数越高，而非简单的二元阈值
+  double ratio = f.intensity_mean / config_.min_intensity_mean;
+  double raw_score = std::min(1.0, ratio);
+  // 低于阈值的额外惩罚
+  if (ratio < 1.0) {
+    raw_score *= 0.85;
   }
+
+  // Range-compensated intensity bonus (I * R^2)
+  // SOTA: distance-invariant retroreflector detection (Heinzler et al. 2019)
+  // Helps detect distant cones that would otherwise fall below raw threshold
+  double comp_threshold = config_.min_intensity_mean * 100.0;  // Reference at ~10m
+  double comp_ratio = f.intensity_compensated_mean / comp_threshold;
+  double comp_score = std::min(1.0, comp_ratio);
+  if (comp_ratio < 1.0) {
+    comp_score *= 0.85;
+  }
+
+  // Blend: raw intensity is primary, compensated provides distance-invariant consistency
+  // Weight toward compensated at longer distances where raw intensity attenuates
+  double comp_weight = 0.3;
+  if (f.distance_to_sensor > 15.0) {
+    comp_weight = 0.5;  // At far range, compensated is more reliable
+  }
+  double score = (1.0 - comp_weight) * raw_score + comp_weight * comp_score;
 
   return std::max(0.0, score);
 }
@@ -239,6 +290,34 @@ double ConfidenceScorer::computeConfidenceWithContext(
   }
 
   return std::max(0.0, std::min(1.0, confidence));
+}
+
+ConfidenceScorer::ComponentScores ConfidenceScorer::computeComponentScores(
+    const ClusterFeatures& features, const pcl::PointCloud<PointType>::Ptr& cluster,
+    const std::vector<pcl::PointXYZ>& all_centroids, int self_index) {
+  ComponentScores scores;
+  if (features.point_count < 1) {
+    return scores;
+  }
+
+  scores.size_score = scoreSizeConstraints(features);
+  scores.shape_score = scoreShapeConstraints(features);
+  scores.density_score = scoreDensityConstraints(features);
+  scores.intensity_score = scoreIntensityConstraints(features);
+  scores.position_score = scorePositionConstraints(features);
+
+  if (config_.track_semantic.enable && self_index >= 0 &&
+      self_index < static_cast<int>(all_centroids.size())) {
+    double s = scoreTrackSemanticConstraints(all_centroids[self_index], all_centroids, self_index);
+    if (s < 0.0) {
+      scores.semantic_hard_rejected = true;
+      scores.semantic_score = 0.0;
+    } else {
+      scores.semantic_score = s;
+    }
+  }
+
+  return scores;
 }
 
 }  // namespace perception

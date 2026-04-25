@@ -291,6 +291,8 @@ void lidar_cluster::Configure(const LidarClusterConfig& config) {
     perception::ConeTracker::Config tracker_config;
     tracker_config.association_threshold = config.tracker.association_threshold;
     tracker_config.confirm_frames = config.tracker.confirm_frames;
+    tracker_config.confirm_frames_far = config.tracker.confirm_frames_far;
+    tracker_config.confirm_distance_threshold = config.tracker.confirm_distance_threshold;
     tracker_config.delete_frames = config.tracker.delete_frames;
     tracker_config.process_noise = config.tracker.process_noise;
     tracker_config.measurement_noise = config.tracker.measurement_noise;
@@ -582,10 +584,17 @@ voxel_filter:
 }
 
 // ROI裁剪 + 强度滤波（地面分割之前，保留原始点云密度）
-void lidar_cluster::PassThroughROI(pcl::PointCloud<PointType>::Ptr& cloud_filtered) {
+void lidar_cluster::PassThroughROI(pcl::PointCloud<PointType>::Ptr& cloud_filtered,
+                                   LidarClusterOutput* output) {
   // 0. 强度滤波（可选，最先执行以去除弱反射噪声）
   if (filters_.intensity.enable) {
+    const size_t before_intensity = cloud_filtered->points.size();
     IntensityFilter(cloud_filtered, filters_.intensity.min_intensity);
+    if (output) {
+      output->intensity_dropped = before_intensity - cloud_filtered->points.size();
+    }
+  } else if (output) {
+    output->intensity_dropped = 0;
   }
 
   // 1. Z轴裁剪 + ROI裁剪
@@ -652,13 +661,20 @@ void lidar_cluster::PassThroughROI(pcl::PointCloud<PointType>::Ptr& cloud_filter
 
 // 降采样 + SOR（地面分割之后，仅对非地面点）
 // 目的：减少聚类计算量，同时不影响地面分割精度
-void lidar_cluster::PostGroundFilter(pcl::PointCloud<PointType>::Ptr& cloud) {
-  if (!cloud || cloud->points.empty())
+void lidar_cluster::PostGroundFilter(pcl::PointCloud<PointType>::Ptr& cloud,
+                                     LidarClusterOutput* output) {
+  if (!cloud || cloud->points.empty()) {
+    if (output) {
+      output->obstacle_dropped = 0;
+    }
     return;
+  }
 
   // 0. 柱状障碍物滤波：基于局部z跨度去除树/墙壁
   //    将xy平面划分为2D栅格，z跨度过大的栅格视为高大障碍物
+  size_t obstacle_dropped = 0;
   if (filters_.obstacle_height.enable) {
+    const size_t before_obstacle = cloud->points.size();
     const double gs = filters_.obstacle_height.grid_size;
     const double max_span = filters_.obstacle_height.max_z_span;
     const int min_pts = filters_.obstacle_height.min_points_to_judge;
@@ -715,6 +731,10 @@ void lidar_cluster::PostGroundFilter(pcl::PointCloud<PointType>::Ptr& cloud) {
     filtered->height = 1;
     filtered->is_dense = cloud->is_dense;
     cloud.swap(filtered);
+    obstacle_dropped = before_obstacle - cloud->points.size();
+  }
+  if (output) {
+    output->obstacle_dropped = obstacle_dropped;
   }
 
   // 1. 体素降采样
@@ -1151,6 +1171,31 @@ void lidar_cluster::clusterMethod32(LidarClusterOutput* output) {
   // 预估最终点云大小（假设平均每个聚类10个点）
   output->cones_cloud->points.reserve(total_clusters * 10);
 
+  // Reset per-frame diagnostics
+  output->rejected_by_roi = 0;
+  output->rejected_by_confidence = 0;
+  output->rejected_by_semantic = 0;
+  output->sum_size_score = 0.0;
+  output->sum_shape_score = 0.0;
+  output->sum_density_score = 0.0;
+  output->sum_intensity_score = 0.0;
+  output->sum_position_score = 0.0;
+  output->sum_semantic_score = 0.0;
+  output->scored_count = 0;
+  output->semantic_kills = 0;
+  // Task 23C: reset near-threshold diagnostics
+  output->far_candidates_total = 0;
+  output->far_accepted = 0;
+  output->far_rejected_by_confidence = 0;
+  output->far_conf_lt_025 = 0;
+  output->far_conf_025_035 = 0;
+  output->far_conf_035_040 = 0;
+  output->far_conf_040_045 = 0;
+  output->far_conf_045_050 = 0;
+  output->far_conf_gt_050 = 0;
+  output->far_sum_confidence_rejected = 0.0;
+  output->far_rejected_count_for_avg = 0;
+
   for (size_t i = 0; i < cluster_indices.size(); ++i) {
     for (const auto& indices : cluster_indices[i]) {
       pcl::PointCloud<PointType>::Ptr cloud_cluster(new pcl::PointCloud<PointType>);
@@ -1220,6 +1265,53 @@ void lidar_cluster::clusterMethod32(LidarClusterOutput* output) {
       }
       bool is_cone = (confidence > min_conf);
 
+      // Track rejection reasons
+      if (roi_rejected) {
+        output->rejected_by_roi++;
+      } else if (confidence <= min_conf) {
+        output->rejected_by_confidence++;
+      }
+
+      // Task 23C: far-range (20-50m) near-threshold diagnostic histogram
+      // Does NOT affect threshold logic; purely for offline analysis.
+      if (!roi_rejected && euc > 20.0 && euc <= 50.0) {
+        output->far_candidates_total++;
+        if (is_cone) {
+          output->far_accepted++;
+        } else {
+          output->far_rejected_by_confidence++;
+          output->far_sum_confidence_rejected += confidence;
+          output->far_rejected_count_for_avg++;
+        }
+        // Bucket confidence regardless of accept/reject
+        if (confidence < 0.25) {
+          output->far_conf_lt_025++;
+        } else if (confidence < 0.35) {
+          output->far_conf_025_035++;
+        } else if (confidence < 0.40) {
+          output->far_conf_035_040++;
+        } else if (confidence < 0.45) {
+          output->far_conf_040_045++;
+        } else if (confidence < 0.50) {
+          output->far_conf_045_050++;
+        } else {
+          output->far_conf_gt_050++;
+        }
+      }
+
+      // Collect component scores for diagnostics (only if not ROI-rejected)
+      if (!roi_rejected && cloud_cluster && !cloud_cluster->points.empty()) {
+        perception::ClusterFeatures features = feature_extractor_.extract(cloud_cluster);
+        auto scores = confidence_scorer_.computeComponentScores(features, cloud_cluster,
+                                                                std::vector<pcl::PointXYZ>(), -1);
+        output->sum_size_score += scores.size_score;
+        output->sum_shape_score += scores.shape_score;
+        output->sum_density_score += scores.density_score;
+        output->sum_intensity_score += scores.intensity_score;
+        output->sum_position_score += scores.position_score;
+        output->scored_count++;
+      }
+
       ConeDetection det;
       det.min = pcl::PointXYZ(_min.x, _min.y, _min.z);
       det.max = pcl::PointXYZ(_max.x, _max.y, _max.z);
@@ -1256,11 +1348,17 @@ void lidar_cluster::clusterMethod32(LidarClusterOutput* output) {
       all_centroids.push_back(det.centroid);
     }
 
-    // Re-score each cone with neighbor context
+    // Re-score each cone with neighbor context and collect semantic scores
     for (size_t i = 0; i < output->cones.size(); ++i) {
       auto& det = output->cones[i];
       if (det.cluster) {
         perception::ClusterFeatures features = feature_extractor_.extract(det.cluster);
+        auto scores = confidence_scorer_.computeComponentScores(features, det.cluster,
+                                                                all_centroids, static_cast<int>(i));
+        output->sum_semantic_score += scores.semantic_score;
+        if (scores.semantic_hard_rejected) {
+          output->semantic_kills++;
+        }
         det.confidence = confidence_scorer_.computeConfidenceWithContext(
             features, det.cluster, all_centroids, static_cast<int>(i));
       }
@@ -1291,6 +1389,8 @@ void lidar_cluster::clusterMethod32(LidarClusterOutput* output) {
                                    det.cluster->points.end());
         }
         filtered.push_back(std::move(det));
+      } else {
+        output->rejected_by_semantic++;
       }
     }
 
@@ -1300,6 +1400,13 @@ void lidar_cluster::clusterMethod32(LidarClusterOutput* output) {
     new_cloud->is_dense = g_not_ground_pc->is_dense;
     output->cones_cloud = new_cloud;
   }
+
+  // Capture model fitting stats
+  auto fit_stats = confidence_scorer_.getProfilingStats();
+  output->fitting_calls_total = fit_stats.fitting_calls_total;
+  output->fitting_skipped = fit_stats.fitting_skipped_count;
+  output->fitting_success = fit_stats.fitting_success_count;
+  output->fitting_fail = fit_stats.fitting_fail_count;
 }
 
 void lidar_cluster::clusterMethod16(LidarClusterOutput* output) {

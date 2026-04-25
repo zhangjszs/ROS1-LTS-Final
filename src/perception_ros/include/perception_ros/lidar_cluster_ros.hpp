@@ -149,7 +149,15 @@ class LidarClusterRos {
   std::atomic<uint64_t> input_guard_drop_all_invalid_{0};
   std::atomic<uint64_t> input_guard_filtered_frames_{0};
   std::atomic<uint64_t> input_guard_filtered_points_total_{0};
-  bool force_fgs_fast_path_ = true;       // T30-2: 锁定FGS快路径
+  // Per-stage pipeline statistics counters (published via diagnostics)
+  std::atomic<uint64_t> stage_input_points_total_{0};
+  std::atomic<uint64_t> stage_roi_points_total_{0};
+  std::atomic<uint64_t> stage_roi_dropped_total_{0};
+  std::atomic<uint64_t> stage_intensity_dropped_total_{0};
+  std::atomic<uint64_t> stage_ground_removed_total_{0};
+  std::atomic<uint64_t> stage_obstacle_dropped_total_{0};
+  std::atomic<uint64_t> stage_clusters_total_total_{0};
+  std::atomic<uint64_t> stage_clusters_far_total_{0};
   bool ground_watchdog_enable_ = true;    // T30-2: 地面分割看门狗
   double ground_watchdog_warn_ms_ = 8.0;  // T30-2: t_ground_ms告警阈值
   int ground_watchdog_warn_frames_ = 5;   // T30-2: 连续超阈值帧数
@@ -183,6 +191,25 @@ class LidarClusterRos {
   int consecutive_normal_frames_ = 0;     // 连续正常帧计数（用于恢复）
   double diag_latency_warn_ms_ = 15.0;    // 延迟告警阈值
   double stamp_max_drift_sec_ = 1.0;      // stamp 与接收时间最大允许偏差 [s]
+
+  // ── Confidence/Rejection Diagnostics ────────────────────────────
+  // Per-frame rejection tallies (reset each frame)
+  int diag_rejected_by_roi_ = 0;
+  int diag_rejected_by_confidence_ = 0;
+  int diag_rejected_by_semantic_ = 0;
+  int diag_rejected_by_tracker_ = 0;
+  // Accumulated component score sums for averaging
+  double diag_sum_size_score_ = 0.0;
+  double diag_sum_shape_score_ = 0.0;
+  double diag_sum_density_score_ = 0.0;
+  double diag_sum_intensity_score_ = 0.0;
+  double diag_sum_position_score_ = 0.0;
+  double diag_sum_semantic_score_ = 0.0;
+  int diag_scored_count_ = 0;  // number of clusters that went through component scoring
+  // Tracker stats snapshot
+  int diag_tracker_tentative_ = 0;
+  int diag_tracker_confirmed_ = 0;
+  int diag_tracker_deleted_ = 0;
 
   // ── Debug visualization ───────────────────────────────────────
   bool debug_publish_markers_ = false;  // G6: 调试标记发布开关

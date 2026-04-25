@@ -294,17 +294,8 @@ void LidarClusterRos::loadParams() {
   if (!private_nh_.param<int>("road_type", config_.road_type, 2)) {
     ROS_DEBUG_STREAM("Did not load road_type. Standard value is: " << config_.road_type);
   }
-  if (!private_nh_.param<std::string>("ground_method", config_.ground_method, "ransac")) {
+  if (!private_nh_.param<std::string>("ground_method", config_.ground_method, "fgs")) {
     ROS_DEBUG_STREAM("Did not load ground_method. Standard value is: " << config_.ground_method);
-  }
-  if (!private_nh_.param<bool>("force_fgs_fast_path", force_fgs_fast_path_, true)) {
-    ROS_DEBUG_STREAM(
-        "Did not load force_fgs_fast_path. Standard value is: " << force_fgs_fast_path_);
-  }
-  if (force_fgs_fast_path_ && config_.ground_method != "fgs") {
-    ROS_WARN_STREAM("force_fgs_fast_path enabled: override ground_method from "
-                    << config_.ground_method << " to fgs");
-    config_.ground_method = "fgs";
   }
   if (!private_nh_.param<bool>("ground_watchdog/enable", ground_watchdog_enable_, true)) {
     ROS_DEBUG_STREAM(
@@ -413,33 +404,9 @@ void LidarClusterRos::loadParams() {
     ROS_DEBUG_STREAM("Did not load filters/sor/stddev_mul. Standard value is: "
                      << config_.filters.sor.stddev_mul);
   }
-  if (!private_nh_.param<bool>("filters/voxel/enable", config_.filters.voxel.enable, true)) {
-    ROS_DEBUG_STREAM(
-        "Did not load filters/voxel/enable. Standard value is: " << config_.filters.voxel.enable);
-  }
-  if (!private_nh_.param<double>("filters/voxel/leaf_size", config_.filters.voxel.leaf_size,
-                                 0.05)) {
-    ROS_DEBUG_STREAM("Did not load filters/voxel/leaf_size. Standard value is: "
-                     << config_.filters.voxel.leaf_size);
-  }
-  if (!private_nh_.param<bool>("filters/adaptive_voxel/enable",
-                               config_.filters.adaptive_voxel.enable, false)) {
-    ROS_DEBUG_STREAM("Did not load filters/adaptive_voxel/enable. Standard value is: "
-                     << config_.filters.adaptive_voxel.enable);
-  }
-  if (!private_nh_.param<double>("filters/adaptive_voxel/leaf_size",
-                                 config_.filters.adaptive_voxel.leaf_size, 0.1)) {
-    ROS_DEBUG_STREAM("Did not load filters/adaptive_voxel/leaf_size. Standard value is: "
-                     << config_.filters.adaptive_voxel.leaf_size);
-  }
-  if (!private_nh_.param<int>("filters/adaptive_voxel/density_thr",
-                              config_.filters.adaptive_voxel.density_thr, 50)) {
-    ROS_DEBUG_STREAM("Did not load filters/adaptive_voxel/density_thr. Standard value is: "
-                     << config_.filters.adaptive_voxel.density_thr);
-  }
-  // 距离自适应体素滤波参数
+  // 距离自适应体素滤波参数（唯一体素滤波路径）
   if (!private_nh_.param<bool>("filters/distance_adaptive_voxel/enable",
-                               config_.filters.distance_adaptive_voxel.enable, false)) {
+                               config_.filters.distance_adaptive_voxel.enable, true)) {
     ROS_DEBUG_STREAM("Did not load filters/distance_adaptive_voxel/enable. Standard value is: "
                      << config_.filters.distance_adaptive_voxel.enable);
   }
@@ -495,7 +462,8 @@ void LidarClusterRos::loadParams() {
   private_nh_.param<int>("fgs/num_bins", config_.fgs.num_bins, 80);
   private_nh_.param<double>("fgs/max_range", config_.fgs.max_range, 80.0);
   private_nh_.param<double>("fgs/min_range", config_.fgs.min_range, 0.1);
-  private_nh_.param<double>("fgs/sensor_height", config_.fgs.sensor_height, 0.135);
+  // fgs/sensor_height inherits top-level sensor_height if not explicitly set
+  private_nh_.param<double>("fgs/sensor_height", config_.fgs.sensor_height, config_.sensor_height);
   private_nh_.param<double>("fgs/th_ground", config_.fgs.th_ground, 0.08);
   private_nh_.param<double>("fgs/th_ground_far", config_.fgs.th_ground_far, 0.15);
   private_nh_.param<double>("fgs/far_distance", config_.fgs.far_distance, 20.0);
@@ -768,7 +736,7 @@ void LidarClusterRos::loadParams() {
   }
   // 多帧累积参数
   if (!private_nh_.param<bool>("cluster/multi_frame/enable", config_.cluster.multi_frame.enable,
-                               true)) {
+                               false)) {
     ROS_DEBUG_STREAM("Did not load cluster/multi_frame/enable. Standard value is: "
                      << config_.cluster.multi_frame.enable);
   }
@@ -945,6 +913,9 @@ void LidarClusterRos::loadParams() {
   private_nh_.param<double>("tracker/association_threshold", config_.tracker.association_threshold,
                             0.5);
   private_nh_.param<int>("tracker/confirm_frames", config_.tracker.confirm_frames, 3);
+  private_nh_.param<int>("tracker/confirm_frames_far", config_.tracker.confirm_frames_far, 2);
+  private_nh_.param<double>("tracker/confirm_distance_threshold",
+                            config_.tracker.confirm_distance_threshold, 30.0);
   private_nh_.param<int>("tracker/delete_frames", config_.tracker.delete_frames, 5);
   private_nh_.param<double>("tracker/process_noise", config_.tracker.process_noise, 0.1);
   private_nh_.param<double>("tracker/measurement_noise", config_.tracker.measurement_noise, 0.05);
@@ -1028,7 +999,7 @@ void LidarClusterRos::loadParams() {
            config_.filters.obstacle_height.min_points_to_judge,
            config_.filters.obstacle_height.min_distance);
   ROS_INFO("cluster/method: %s", config_.cluster.method.c_str());
-  ROS_INFO("force_fgs_fast_path: %s", force_fgs_fast_path_ ? "on" : "off");
+  ROS_INFO("ground_method: %s (FGS is the sole supported path)", config_.ground_method.c_str());
   ROS_INFO("ground_watchdog: %s (warn_ms=%.3f, consecutive=%d)",
            ground_watchdog_enable_ ? "on" : "off", ground_watchdog_warn_ms_,
            ground_watchdog_warn_frames_);
@@ -1441,6 +1412,17 @@ void LidarClusterRos::publishOutput(const LidarClusterOutput& output) {
   }
 
   const int n_published = static_cast<int>(detections.points.size());
+
+  // Accumulate per-stage pipeline statistics for diagnostics
+  stage_input_points_total_.fetch_add(output.input_points, std::memory_order_relaxed);
+  stage_roi_points_total_.fetch_add(output.roi_points, std::memory_order_relaxed);
+  stage_roi_dropped_total_.fetch_add(output.roi_dropped, std::memory_order_relaxed);
+  stage_intensity_dropped_total_.fetch_add(output.intensity_dropped, std::memory_order_relaxed);
+  stage_ground_removed_total_.fetch_add(output.ground_removed, std::memory_order_relaxed);
+  stage_obstacle_dropped_total_.fetch_add(output.obstacle_dropped, std::memory_order_relaxed);
+  stage_clusters_total_total_.fetch_add(output.total_clusters, std::memory_order_relaxed);
+  stage_clusters_far_total_.fetch_add(output.clusters_far, std::memory_order_relaxed);
+
   updateHealthState(n_published, output.t_total_ms);
   publishDiagnostics(output, n_published);
   publishDebugMarkers(output);
@@ -1604,6 +1586,18 @@ void LidarClusterRos::publishDiagnostics(const LidarClusterOutput& output, int n
     kvs.push_back(DH::KV("input_guard_drop_ratio", std::to_string(drop_ratio)));
   }
 
+  // Per-stage pipeline statistics (per-frame values from current output)
+  {
+    kvs.push_back(DH::KV("stage_input_points", std::to_string(output.input_points)));
+    kvs.push_back(DH::KV("stage_roi_points", std::to_string(output.roi_points)));
+    kvs.push_back(DH::KV("stage_roi_dropped", std::to_string(output.roi_dropped)));
+    kvs.push_back(DH::KV("stage_intensity_dropped", std::to_string(output.intensity_dropped)));
+    kvs.push_back(DH::KV("stage_ground_removed", std::to_string(output.ground_removed)));
+    kvs.push_back(DH::KV("stage_obstacle_dropped", std::to_string(output.obstacle_dropped)));
+    kvs.push_back(DH::KV("stage_clusters_total", std::to_string(output.total_clusters)));
+    kvs.push_back(DH::KV("stage_clusters_far", std::to_string(output.clusters_far)));
+  }
+
   // B12: Per-distance confidence segmentation (quality indicator)
   // Segments: near (<ramp_start), mid (ramp_start~ramp_end), far (>ramp_end)
   // Tracks detection count and average confidence per segment
@@ -1688,6 +1682,85 @@ void LidarClusterRos::publishDiagnostics(const LidarClusterOutput& output, int n
     kvs.push_back(
         DH::KV("fusion_camera_info_ready", fusion_last_camera_info_available_ ? "1" : "0"));
     kvs.push_back(DH::KV("fusion_tf_available", fusion_last_tf_available_ ? "1" : "0"));
+  }
+
+  // Confidence sub-component averages and rejection reason tallies
+  {
+    kvs.push_back(DH::KV("rejected_by_roi", std::to_string(output.rejected_by_roi)));
+    kvs.push_back(DH::KV("rejected_by_confidence", std::to_string(output.rejected_by_confidence)));
+    kvs.push_back(DH::KV("rejected_by_semantic", std::to_string(output.rejected_by_semantic)));
+    kvs.push_back(DH::KV("rejected_by_tracker", std::to_string(output.rejected_by_tracker)));
+    int scored = output.scored_count;
+    kvs.push_back(DH::KV("scored_count", std::to_string(scored)));
+    kvs.push_back(DH::KV("avg_size_score",
+                         scored > 0 ? std::to_string(output.sum_size_score / scored) : "0"));
+    kvs.push_back(DH::KV("avg_shape_score",
+                         scored > 0 ? std::to_string(output.sum_shape_score / scored) : "0"));
+    kvs.push_back(DH::KV("avg_density_score",
+                         scored > 0 ? std::to_string(output.sum_density_score / scored) : "0"));
+    kvs.push_back(DH::KV("avg_intensity_score",
+                         scored > 0 ? std::to_string(output.sum_intensity_score / scored) : "0"));
+    kvs.push_back(DH::KV("avg_position_score",
+                         scored > 0 ? std::to_string(output.sum_position_score / scored) : "0"));
+    int semantic_scored = output.scored_count;  // semantic scored on same set
+    kvs.push_back(DH::KV(
+        "avg_semantic_score",
+        semantic_scored > 0 ? std::to_string(output.sum_semantic_score / semantic_scored) : "0"));
+    kvs.push_back(DH::KV("semantic_kills", std::to_string(output.semantic_kills)));
+    // Task 23C: far-range (20-50m) near-threshold diagnostics
+    {
+      kvs.push_back(DH::KV("far_candidates_total", std::to_string(output.far_candidates_total)));
+      kvs.push_back(DH::KV("far_accepted", std::to_string(output.far_accepted)));
+      kvs.push_back(
+          DH::KV("far_rejected_by_confidence", std::to_string(output.far_rejected_by_confidence)));
+      kvs.push_back(DH::KV("far_conf_lt_025", std::to_string(output.far_conf_lt_025)));
+      kvs.push_back(DH::KV("far_conf_025_035", std::to_string(output.far_conf_025_035)));
+      kvs.push_back(DH::KV("far_conf_035_040", std::to_string(output.far_conf_035_040)));
+      kvs.push_back(DH::KV("far_conf_040_045", std::to_string(output.far_conf_040_045)));
+      kvs.push_back(DH::KV("far_conf_045_050", std::to_string(output.far_conf_045_050)));
+      kvs.push_back(DH::KV("far_conf_gt_050", std::to_string(output.far_conf_gt_050)));
+      kvs.push_back(
+          DH::KV("far_avg_conf_rejected", output.far_rejected_count_for_avg > 0
+                                              ? std::to_string(output.far_sum_confidence_rejected /
+                                                               output.far_rejected_count_for_avg)
+                                              : "0"));
+    }
+    // Model fitting stats
+    kvs.push_back(DH::KV("fitting_calls_total", std::to_string(output.fitting_calls_total)));
+    kvs.push_back(DH::KV("fitting_skipped", std::to_string(output.fitting_skipped)));
+    kvs.push_back(DH::KV("fitting_success", std::to_string(output.fitting_success)));
+    kvs.push_back(DH::KV("fitting_fail", std::to_string(output.fitting_fail)));
+    // Tracker stats
+    kvs.push_back(DH::KV("tracker_tentative", std::to_string(output.tracker_tentative)));
+    kvs.push_back(DH::KV("tracker_confirmed", std::to_string(output.tracker_confirmed)));
+    kvs.push_back(DH::KV("tracker_deleted", std::to_string(output.tracker_deleted)));
+    // Task 23D: post-confidence publication funnel
+    {
+      kvs.push_back(DH::KV("postconf_20_30", std::to_string(output.postconf_20_30)));
+      kvs.push_back(DH::KV("postconf_30_40", std::to_string(output.postconf_30_40)));
+      kvs.push_back(DH::KV("postconf_40_50", std::to_string(output.postconf_40_50)));
+      kvs.push_back(DH::KV("after_dedup_20_30", std::to_string(output.after_dedup_20_30)));
+      kvs.push_back(DH::KV("after_dedup_30_40", std::to_string(output.after_dedup_30_40)));
+      kvs.push_back(DH::KV("after_dedup_40_50", std::to_string(output.after_dedup_40_50)));
+      kvs.push_back(DH::KV("after_tracker_20_30", std::to_string(output.after_tracker_20_30)));
+      kvs.push_back(DH::KV("after_tracker_30_40", std::to_string(output.after_tracker_30_40)));
+      kvs.push_back(DH::KV("after_tracker_40_50", std::to_string(output.after_tracker_40_50)));
+      kvs.push_back(DH::KV("after_topology_20_30", std::to_string(output.after_topology_20_30)));
+      kvs.push_back(DH::KV("after_topology_30_40", std::to_string(output.after_topology_30_40)));
+      kvs.push_back(DH::KV("after_topology_40_50", std::to_string(output.after_topology_40_50)));
+      kvs.push_back(
+          DH::KV("tracker_confirmed_20_30", std::to_string(output.tracker_confirmed_20_30)));
+      kvs.push_back(
+          DH::KV("tracker_confirmed_30_40", std::to_string(output.tracker_confirmed_30_40)));
+      kvs.push_back(
+          DH::KV("tracker_confirmed_40_50", std::to_string(output.tracker_confirmed_40_50)));
+      kvs.push_back(
+          DH::KV("topo_interpolated_20_30", std::to_string(output.topo_interpolated_20_30)));
+      kvs.push_back(
+          DH::KV("topo_interpolated_30_40", std::to_string(output.topo_interpolated_30_40)));
+      kvs.push_back(
+          DH::KV("topo_interpolated_40_50", std::to_string(output.topo_interpolated_40_50)));
+    }
   }
 
   diag_helper_.PublishStatus("perception_lidar", "perception_ros/lidar_cluster", level, msg, kvs,

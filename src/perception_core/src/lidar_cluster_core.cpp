@@ -15,6 +15,16 @@ std::string num2Str(const Type value, unsigned int precision) {
   return out.str();
 }
 
+// Task 23D: helper to count cones by far-range distance bands
+inline void countFarBands(const ConeDetection& det, int& b20_30, int& b30_40, int& b40_50) {
+  if (det.distance > 20.0 && det.distance <= 30.0)
+    ++b20_30;
+  else if (det.distance > 30.0 && det.distance <= 40.0)
+    ++b30_40;
+  else if (det.distance > 40.0 && det.distance <= 50.0)
+    ++b40_50;
+}
+
 }  // namespace
 
 lidar_cluster::lidar_cluster() {
@@ -58,29 +68,43 @@ bool lidar_cluster::Process(LidarClusterOutput* output) {
     return false;
   }
 
+  // Task 23D: reset post-confidence funnel diagnostics
+  output->postconf_20_30 = output->postconf_30_40 = output->postconf_40_50 = 0;
+  output->after_dedup_20_30 = output->after_dedup_30_40 = output->after_dedup_40_50 = 0;
+  output->after_tracker_20_30 = output->after_tracker_30_40 = output->after_tracker_40_50 = 0;
+  output->after_topology_20_30 = output->after_topology_30_40 = output->after_topology_40_50 = 0;
+  output->tracker_confirmed_20_30 = output->tracker_confirmed_30_40 =
+      output->tracker_confirmed_40_50 = 0;
+  output->topo_interpolated_20_30 = output->topo_interpolated_30_40 =
+      output->topo_interpolated_40_50 = 0;
+
   std::unique_lock<std::mutex> lock(lidar_mutex);
   const size_t input_points = current_pc_ptr->points.size();
 
   // ===== 新流水线 =====
   // ① ROI裁剪 + 强度滤波（保留原始点云密度）
   auto startTimePassThrough = std::chrono::steady_clock::now();
-  PassThroughROI(current_pc_ptr);
+  PassThroughROI(current_pc_ptr, output);
   cloud_filtered = current_pc_ptr;
   auto endTimePassThrough = std::chrono::steady_clock::now();
   auto elapsedTimePassThrough = std::chrono::duration_cast<std::chrono::microseconds>(
       endTimePassThrough - startTimePassThrough);
 
   output->passthrough = cloud_filtered;
+  output->roi_points = cloud_filtered->points.size();
+  output->roi_dropped = input_points - output->roi_points;
 
   // ② 地面分割（在原始密度点云上做，避免体素质心污染 min_z）
   auto startTimeSeg = std::chrono::steady_clock::now();
+  const size_t pre_ground_size = cloud_filtered->points.size();
   ground_segmentation_dispatch_(cloud_filtered, g_not_ground_pc);
   auto endTimeSeg = std::chrono::steady_clock::now();
   auto elapsedTimeSeg =
       std::chrono::duration_cast<std::chrono::microseconds>(endTimeSeg - startTimeSeg);
+  output->ground_removed = pre_ground_size - g_not_ground_pc->points.size();
 
   // ③ 降采样 + SOR（仅对非地面点，减少聚类计算量）
-  PostGroundFilter(g_not_ground_pc);
+  PostGroundFilter(g_not_ground_pc, output);
 
   // ④ 多帧累积（远处点累积多帧提升检测率）
   AccumulateFrames(g_not_ground_pc);
@@ -100,9 +124,20 @@ bool lidar_cluster::Process(LidarClusterOutput* output) {
   const std::size_t cluster_count = last_cluster_count_;
   lock.unlock();
 
+  // Task 23D: count post-confidence candidates (funnel entry)
+  for (const auto& cone : output->cones) {
+    countFarBands(cone, output->postconf_20_30, output->postconf_30_40, output->postconf_40_50);
+  }
+
   // ⑤b Proximity deduplication: remove stacked/duplicate cones
   if (config_.dedup.enable && !output->cones.empty()) {
     deduplicateDetections(output->cones, output->cones_cloud);
+  }
+
+  // Task 23D: count after dedup
+  for (const auto& cone : output->cones) {
+    countFarBands(cone, output->after_dedup_20_30, output->after_dedup_30_40,
+                  output->after_dedup_40_50);
   }
 
   // ⑤ Cone tracker: temporal consistency filtering
@@ -173,7 +208,35 @@ bool lidar_cluster::Process(LidarClusterOutput* output) {
     filtered_cloud->height = 1;
     filtered_cloud->is_dense = true;
     output->cones_cloud = filtered_cloud;
+
+    // Populate tracker diagnostics
+    auto all_tracks = cone_tracker_.getAllTracks();
+    output->tracker_tentative = 0;
+    output->tracker_confirmed = 0;
+    for (const auto& t : all_tracks) {
+      if (t.confirmed) {
+        output->tracker_confirmed++;
+      } else {
+        output->tracker_tentative++;
+      }
+    }
+    // deleted = input detections - confirmed output (approximate)
+    output->tracker_deleted = static_cast<int>(tracker_dets.size()) - output->tracker_confirmed;
+    if (output->tracker_deleted < 0)
+      output->tracker_deleted = 0;
   }
+
+  // Task 23D: count after tracker + confirmed tracks by band
+  for (const auto& cone : output->cones) {
+    countFarBands(cone, output->after_tracker_20_30, output->after_tracker_30_40,
+                  output->after_tracker_40_50);
+  }
+  // Count confirmed tracks that were matched back (from filtered_cones before assignment to output)
+  // Note: we already counted after_tracker from output->cones, which IS the confirmed set.
+  // So tracker_confirmed_* = after_tracker_* when tracker is enabled.
+  output->tracker_confirmed_20_30 = output->after_tracker_20_30;
+  output->tracker_confirmed_30_40 = output->after_tracker_30_40;
+  output->tracker_confirmed_40_50 = output->after_tracker_40_50;
 
   // ⑥ Topology repair: fill gaps and remove outliers
   if (config_.topology.enable && !output->cones.empty()) {
@@ -229,6 +292,22 @@ bool lidar_cluster::Process(LidarClusterOutput* output) {
     output->cones_cloud = new_cloud;
   }
 
+  // Task 23D: count after topology + interpolated cones by band
+  for (const auto& cone : output->cones) {
+    countFarBands(cone, output->after_topology_20_30, output->after_topology_30_40,
+                  output->after_topology_40_50);
+  }
+  // Interpolated count = after_topology - (non-interpolated kept from before topology)
+  // Approximate: topo_interpolated = after_topology - after_tracker (if topology enabled)
+  if (config_.topology.enable) {
+    output->topo_interpolated_20_30 =
+        std::max(0, output->after_topology_20_30 - output->after_tracker_20_30);
+    output->topo_interpolated_30_40 =
+        std::max(0, output->after_topology_30_40 - output->after_tracker_30_40);
+    output->topo_interpolated_40_50 =
+        std::max(0, output->after_topology_40_50 - output->after_tracker_40_50);
+  }
+
   auto endTimeTotal = std::chrono::steady_clock::now();
   auto elapsedTimeTotal =
       std::chrono::duration_cast<std::chrono::microseconds>(endTimeTotal - startTimePassThrough);
@@ -239,6 +318,14 @@ bool lidar_cluster::Process(LidarClusterOutput* output) {
   output->t_total_ms = static_cast<double>(elapsedTimeTotal.count()) / 1000.0;
   output->input_points = input_points;
   output->total_clusters = cluster_count;
+
+  // Count far clusters (>30m) after all post-processing
+  output->clusters_far = 0;
+  for (const auto& cone : output->cones) {
+    if (cone.distance > 30.0) {
+      ++output->clusters_far;
+    }
+  }
 
   return true;
 }
