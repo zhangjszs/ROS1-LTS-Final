@@ -535,3 +535,66 @@ Deskew state:
 3. **30-50m召回瓶颈**: 传感器物理限制+保守阈值导致远距召回不足；Task #20证明参数调优边际收益已耗尽
 
 **建议优先执行 P0 清理 + P1 简化**，再针对远距离召回进行专项调优。
+
+---
+
+## 8. Tracker 优化阶段总结（Task #24A / #24B）
+
+> **状态：阶段收尾。Task #24C（M-of-N）移入 backlog。**
+
+### Task #24A：Distance-Adaptive Cone Confirmation
+
+**改动**：`confirm_frames_far=2 @30m+`（近距保持 `confirm_frames=4`）
+
+**结果**（track.bag 30s 窗口）：
+
+| 指标 | 优化前 | 优化后 | 变化 |
+|------|--------|--------|------|
+| 30-40m cones/frame | 0.18 | **1.65** | **9.2x** |
+| 40-50m cones/frame | 0.06 | 0.15 | 2.5x |
+
+- 30-40m tracker loss 从 ~60% 降至个位数，收益明确。
+- 40-50m 仍受候选密度限制，提升有限。
+
+### Task #24B：Far-Range Track Retention
+
+**改动**：
+- `delete_frames_far=8 @30m+`（近距保持 `delete_frames=5`）
+- `association_threshold_far=2.0 @35m+`（与近距一致，保留参数接口供未来扩展）
+
+**A/B 结果**（Baseline = Task #24A，Candidate = #24A + #24B）：
+
+| 指标 | Baseline | Candidate | 结论 |
+|------|----------|-----------|------|
+| Deleted mean | 1.17 | **0.94** | -19.7%，远距 track 存活更久 |
+| Tentative mean | 6.46 | 7.48 | +15.8%（association_threshold_far 更严格时的副作用，已回退） |
+| 40-50m tracker loss | 44.4% | 40.0% | 轻微改善 |
+| 30-40m cones/frame | 1.45 | 1.55 | 无退化，轻微提升 |
+
+**Planning/Control**：Baseline 一次运行出现节点启动异常（plan_hz=3.07），Candidate 正常（plan_hz=9.06）。由于改动不涉及 planning 接口，该组对比标注为无效，不要求重跑。
+
+### 阶段结论
+
+1. **30-40m 已解决**：Task #24A 的 `confirm_frames_far=2` 是主要收益来源。
+2. **40-50m 触及天花板**：当前 bag 下 30s 仅 9-15 个 post-confidence 候选，密度不足以支撑 tracker 层进一步优化。
+3. **delete_frames_far=8 有独立收益**：减少了远距 track 因间歇检测被过早删除的问题。
+4. **association_threshold_far=1.0 无收益**：增加了 tentative 但未改善 40-50m 输出，恢复为 2.0（与近距一致）。
+
+### 当前生产默认
+
+```yaml
+tracker:
+  confirm_frames: 4
+  confirm_frames_far: 2
+  confirm_distance_threshold: 30.0
+  delete_frames: 5
+  delete_frames_far: 8
+  association_threshold: 2.0
+  association_threshold_far: 2.0
+  association_distance_threshold: 35.0
+```
+
+### Backlog
+
+- **Task #24C（M-of-N / Tentative Retention）**：待有高密度远距场景（>15 candidates/30s）时重新评估。
+- **Task #25（多 bag baseline corpus）**：用新的 diagnostics 框架在 track/accel/skidpad 多场景下验证当前参数的通用性。
