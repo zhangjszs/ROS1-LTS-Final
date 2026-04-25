@@ -1,2 +1,0 @@
-scenario,frames,fused_frames,raw_fallback_frames,fused_ratio,raw_fallback_ratio,reason_counts,wait_p50_ms,wait_p95_ms,wait_p99_ms,wait_max_ms,gap_p99_ms,gap_max_ms
-acceleration_decision,712,0,712,0.000,1.000,"{""no_fused"": 712}",104.619,109.6517,110.75385,158.613,121.2494873046875,122.109130859375

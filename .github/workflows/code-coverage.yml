@@ -1,0 +1,206 @@
+name: Code Coverage
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run daily at 3 AM
+    - cron: '0 3 * * *'
+
+env:
+  CATKIN_WS: ${{ github.workspace }}
+
+jobs:
+  coverage:
+    runs-on: ubuntu-20.04
+    name: Build and Test with Coverage
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Full history for better coverage analysis
+
+      - name: Setup ROS Noetic
+        uses: ros-tooling/setup-ros@v0.7
+        with:
+          required-ros-distributions: noetic
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            lcov \
+            gcovr \
+            python3-coverage \
+            python3-pytest-cov
+
+      - name: Configure catkin for coverage
+        run: |
+          source /opt/ros/noetic/setup.bash
+          cd ${{ env.CATKIN_WS }}
+          # Configure with coverage flags
+          catkin config \
+            --cmake-args \
+            -DCMAKE_BUILD_TYPE=Coverage \
+            -DCMAKE_CXX_FLAGS="--coverage -fprofile-arcs -ftest-coverage" \
+            -DCMAKE_C_FLAGS="--coverage -fprofile-arcs -ftest-coverage" \
+            -DCMAKE_EXE_LINKER_FLAGS="--coverage"
+
+      - name: Build packages
+        run: |
+          source /opt/ros/noetic/setup.bash
+          cd ${{ env.CATKIN_WS }}
+          catkin build --no-status --summarize 2>&1 | tee build.log
+        timeout-minutes: 30
+
+      - name: Run tests
+        run: |
+          source /opt/ros/noetic/setup.bash
+          source ${{ env.CATKIN_WS }}/devel/setup.bash
+          cd ${{ env.CATKIN_WS }}
+
+          echo "=== Running catkin tests ==="
+          catkin run_tests --no-status --summarize 2>&1 | tee test.log || true
+
+          echo "=== Test results ==="
+          catkin_test_results build || true
+
+      - name: Generate coverage report (lcov)
+        run: |
+          cd ${{ env.CATKIN_WS }}
+
+          echo "=== Capturing coverage data ==="
+          # Capture coverage data
+          lcov --capture \
+            --directory build \
+            --output-file coverage.info \
+            --rc lcov_branch_coverage=1
+
+          echo "=== Removing system and external files ==="
+          # Remove system files, tests, and generated files
+          lcov --remove coverage.info \
+            '/opt/*' \
+            '/usr/*' \
+            '*/test/*' \
+            '*/tests/*' \
+            '*/_deps/*' \
+            '*/CMakeFiles/*' \
+            '*/cmake-build-debug/*' \
+            '*/msg/*' \
+            '*/srv/*' \
+            '*/action/*' \
+            --output-file coverage.info
+
+          echo "=== Coverage summary ==="
+          lcov --summary coverage.info
+
+          echo "=== Generating HTML report ==="
+          genhtml coverage.info \
+            --output-directory coverage-report \
+            --demangle-cpp \
+            --rc genhtml_branch_coverage=1 \
+            --legend \
+            --title "ROS Project Coverage Report"
+
+      - name: Generate coverage report (gcovr - XML for Codecov)
+        run: |
+          cd ${{ env.CATKIN_WS }}
+
+          echo "=== Generating Cobertura XML report ==="
+          gcovr \
+            --root . \
+            --build-dir build \
+            --xml-pretty \
+            --output coverage.xml \
+            --filter 'src/.*' \
+            --exclude '.*test.*' \
+            --exclude '.*Test.*' \
+            --exclude '.*_deps/.*' \
+            --exclude '.*CMakeFiles/.*'
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: |
+            coverage.info
+            coverage.xml
+          flags: unittests
+          name: ros-coverage
+          fail_ci_if_error: false
+          verbose: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-reports
+          path: |
+            coverage.info
+            coverage.xml
+            coverage-report/
+          retention-days: 30
+
+      - name: Comment coverage summary
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const coverageInfo = fs.readFileSync('coverage.info', 'utf8');
+
+            // Extract overall coverage percentage
+            const lines = coverageInfo.split('\n');
+            let summary = '## 📊 Coverage Report\n\n';
+            summary += '| Metric | Coverage |\n';
+            summary += '|--------|----------|\n';
+
+            // Parse lcov output for key metrics
+            lines.forEach(line => {
+              if (line.includes('LF:')) {
+                const total = line.match(/LF:(\d+)/)?.[1];
+                const hit = lines.find(l => l.includes('LH:'))?.match(/LH:(\d+)/)?.[1];
+                if (total && hit) {
+                  const percent = ((hit / total) * 100).toFixed(2);
+                  summary += `| Lines | ${percent}% (${hit}/${total}) |\n`;
+                }
+              }
+            });
+
+            summary += '\n[View full report on Codecov](https://codecov.io/gh/${{ github.repository }})';
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });
+
+  coverage-summary:
+    runs-on: ubuntu-20.04
+    name: Coverage Summary
+    needs: coverage
+    if: always()
+    steps:
+      - name: Download coverage artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: coverage-reports
+          path: coverage-reports
+
+      - name: Display coverage summary
+        run: |
+          echo "## Coverage Report Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f coverage-reports/coverage.info ]; then
+            echo "✅ Coverage report generated successfully" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
+            echo "- coverage.info (lcov format)" >> $GITHUB_STEP_SUMMARY
+            echo "- coverage.xml (Cobertura format)" >> $GITHUB_STEP_SUMMARY
+            echo "- coverage-report/ (HTML report)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Coverage report generation failed" >> $GITHUB_STEP_SUMMARY
+          fi

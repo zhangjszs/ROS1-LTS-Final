@@ -57,7 +57,7 @@ venv.bak/
 .vscode/
 .idea/
 .claude/
-.github/
+.codex
 .trae/
 *.swp
 *.swo
@@ -116,7 +116,6 @@ docs/*.html
 docs/*.pdf
 docs/*.css
 docs/*.js
-.worktrees/
 
 # Demo files
 demo/

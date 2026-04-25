@@ -1,0 +1,96 @@
+name: Static Analysis
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run daily at 2 AM
+    - cron: '0 2 * * *'
+
+jobs:
+  cppcheck:
+    runs-on: ubuntu-20.04
+    name: Cppcheck Analysis
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install cppcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cppcheck
+
+      - name: Run Cppcheck
+        run: |
+          cppcheck \
+            --enable=all \
+            --error-exitcode=0 \
+            --suppress=unusedFunction \
+            --suppress=missingIncludeSystem \
+            --std=c++17 \
+            --xml \
+            --xml-version=2 \
+            -I/opt/ros/noetic/include \
+            src/ 2> cppcheck-report.xml || true
+
+      - name: Upload Cppcheck Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: cppcheck-report
+          path: cppcheck-report.xml
+
+  clang-tidy:
+    runs-on: ubuntu-20.04
+    name: Clang-Tidy Analysis
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup ROS
+        uses: ros-tooling/setup-ros@v0.7
+        with:
+          required-ros-distributions: noetic
+
+      - name: Install clang-tidy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-tidy
+
+      - name: Build with compile_commands.json
+        run: |
+          source /opt/ros/noetic/setup.bash
+          catkin config --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          catkin build --no-status --summarize 2>&1 | head -50
+
+      - name: Run Clang-Tidy (Core Packages)
+        run: |
+          # Run on a subset of core packages to avoid timeout
+          for pkg in perception_core planning_core control_core; do
+            if [ -d "src/$pkg" ]; then
+              echo "=== Checking $pkg ==="
+              find "src/$pkg" -name "*.cpp" | head -5 | while read f; do
+                clang-tidy "$f" -p build/ 2>&1 | head -20 || true
+              done
+            fi
+          done
+
+  bandit:
+    runs-on: ubuntu-20.04
+    name: Python Security Scan
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Bandit
+        run: |
+          pip install bandit
+
+      - name: Run Bandit
+        run: |
+          bandit -r src/ -f json -o bandit-report.json || true
+          bandit -r src/ -ll
+
+      - name: Upload Bandit Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: bandit-report
+          path: bandit-report.json

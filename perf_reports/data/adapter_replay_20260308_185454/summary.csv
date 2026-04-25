@@ -1,8 +1,0 @@
-scenario,frames,fused_frames,raw_fallback_frames,fused_ratio,raw_fallback_ratio,reason_counts,wait_p50_ms,wait_p95_ms,wait_p99_ms,wait_max_ms,gap_p99_ms,gap_max_ms
-raw_only,40,0,40,0.000,1.000,"{""no_fused"": 40}",204.70049999999998,205.0839,205.24733,205.268,100.2747900390625,100.2763671875
-same_stamp_normal_merge,40,40,0,1.000,0.000,"{""normal_merge"": 40}",9.998055,10.376244999999999,10.517529,10.5405,100.9261181640625,100.986328125
-late_fused_within_budget,40,40,0,1.000,0.000,"{""normal_merge"": 40}",149.909,150.50955,150.67216,150.733,100.9845703125,101.0625
-late_fused_over_deadline,40,0,40,0.000,1.000,"{""no_fused"": 40}",201.392,201.84085,201.9546,202.017,100.246923828125,100.25341796875
-intermittent_drop_count_mismatch,48,24,24,0.500,0.500,"{""count_mismatch"": 12, ""no_fused"": 12, ""normal_merge"": 24}",70.203,209.0188,209.14937,209.163,200.6393505859375,200.6513671875
-duplicate_stale_finalize,36,18,18,0.500,0.500,"{""no_fused"": 18, ""normal_merge"": 18}",110.32935,209.802,209.94095,209.977,199.89556640625,199.971435546875
-callback_timer_pressure,80,48,32,0.600,0.400,"{""count_mismatch"": 16, ""no_fused"": 16, ""normal_merge"": 48}",189.998,203.1234,203.59688,203.619,63.8225244140625,63.91259765625

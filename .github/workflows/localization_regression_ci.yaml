@@ -1,0 +1,40 @@
+name: localization-regression-ci
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "perf_reports/scripts/**"
+      - "src/localization_core/**"
+      - "src/localization_ros/**"
+      - ".github/workflows/localization_regression_ci.yaml"
+
+jobs:
+  localization-tools-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.8"
+
+      - name: Verify tooling files exist
+        run: |
+          test -f perf_reports/scripts/compare_backends.py
+          test -f perf_reports/scripts/inject_scenario.py
+          test -f perf_reports/scripts/localization_health_check.sh
+          test -f perf_reports/scripts/localization_log_check.sh
+          test -f perf_reports/scripts/cone_gt_annotator.py
+
+      - name: Python syntax check
+        run: |
+          python3 -m py_compile perf_reports/scripts/compare_backends.py
+          python3 -m py_compile perf_reports/scripts/inject_scenario.py
+          python3 -m py_compile perf_reports/scripts/cone_gt_annotator.py
+
+      - name: Run localization tooling unit tests
+        run: |
+          python3 perf_reports/scripts/test_localization_validation_tools.py

@@ -1,0 +1,45 @@
+name: Code Style Check
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  cpp-format:
+    runs-on: ubuntu-20.04
+    name: C++ Format Check
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+
+      - name: Check C++ Format
+        run: |
+          find src -type f \( -name "*.cpp" -o -name "*.hpp" -o -name "*.h" \) | xargs clang-format --dry-run --Werror
+
+  python-format:
+    runs-on: ubuntu-20.04
+    name: Python Format Check
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Python tools
+        run: |
+          pip install black isort flake8
+
+      - name: Check Python Format with Black
+        run: |
+          black --check src/
+
+      - name: Check Import Sorting
+        run: |
+          isort --check-only src/
+
+      - name: Lint with Flake8
+        run: |
+          flake8 src/
