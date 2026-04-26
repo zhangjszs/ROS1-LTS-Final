@@ -26,6 +26,10 @@ SkidpadDetectionNode::SkidpadDetectionNode(ros::NodeHandle& nh)
   sync_->registerCallback(boost::bind(&SkidpadDetectionNode::SyncCallback, this, _1, _2));
 
   pathlimits_pub_ = nh_.advertise<autodrive_msgs::HUAT_PathLimits>(pathlimits_topic_, 10, true);
+  if (enable_v2_publish_ && !pathlimits_v2_topic_.empty()) {
+    pathlimits_v2_pub_ =
+        nh_.advertise<autodrive_msgs::HUAT_PathLimitsV2>(pathlimits_v2_topic_, 10, true);
+  }
   approaching_goal_pub_ = nh_.advertise<std_msgs::Bool>(approaching_goal_topic_, 10);
 
   {
@@ -120,6 +124,12 @@ void SkidpadDetectionNode::LoadParameters() {
                                "planning/skidpad/pathlimits")) {
     ROS_WARN_STREAM("Did not load topics/pathlimits. Standard value is: " << pathlimits_topic_);
   }
+  if (!pnh_.param<std::string>("topics/pathlimits_v2", pathlimits_v2_topic_,
+                               "planning/pathlimits_v2")) {
+    ROS_WARN_STREAM(
+        "Did not load topics/pathlimits_v2. Standard value is: " << pathlimits_v2_topic_);
+  }
+  pnh_.param("enable_pathlimits_v2_publish", enable_v2_publish_, true);
   if (!pnh_.param<std::string>("topics/approaching_goal", approaching_goal_topic_,
                                autodrive_msgs::topic_contract::kApproachingGoal)) {
     ROS_WARN_STREAM(
@@ -239,6 +249,13 @@ void SkidpadDetectionNode::PublishPathLimits(const std::vector<planning_core::Po
   contract::EnforcePathDynamicsShape(msg);
   contract::FinalizePathLimitsMessage(msg, latest_sync_time_, output_frame_);
   pathlimits_pub_.publish(msg);
+
+  if (enable_v2_publish_ && pathlimits_v2_pub_) {
+    autodrive_msgs::HUAT_PathLimitsV2 v2_msg;
+    contract::ConvertPathLimitsV1ToV2(msg, v2_msg, autodrive_msgs::HUAT_PathLimitsV2::MODE_SKIDPAD);
+    contract::FinalizePathLimitsV2Message(v2_msg, latest_sync_time_, output_frame_);
+    pathlimits_v2_pub_.publish(v2_msg);
+  }
 }
 
 void SkidpadDetectionNode::PublishApproachingGoal(bool approaching) {

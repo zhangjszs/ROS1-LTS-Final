@@ -33,6 +33,9 @@ LineDetectionNode::LineDetectionNode(ros::NodeHandle& nh) : nh_(nh), pnh_("~"), 
   sync_->registerCallback(boost::bind(&LineDetectionNode::SyncCallback, this, _1, _2));
 
   pathlimits_pub_ = nh_.advertise<autodrive_msgs::HUAT_PathLimits>(pathlimits_topic_, 1);
+  if (enable_v2_publish_ && !pathlimits_v2_topic_.empty()) {
+    pathlimits_v2_pub_ = nh_.advertise<autodrive_msgs::HUAT_PathLimitsV2>(pathlimits_v2_topic_, 1);
+  }
   finish_pub_ = nh_.advertise<std_msgs::Bool>(finish_topic_, 1);
 
   {
@@ -81,6 +84,8 @@ void LineDetectionNode::LoadParameters() {
                           autodrive_msgs::topic_contract::kCarState);
   pnh_.param<std::string>("topics/pathlimits", pathlimits_topic_,
                           "planning/line_detection/pathlimits");
+  pnh_.param<std::string>("topics/pathlimits_v2", pathlimits_v2_topic_, "planning/pathlimits_v2");
+  pnh_.param("enable_pathlimits_v2_publish", enable_v2_publish_, true);
   pnh_.param<std::string>("topics/finish", finish_topic_, "planning/line_detection/finish_signal");
 
   pnh_.param<std::string>("frames/expected_cone", expected_cone_frame_,
@@ -273,6 +278,13 @@ void LineDetectionNode::PublishPathLimits(const std::vector<planning_core::Pose>
   contract::EnforcePathDynamicsShape(msg);
   contract::FinalizePathLimitsMessage(msg, latest_sync_time_, output_frame_);
   pathlimits_pub_.publish(msg);
+
+  if (enable_v2_publish_ && pathlimits_v2_pub_) {
+    autodrive_msgs::HUAT_PathLimitsV2 v2_msg;
+    contract::ConvertPathLimitsV1ToV2(msg, v2_msg, autodrive_msgs::HUAT_PathLimitsV2::MODE_ACCEL);
+    contract::FinalizePathLimitsV2Message(v2_msg, latest_sync_time_, output_frame_);
+    pathlimits_v2_pub_.publish(v2_msg);
+  }
 }
 
 void LineDetectionNode::PublishFinishOnce() {

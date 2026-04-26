@@ -13,6 +13,7 @@
 #include <autodrive_msgs/HUAT_CarState.h>
 #include <autodrive_msgs/HUAT_ConeDetections.h>
 #include <autodrive_msgs/HUAT_PathLimits.h>
+#include <autodrive_msgs/HUAT_PathLimitsV2.h>
 #include <diagnostic_msgs/DiagnosticArray.h>
 #include <fsd_common/diagnostics_helper.hpp>
 #include <message_filters/subscriber.h>
@@ -48,6 +49,7 @@ class SkidpadDetectionNode {
   std::unique_ptr<message_filters::Synchronizer<SyncPolicy>> sync_;
 
   ros::Publisher pathlimits_pub_;
+  ros::Publisher pathlimits_v2_pub_;
   ros::Publisher approaching_goal_pub_;
 
   planning_core::SkidpadParams params_{};
@@ -56,7 +58,9 @@ class SkidpadDetectionNode {
   std::string cone_topic_;
   std::string car_state_topic_;
   std::string pathlimits_topic_;
+  std::string pathlimits_v2_topic_;
   std::string approaching_goal_topic_;
+  bool enable_v2_publish_ = true;
   std::string expected_cone_frame_;
   std::string output_frame_;
   double max_data_age_ = 0.5;  // 数据过期阈值 (秒)

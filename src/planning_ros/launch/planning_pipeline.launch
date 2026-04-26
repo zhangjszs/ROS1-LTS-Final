@@ -5,6 +5,7 @@
 <launch>
   <arg name="mission" default="high_speed" doc="任务类型: line, acceleration, skidpad, high_speed, trackdrive, autocross"/>
   <arg name="output_pathlimits_topic" default="planning/pathlimits"/>
+  <arg name="output_pathlimits_v2_topic" default="planning/pathlimits_v2"/>
   <arg name="input_car_state_topic" default="localization/car_state"/>
   <arg name="input_cone_topic" default="perception/lidar_cluster/detections"/>
   <arg name="output_approaching_goal_topic" default="planning/skidpad/approaching_goal"/>
@@ -19,6 +20,7 @@
   <node pkg="planning_ros" type="planning_pipeline_node" name="planning_pipeline" output="screen">
     <param name="mission" value="$(arg mission)"/>
     <param name="output_pathlimits_topic" value="$(arg output_pathlimits_topic)"/>
+    <param name="output_pathlimits_v2_topic" value="$(arg output_pathlimits_v2_topic)"/>
     <param name="input_car_state_topic" value="$(arg input_car_state_topic)"/>
     <param name="output_approaching_goal_topic" value="$(arg output_approaching_goal_topic)"/>
     <param name="input_pose_topic" value="$(arg input_car_state_topic)"/>

@@ -30,6 +30,7 @@
     <include if="$(eval arg('planner') == 'unified')" file="$(find planning_ros)/launch/planning_pipeline.launch">
         <arg name="mission" value="$(arg mission)"/>
         <arg name="output_pathlimits_topic" value="$(arg output_pathlimits_topic)"/>
+        <arg name="output_pathlimits_v2_topic" value="$(arg output_pathlimits_v2_topic)"/>
         <arg name="input_car_state_topic" value="$(arg input_car_state_topic)"/>
         <arg name="input_cone_topic" value="$(arg input_cone_topic)"/>
         <arg name="output_approaching_goal_topic" value="$(arg output_approaching_goal_topic)"/>

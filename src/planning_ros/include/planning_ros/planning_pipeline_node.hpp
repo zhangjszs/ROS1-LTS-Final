@@ -18,6 +18,7 @@
 #include <autodrive_msgs/HUAT_CarState.h>
 #include <autodrive_msgs/HUAT_ConeMap.h>
 #include <autodrive_msgs/HUAT_PathLimits.h>
+#include <autodrive_msgs/HUAT_PathLimitsV2.h>
 #include <autodrive_msgs/HUAT_Stop.h>
 #include <autodrive_msgs/diagnostics_helper.hpp>
 #include <autodrive_msgs/topic_contract.hpp>
@@ -69,7 +70,9 @@ class PlanningPipelineNode {
   PerfStats hs_perf_;
 
   ros::Publisher pathlimits_pub_;
+  ros::Publisher pathlimits_v2_pub_;
   ros::Publisher hs_stop_pub_;
+  bool enable_v2_publish_ = true;
   autodrive_msgs::DiagnosticsHelper diag_helper_;
 
   // B2: High-speed message synchronization

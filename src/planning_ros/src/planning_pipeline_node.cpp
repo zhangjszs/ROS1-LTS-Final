@@ -150,6 +150,15 @@ void PlanningPipelineNode::InitHighSpeed(ros::NodeHandle& nh) {
   pnh.param<std::string>("output_pathlimits_topic", pathlimits_topic,
                          autodrive_msgs::topic_contract::kPathLimits);
   pathlimits_pub_ = nh.advertise<autodrive_msgs::HUAT_PathLimits>(pathlimits_topic, 1);
+
+  std::string pathlimits_v2_topic;
+  pnh.param<std::string>("output_pathlimits_v2_topic", pathlimits_v2_topic,
+                         "planning/pathlimits_v2");
+  pnh.param("enable_pathlimits_v2_publish", enable_v2_publish_, true);
+  if (enable_v2_publish_ && !pathlimits_v2_topic.empty()) {
+    pathlimits_v2_pub_ = nh.advertise<autodrive_msgs::HUAT_PathLimitsV2>(pathlimits_v2_topic, 1);
+  }
+
   hs_stop_pub_ = nh.advertise<autodrive_msgs::HUAT_Stop>(hs_params_->main.stop_topic, 1);
 
   // B29: Initialize mission FSM from existing params
@@ -429,6 +438,14 @@ void PlanningPipelineNode::HighSpeedSyncCallback(
     if (debug_save_way_files_)
       DoWayFullMsg(full_msg);
     pathlimits_pub_.publish(full_msg);
+    if (enable_v2_publish_ && pathlimits_v2_pub_) {
+      autodrive_msgs::HUAT_PathLimitsV2 v2_msg;
+      uint8_t mode = (mission_ == "autocross") ? autodrive_msgs::HUAT_PathLimitsV2::MODE_AUTOCROSS
+                                               : autodrive_msgs::HUAT_PathLimitsV2::MODE_TRACK;
+      planning_ros::contract::ConvertPathLimitsV1ToV2(full_msg, v2_msg, mode);
+      planning_ros::contract::FinalizePathLimitsV2Message(v2_msg, full_msg.header.stamp);
+      pathlimits_v2_pub_.publish(v2_msg);
+    }
     bytes_pub += ros::serialization::serializationLength(full_msg);
     fullPathPublishedOnce_ = true;
     finishGraceCount_ = 0;
@@ -475,6 +492,14 @@ void PlanningPipelineNode::HighSpeedSyncCallback(
     if (debug_save_way_files_)
       DoWayMsg(partial_msg);
     pathlimits_pub_.publish(partial_msg);
+    if (enable_v2_publish_ && pathlimits_v2_pub_) {
+      autodrive_msgs::HUAT_PathLimitsV2 v2_msg;
+      uint8_t mode = (mission_ == "autocross") ? autodrive_msgs::HUAT_PathLimitsV2::MODE_AUTOCROSS
+                                               : autodrive_msgs::HUAT_PathLimitsV2::MODE_TRACK;
+      planning_ros::contract::ConvertPathLimitsV1ToV2(partial_msg, v2_msg, mode);
+      planning_ros::contract::FinalizePathLimitsV2Message(v2_msg, partial_msg.header.stamp);
+      pathlimits_v2_pub_.publish(v2_msg);
+    }
     bytes_pub += ros::serialization::serializationLength(partial_msg);
     wasLoopClosed_ = false;
   }
