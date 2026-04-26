@@ -38,8 +38,8 @@ class InsBridge:
         """
         out = HUAT_InsP2()
 
-        # Preserve original message timestamp for end-to-end latency measurement
-        out.header.stamp = msg.header.stamp if msg.header.stamp else rospy.Time.now()
+        # HUAT_Asensing has no header field; use current ROS time
+        out.header.stamp = rospy.Time.now()
         out.header.frame_id = "imu"
 
         # GPS 时间
