@@ -512,11 +512,36 @@ stacked_cone_detection:
     max_xy_distance: 0.4
     height_variation_threshold: 0.1
 
-# === Vision Color Injection ===
-# When enabled, subscribes to vision detections and overrides color_types
-# with camera-based color classification (BLUE/YELLOW/RED).
-# max_age_sec is the legacy fusion timing budget and approximate sync slop.
-# When disabled or no vision data available, falls back to geometry-only typing.
+# === Fusion Configuration ===
+# Projection-based LiDAR-vision fusion.
+# When fusion/enabled is present, the calibrated fusion path is used
+# instead of legacy vision_inject.
+# Legacy HFOV fallback is disabled by default.
+# When camera_info or TF is unavailable, cones fallback to LiDAR geometry color.
+fusion:
+  enabled: true
+  topics:
+    vision_detections: "/vision/detections"
+    camera_info: "/camera/camera_info"
+  camera_frame: ""              # auto-detect from camera_info header if empty
+  sync:
+    slop_sec: 0.15
+  tf_timeout_sec: 0.05
+  projection:
+    require_camera_info: true
+    require_tf: true
+    max_pixel_distance: 60.0
+    min_vision_confidence: 300
+    fallback_to_lidar_color: true
+  legacy_hfov_fallback:
+    enable: false
+    match_angle_deg: 5.0
+    camera_hfov_deg: 60.0
+    camera_width_px: 640
+
+# === Deprecated: Vision Color Injection ===
+# Only used when fusion/enabled is NOT present.
+# Kept for backward compatibility with old local configs.
 vision_inject:
   enabled: true
   max_age_sec: 0.15
