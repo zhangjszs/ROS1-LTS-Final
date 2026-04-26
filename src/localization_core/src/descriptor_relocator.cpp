@@ -130,7 +130,7 @@ RelocResult DescriptorRelocator::TryRelocalize(const std::vector<float>& current
     }
   }
 
-  std::mt19937 rng(42);
+  std::mt19937 rng(std::random_device{}());
 
   for (int ci = 0; ci < k; ++ci) {
     const auto& db_desc = database_[candidates[ci].db_idx];

@@ -719,7 +719,8 @@ bool LocationMapper::LoadMapFromFile(const std::string& path, std::string* error
       loaded_obs.push_back(std::max(1, obs));
       loaded_types.push_back(normalizeConeType(static_cast<std::uint8_t>(type)));
       loaded_conf.push_back(std::min(1.0, std::max(0.0, conf)));
-    } catch (const std::exception&) {
+    } catch (const std::exception& e) {
+      fprintf(stderr, "[LocationMapper] LoadMapFromFile parse error: %s\n", e.what());
       continue;
     }
   }
@@ -774,7 +775,11 @@ bool LocationMapper::passesGeometryFilter(double lx, double ly) const {
   } else if (params_.map_mode == "skidpad") {
     if (params_.enable_circle_validation) {
       // 八字绕环：检测点到两个预期圆心的最近距离是否接近 circle_radius
-      // 两个圆心在 X 轴方向，间距 circle_center_dist，关于原点对称
+      // NOTE: lx,ly are body-frame coordinates. Circle validation assumes the
+      // vehicle is at a known initialization pose (typically aligned with the
+      // track centerline). If the car rotates significantly before cones are
+      // detected, this filter may incorrectly reject valid cones.
+      // TODO: Transform to global frame using current pose for robust validation.
       const double half_dist = params_.circle_center_dist * 0.5;
       const double dx1 = lx;
       const double dy1 = ly - half_dist;

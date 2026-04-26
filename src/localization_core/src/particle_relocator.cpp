@@ -17,15 +17,15 @@ void ParticleRelocator::Reset() {
 
 void ParticleRelocator::Initialize(const Pose2& seed_pose) {
   particles_.resize(cfg_.n_particles);
-  std::mt19937 rng(std::random_device{}());
+  rng_.seed(std::random_device{}());
   std::normal_distribution<double> dist_xy(0.0, cfg_.particle_sigma_xy);
   std::normal_distribution<double> dist_theta(0.0, cfg_.particle_sigma_theta);
 
   const double uniform_weight = 1.0 / cfg_.n_particles;
   for (auto& p : particles_) {
-    p.x = seed_pose.x + dist_xy(rng);
-    p.y = seed_pose.y + dist_xy(rng);
-    p.theta = seed_pose.theta + dist_theta(rng);
+    p.x = seed_pose.x + dist_xy(rng_);
+    p.y = seed_pose.y + dist_xy(rng_);
+    p.theta = seed_pose.theta + dist_theta(rng_);
     p.weight = uniform_weight;
     p.log_weight = std::log(uniform_weight);
   }
@@ -36,15 +36,16 @@ void ParticleRelocator::Predict(double v_forward, double wz, double dt) {
   if (!initialized_ || dt <= 0.0)
     return;
 
-  std::mt19937 rng(std::random_device{}());
-  std::normal_distribution<double> noise_xy(0.0, 0.05 * std::abs(v_forward) * dt + 0.01);
-  std::normal_distribution<double> noise_theta(0.0, 0.02 * std::abs(wz) * dt + 0.005);
+  std::normal_distribution<double> noise_xy(
+      0.0, cfg_.predict_noise_coeff_v * std::abs(v_forward) * dt + cfg_.predict_noise_bias_xy);
+  std::normal_distribution<double> noise_theta(
+      0.0, cfg_.predict_noise_coeff_w * std::abs(wz) * dt + cfg_.predict_noise_bias_theta);
 
   for (auto& p : particles_) {
     const double mid_theta = p.theta + wz * dt * 0.5;
-    p.x += std::cos(mid_theta) * v_forward * dt + noise_xy(rng);
-    p.y += std::sin(mid_theta) * v_forward * dt + noise_xy(rng);
-    p.theta += wz * dt + noise_theta(rng);
+    p.x += std::cos(mid_theta) * v_forward * dt + noise_xy(rng_);
+    p.y += std::sin(mid_theta) * v_forward * dt + noise_xy(rng_);
+    p.theta += wz * dt + noise_theta(rng_);
   }
 }
 
@@ -115,9 +116,8 @@ void ParticleRelocator::resample() {
   if (n == 0)
     return;
 
-  std::mt19937 rng(std::random_device{}());
   std::uniform_real_distribution<double> u01(0.0, 1.0 / n);
-  double r = u01(rng);
+  double r = u01(rng_);
 
   std::vector<Particle> new_particles(n);
   double cumulative = particles_[0].weight;
@@ -138,9 +138,9 @@ void ParticleRelocator::resample() {
   std::normal_distribution<double> diff_xy(0.0, 0.1);
   std::normal_distribution<double> diff_theta(0.0, 0.02);
   for (auto& p : new_particles) {
-    p.x += diff_xy(rng);
-    p.y += diff_xy(rng);
-    p.theta += diff_theta(rng);
+    p.x += diff_xy(rng_);
+    p.y += diff_xy(rng_);
+    p.theta += diff_theta(rng_);
   }
 
   particles_ = std::move(new_particles);

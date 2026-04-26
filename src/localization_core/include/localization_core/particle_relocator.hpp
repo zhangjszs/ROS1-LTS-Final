@@ -1,5 +1,6 @@
 #pragma once
 
+#include <random>
 #include <vector>
 
 #include <localization_core/factor_graph_types.hpp>
@@ -43,6 +44,7 @@ class ParticleRelocator {
   RelocConfig cfg_;
   std::vector<Particle> particles_;
   bool initialized_ = false;
+  std::mt19937 rng_;  // Seeded once in Initialize()
 
   void resample();
   void normalize();

@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <deque>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <unordered_set>
 
@@ -110,6 +111,7 @@ class LocationNode {
   // Factor graph backend (shadow mode)
   std::string backend_;  // "mapper" (default) or "factor_graph"
   std::unique_ptr<localization_core::FactorGraphOptimizer> fg_optimizer_;
+  mutable std::mutex fg_mutex_;  // C1: Protects fg_optimizer_ from concurrent IMU/cone callbacks
   localization_core::FactorGraphConfig fg_config_;
   bool fg_shadow_mode_ = true;
   bool fg_mainline_enable_mapper_fallback_ = true;

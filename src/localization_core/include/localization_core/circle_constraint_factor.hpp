@@ -59,6 +59,10 @@ class CircleConstraintFactor : public gtsam::NoiseModelFactor1<gtsam::Point2> {
   }
 
   gtsam::NonlinearFactor::shared_ptr clone() const override {
+    // WARNING: evaluateError dynamically selects center1_ or center2_ based on
+    // which gives smaller error. The Jacobian depends on this choice. If cached
+    // state (e.g., last chosen center) is added in the future, it MUST be copied
+    // here. Currently stateless, so default copy is safe.
     return gtsam::NonlinearFactor::shared_ptr(new CircleConstraintFactor(*this));
   }
 

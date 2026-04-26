@@ -69,9 +69,18 @@ void AnomalyStateMachine::Evaluate(double chi2_normalized, double match_ratio,
   const double low_match_duration =
       (low_match_start_ >= 0.0) ? (timestamp - low_match_start_) : 0.0;
 
+  // Track consecutive no-cone frames
+  if (match_ratio <= 0.0) {
+    ++no_cone_frames_;
+  } else {
+    no_cone_frames_ = 0;
+  }
+
   switch (state_) {
     case AnomalyState::TRACKING:
       if (chi2_avg > cfg_.chi2_degrade) {
+        state_ = AnomalyState::DEGRADED;
+      } else if (no_cone_frames_ > cfg_.no_cone_frames_max) {
         state_ = AnomalyState::DEGRADED;
       }
       break;

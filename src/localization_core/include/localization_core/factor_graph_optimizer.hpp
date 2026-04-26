@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <vector>
 
 #include <localization_core/anomaly_state_machine.hpp>
@@ -27,7 +28,7 @@ namespace localization_core {
 ///   FG-5  Vehicle speed / yaw-rate factors
 ///   FG-6  iSAM2 incremental optimization + landmark management
 ///
-/// Thread-safety: NOT thread-safe. Caller must synchronize.
+/// Thread-safety: internally synchronized via state_mutex_.
 class FactorGraphOptimizer {
  public:
   explicit FactorGraphOptimizer(const FactorGraphConfig& cfg);
@@ -93,12 +94,10 @@ class FactorGraphOptimizer {
   AnomalyState GetAnomalyState() const;
 
   /// Last computed normalized chi² value.
-  double GetChi2Normalized() const { return last_chi2_normalized_; }
+  double GetChi2Normalized() const;
 
   /// Last computed cone match ratio.
-  double GetConeMatchRatio() const {
-    return (total_obs_count_ > 0) ? static_cast<double>(matched_count_) / total_obs_count_ : 0.0;
-  }
+  double GetConeMatchRatio() const;
 
  private:
   // ─── Internal helpers ────────────────────────────────────────
@@ -171,6 +170,8 @@ class FactorGraphOptimizer {
   int matched_count_ = 0;
   int total_obs_count_ = 0;
   double last_chi2_normalized_ = 0.0;
+
+  mutable std::mutex state_mutex_;
 };
 
 }  // namespace localization_core

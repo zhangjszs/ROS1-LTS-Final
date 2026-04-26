@@ -10,43 +10,49 @@ constexpr double kDegToRad = M_PI / 180.0;
 ImuStateEstimator::ImuStateEstimator(const ImuStateEstimatorParams& params) : params_(params) {
   x_.setZero();
   P_.setZero();
+  if (params_.gyro_scale <= 0.0) {
+    // Invalid gyro_scale would silently break yaw update; clamp to safe default
+    params_.gyro_scale = 1.0;
+  }
 }
 
 bool ImuStateEstimator::Process(const Asensing& msg, double stamp_sec, CarState* out) {
+  if (!out) {
+    return false;
+  }
+
   if (!initialized_) {
     Initialize(msg, stamp_sec);
-    if (out) {
-      out->car_state.x = x_(0);
-      out->car_state.y = x_(1);
-      out->car_state.theta = NormalizeAngle(x_(4));
-      out->V = std::hypot(x_(2), x_(3));
-      out->W = std::sqrt(msg.x_angular_velocity * msg.x_angular_velocity +
-                         msg.y_angular_velocity * msg.y_angular_velocity +
-                         msg.z_angular_velocity * msg.z_angular_velocity);
-      // HUAT_InsP2 加速度已经是 m/s²，不再乘以 g
-      out->A = std::sqrt(msg.x_acc * msg.x_acc + msg.y_acc * msg.y_acc + msg.z_acc * msg.z_acc);
+    out->car_state.x = x_(0);
+    out->car_state.y = x_(1);
+    out->car_state.theta = NormalizeAngle(x_(4));
+    out->V = std::hypot(x_(2), x_(3));
+    out->W = std::sqrt(msg.x_angular_velocity * msg.x_angular_velocity +
+                       msg.y_angular_velocity * msg.y_angular_velocity +
+                       msg.z_angular_velocity * msg.z_angular_velocity);
+    // HUAT_InsP2 加速度已经是 m/s²，不再乘以 g
+    out->A = std::sqrt(msg.x_acc * msg.x_acc + msg.y_acc * msg.y_acc + msg.z_acc * msg.z_acc);
 
-      // FSSIM风格扩展状态
-      out->Vy = 0.0;                     // 初始横向速度为0
-      out->Wz = msg.z_angular_velocity;  // 偏航角速度
-      out->Ax = msg.x_acc;               // 纵向加速度
-      out->Ay = msg.y_acc;               // 横向加速度
+    // FSSIM风格扩展状态
+    out->Vy = 0.0;                     // 初始横向速度为0
+    out->Wz = msg.z_angular_velocity;  // 偏航角速度
+    out->Ax = msg.x_acc;               // 纵向加速度
+    out->Ay = msg.y_acc;               // 横向加速度
 
-      double front_dx = 0.0;
-      double front_dy = 0.0;
-      double rear_dx = 0.0;
-      double rear_dy = 0.0;
-      ToMapFrame(params_.front_to_imu_x, params_.front_to_imu_y, front_dx, front_dy);
-      ToMapFrame(params_.rear_to_imu_x, params_.rear_to_imu_y, rear_dx, rear_dy);
+    double front_dx = 0.0;
+    double front_dy = 0.0;
+    double rear_dx = 0.0;
+    double rear_dy = 0.0;
+    ToMapFrame(params_.front_to_imu_x, params_.front_to_imu_y, front_dx, front_dy);
+    ToMapFrame(params_.rear_to_imu_x, params_.rear_to_imu_y, rear_dx, rear_dy);
 
-      out->car_state_front.x = x_(0) + front_dx;
-      out->car_state_front.y = x_(1) + front_dy;
-      out->car_state_front.z = last_up_ + params_.front_to_imu_z;
+    out->car_state_front.x = x_(0) + front_dx;
+    out->car_state_front.y = x_(1) + front_dy;
+    out->car_state_front.z = last_up_ + params_.front_to_imu_z;
 
-      out->car_state_rear.x = x_(0) + rear_dx;
-      out->car_state_rear.y = x_(1) + rear_dy;
-      out->car_state_rear.z = last_up_ + params_.rear_to_imu_z;
-    }
+    out->car_state_rear.x = x_(0) + rear_dx;
+    out->car_state_rear.y = x_(1) + rear_dy;
+    out->car_state_rear.z = last_up_ + params_.rear_to_imu_z;
     return true;
   }
 
@@ -158,45 +164,43 @@ bool ImuStateEstimator::Process(const Asensing& msg, double stamp_sec, CarState*
 
   last_time_sec_ = stamp_sec;
 
-  if (out) {
-    out->car_state.x = x_(0);
-    out->car_state.y = x_(1);
-    out->car_state.theta = NormalizeAngle(x_(4));
-    out->V = std::hypot(x_(2), x_(3));
-    out->W = std::sqrt(msg.x_angular_velocity * msg.x_angular_velocity +
-                       msg.y_angular_velocity * msg.y_angular_velocity +
-                       msg.z_angular_velocity * msg.z_angular_velocity);
-    // HUAT_InsP2 加速度已经是 m/s²，不再乘以 g
-    out->A = std::sqrt(msg.x_acc * msg.x_acc + msg.y_acc * msg.y_acc + msg.z_acc * msg.z_acc);
+  out->car_state.x = x_(0);
+  out->car_state.y = x_(1);
+  out->car_state.theta = NormalizeAngle(x_(4));
+  out->V = std::hypot(x_(2), x_(3));
+  out->W = std::sqrt(msg.x_angular_velocity * msg.x_angular_velocity +
+                     msg.y_angular_velocity * msg.y_angular_velocity +
+                     msg.z_angular_velocity * msg.z_angular_velocity);
+  // HUAT_InsP2 加速度已经是 m/s²，不再乘以 g
+  out->A = std::sqrt(msg.x_acc * msg.x_acc + msg.y_acc * msg.y_acc + msg.z_acc * msg.z_acc);
 
-    // FSSIM风格扩展状态
-    // 计算车体坐标系下的速度
-    const double yaw = x_(4);
-    const double cos_yaw = std::cos(yaw);
-    const double sin_yaw = std::sin(yaw);
-    // 从世界坐标系速度转换到车体坐标系
-    // vx_body = vx_world * cos(yaw) + vy_world * sin(yaw)
-    // vy_body = -vx_world * sin(yaw) + vy_world * cos(yaw)
-    out->Vy = -x_(2) * sin_yaw + x_(3) * cos_yaw;  // 横向速度
-    out->Wz = msg.z_angular_velocity;              // 偏航角速度
-    out->Ax = msg.x_acc;                           // 纵向加速度
-    out->Ay = msg.y_acc;                           // 横向加速度
+  // FSSIM风格扩展状态
+  // 计算车体坐标系下的速度
+  const double yaw = x_(4);
+  const double cos_yaw = std::cos(yaw);
+  const double sin_yaw = std::sin(yaw);
+  // 从世界坐标系速度转换到车体坐标系
+  // vx_body = vx_world * cos(yaw) + vy_world * sin(yaw)
+  // vy_body = -vx_world * sin(yaw) + vy_world * cos(yaw)
+  out->Vy = -x_(2) * sin_yaw + x_(3) * cos_yaw;  // 横向速度
+  out->Wz = msg.z_angular_velocity;              // 偏航角速度
+  out->Ax = msg.x_acc;                           // 纵向加速度
+  out->Ay = msg.y_acc;                           // 横向加速度
 
-    double front_dx = 0.0;
-    double front_dy = 0.0;
-    double rear_dx = 0.0;
-    double rear_dy = 0.0;
-    ToMapFrame(params_.front_to_imu_x, params_.front_to_imu_y, front_dx, front_dy);
-    ToMapFrame(params_.rear_to_imu_x, params_.rear_to_imu_y, rear_dx, rear_dy);
+  double front_dx = 0.0;
+  double front_dy = 0.0;
+  double rear_dx = 0.0;
+  double rear_dy = 0.0;
+  ToMapFrame(params_.front_to_imu_x, params_.front_to_imu_y, front_dx, front_dy);
+  ToMapFrame(params_.rear_to_imu_x, params_.rear_to_imu_y, rear_dx, rear_dy);
 
-    out->car_state_front.x = x_(0) + front_dx;
-    out->car_state_front.y = x_(1) + front_dy;
-    out->car_state_front.z = last_up_ + params_.front_to_imu_z;
+  out->car_state_front.x = x_(0) + front_dx;
+  out->car_state_front.y = x_(1) + front_dy;
+  out->car_state_front.z = last_up_ + params_.front_to_imu_z;
 
-    out->car_state_rear.x = x_(0) + rear_dx;
-    out->car_state_rear.y = x_(1) + rear_dy;
-    out->car_state_rear.z = last_up_ + params_.rear_to_imu_z;
-  }
+  out->car_state_rear.x = x_(0) + rear_dx;
+  out->car_state_rear.y = x_(1) + rear_dy;
+  out->car_state_rear.z = last_up_ + params_.rear_to_imu_z;
 
   return true;
 }

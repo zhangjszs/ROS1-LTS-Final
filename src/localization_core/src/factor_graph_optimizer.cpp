@@ -51,10 +51,12 @@ FactorGraphOptimizer::FactorGraphOptimizer(const FactorGraphConfig& cfg)
 FactorGraphOptimizer::~FactorGraphOptimizer() = default;
 
 void FactorGraphOptimizer::Configure(const FactorGraphConfig& cfg) {
+  std::lock_guard<std::mutex> lock(state_mutex_);
   cfg_ = cfg;
 }
 
 void FactorGraphOptimizer::Reset() {
+  std::lock_guard<std::mutex> lock(state_mutex_);
   gtsam::ISAM2Params params;
   params.relinearizeThreshold = cfg_.relinearize_threshold;
   params.relinearizeSkip = cfg_.relinearize_skip;
@@ -98,6 +100,7 @@ void FactorGraphOptimizer::Reset() {
 // ─── Sensor input ──────────────────────────────────────────────
 
 void FactorGraphOptimizer::AddImuMeasurement(double v_forward, double wz, double dt) {
+  std::lock_guard<std::mutex> lock(state_mutex_);
   if (dt <= 0.0)
     return;
 
@@ -115,6 +118,7 @@ void FactorGraphOptimizer::AddImuMeasurement(double v_forward, double wz, double
 }
 
 void FactorGraphOptimizer::SetGnssObservation(double x, double y, GnssQuality quality) {
+  std::lock_guard<std::mutex> lock(state_mutex_);
   has_gnss_ = true;
   gnss_x_ = x;
   gnss_y_ = y;
@@ -122,11 +126,13 @@ void FactorGraphOptimizer::SetGnssObservation(double x, double y, GnssQuality qu
 }
 
 void FactorGraphOptimizer::SetSpeedObservation(double v_forward) {
+  std::lock_guard<std::mutex> lock(state_mutex_);
   has_speed_ = true;
   speed_obs_ = v_forward;
 }
 
 void FactorGraphOptimizer::SetConeObservations(const std::vector<ConeObservation>& obs) {
+  std::lock_guard<std::mutex> lock(state_mutex_);
   cone_obs_ = obs;
 }
 
@@ -134,6 +140,7 @@ void FactorGraphOptimizer::SetConeObservations(const std::vector<ConeObservation
 
 bool FactorGraphOptimizer::TryUpdate(const localization_core::Pose2& current_pose,
                                      double timestamp) {
+  std::lock_guard<std::mutex> lock(state_mutex_);
   if (!initialized_) {
     initializeFirstKeyframe(current_pose, timestamp);
     return true;
@@ -266,28 +273,44 @@ bool FactorGraphOptimizer::TryUpdate(const localization_core::Pose2& current_pos
 // ─── Output ────────────────────────────────────────────────────
 
 localization_core::Pose2 FactorGraphOptimizer::GetOptimizedPose() const {
+  std::lock_guard<std::mutex> lock(state_mutex_);
   return opt_pose_;
 }
 
 void FactorGraphOptimizer::GetOptimizedVelocity(double& vx, double& vy) const {
+  std::lock_guard<std::mutex> lock(state_mutex_);
   vx = opt_vx_;
   vy = opt_vy_;
 }
 
 std::vector<FgLandmark> FactorGraphOptimizer::GetLandmarks() const {
+  std::lock_guard<std::mutex> lock(state_mutex_);
   return landmarks_;
 }
 
 uint64_t FactorGraphOptimizer::NumKeyframes() const {
+  std::lock_guard<std::mutex> lock(state_mutex_);
   return keyframe_idx_ + (initialized_ ? 1 : 0);
 }
 
 bool FactorGraphOptimizer::IsInitialized() const {
+  std::lock_guard<std::mutex> lock(state_mutex_);
   return initialized_;
 }
 
 double FactorGraphOptimizer::LastOptTimeMs() const {
+  std::lock_guard<std::mutex> lock(state_mutex_);
   return last_opt_time_ms_;
+}
+
+double FactorGraphOptimizer::GetChi2Normalized() const {
+  std::lock_guard<std::mutex> lock(state_mutex_);
+  return last_chi2_normalized_;
+}
+
+double FactorGraphOptimizer::GetConeMatchRatio() const {
+  std::lock_guard<std::mutex> lock(state_mutex_);
+  return (total_obs_count_ > 0) ? static_cast<double>(matched_count_) / total_obs_count_ : 0.0;
 }
 
 // ─── Internal helpers ──────────────────────────────────────────
@@ -626,6 +649,7 @@ void FactorGraphOptimizer::runOptimization() {
 // ─── New methods ────────────────────────────────────────────────
 
 AnomalyState FactorGraphOptimizer::GetAnomalyState() const {
+  std::lock_guard<std::mutex> lock(state_mutex_);
   return anomaly_sm_.GetState();
 }
 
@@ -681,7 +705,11 @@ double FactorGraphOptimizer::computeChi2Normalized() {
       total_dof += static_cast<int>(w.size());
     }
     return (total_dof > 0) ? total_chi2 / total_dof : 0.0;
+  } catch (const std::exception& e) {
+    fprintf(stderr, "[FG] computeChi2Normalized exception: %s\n", e.what());
+    return 0.0;
   } catch (...) {
+    fprintf(stderr, "[FG] computeChi2Normalized unknown exception\n");
     return 0.0;
   }
 }

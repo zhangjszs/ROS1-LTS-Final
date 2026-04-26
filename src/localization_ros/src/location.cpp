@@ -1163,15 +1163,19 @@ void LocationNode::publishEntryHealth(const std::string& source, const ros::Time
 void LocationNode::imuCallback(const autodrive_msgs::HUAT_InsP2::ConstPtr& msg) {
   const ros::Time stamp = msg->header.stamp.isZero() ? ros::Time::now() : msg->header.stamp;
 
-  // B9: INS timestamp rollback protection
-  if (has_last_ins_stamp_ && stamp < last_ins_stamp_) {
-    ++ins_stamp_rollback_count_;
-    ROS_WARN_THROTTLE(1.0,
-                      "[localization] INS timestamp rollback detected: current=%.6f < "
-                      "previous=%.6f (delta=%.6f sec). "
-                      "Rejecting message to prevent state corruption.",
-                      stamp.toSec(), last_ins_stamp_.toSec(), (last_ins_stamp_ - stamp).toSec());
-    return;  // Reject message with rollback timestamp
+  // B9: INS timestamp rollback protection with jitter tolerance
+  if (has_last_ins_stamp_) {
+    const double dt = stamp.toSec() - last_ins_stamp_.toSec();
+    constexpr double kRollbackToleranceSec = 0.005;  // 5ms tolerance for network jitter
+    if (dt < -kRollbackToleranceSec) {
+      ++ins_stamp_rollback_count_;
+      ROS_WARN_THROTTLE(1.0,
+                        "[localization] INS timestamp rollback detected: current=%.6f < "
+                        "previous=%.6f (delta=%.6f sec). "
+                        "Rejecting message to prevent state corruption.",
+                        stamp.toSec(), last_ins_stamp_.toSec(), -dt);
+      return;  // Reject message with rollback timestamp
+    }
   }
 
   updateHeadingSanity(*msg, stamp);
@@ -1213,6 +1217,9 @@ void LocationNode::imuCallback(const autodrive_msgs::HUAT_InsP2::ConstPtr& msg) 
   }
 
   // B9: Update last INS timestamp after successful processing
+  // NOTE: We update last_ins_stamp_ even if the message was rejected above,
+  // because the rejection path returns early. This means out-of-order messages
+  // older than the rejected one will also be rejected, which is correct behavior.
   last_ins_stamp_ = stamp;
   has_last_ins_stamp_ = true;
 
@@ -1504,13 +1511,23 @@ void LocationNode::ToRos(const localization_core::ConeMap& map, autodrive_msgs::
 }
 
 bool LocationNode::feedFactorGraph(const autodrive_msgs::HUAT_InsP2& msg) {
+  if (!fg_optimizer_) {
+    return false;
+  }
+  std::lock_guard<std::mutex> lock(fg_mutex_);
   const double stamp = msg.header.stamp.toSec();
   if (fg_start_time_ < 0.0)
     fg_start_time_ = stamp;
   const double t = stamp - fg_start_time_;
 
   // IMU measurement (velocity + yaw rate preintegration)
-  const double v_fwd = std::sqrt(msg.Vn * msg.Vn + msg.Ve * msg.Ve);
+  // Project N/E velocity onto vehicle heading for true forward velocity
+  const auto& cs = mapper_.car_state();
+  const double v_ground = std::sqrt(msg.Vn * msg.Vn + msg.Ve * msg.Ve);
+  const double v_fwd =
+      std::abs(v_ground) > 0.01
+          ? (msg.Vn * std::cos(cs.car_state.theta) + msg.Ve * std::sin(cs.car_state.theta))
+          : v_ground;
   if (fg_last_imu_time_ >= 0.0) {
     const double dt = stamp - fg_last_imu_time_;
     if (dt > 0.0 && dt < 1.0) {
@@ -1532,7 +1549,6 @@ bool LocationNode::feedFactorGraph(const autodrive_msgs::HUAT_InsP2& msg) {
   }
   if (quality != localization_core::GnssQuality::INVALID) {
     // Use mapper's current position as ENU proxy (mapper already does WGS84->local)
-    const auto& cs = mapper_.car_state();
     fg_optimizer_->SetGnssObservation(cs.car_state.x, cs.car_state.y, quality);
   }
 
@@ -1540,7 +1556,6 @@ bool LocationNode::feedFactorGraph(const autodrive_msgs::HUAT_InsP2& msg) {
   fg_optimizer_->SetSpeedObservation(v_fwd);
 
   // Try update
-  const auto& cs = mapper_.car_state();
   localization_core::Pose2 current_pose;
   current_pose.x = cs.car_state.x;
   current_pose.y = cs.car_state.y;
@@ -1682,6 +1697,10 @@ bool LocationNode::feedFactorGraph(const autodrive_msgs::HUAT_InsP2& msg) {
 }
 
 void LocationNode::feedFactorGraphCones(const autodrive_msgs::HUAT_ConeDetections& msg) {
+  if (!fg_optimizer_) {
+    return;
+  }
+  std::lock_guard<std::mutex> lock(fg_mutex_);
   std::vector<localization_core::ConeObservation> obs;
   obs.reserve(msg.points.size());
   for (size_t i = 0; i < msg.points.size(); ++i) {

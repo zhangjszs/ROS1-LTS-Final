@@ -100,6 +100,12 @@ struct RelocConfig {
   double converge_sigma_xy = 0.5;
   double converge_sigma_theta = 0.1;
   double timeout = 5.0;  // seconds before giving up
+
+  // Predict process noise coefficients (sigma = coeff * |velocity| * dt + bias)
+  double predict_noise_coeff_v = 0.05;
+  double predict_noise_bias_xy = 0.01;
+  double predict_noise_coeff_w = 0.02;
+  double predict_noise_bias_theta = 0.005;
 };
 
 /// Key symbol prefixes for GTSAM
