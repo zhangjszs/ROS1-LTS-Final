@@ -1,0 +1,19 @@
+# Generated data directories — exclude all runtime outputs
+data/
+results/
+reports/
+gt/
+baselines/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Temporary files
+*.tmp
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
