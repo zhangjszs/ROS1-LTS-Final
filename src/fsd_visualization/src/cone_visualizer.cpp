@@ -650,7 +650,7 @@ visualization_msgs::Marker ConeVisualizer::createDistanceLabel(double x, double 
 
 // B8: TF timeout monitoring diagnostics
 void ConeVisualizer::publishDiagnostics() {
-  using DH = autodrive_msgs::DiagnosticsHelper;
+  using DH = fsd_common::DiagnosticsHelper;
 
   uint8_t level = diagnostic_msgs::DiagnosticStatus::OK;
   std::string message = "OK";

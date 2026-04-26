@@ -7,9 +7,9 @@
 #include <autodrive_msgs/HUAT_ConeDetections.h>
 #include <autodrive_msgs/HUAT_ConeMap.h>
 #include <autodrive_msgs/HUAT_FusedConeDetections.h>
-#include <autodrive_msgs/diagnostics_helper.hpp>
 #include <autodrive_msgs/topic_contract.hpp>
 #include <diagnostic_msgs/DiagnosticArray.h>
+#include <fsd_common/diagnostics_helper.hpp>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 #include <visualization_msgs/MarkerArray.h>
@@ -76,7 +76,7 @@ class ConeVisualizer {
   int tf_lookup_failure_count_;
   int tf_extrapolation_failure_count_;
   ros::Time last_tf_failure_time_;
-  autodrive_msgs::DiagnosticsHelper diag_helper_;
+  fsd_common::DiagnosticsHelper diag_helper_;
   ros::Timer diag_timer_;
 };
 

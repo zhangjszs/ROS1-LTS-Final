@@ -18,6 +18,8 @@
     <exec_depend>control_ros</exec_depend>
     <exec_depend>vehicle_interface_ros</exec_depend>
     <exec_depend>fsd_visualization</exec_depend>
+    <exec_depend>vision_ros</exec_depend>
+    <exec_depend>simulation_ros</exec_depend>
 
     <!-- 工具依赖 -->
     <exec_depend>rosbag</exec_depend>

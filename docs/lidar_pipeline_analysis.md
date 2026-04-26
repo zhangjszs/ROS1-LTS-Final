@@ -706,3 +706,48 @@ cluster:
 
 str_range: "15,30,45,60,80"
 ```
+
+---
+
+## Color Semantics Analysis (2026-04-26)
+
+### 前置结论
+
+**`track.bag` 不含 camera_info topic**。其 topic 列表仅有：
+- `/INS/ASENSING_INS`
+- `/resize_img_out`
+- `/velodyne_points`
+
+因此 2026-03-17 replay 评估中 `camera_info_available = false`（全部 1153 帧）是**数据缺失导致的预期行为**，不是 fusion 配置 bug。该次 replay 实质上只评估了 **legacy HFOV fallback** 路径，不能代表实车 projection-based fusion 的表现。
+
+### Track-Relative 一致性重算（方向 A）
+
+**目标**：验证 0.7582 的一致率中有多少是 cross-track visibility 导致的 metric 偏差。
+
+**方法**：
+1. `vehicle-frame`（原始）：直接用车辆坐标系 y 判断侧别
+2. `track-relative_boundary`：用每帧 cones 的左右边界中点估计赛道中心线，再判断 track-relative 侧别
+3. `track-relative_halfwidth`：在方法 2 基础上，对中心线附近（|y_rel| < 0.3 * half_width）的锥桶给予宽容（视为 ambiguous，直接算 consistent）
+
+**结果**：
+
+| 方法 | 一致率 | 对比原始 |
+|------|--------|----------|
+| Vehicle-frame (原始) | **0.7582** | — |
+| Track-relative (boundary) | 0.7414 | **−0.0168** |
+| Track-relative (+tolerance) | 0.7611 | **+0.0031** |
+
+**关键发现**：
+- Track-relative + 中心线宽容后，整体一致率仅从 0.7582 提升到 0.7611，**改善幅度仅 +0.31pp**
+- 97 帧改善 vs 65 帧恶化，净效果微弱
+- **结论：cross-track visibility 不是 0.76 低一致率的主因。** 24% 的不一致是 genuine fusion/vision 质量问题，不是 metric 设计缺陷。
+
+### 可用 bag 盘点（方向 B 准备）
+
+| Bag | camera_info | velodyne | 备注 |
+|-----|-------------|----------|------|
+| `track.bag` | ❌ 无 | ✅ | 当前评估用 bag，只能测 legacy HFOV |
+| `skidpad.bag` | ✅ `/pylon_camera_node/camera_info` | ✅ | 需 topic remap 到 `/camera/camera_info` |
+| `2023-11-12.bag` | ✅ `/camera_array/cam0/camera_info` | ❌ (rslidar) | 硬件不同，无法直接复用 |
+
+**下一步**：用 `skidpad.bag` 做 projection-based fusion 的 color semantics replay 验证，评估真实 fusion 质量。需要确保 replay 时 remap camera_info topic 并启动 vision 节点。

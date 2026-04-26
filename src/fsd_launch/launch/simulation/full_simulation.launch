@@ -23,6 +23,14 @@
   <arg name="perception_vehicle_local_config" default=""/>
   <arg name="control_vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/control.yaml"/>
   <arg name="control_vehicle_local_config" default=""/>
+  <arg name="decision_fusion_budget_sec" default="0.20" doc="统一主链路融合等待预算"/>
+  <arg name="enable_vision" default="false" doc="启用视觉模块"/>
+  <arg name="vision_mode" default="standard" doc="视觉模式: standard/lightweight/fallback_only"/>
+  <arg name="vision_impl" default="py" doc="视觉实现: py/cpp"/>
+  <arg name="vision_image_topic" default="/resize_img_out" doc="视觉输入图像话题"/>
+  <arg name="vision_model_path" default="$(find vision_ros)/models/yolo26l_48g/weights/best.onnx" doc="视觉模型路径"/>
+  <arg name="vision_require_model" default="true" doc="缺模型时是否fail-fast"/>
+  <arg name="vision_debug" default="false" doc="视觉调试图像"/>
 
   <param name="/use_sim_time" value="true"/>
   <rosparam command="load" file="$(arg fleet_config)" ns="vehicle_fleet"/>
@@ -60,6 +68,14 @@
     <arg name="carstate_topic" value="$(arg carstate_topic)"/>
     <arg name="pathlimits_topic" value="$(arg pathlimits_topic)"/>
     <arg name="approaching_goal_topic" value="$(arg approaching_goal_topic)"/>
+    <arg name="decision_fusion_budget_sec" value="$(arg decision_fusion_budget_sec)"/>
+    <arg name="enable_vision" value="$(arg enable_vision)"/>
+    <arg name="vision_mode" value="$(arg vision_mode)"/>
+    <arg name="vision_impl" value="$(arg vision_impl)"/>
+    <arg name="vision_image_topic" value="$(arg vision_image_topic)"/>
+    <arg name="vision_model_path" value="$(arg vision_model_path)"/>
+    <arg name="vision_require_model" value="$(arg vision_require_model)"/>
+    <arg name="vision_debug" value="$(arg vision_debug)"/>
   </include>
 
   <!-- Visualization -->
