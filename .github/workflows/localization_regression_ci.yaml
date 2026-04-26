@@ -38,3 +38,61 @@ jobs:
       - name: Run localization tooling unit tests
         run: |
           python3 perf_reports/scripts/test_localization_validation_tools.py
+
+      - name: Verify FG gate assets exist
+        run: |
+          test -f scripts/check_localization_fg_gate.py
+          test -f perf_reports/baselines/localization/fg_gate_thresholds.yaml
+
+      - name: FG gate checker syntax check
+        run: |
+          python3 -m py_compile scripts/check_localization_fg_gate.py
+
+      - name: FG gate checker logic test (mock pass)
+        run: |
+          mkdir -p /tmp/fg_gate_test
+          cat > /tmp/fg_gate_test/mock_pass.json <<'JSON'
+          {
+            "mission": "autocross",
+            "status": "PASS",
+            "samples": 100,
+            "metrics": {
+              "pos_error_p95_m": 0.5,
+              "heading_error_p95_deg": 5.0,
+              "velocity_error_p95_mps": 0.03,
+              "time_diff_p95_s": 0.05
+            }
+          }
+          JSON
+          python3 scripts/check_localization_fg_gate.py \
+            --result-json /tmp/fg_gate_test/mock_pass.json \
+            --thresholds perf_reports/baselines/localization/fg_gate_thresholds.yaml \
+            --output-json /tmp/fg_gate_test/pass_result.json \
+            --output-md /tmp/fg_gate_test/pass_result.md
+          grep '"overall_status": "pass"' /tmp/fg_gate_test/pass_result.json
+
+      - name: FG gate checker logic test (mock fail)
+        run: |
+          cat > /tmp/fg_gate_test/mock_fail.json <<'JSON'
+          {
+            "mission": "skidpad",
+            "status": "PASS",
+            "samples": 100,
+            "metrics": {
+              "pos_error_p95_m": 2.0,
+              "heading_error_p95_deg": 20.0,
+              "velocity_error_p95_mps": 0.03,
+              "time_diff_p95_s": 0.05
+            }
+          }
+          JSON
+          if python3 scripts/check_localization_fg_gate.py \
+            --result-json /tmp/fg_gate_test/mock_fail.json \
+            --thresholds perf_reports/baselines/localization/fg_gate_thresholds.yaml \
+            --output-json /tmp/fg_gate_test/fail_result.json \
+            --output-md /tmp/fg_gate_test/fail_result.md; then
+            echo "ERROR: expected failure but got success"
+            exit 1
+          fi
+          grep '"overall_status": "fail"' /tmp/fg_gate_test/fail_result.json
+          echo "[OK] mock fail correctly triggered"
