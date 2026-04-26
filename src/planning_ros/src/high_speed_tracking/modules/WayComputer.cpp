@@ -491,6 +491,10 @@ size_t WayComputer::treeSearch(std::vector<HeurInd>& nextEdges, const KDTree& mi
     } else {
       // Add new possible traces to the queue
       for (const HeurInd& nextEdge : nextEdges) {
+        if (cua.size() >= 10000) {
+          ROS_WARN("[high_speed_tracking] BFS queue exceeded 10000, aborting treeSearch early.");
+          break;
+        }
         Point actPos = edges[t.edgeInd()].midPoint();
         bool closesLoop = this->way_.closesLoopWith(edges[nextEdge.second], &actPos);
         Trace aux = t;
@@ -554,9 +558,14 @@ void WayComputer::computeWay(const std::vector<Edge>& edges,
 
   // Main outer loop, every iteration of this loop will involve adding one
   // midpoint to the path.
+  size_t iteration_count = 0;
+  const size_t max_iterations = params.max_way_horizon_size > 0
+                                    ? static_cast<size_t>(params.max_way_horizon_size) * 2
+                                    : edges.size() * 2;
   while (ros::ok() and not nextEdges.empty() and
          (!params.max_way_horizon_size or
-          this->way_.sizeAheadOfCar() <= static_cast<uint32_t>(params.max_way_horizon_size))) {
+          this->way_.sizeAheadOfCar() <= static_cast<uint32_t>(params.max_way_horizon_size)) &&
+         iteration_count++ < max_iterations) {
     // nextEdges 各种删除条件后备选的边
     // midpointsKDT 存放各种中点边的kdt
     // edges 三角剖分去除这个过大角度和边长的边
@@ -1237,7 +1246,7 @@ autodrive_msgs::HUAT_PathLimits WayComputer::getPathLimits() const {
 
   // res.replan indicates if the Way is different from last iteration's
   // 判断当前的way_是否与上一次迭代的lastWay_不同，如果不同则将res的replan成员变量设置为true，否则设置为false。
-  res.replan = this->way_ != this->lastWay_;
+  bool way_changed = this->way_ != this->lastWay_;
 
   // Fill path
   std::vector<Point> path = this->wayToPublish_.getPathLocal();  //给的是全局的
@@ -1280,7 +1289,7 @@ autodrive_msgs::HUAT_PathLimits WayComputer::getPathLimits() const {
 
   // replan indicates if the n midpoints in front of the car
   // have varied from last iteration
-  res.replan = this->way_.quinEhLobjetiuDeLaSevaDiresio(this->lastWay_);
+  res.replan = way_changed || this->way_.quinEhLobjetiuDeLaSevaDiresio(this->lastWay_);
   this->fillPathDynamics(res);
   planning_ros::contract::EnforcePathDynamicsShape(res);
   return res;
@@ -1305,7 +1314,7 @@ autodrive_msgs::HUAT_PathLimits WayComputer::getPathLimitsGlobal(int x) {
   Point nextPoint;
   // res.replan indicates if the Way is different from last iteration's//
   // res.replan指示方法是否与上次迭代不同
-  res.replan = (this->way_ != this->lastWay_);
+  bool way_changed = (this->way_ != this->lastWay_);
 
   // Fill path  //填充路径
   switch (x) {
@@ -1394,7 +1403,7 @@ autodrive_msgs::HUAT_PathLimits WayComputer::getPathLimitsGlobal(int x) {
 
   // replan indicates if the n midpoints in front of the car
   // have varied from last iteration
-  res.replan = this->way_.quinEhLobjetiuDeLaSevaDiresio(this->lastWay_);
+  res.replan = way_changed || this->way_.quinEhLobjetiuDeLaSevaDiresio(this->lastWay_);
   this->fillPathDynamics(res);
   planning_ros::contract::EnforcePathDynamicsShape(res);
   return res;

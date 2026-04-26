@@ -204,6 +204,12 @@ void LineDetectionNode::FillPathDynamics(autodrive_msgs::HUAT_PathLimits& msg) c
   // Convert to planning_core::Point2D for shared module
   std::vector<planning_core::Point2D> pts(n);
   for (size_t i = 0; i < n; ++i) {
+    if (!std::isfinite(msg.path[i].x) || !std::isfinite(msg.path[i].y)) {
+      ROS_ERROR("[LineDetection] Non-finite path point at index %zu, aborting dynamics fill", i);
+      msg.curvatures.clear();
+      msg.target_speeds.clear();
+      return;
+    }
     pts[i].x = msg.path[i].x;
     pts[i].y = msg.path[i].y;
   }

@@ -22,8 +22,7 @@ Pose MakePose(double x, double y) {
 }
 }  // namespace
 
-SkidpadDetectionCore::SkidpadDetectionCore(const SkidpadParams& params)
-    : skidpad_msg_ptr_(new pcl::PointCloud<pcl::PointXYZ>()) {
+SkidpadDetectionCore::SkidpadDetectionCore(const SkidpadParams& params) {
   SetParams(params);
 }
 
@@ -72,7 +71,6 @@ double SkidpadDetectionCore::GetRecommendedSpeedCap() const {
 }
 
 void SkidpadDetectionCore::ProcessConeDetections(const std::vector<ConePoint>& cones) {
-  skidpad_msg_ptr_->clear();
   cones_local_.clear();
   cone_colors_local_.clear();
   cones_local_.reserve(cones.size());
@@ -96,18 +94,6 @@ void SkidpadDetectionCore::ProcessConeDetections(const std::vector<ConePoint>& c
 
 void SkidpadDetectionCore::UpdateVehicleState(const Trajectory& state) {
   current_pose_ = state;
-}
-
-void SkidpadDetectionCore::PassThrough(pcl::PointCloud<pcl::PointXYZ>::Ptr& in_ptr) {
-  pcl::PassThrough<pcl::PointXYZ> pass;
-  pass.setInputCloud(in_ptr);
-  pass.setFilterFieldName("x");
-  pass.setFilterLimits(params_.passthrough_x_min, params_.passthrough_x_max);
-  pass.filter(*in_ptr);
-
-  pass.setFilterFieldName("y");
-  pass.setFilterLimits(params_.passthrough_y_min, params_.passthrough_y_max);
-  pass.filter(*in_ptr);
 }
 
 bool SkidpadDetectionCore::CircleFromThreePoints(const Eigen::Vector2d& a, const Eigen::Vector2d& b,

@@ -42,9 +42,37 @@ void ControllerBase::SetParams(const ControlParams& params) {
   if (max_lookahead_ < min_lookahead_) {
     max_lookahead_ = min_lookahead_ + 1.0;
   }
+
+  // M7: Validate safety-critical PID and brake parameters
+  if (angle_kp_ < 0.0) {
+    angle_kp_ = 0.0;
+  }
+  if (angle_ki_ < 0.0) {
+    angle_ki_ = 0.0;
+  }
+  if (angle_kd_ < 0.0) {
+    angle_kd_ = 0.0;
+  }
+  if (brake_kp_ < 0.0) {
+    brake_kp_ = 0.0;
+  }
+  if (brake_max_ < 0.0) {
+    brake_max_ = 0.0;
+  }
+
+  // M8: Clamp curvature feedforward gain to reasonable upper bound
+  const double kMaxCurvatureFfGain = 5.0;
+  if (curvature_ff_gain_ > kMaxCurvatureFfGain) {
+    curvature_ff_gain_ = kMaxCurvatureFfGain;
+  }
 }
 
 void ControllerBase::UpdateCarState(const CarState& state) {
+  if (!std::isfinite(state.x) || !std::isfinite(state.y) || !std::isfinite(state.theta) ||
+      !std::isfinite(state.v) || !std::isfinite(state.vy) || !std::isfinite(state.yaw_rate)) {
+    return;
+  }
+
   car_x_ = state.x;
   car_y_ = state.y;
   car_theta_ = state.theta;
@@ -94,7 +122,9 @@ void ControllerBase::Tick() {
 }
 
 double ControllerBase::distance_square(double x1, double y1, double x2, double y2) const {
-  return std::pow(x1 - x2, 2) + std::pow(y1 - y2, 2);
+  double dx = x1 - x2;
+  double dy = y1 - y2;
+  return dx * dx + dy * dy;
 }
 
 int ControllerBase::FindNearestIndex() const {
@@ -111,8 +141,13 @@ int ControllerBase::FindNearestIndex() const {
 }
 
 int ControllerBase::GetTargetIndex() {
+  // H1: Early-return for paths too short to compute a target index
+  if (path_coordinate_.size() < 2) {
+    return 0;
+  }
+
   double diff_distance = 0;
-  double tem_distance;
+  double tem_distance = 0.0;  // H1: initialize to avoid UB on first use
   int index = 0;
 
   lookhead_ = computeAdaptiveLookahead();
@@ -149,8 +184,11 @@ double ControllerBase::angle_pid(double delta) {
 
   if (std::abs(error) <= steering_delta_max_) {
     angle_integra_ += error;
+    const double max_angle_integra = steering_delta_max_ / std::max(angle_ki_, 1e-6);
+    angle_integra_ = std::max(-max_angle_integra, std::min(angle_integra_, max_angle_integra));
   } else {
-    angle_integra_ = 0.0;
+    // Decay accumulated integral when error is large to prevent oscillation on recovery
+    angle_integra_ *= 0.9;
   }
 
   double output = angle_kp_ * error + angle_ki_ * angle_integra_ + angle_kd_ * differ + car_fangle_;
@@ -209,8 +247,17 @@ double ControllerBase::computeAdaptiveLookahead() const {
 }
 
 int ControllerBase::ComputeSteeringWithLookahead(int target_index) {
+  if (target_index < 0) {
+    return steering_offset_;
+  }
+
+  // Allow target_index == size() to trigger finish signal (one past last point)
   if (target_index >= static_cast<int>(path_coordinate_.size()) - 1 && finish_signal_) {
     RequestStop();
+    return steering_offset_;
+  }
+
+  if (target_index >= static_cast<int>(path_coordinate_.size())) {
     return steering_offset_;
   }
 
@@ -264,20 +311,27 @@ int ControllerBase::ComputeDefaultPedal() {
   double error = target_speed - car_veloc_;
   double accel;
   veloc_integra_ += error;
+  const double max_integra = default_pedal_max_ / std::max(default_pedal_ki_, 1e-6);
+  veloc_integra_ = std::max(-max_integra, std::min(veloc_integra_, max_integra));
   accel = default_pedal_kp_ * error + default_pedal_ki_ * veloc_integra_;
 
   if (car_veloc_ > default_high_speed_threshold_ && car_veloc_ > target_speed)
     accel = default_pedal_cap_;
 
   if (accel > default_pedal_max_)
-    accel = default_pedal_cap_;
+    accel = default_pedal_max_;
 
-  if (car_veloc_ <= default_min_speed_threshold_)
+  if (car_veloc_ <= default_min_speed_threshold_ && target_speed > 0.0)
     accel = default_pedal_cap_;
   return static_cast<int>(accel);
 }
 
 int ControllerBase::ComputeDefaultBrake() {
+  // M4: If mission is complete, apply minimum braking to avoid coasting
+  if (finish_signal_ && car_veloc_ > 0.1) {
+    return static_cast<int>(brake_max_ * 0.3);  // 30% max brake as minimum stop brake
+  }
+
   if (path_coordinate_.empty() || target_speeds_.empty()) {
     return 0;
   }

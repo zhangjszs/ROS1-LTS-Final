@@ -33,9 +33,10 @@ Triangle DelaunayTri::superTriangle(const std::vector<Node>& nodes) {
   const double midx = (xmin + xmax) / 2.0;
   const double midy = (ymin + ymax) / 2.0;
 
-  const Node n0 = Node::superTriangleNode(midx - 20 * dmax, midy - dmax);
-  const Node n1 = Node::superTriangleNode(midx, midy + 20 * dmax);
-  const Node n2 = Node::superTriangleNode(midx + 20 * dmax, midy - dmax);
+  const double clamped_dmax = std::min(dmax, 50000.0);  // clamp to avoid float overflow
+  const Node n0 = Node::superTriangleNode(midx - 20.0 * clamped_dmax, midy - clamped_dmax);
+  const Node n1 = Node::superTriangleNode(midx, midy + 20.0 * clamped_dmax);
+  const Node n2 = Node::superTriangleNode(midx + 20.0 * clamped_dmax, midy - clamped_dmax);
 
   return {n0, n1, n2};
 }

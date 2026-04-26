@@ -129,7 +129,6 @@ class SkidpadDetectionCore {
     bool valid{false};
   };
 
-  void PassThrough(pcl::PointCloud<pcl::PointXYZ>::Ptr& in_ptr);
   bool EstimateGeometry(GeometryModel* geometry);
   bool FitCircleRansac(const std::vector<Eigen::Vector2d>& points, CircleModel* model) const;
   static bool CircleFromThreePoints(const Eigen::Vector2d& a, const Eigen::Vector2d& b,
@@ -156,7 +155,6 @@ class SkidpadDetectionCore {
   bool path_updated_{false};
   bool approaching_goal_{false};
 
-  pcl::PointCloud<pcl::PointXYZ>::Ptr skidpad_msg_ptr_;
   std::vector<Eigen::Vector2d> cones_local_{};
   std::vector<uint8_t> cone_colors_local_{};
   GeometryModel geometry_{};

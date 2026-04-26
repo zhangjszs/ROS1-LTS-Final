@@ -13,7 +13,7 @@ double SkipController::CountError(double x1, double y1, double x2, double y2,
                                   double heading) const {
   double dx = x1 - x2;
   double dy = y1 - y2;
-  double error = std::sqrt(std::pow(dx, 2) + std::pow(dy, 2));
+  double error = std::sqrt(dx * dx + dy * dy);
   return dy * std::cos(heading) - dx * std::sin(heading) > 0 ? -error : error;
 }
 
@@ -40,7 +40,12 @@ int SkipController::ComputeSteering() {
   double e_y = CountError(path_coordinate_[index_min].x, path_coordinate_[index_min].y, car_x_,
                           car_y_, alpha);
 
-  double delta = std::atan2(0.5 * e_y, car_veloc_ + 6) + alpha;
+  // H2: Guard against denominator approaching zero
+  double denom = car_veloc_ + 6.0;
+  if (std::abs(denom) < 1e-3) {
+    denom = (denom >= 0.0) ? 1e-3 : -1e-3;
+  }
+  double delta = std::atan2(0.5 * e_y, denom) + alpha;
 
   delta = angle_pid(delta);
 

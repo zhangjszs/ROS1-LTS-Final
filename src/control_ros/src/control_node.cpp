@@ -122,6 +122,16 @@ class ControlNode {
   //   P2: Controller stop_requested (mission complete / planner stop)
   // EBS hardware stop is outside software control (handled by vehicle_interface)
   void SpinOnce() {
+    // H6: If already stopped, continue spinning briefly to allow diagnostics to propagate
+    if (stopped_) {
+      PublishDiagnostics(true);
+      ++stop_spin_count_;
+      if (stop_spin_count_ >= kStopSpinIterations) {
+        ros::shutdown();
+      }
+      return;
+    }
+
     PublishDiagnostics(false);
 
     // P0: External stop file
@@ -130,7 +140,7 @@ class ControlNode {
       PublishEmergencyStop();
       ++external_stop_trigger_count_;
       PublishDiagnostics(true);
-      ros::shutdown();
+      stopped_ = true;
       return;
     }
 
@@ -146,8 +156,9 @@ class ControlNode {
               timeout_sec, input_timeout_sec_);
           PublishEmergencyStop();
           ++input_timeout_count_;
+          path_ready_ = false;
           PublishDiagnostics(true);
-          ros::shutdown();
+          stopped_ = true;
           return;
         }
       }
@@ -167,7 +178,7 @@ class ControlNode {
         autodrive_msgs::HUAT_VehicleCmd stop_cmd;
         PublishCommand(stop_cmd);
         PublishDiagnostics(true);
-        ros::shutdown();
+        stopped_ = true;
         return;
       }
 
@@ -184,6 +195,19 @@ class ControlNode {
       cmd.working_mode = 1;
       cmd.racing_num = racing_num_;
       cmd.racing_status = output.racing_status;
+
+      // H7: Steering rate limiting between consecutive commands
+      if (steering_delta_max_ > 0.0 && steering_ratio_ > 0.0) {
+        int max_delta = static_cast<int>(steering_delta_max_ * 180.0 / M_PI * steering_ratio_);
+        if (max_delta < 1) {
+          max_delta = 1;
+        }
+        int clamped = std::max(last_steering_ - max_delta, std::min(static_cast<int>(cmd.steering),
+                                                                    last_steering_ + max_delta));
+        clamped = std::max(0, std::min(255, clamped));
+        cmd.steering = static_cast<uint8_t>(clamped);
+      }
+
       // Compute checksum with overflow protection (8-bit wraparound)
       int checksum = cmd.head1 + cmd.head2 + cmd.length + cmd.steering + cmd.pedal_ratio +
                      cmd.brake_force + cmd.gear_position + cmd.working_mode + cmd.racing_num +
@@ -242,6 +266,10 @@ class ControlNode {
     if (controller_) {
       controller_->SetParams(params);
     }
+
+    // H7: Cache steering rate-limiting params for output clamping in SpinOnce
+    steering_delta_max_ = params.steering_delta_max;
+    steering_ratio_ = params.steering_ratio;
   }
 
   void SetupSubscribers() {
@@ -262,6 +290,14 @@ class ControlNode {
   }
 
   void PoseCallback(const autodrive_msgs::HUAT_CarState::ConstPtr& msgs) {
+    // H3: NaN/Inf guards on incoming CarState before passing to controller
+    if (!std::isfinite(msgs->car_state.x) || !std::isfinite(msgs->car_state.y) ||
+        !std::isfinite(msgs->car_state.theta) || !std::isfinite(msgs->V) ||
+        !std::isfinite(msgs->Vy) || !std::isfinite(msgs->Wz)) {
+      ROS_WARN_THROTTLE(1.0, "[control] Rejected non-finite CarState update");
+      return;
+    }
+
     control_core::CarState state;
     state.x = msgs->car_state.x;
     state.y = msgs->car_state.y;
@@ -281,10 +317,11 @@ class ControlNode {
   }
 
   void PathLimitsCallback(const autodrive_msgs::HUAT_PathLimits::ConstPtr& msgs) {
+    // M5: Do not reset pose_ready_ here; use a separate path_ready_ flag instead.
+    // pose_ready_ should only reflect whether we have ever received a valid CarState.
     if (!pose_ready_) {
       return;
     }
-    pose_ready_ = false;
 
     // B1: Validate PathLimits array length invariant
     // CRITICAL: path, target_speeds, curvatures must have same length
@@ -377,7 +414,22 @@ class ControlNode {
       ROS_WARN_THROTTLE(1, "文件打开失败 (External Stop Check Failed to Open File)");
       return false;  // Don't stop on read error, just warn
     }
-    int value = static_cast<char>(ifs.get()) - '0';
+    // M6: Read entire file content, trim whitespace, and parse as integer
+    std::string content;
+    std::getline(ifs, content);
+    // Trim leading/trailing whitespace
+    size_t start = content.find_first_not_of(" \t\r\n");
+    if (start == std::string::npos) {
+      return false;  // Empty file -> treat as no-stop (same as unreadable)
+    }
+    size_t end = content.find_last_not_of(" \t\r\n");
+    std::string trimmed = content.substr(start, end - start + 1);
+    int value = 0;
+    try {
+      value = std::stoi(trimmed);
+    } catch (const std::exception&) {
+      return false;  // Unparseable -> treat as stop
+    }
     return value == 0;
   }
 
@@ -393,9 +445,10 @@ class ControlNode {
     cmd.working_mode = 1;
     cmd.racing_num = racing_num_;
     cmd.racing_status = 5;
-    cmd.checksum = cmd.head1 + cmd.head2 + cmd.length + cmd.steering + cmd.pedal_ratio +
+    int checksum = cmd.head1 + cmd.head2 + cmd.length + cmd.steering + cmd.pedal_ratio +
                    cmd.brake_force + cmd.gear_position + cmd.working_mode + cmd.racing_num +
                    cmd.racing_status;
+    cmd.checksum = static_cast<uint8_t>(checksum & 0xFF);
 
     PublishCommand(cmd);
   }
@@ -546,6 +599,15 @@ class ControlNode {
 
   // B19/B30: Stop reason tracking
   control_core::ControlStopState stop_state_{control_core::ControlStopState::RUNNING};
+
+  // H6: Graceful stop state — continue spinning to propagate diagnostics
+  bool stopped_{false};
+  int stop_spin_count_{0};
+  static constexpr int kStopSpinIterations = 5;  // 5 spins at 10Hz = 0.5s
+
+  // H7: Steering rate limiting parameters (loaded from controller params)
+  double steering_delta_max_{0.5};
+  double steering_ratio_{3.73};
 
   // B28: Last control output for diagnostics
   int last_steering_{110};

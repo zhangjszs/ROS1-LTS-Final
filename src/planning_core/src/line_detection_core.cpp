@@ -210,7 +210,8 @@ std::vector<Pose> LineDetectionCore::GeneratePath(const HoughLine& center_line) 
   std::vector<Pose> path;
 
   bool is_horizontal = (std::abs(center_line.theta) < params_.theta_tolerance ||
-                        std::abs(center_line.theta - M_PI) < params_.theta_tolerance);
+                        std::abs(center_line.theta - M_PI) < params_.theta_tolerance ||
+                        std::abs(center_line.theta + M_PI) < params_.theta_tolerance);
 
   const double accel_plus_brake =
       std::max(0.0, params_.accel_distance) + std::max(0.0, params_.brake_distance);
