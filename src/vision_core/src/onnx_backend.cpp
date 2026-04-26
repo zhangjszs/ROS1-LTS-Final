@@ -55,6 +55,12 @@ std::vector<Detection> OnnxBackend::detect(const cv::Mat& bgr) {
     return {};
 
   cv::Mat blob = preprocess(bgr);
+  const size_t expected_elements = 3ULL * config_.input_height * config_.input_width;
+  if (blob.total() != expected_elements) {
+    ROS_ERROR("[onnx_backend] Preprocessed blob size mismatch: %zu vs expected %zu", blob.total(),
+              expected_elements);
+    return {};
+  }
   std::array<int64_t, 4> input_shape = {1, 3, config_.input_height, config_.input_width};
   Ort::Value input_tensor = Ort::Value::CreateTensor<float>(
       mem_info_, blob.ptr<float>(), blob.total(), input_shape.data(), input_shape.size());

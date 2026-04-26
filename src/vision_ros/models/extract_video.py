@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Extract /resize_img_out frames from a rosbag and encode to MP4."""
 
-import sys
 import os
+import sys
+
+import av
 import numpy as np
 
 # ROS environment
 import rosbag
-import av
 
 OUTPUT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "track_vision.mp4")
 BAG_PATH = "/home/kerwin/rosbag/track.bag"

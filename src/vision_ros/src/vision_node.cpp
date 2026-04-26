@@ -42,7 +42,7 @@ VisionNode::VisionNode(ros::NodeHandle& nh, ros::NodeHandle& private_nh)
     throw std::runtime_error("vision_node requires non-empty inference/model_path");
   }
 
-  // Initialize inference backend (graceful fallback if model missing)
+  // Initialize inference backend
   if (!fallback_only) {
     backend_ = vision_core::createBackend(backend_type_);
     if (backend_) {
