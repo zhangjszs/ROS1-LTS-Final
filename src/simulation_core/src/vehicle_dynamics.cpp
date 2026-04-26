@@ -235,21 +235,26 @@ void VehicleDynamics::calculateTireForces(double& Fx_total, double& Fy_total, do
   Fx_total += Fx_aero;
 }
 
-std::array<double, 6> VehicleDynamics::stateDerivative(const VehicleState& state,
-                                                       const ControlInput& input) {
-  // Temporarily set state for force calculations
-  VehicleState saved_state = state_.vehicle;
-  state_.vehicle = state;
+void VehicleDynamics::computeForcesForState(const VehicleState& vehicle_state,
+                                            const ControlInput& input, double& Fx_out,
+                                            double& Fy_out, double& Mz_out) {
+  // Temporarily swap state to reuse existing force calculations without duplicating logic
+  SimulationState saved_state = state_;
+  state_.vehicle = vehicle_state;
   state_.input = input;
 
   calculateNormalLoads();
   calculateSlips();
+  calculateTireForces(Fx_out, Fy_out, Mz_out);
 
+  state_ = saved_state;
+}
+
+std::array<double, 6> VehicleDynamics::stateDerivative(const VehicleState& state,
+                                                       const ControlInput& input) {
+  // Compute forces using passed state/input without mutating class state
   double Fx, Fy, Mz;
-  calculateTireForces(Fx, Fy, Mz);
-
-  // Restore state
-  state_.vehicle = saved_state;
+  computeForcesForState(state, input, Fx, Fy, Mz);
 
   const double m = vehicle_params_.mass;
   const double Iz = vehicle_params_.inertia_z;

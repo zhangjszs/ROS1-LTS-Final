@@ -9,7 +9,7 @@
 #include <exception>  // For exception class
 #include <string>     // For string
 
-using namespace std;
+// Note: std types are fully qualified (std::string, etc.) to avoid namespace pollution in headers
 
 /**
  *   Base class representing basic communication endpoint
@@ -26,7 +26,7 @@ class Socket {
    *   @return local address of socket
    *   @exception SocketException thrown if fetch fails
    */
-  string getLocalAddress();
+  std::string getLocalAddress();
 
   /**
    *   Get the local port
@@ -51,7 +51,7 @@ class Socket {
    *   @param localPort local port
    *   @exception SocketException thrown if setting local port or address fails
    */
-  void setLocalAddressAndPort(const string& localAddress, unsigned short localPort = 0);
+  void setLocalAddressAndPort(const std::string& localAddress, unsigned short localPort = 0);
 
   /**
    *   If WinSock, unload the WinSock DLLs; otherwise do nothing.  We ignore
@@ -74,7 +74,8 @@ class Socket {
    *   @param service service to resolve (e.g., "http")
    *   @param protocol protocol of service to resolve.  Default is "tcp".
    */
-  static unsigned short resolveService(const string& service, const string& protocol = "tcp");
+  static unsigned short resolveService(const std::string& service,
+                                       const std::string& protocol = "tcp");
 
   /**
    *   Shutdown the socket to interrupt blocking calls
@@ -104,7 +105,7 @@ class CommunicatingSocket : public Socket {
    *   @param foreignPort foreign port
    *   @exception SocketException thrown if unable to establish connection
    */
-  void connect(const string& foreignAddress, unsigned short foreignPort);
+  void connect(const std::string& foreignAddress, unsigned short foreignPort);
 
   /**
    *   Write the given buffer to this socket.  Call connect() before
@@ -130,7 +131,7 @@ class CommunicatingSocket : public Socket {
    *   @return foreign address
    *   @exception SocketException thrown if unable to fetch foreign address
    */
-  string getForeignAddress();
+  std::string getForeignAddress();
 
   /**
    *   Get the foreign port.  Call connect() before calling recv()
@@ -168,7 +169,7 @@ class UDPSocket : public CommunicatingSocket {
    *   @param localPort local port
    *   @exception SocketException thrown if unable to create UDP socket
    */
-  UDPSocket(const string& localAddress, unsigned short localPort);
+  UDPSocket(const std::string& localAddress, unsigned short localPort);
 
   /**
    *   Unset foreign address and port
@@ -193,7 +194,7 @@ class UDPSocket : public CommunicatingSocket {
    *   @return true if send is successful
    *   @exception SocketException thrown if unable to send datagram
    */
-  void sendTo(const void* buffer, int bufferLen, const string& foreignAddress,
+  void sendTo(const void* buffer, int bufferLen, const std::string& foreignAddress,
               unsigned short foreignPort);
 
   /**
@@ -206,7 +207,7 @@ class UDPSocket : public CommunicatingSocket {
    *   @return number of bytes received and -1 for error
    *   @exception SocketException thrown if unable to receive datagram
    */
-  int recvFrom(void* buffer, int bufferLen, string& sourceAddress, unsigned short& sourcePort);
+  int recvFrom(void* buffer, int bufferLen, std::string& sourceAddress, unsigned short& sourcePort);
 
  private:
   void setBroadcast();

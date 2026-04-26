@@ -32,10 +32,14 @@ Application::Application(int argc, char** argv) : userNode(argc, argv), is_runni
 
 Application::~Application() {
   is_running = false;
-  vehicleUdpSocket->shutdownSocket();
-  insUdpSocket->shutdownSocket();
-  vehicleThread->join();
-  insThread->join();
+  if (vehicleUdpSocket)
+    vehicleUdpSocket->shutdownSocket();
+  if (insUdpSocket)
+    insUdpSocket->shutdownSocket();
+  if (vehicleThread)
+    vehicleThread->join();
+  if (insThread)
+    insThread->join();
 }
 
 void Application::start(void) {

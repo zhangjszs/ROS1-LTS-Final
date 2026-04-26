@@ -79,14 +79,6 @@ class ConeSensor {
   void computeColorProbabilities(ConeColor true_color, double distance, ConeObservation& obs);
 
   /**
-   * @brief Potentially misclassify cone color
-   * @param true_color Actual cone color
-   * @param observed_color Output observed color
-   * @return true if color was misclassified
-   */
-  bool colorMisclassify(ConeColor true_color, ConeColor& observed_color);
-
-  /**
    * @brief Transform cone from global to vehicle frame
    * @param cone Global cone position
    * @param state Vehicle state

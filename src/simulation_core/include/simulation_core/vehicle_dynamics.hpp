@@ -92,6 +92,12 @@ class VehicleDynamics {
   void calculateTireForces(double& Fx_total, double& Fy_total, double& Mz_total);
 
   /**
+   * @brief Compute tire forces for a given state/input without mutating class state
+   */
+  void computeForcesForState(const VehicleState& vehicle_state, const ControlInput& input,
+                             double& Fx_out, double& Fy_out, double& Mz_out);
+
+  /**
    * @brief State derivative for integration
    * @param state Current state
    * @param input Control input

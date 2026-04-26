@@ -33,6 +33,10 @@ void ConeSensor::setCones(const std::vector<Cone>& cones) {
   cones_ = cones;
 }
 
+void ConeSensor::setSeed(unsigned int seed) {
+  rng_.seed(seed);
+}
+
 void ConeSensor::observe(const VehicleState& state, std::vector<ConeObservation>& observations) {
   observations.clear();
 
@@ -161,29 +165,6 @@ void ConeSensor::computeColorProbabilities(ConeColor true_color, double distance
     obs.prob_unknown = static_cast<float>(lik_others);
     obs.color = ConeColor::UNKNOWN;
   }
-}
-
-bool ConeSensor::colorMisclassify(ConeColor true_color, ConeColor& observed_color) {
-  observed_color = true_color;
-
-  // Only misclassify blue/yellow (not red)
-  if (true_color != ConeColor::BLUE && true_color != ConeColor::YELLOW_SMALL &&
-      true_color != ConeColor::YELLOW_BIG) {
-    return false;
-  }
-
-  // Check if misclassification occurs
-  if (uniform_(rng_) > params_.camera_color_accuracy) {
-    // Swap blue and yellow
-    if (true_color == ConeColor::BLUE) {
-      observed_color = ConeColor::YELLOW_SMALL;
-    } else {
-      observed_color = ConeColor::BLUE;
-    }
-    return true;
-  }
-
-  return false;
 }
 
 bool ConeSensor::transformToVehicleFrame(const Cone& cone, const VehicleState& state,

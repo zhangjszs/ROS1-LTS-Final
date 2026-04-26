@@ -108,8 +108,8 @@ void UserNode::publishVehicle(void* data) {
   vehicle_status_msg.work_mode = vcu2ipc_msg.work_mode;
   vehicle_status_msg.racing_num = vcu2ipc_msg.racing_num;
   vehicle_status_msg.fault_type = vcu2ipc_msg.fault_type;
-  std::cout << "Interface vehicle steering:" << (int)(vcu2ipc_msg.pedal_ratio) << std::endl
-            << (int)(vehicle_status_msg.steering) << std::endl;
+  ROS_INFO_STREAM("Interface vehicle steering:" << (int)(vcu2ipc_msg.pedal_ratio));
+  ROS_INFO_STREAM("Interface vehicle steering angle:" << (int)(vehicle_status_msg.steering));
 
   ros_pub_vehicle_info.publish(vehicle_status_msg);
 }
@@ -187,9 +187,11 @@ void UserNode::Imu_Trans() {
 
   imu_data.Heading = imuPacket.heading;
   imu_data.Pitch = imuPacket.pitch;
+  imu_data.Roll = imuPacket.roll;
 
   imu_data.Lat = imuPacket.latitude;
   imu_data.Lon = imuPacket.longitude;
+  imu_data.Altitude = imuPacket.altitude;
   // std::cout<<"Lat:"<<imu_data.Lat;
   // std::cout<<"Lon:"<<imu_data.Lon;
   imu_data.gyro_x = imuPacket.roll_speed;
@@ -198,6 +200,19 @@ void UserNode::Imu_Trans() {
   imu_data.Ve = imuPacket.eas_speed;
   imu_data.Vn = imuPacket.nor_speed;
   imu_data.Vd = imuPacket.down_speed;
+
+  // Acceleration (s16 scaled by 0.001 g -> m/s^2 approx, or raw as-is)
+  // The protocol sends s16 values; store raw for now (consumer may scale)
+  imu_data.acc_x = imuPacket.nor_accelerate;
+  imu_data.acc_y = imuPacket.eas_accelerate;
+  imu_data.acc_z = imuPacket.down_accelerate;
+
+  imu_data.Base = 0.0f;
+  imu_data.NSV1 = 0;
+  imu_data.NSV2 = 0;
+  imu_data.Status = imuPacket.flag;
+  imu_data.Age = 0;
+  imu_data.War = 0;
 }
 
 ros::Time gpsToRosTime(uint16_t week, uint32_t ms_of_week) {
@@ -238,6 +253,20 @@ void UserNode::publishIns(void* data) {
     global_insMsg.Ve = imu_data.Ve;
     global_insMsg.Vn = imu_data.Vn;
     global_insMsg.Vd = imu_data.Vd;
+
+    // Populate remaining INS fields (H2 fix)
+    global_insMsg.Roll = imu_data.Roll;
+    global_insMsg.Altitude = imu_data.Altitude;
+    global_insMsg.acc_x = imu_data.acc_x;
+    global_insMsg.acc_y = imu_data.acc_y;
+    global_insMsg.acc_z = imu_data.acc_z;
+    global_insMsg.Base = imu_data.Base;
+    global_insMsg.NSV1 = imu_data.NSV1;
+    global_insMsg.NSV2 = imu_data.NSV2;
+    global_insMsg.Status = imu_data.Status;
+    global_insMsg.Age = imu_data.Age;
+    global_insMsg.War = imu_data.War;
+
     // std::cout<<"Received Lat Lon:"<<global_insMsg.Lat<<std::endl;
     ros_pub_ins_info.publish(global_insMsg);
   }
@@ -261,10 +290,10 @@ void UserNode::recv_msg_vehcileCMD_callack(
   vehicle_tx_msg[9] = vehicle_cmd_msg.racing_status;
   vehicle_tx_msg[10] = 0x00;
   vehicle_tx_msg[11] = 0x00;
-  std::cout << "STEERING:" << (int)vehicle_cmd_msg.steering << (int)vehicle_cmd_msg.pedal_ratio
-            << std::endl;
+  ROS_INFO_STREAM("STEERING:" << (int)vehicle_cmd_msg.steering
+                              << " PEDAL:" << (int)vehicle_cmd_msg.pedal_ratio);
   if ((int)vehicle_cmd_msg.brake_force == 80) {
-    std::cout << "brake!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+    ROS_WARN("brake!!!!!!!!!!!!!!!!!!!!!!!!!");
   }
   // std::cout<<"received: "<<(int)vehicle_cmd_msg.steering<<std::endl;
   // std::cout<<"received: "<<(int)vehicle_cmd_msg.brake_force<<std::endl;

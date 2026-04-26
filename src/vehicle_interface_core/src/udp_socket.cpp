@@ -17,18 +17,27 @@ typedef void raw_type;   // Type used for raw data on this platform
 using namespace std;
 
 // Function to fill in address structure given an address and port
-static void fillAddr(const string& address, unsigned short port, sockaddr_in& addr) {
+static bool fillAddr(const std::string& address, unsigned short port, sockaddr_in& addr) {
   memset(&addr, 0, sizeof(addr));  // Zero out address structure
   addr.sin_family = AF_INET;       // Internet address
 
-  hostent* host;  // Resolve name
-  if ((host = gethostbyname(address.c_str())) == NULL) {
-    std::cerr << "Failed to resolve name: " << address << std::endl;
-    return;  // Avoid crash
+  struct addrinfo hints, *res = nullptr;
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_family = AF_INET;  // IPv4 only
+  hints.ai_socktype = SOCK_DGRAM;
+
+  int error = getaddrinfo(address.c_str(), nullptr, &hints, &res);
+  if (error != 0) {
+    std::cerr << "Error: " << address << ": " << gai_strerror(error) << std::endl;
+    return false;
   }
-  addr.sin_addr.s_addr = *((unsigned long*)host->h_addr_list[0]);
+
+  struct sockaddr_in* resolved = reinterpret_cast<struct sockaddr_in*>(res->ai_addr);
+  addr.sin_addr = resolved->sin_addr;
+  freeaddrinfo(res);
 
   addr.sin_port = htons(port);  // Assign port in network byte order
+  return true;
 }
 
 // Socket Code
@@ -49,14 +58,19 @@ Socket::~Socket() {
   sockDesc = -1;
 }
 
-string Socket::getLocalAddress() {
+std::string Socket::getLocalAddress() {
   sockaddr_in addr;
   unsigned int addr_len = sizeof(addr);
 
   if (getsockname(sockDesc, (sockaddr*)&addr, (socklen_t*)&addr_len) < 0) {
     std::cout << "Fetch of local address failed (getsockname())" << std::endl;
+    return "";
   }
-  return inet_ntoa(addr.sin_addr);
+  char buf[INET_ADDRSTRLEN];
+  if (inet_ntop(AF_INET, &addr.sin_addr, buf, sizeof(buf)) == nullptr) {
+    return "";
+  }
+  return std::string(buf);
 }
 
 unsigned short Socket::getLocalPort() {
@@ -85,7 +99,10 @@ void Socket::setLocalPort(unsigned short localPort) {
 void Socket::setLocalAddressAndPort(const string& localAddress, unsigned short localPort) {
   // Get the address of the requested host
   sockaddr_in localAddr;
-  fillAddr(localAddress, localPort, localAddr);
+  if (!fillAddr(localAddress, localPort, localAddr)) {
+    std::cout << "Set of local address failed (address resolution error)" << std::endl;
+    return;
+  }
 
   if (bind(sockDesc, (sockaddr*)&localAddr, sizeof(sockaddr_in)) < 0) {
     std::cout << "Set of local address and port failed (bind())" << std::endl;
@@ -116,7 +133,10 @@ CommunicatingSocket::CommunicatingSocket(int newConnSD) : Socket(newConnSD) {}
 void CommunicatingSocket::connect(const string& foreignAddress, unsigned short foreignPort) {
   // Get the address of the requested host
   sockaddr_in destAddr;
-  fillAddr(foreignAddress, foreignPort, destAddr);
+  if (!fillAddr(foreignAddress, foreignPort, destAddr)) {
+    std::cout << "Connect failed (address resolution error)" << std::endl;
+    return;
+  }
 
   // Try to connect to the given port
   if (::connect(sockDesc, (sockaddr*)&destAddr, sizeof(destAddr)) < 0) {
@@ -139,14 +159,19 @@ int CommunicatingSocket::recv(void* buffer, int bufferLen) {
   return rtn;
 }
 
-string CommunicatingSocket::getForeignAddress() {
+std::string CommunicatingSocket::getForeignAddress() {
   sockaddr_in addr;
   unsigned int addr_len = sizeof(addr);
 
   if (getpeername(sockDesc, (sockaddr*)&addr, (socklen_t*)&addr_len) < 0) {
     std::cout << "Fetch of foreign address failed (getpeername())" << std::endl;
+    return "";
   }
-  return inet_ntoa(addr.sin_addr);
+  char buf[INET_ADDRSTRLEN];
+  if (inet_ntop(AF_INET, &addr.sin_addr, buf, sizeof(buf)) == nullptr) {
+    return "";
+  }
+  return std::string(buf);
 }
 
 unsigned short CommunicatingSocket::getForeignPort() {
@@ -207,7 +232,10 @@ void UDPSocket::disconnect() {
 void UDPSocket::sendTo(const void* buffer, int bufferLen, const string& foreignAddress,
                        unsigned short foreignPort) {
   sockaddr_in destAddr;
-  fillAddr(foreignAddress, foreignPort, destAddr);
+  if (!fillAddr(foreignAddress, foreignPort, destAddr)) {
+    std::cout << "Send failed (address resolution error)" << std::endl;
+    return;
+  }
 
   // Write out the whole buffer as a single message.
   if (sendto(sockDesc, (raw_type*)buffer, bufferLen, 0, (sockaddr*)&destAddr, sizeof(destAddr)) !=
@@ -225,7 +253,12 @@ int UDPSocket::recvFrom(void* buffer, int bufferLen, string& sourceAddress,
                       (socklen_t*)&addrLen)) < 0) {
     std::cout << "Receive failed (recvfrom())" << std::endl;
   }
-  sourceAddress = inet_ntoa(clntAddr.sin_addr);
+  char addr_buf[INET_ADDRSTRLEN];
+  if (inet_ntop(AF_INET, &clntAddr.sin_addr, addr_buf, sizeof(addr_buf)) != nullptr) {
+    sourceAddress = std::string(addr_buf);
+  } else {
+    sourceAddress = "";
+  }
   sourcePort = ntohs(clntAddr.sin_port);
 
   return rtn;

@@ -19,7 +19,7 @@ bool WriteRacingNum(const std::string& output_file, int racing_num) {
     return false;
   }
   outfile << racing_num;
-  return true;
+  return outfile.good();
 }
 
 }  // namespace vehicle_racing_num_core

@@ -40,15 +40,15 @@ class Application {
   std::unique_ptr<UDPSocket> insUdpSocket;
   std::unique_ptr<UDPSocket> vehicleUdpSocket;
 
-  string insUrl = "127.0.0.1";
-  string vehicleUrl = "192.168.1.240";
+  std::string insUrl = "127.0.0.1";
+  std::string vehicleUrl = "192.168.1.240";
   uint16_t insPort;
   uint16_t vehiclePort;
 
   uint8_t ins_rx_msg[INS_INFO_LENGTH];
-  uint8_t vehicle_rx_msg[VEHICLE_INFO_LENGHT];
+  uint8_t vehicle_rx_msg[VEHICLE_INFO_LENGTH];
 
-  uint8_t vehicle_tx_cmd_msg[VEHICLE_CMD_LENGHT];
+  uint8_t vehicle_tx_cmd_msg[VEHICLE_CMD_LENGTH];
   bool is_running;
   bool verify_checksum_{false};
 

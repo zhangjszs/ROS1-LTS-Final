@@ -25,11 +25,14 @@
 #define MSG_TOPIC_VEHICLE_STATUS autodrive_msgs::topic_contract::kVehicleStatus
 #define MSG_TOPIC_VEHICLE_CMD autodrive_msgs::topic_contract::kVehicleCmd
 
-#define IMU_LEN 100
+#define IMU_LEN INS_INFO_LENGTH
 
 #define INS_INFO_LENGTH 69
-#define VEHICLE_INFO_LENGHT 21
-#define VEHICLE_CMD_LENGHT 12
+#define VEHICLE_INFO_LENGTH 21
+#define VEHICLE_CMD_LENGTH 12
+// Backward-compatible aliases for legacy code
+#define VEHICLE_INFO_LENGHT VEHICLE_INFO_LENGTH
+#define VEHICLE_CMD_LENGHT VEHICLE_CMD_LENGTH
 
 typedef union doublebyte {
   double mdouble;
@@ -157,7 +160,7 @@ class UserNode {
   bool rosRunning;
   bool m_bExit;
 
-  boost::thread* p_vehicle_ros_thread;
+  boost::thread* p_vehicle_ros_thread = nullptr;
 
   autodrive_msgs::HUAT_InsP2 global_insMsg;
 

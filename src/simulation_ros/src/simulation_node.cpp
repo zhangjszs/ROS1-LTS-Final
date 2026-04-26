@@ -6,6 +6,7 @@
 #include <mutex>
 
 #include <autodrive_msgs/HUAT_CarState.h>
+#include <autodrive_msgs/HUAT_ConeDetections.h>
 #include <autodrive_msgs/HUAT_ConeMap.h>
 #include <autodrive_msgs/HUAT_SimState.h>
 #include <autodrive_msgs/HUAT_VehicleCmd.h>
@@ -45,6 +46,8 @@ class SimulationNode {
         pnh_.param<std::string>("sim_state_topic", "~sim_state"), 10);
     pub_cone_map_ = nh_.advertise<autodrive_msgs::HUAT_ConeMap>(
         pnh_.param<std::string>("cone_map_topic", "~cone_map"), 10);
+    pub_cone_detections_ = nh_.advertise<autodrive_msgs::HUAT_ConeDetections>(
+        pnh_.param<std::string>("cone_detections_topic", "~cone_detections"), 10);
     pub_track_markers_ =
         nh_.advertise<visualization_msgs::MarkerArray>("fsd/viz/track", 1, true);  // Latched
 
@@ -86,6 +89,7 @@ class SimulationNode {
       publishCarState();
       publishSimState();
       publishConeMap(observations);
+      publishConeDetections(observations);
 
       if (publish_tf_) {
         publishTF();
@@ -159,6 +163,10 @@ class SimulationNode {
     sim_nh.param<double>("camera/color_accuracy", sp.camera_color_accuracy, 0.9);
     sim_nh.param<double>("camera/delay", sp.camera_delay, 0.1);
     sensor_params_ = sp;
+
+    int rng_seed = -1;
+    sim_nh.param<int>("rng_seed", rng_seed, -1);
+    rng_seed_ = rng_seed;
   }
 
   void initSimulation() {
@@ -168,6 +176,10 @@ class SimulationNode {
 
     sensor_.setParams(sensor_params_);
     sensor_.setTrack(track_);
+    if (rng_seed_ >= 0) {
+      sensor_.setSeed(static_cast<unsigned int>(rng_seed_));
+      ROS_INFO("[Simulation] RNG seed set to %d", rng_seed_);
+    }
   }
 
   void cmdCallback(const autodrive_msgs::HUAT_VehicleCmd::ConstPtr& msg) {
@@ -244,6 +256,24 @@ class SimulationNode {
     msg.sim_time = state.sim_time;
 
     pub_sim_state_.publish(msg);
+  }
+
+  void publishConeDetections(const std::vector<ConeObservation>& observations) {
+    autodrive_msgs::HUAT_ConeDetections msg;
+    msg.header.stamp = ros::Time::now();
+    msg.header.frame_id = base_link_frame_;
+
+    for (const auto& obs : observations) {
+      geometry_msgs::Point32 pt;
+      pt.x = static_cast<float>(obs.x);
+      pt.y = static_cast<float>(obs.y);
+      pt.z = 0.0f;
+      msg.points.push_back(pt);
+      msg.confidence.push_back(static_cast<float>(obs.confidence));
+      msg.color_types.push_back(static_cast<uint8_t>(obs.color));
+    }
+
+    pub_cone_detections_.publish(msg);
   }
 
   void publishConeMap(const std::vector<ConeObservation>& observations) {
@@ -377,6 +407,7 @@ class SimulationNode {
   ros::Publisher pub_car_state_;
   ros::Publisher pub_sim_state_;
   ros::Publisher pub_cone_map_;
+  ros::Publisher pub_cone_detections_;
   ros::Publisher pub_track_markers_;
 
   // Subscribers
@@ -406,6 +437,9 @@ class SimulationNode {
   // Previous velocity for acceleration calculation
   double prev_vx_ = 0.0;
   double prev_vy_ = 0.0;
+
+  // RNG seed for reproducible simulation (-1 = random)
+  int rng_seed_ = -1;
 };
 
 int main(int argc, char** argv) {

@@ -27,6 +27,7 @@
     <remap from="~cmd" to="$(arg cmd_topic)"/>
     <remap from="~car_state" to="$(arg car_state_topic)"/>
     <remap from="~cone_map" to="$(arg cone_map_topic)"/>
+    <remap from="~cone_detections" to="perception/lidar_cluster/detections"/>
     <remap from="~sim_state" to="$(arg sim_state_topic)"/>
   </node>
 </launch>

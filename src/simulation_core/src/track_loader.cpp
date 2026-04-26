@@ -77,6 +77,17 @@ bool TrackLoader::load(const std::string& filepath, Track& track) {
           track.cones.push_back(cone);
         }
       }
+
+      // Red cones
+      if (cones_node["red"]) {
+        for (const auto& pos : cones_node["red"]) {
+          Cone cone;
+          cone.x = pos[0].as<double>();
+          cone.y = pos[1].as<double>();
+          cone.color = ConeColor::RED;
+          track.cones.push_back(cone);
+        }
+      }
     }
 
     return true;
@@ -109,7 +120,7 @@ bool TrackLoader::save(const std::string& filepath, const Track& track) {
     out << YAML::Key << "cones" << YAML::Value << YAML::BeginMap;
 
     // Collect cones by color
-    std::vector<Cone> blue, yellow, yellow_small, yellow_big;
+    std::vector<Cone> blue, yellow_small, yellow_big, red;
     for (const auto& cone : track.cones) {
       switch (cone.color) {
         case ConeColor::BLUE:
@@ -120,6 +131,9 @@ bool TrackLoader::save(const std::string& filepath, const Track& track) {
           break;
         case ConeColor::YELLOW_BIG:
           yellow_big.push_back(cone);
+          break;
+        case ConeColor::RED:
+          red.push_back(cone);
           break;
         default:
           break;
@@ -139,6 +153,7 @@ bool TrackLoader::save(const std::string& filepath, const Track& track) {
     writeCones("blue", blue);
     writeCones("yellow_small", yellow_small);
     writeCones("yellow_big", yellow_big);
+    writeCones("red", red);
 
     out << YAML::EndMap;  // cones
     out << YAML::EndMap;  // track
