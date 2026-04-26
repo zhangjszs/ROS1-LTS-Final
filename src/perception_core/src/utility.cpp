@@ -414,52 +414,6 @@ void lidar_cluster::init() {
   cloud_filtered.reset(new pcl::PointCloud<PointType>());
 }
 
-double lidar_cluster::getConfidence(PointType max, PointType min, Eigen::Vector4f centroid) {
-  double length = (double)std::fabs(max.x - min.x);
-  double width = (double)std::fabs(max.y - min.y);
-  double height = (double)std::fabs(max.z - min.z);
-
-  // position of the cube, ignore the one that is not up
-  if (length > height || width > height) {
-    return -1;
-  }
-
-  double area = length * width;
-  double score = 0.7;
-
-  // #### remove bbox by limits
-  // bbox lowest point altitude check
-  if (std::fabs(min.z) > max_box_altitude_) {
-    score = score - 2 * (min.z - max_box_altitude_);
-  }
-
-  // size measurement
-  if (road_type_ == 1) {
-    if (height > max_height_)
-      score -= 0.05;
-    if (area > max_area_)
-      score -= 0.05;
-  } else {
-    if (height > max_height_)
-      score -= 7 * (height - max_height_);
-    if (area > max_area_)
-      score -= 1.1 * (area - max_area_);
-  }
-
-  if (height < min_height_)
-    score -= 0.1;
-  if (area < min_area_)
-    score -= 4 * (min_area_ - area);
-
-  // centerness measurement
-  return score;
-}
-
-double lidar_cluster::getConfidenceNew(const pcl::PointCloud<PointType>::Ptr& cluster) {
-  perception::ClusterFeatures features = feature_extractor_.extract(cluster);
-  return confidence_scorer_.computeConfidence(features);
-}
-
 double lidar_cluster::getConfidenceWithFitting(const pcl::PointCloud<PointType>::Ptr& cluster) {
   if (!cluster || cluster->points.empty()) {
     return 0.0;

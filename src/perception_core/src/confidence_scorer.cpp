@@ -216,11 +216,13 @@ double ConfidenceScorer::scoreTrackSemanticConstraints(
 
     double dx = all_centroids[i].x - cx;
     double dy = all_centroids[i].y - cy;
-    double dist = std::sqrt(dx * dx + dy * dy);
+    double dist_sq = dx * dx + dy * dy;
+    double iso_radius_sq = ts.isolation_radius * ts.isolation_radius;
 
-    if (dist > ts.isolation_radius)
+    if (dist_sq > iso_radius_sq)
       continue;
 
+    double dist = std::sqrt(dist_sq);
     neighbor_count++;
     if (dist < min_dist) {
       min_dist = dist;

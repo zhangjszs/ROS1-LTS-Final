@@ -357,27 +357,29 @@ void FastGroundSegmentation::segment(const pcl::PointCloud<PointType>::Ptr& inpu
   // Step 3: 拟合地面模型
   fitGroundModels();
 
-  // Step 4: 分类点云 (单遍扫描)
-  for (const auto& pt : input->points) {
+  // Helper lambda: classify a single point as ground or non-ground
+  auto classifyPoint = [&](const PointType& pt) {
     if (!std::isfinite(pt.x) || !std::isfinite(pt.y) || !std::isfinite(pt.z)) {
-      continue;
+      return;
     }
-
     int sector_idx, bin_idx;
     double distance;
     getGridIndex(pt, sector_idx, bin_idx, distance);
-
     // 超出范围的点视为非地面
     if (distance < config_.min_range || distance > config_.max_range) {
       non_ground->push_back(pt);
-      continue;
+      return;
     }
-
     if (isGroundPoint(pt, sector_idx, bin_idx, distance)) {
       ground->push_back(pt);
     } else {
       non_ground->push_back(pt);
     }
+  };
+
+  // Step 4: 分类点云 (单遍扫描)
+  for (const auto& pt : input->points) {
+    classifyPoint(pt);
   }
 
   // 可选：精细化二次拟合 (Zermas 2017)
@@ -389,21 +391,7 @@ void FastGroundSegmentation::segment(const pcl::PointCloud<PointType>::Ptr& inpu
     ground->reserve(input->size() / 2);
     non_ground->reserve(input->size() / 2);
     for (const auto& pt : input->points) {
-      if (!std::isfinite(pt.x) || !std::isfinite(pt.y) || !std::isfinite(pt.z)) {
-        continue;
-      }
-      int sector_idx, bin_idx;
-      double distance;
-      getGridIndex(pt, sector_idx, bin_idx, distance);
-      if (distance < config_.min_range || distance > config_.max_range) {
-        non_ground->push_back(pt);
-        continue;
-      }
-      if (isGroundPoint(pt, sector_idx, bin_idx, distance)) {
-        ground->push_back(pt);
-      } else {
-        non_ground->push_back(pt);
-      }
+      classifyPoint(pt);
     }
   }
 

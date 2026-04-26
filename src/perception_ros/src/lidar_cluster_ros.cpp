@@ -9,6 +9,7 @@
 
 #include <opencv2/core/types.hpp>
 #include <pcl_conversions/pcl_conversions.h>
+#include <perception_ros/fusion_color_semantics.hpp>
 #include <perception_ros/lidar_cluster_ros.hpp>
 #include <tf2/exceptions.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
@@ -18,13 +19,8 @@ namespace perception_ros {
 
 namespace {
 
-// Updated cone type constants: Removed ORANGE, replaced with YELLOW_SMALL/YELLOW_BIG
+// Cone type constants are defined in <perception_ros/fusion_color_semantics.hpp>
 // 0=BLUE, 1=YELLOW_SMALL, 2=YELLOW_BIG, 3=RED, 4=NONE
-constexpr std::uint8_t kConeBlue = 0;
-constexpr std::uint8_t kConeYellowSmall = 1;
-constexpr std::uint8_t kConeYellowBig = 2;
-constexpr std::uint8_t kConeRed = 3;
-constexpr std::uint8_t kConeNone = 4;
 
 std::uint8_t classifyConeTypeBySize(const ConeDetection& det, bool enable_size_typing,
                                     double big_height_threshold, double big_area_threshold,

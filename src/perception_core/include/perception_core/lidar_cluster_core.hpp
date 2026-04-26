@@ -566,8 +566,6 @@ class lidar_cluster {
   void clusterMethod16(LidarClusterOutput* output);
   void clusterMethod32(LidarClusterOutput* output);
 
-  double getConfidence(PointType max, PointType min, Eigen::Vector4f centroid);
-  double getConfidenceNew(const pcl::PointCloud<PointType>::Ptr& cluster);
   double getConfidenceWithFitting(const pcl::PointCloud<PointType>::Ptr& cluster);
 
  private:

@@ -146,7 +146,10 @@ std::vector<TopologyCone> TopologyRepair::repair(const std::vector<TopologyCone>
   }
 
   // Step 6: Fill gaps on each side
+  // TODO: Implement gap-filling algorithm. Currently disabled.
+#if 0
   // PLACEHOLDER_FILL_GAPS
+#endif
 
   // Build result: non-outlier local cones + far cones + interpolated
   std::vector<TopologyCone> result;

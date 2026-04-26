@@ -1,8 +1,8 @@
+#include "perception_ros/fusion_color_semantics.hpp"
+
 #include <cstdint>
 
 #include <gtest/gtest.h>
-
-#include "perception_ros/fusion_color_semantics.hpp"
 
 namespace {
 

@@ -16,6 +16,9 @@ std::string num2Str(const Type value, unsigned int precision) {
 }
 
 // Task 23D: helper to count cones by far-range distance bands
+// Buckets for 20-80m diagnostic histogram. Distances <=20m and >80m are
+// intentionally excluded from far-band counting (they are near-range and
+// extreme-range respectively, tracked by other metrics).
 inline void countFarBands(const ConeDetection& det, int& b20_30, int& b30_40, int& b40_50,
                           int& b50_60, int& b60_80) {
   if (det.distance > 20.0 && det.distance <= 30.0)
@@ -43,8 +46,6 @@ void lidar_cluster::SetInputCloud(const pcl::PointCloud<PointType>::ConstPtr& cl
     return;
   }
   std::lock_guard<std::mutex> lock(lidar_mutex);
-  current_pc_ptr->clear();
-  current_pc_ptr->reserve(cloud->size());
   *current_pc_ptr = *cloud;
   getPointClouds = true;
   frame_count = static_cast<int>(seq);
