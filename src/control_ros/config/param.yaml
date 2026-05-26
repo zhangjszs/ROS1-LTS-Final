@@ -76,7 +76,11 @@ pp:
   # 影响: Pure Pursuit的lookahead距离
   # 调大: 更长lookahead（更平滑但可能cut corner）
   # 调小: 更短lookahead（更精确但可能抖动）
-  angle_kl: 2.5
+  angle_kl: 2.8
+
+  # 输入超时（秒）
+  # 增加超时时间，让 planning 有更多时间生成路径
+  input_timeout_sec: 10.0
 
   # PID - 比例增益
   # 影响: 转向响应速度

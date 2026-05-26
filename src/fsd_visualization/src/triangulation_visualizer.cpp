@@ -11,6 +11,11 @@ TriangulationVisualizer::TriangulationVisualizer(ros::NodeHandle& nh, ros::NodeH
   pnh.param<bool>("show_midpoints", show_midpoints_, true);
   pnh.param<bool>("show_computed_path", show_computed_path_, true);
 
+  // Runtime color overrides
+  tri_edge_color_ = loadColorParam(pnh, "colors/tri_edge", TRI_EDGE);
+  tri_midpoint_color_ = loadColorParam(pnh, "colors/tri_midpoint", TRI_MIDPOINT);
+  computed_path_color_ = loadColorParam(pnh, "colors/computed_path", {0.8f, 0.0f, 0.8f, 1.0f});
+
   sub_viz_ = nh.subscribe(viz_topic_, 1, &TriangulationVisualizer::vizCallback, this);
   // Latch latest triangulation markers for RViz late subscribers.
   pub_markers_ = nh.advertise<visualization_msgs::MarkerArray>(markers_topic_, 1, true);
@@ -33,10 +38,10 @@ void TriangulationVisualizer::vizCallback(const autodrive_msgs::HUAT_HighSpeedVi
     tri_marker.action = visualization_msgs::Marker::ADD;
     tri_marker.pose.orientation.w = 1.0;
     tri_marker.scale.x = TRI_LINE_WIDTH;
-    tri_marker.color.r = TRI_EDGE[0];
-    tri_marker.color.g = TRI_EDGE[1];
-    tri_marker.color.b = TRI_EDGE[2];
-    tri_marker.color.a = TRI_EDGE[3];
+    tri_marker.color.r = tri_edge_color_[0];
+    tri_marker.color.g = tri_edge_color_[1];
+    tri_marker.color.b = tri_edge_color_[2];
+    tri_marker.color.a = tri_edge_color_[3];
     tri_marker.lifetime = ros::Duration(0.0);
     tri_marker.points = msg->triangulation_lines;
     markers.markers.push_back(tri_marker);
@@ -84,10 +89,10 @@ void TriangulationVisualizer::vizCallback(const autodrive_msgs::HUAT_HighSpeedVi
       mp_marker.scale.x = MIDPOINT_SIZE;
       mp_marker.scale.y = MIDPOINT_SIZE;
       mp_marker.scale.z = MIDPOINT_SIZE;
-      mp_marker.color.r = TRI_MIDPOINT[0];
-      mp_marker.color.g = TRI_MIDPOINT[1];
-      mp_marker.color.b = TRI_MIDPOINT[2];
-      mp_marker.color.a = TRI_MIDPOINT[3];
+      mp_marker.color.r = tri_midpoint_color_[0];
+      mp_marker.color.g = tri_midpoint_color_[1];
+      mp_marker.color.b = tri_midpoint_color_[2];
+      mp_marker.color.a = tri_midpoint_color_[3];
       mp_marker.lifetime = ros::Duration(0.0);
       mp_marker.points = all_midpoints;
       markers.markers.push_back(mp_marker);
@@ -105,10 +110,10 @@ void TriangulationVisualizer::vizCallback(const autodrive_msgs::HUAT_HighSpeedVi
     path_marker.action = visualization_msgs::Marker::ADD;
     path_marker.pose.orientation.w = 1.0;
     path_marker.scale.x = PATH_WIDTH;
-    path_marker.color.r = 0.8f;
-    path_marker.color.g = 0.0f;
-    path_marker.color.b = 0.8f;
-    path_marker.color.a = 1.0f;
+    path_marker.color.r = computed_path_color_[0];
+    path_marker.color.g = computed_path_color_[1];
+    path_marker.color.b = computed_path_color_[2];
+    path_marker.color.a = computed_path_color_[3];
     path_marker.lifetime = ros::Duration(0.0);
     path_marker.points = msg->path;
     markers.markers.push_back(path_marker);
@@ -125,10 +130,10 @@ void TriangulationVisualizer::vizCallback(const autodrive_msgs::HUAT_HighSpeedVi
     left_marker.action = visualization_msgs::Marker::ADD;
     left_marker.pose.orientation.w = 1.0;
     left_marker.scale.x = PATH_WIDTH;
-    left_marker.color.r = BOUNDARY_LEFT[0];
-    left_marker.color.g = BOUNDARY_LEFT[1];
-    left_marker.color.b = BOUNDARY_LEFT[2];
-    left_marker.color.a = BOUNDARY_LEFT[3];
+    left_marker.color.r = tri_edge_color_[0];
+    left_marker.color.g = tri_edge_color_[1];
+    left_marker.color.b = tri_edge_color_[2];
+    left_marker.color.a = tri_edge_color_[3];
     left_marker.lifetime = ros::Duration(0.0);
     left_marker.points = msg->left;
     markers.markers.push_back(left_marker);
@@ -145,10 +150,10 @@ void TriangulationVisualizer::vizCallback(const autodrive_msgs::HUAT_HighSpeedVi
     right_marker.action = visualization_msgs::Marker::ADD;
     right_marker.pose.orientation.w = 1.0;
     right_marker.scale.x = PATH_WIDTH;
-    right_marker.color.r = BOUNDARY_RIGHT[0];
-    right_marker.color.g = BOUNDARY_RIGHT[1];
-    right_marker.color.b = BOUNDARY_RIGHT[2];
-    right_marker.color.a = BOUNDARY_RIGHT[3];
+    right_marker.color.r = tri_edge_color_[0];
+    right_marker.color.g = tri_edge_color_[1];
+    right_marker.color.b = tri_edge_color_[2];
+    right_marker.color.a = tri_edge_color_[3];
     right_marker.lifetime = ros::Duration(0.0);
     right_marker.points = msg->right;
     markers.markers.push_back(right_marker);

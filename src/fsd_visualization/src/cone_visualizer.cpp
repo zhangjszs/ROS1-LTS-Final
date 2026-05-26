@@ -113,6 +113,10 @@ ConeVisualizer::ConeVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh)
   // Latch latest markers so RViz opened later can still render world objects.
   pub_markers_ = nh.advertise<visualization_msgs::MarkerArray>(markers_topic_, 1, true);
 
+  // Runtime color overrides
+  cone_bbox_color_ = loadColorParam(pnh, "colors/cone_bbox", {1.0f, 1.0f, 1.0f, 0.8f});
+  cone_label_color_ = loadColorParam(pnh, "colors/cone_label", {1.0f, 0.2f, 0.2f, 1.0f});
+
   // B8: Diagnostics timer (1Hz)
   diag_timer_ =
       nh.createTimer(ros::Duration(1.0), [this](const ros::TimerEvent&) { publishDiagnostics(); });
@@ -493,10 +497,10 @@ visualization_msgs::Marker ConeVisualizer::createBoundingBoxMarker(
   marker.action = visualization_msgs::Marker::ADD;
 
   marker.scale.x = 0.02;  // 线宽
-  marker.color.r = 1.0;
-  marker.color.g = 1.0;
-  marker.color.b = 1.0;
-  marker.color.a = 0.8;
+  marker.color.r = cone_bbox_color_[0];
+  marker.color.g = cone_bbox_color_[1];
+  marker.color.b = cone_bbox_color_[2];
+  marker.color.a = cone_bbox_color_[3];
   marker.lifetime = ros::Duration(0.2);
 
   // 构建立方体的12条边
@@ -634,10 +638,10 @@ visualization_msgs::Marker ConeVisualizer::createDistanceLabel(double x, double 
 
   marker.scale.z = 0.3;  // 文字高度
 
-  marker.color.r = 1.0;
-  marker.color.g = 0.2;
-  marker.color.b = 0.2;
-  marker.color.a = 1.0;
+  marker.color.r = cone_label_color_[0];
+  marker.color.g = cone_label_color_[1];
+  marker.color.b = cone_label_color_[2];
+  marker.color.a = cone_label_color_[3];
 
   char text[32];
   snprintf(text, sizeof(text), "%.1fm", distance);

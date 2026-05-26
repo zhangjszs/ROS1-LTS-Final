@@ -4,6 +4,9 @@
 #include <array>
 #include <cstdint>
 #include <string>
+#include <vector>
+
+#include <ros/ros.h>
 
 #include <autodrive_msgs/topic_contract.hpp>
 #include <std_msgs/ColorRGBA.h>
@@ -96,6 +99,18 @@ inline std::array<float, 4> getConeColor(ConeType type) {
 
 inline std::array<float, 4> getConeColor(int type) {
   return getConeColor(static_cast<ConeType>(type));
+}
+
+// ============ ROS Parameter Color Loader ============
+// Load a color [R, G, B, A] from ROS parameters. Falls back to default if missing or malformed.
+inline std::array<float, 4> loadColorParam(ros::NodeHandle& pnh, const std::string& name,
+                                           const std::array<float, 4>& default_color) {
+  std::vector<double> vec;
+  if (pnh.getParam(name, vec) && vec.size() == 4) {
+    return {static_cast<float>(vec[0]), static_cast<float>(vec[1]), static_cast<float>(vec[2]),
+            static_cast<float>(vec[3])};
+  }
+  return default_color;
 }
 
 // ============ 3D 网格资源 URI ============

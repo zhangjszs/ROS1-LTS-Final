@@ -14,8 +14,6 @@ typedef void raw_type;   // Type used for raw data on this platform
 #include <cerrno>  // For errno
 #include <iostream>
 
-using namespace std;
-
 // Function to fill in address structure given an address and port
 static bool fillAddr(const std::string& address, unsigned short port, sockaddr_in& addr) {
   memset(&addr, 0, sizeof(addr));  // Zero out address structure
@@ -96,7 +94,7 @@ void Socket::setLocalPort(unsigned short localPort) {
   }
 }
 
-void Socket::setLocalAddressAndPort(const string& localAddress, unsigned short localPort) {
+void Socket::setLocalAddressAndPort(const std::string& localAddress, unsigned short localPort) {
   // Get the address of the requested host
   sockaddr_in localAddr;
   if (!fillAddr(localAddress, localPort, localAddr)) {
@@ -115,7 +113,7 @@ void Socket::shutdownSocket() {
 
 void Socket::cleanUp() {}
 
-unsigned short Socket::resolveService(const string& service, const string& protocol) {
+unsigned short Socket::resolveService(const std::string& service, const std::string& protocol) {
   struct servent* serv; /* Structure containing service information */
 
   if ((serv = getservbyname(service.c_str(), protocol.c_str())) == NULL)
@@ -130,7 +128,7 @@ CommunicatingSocket::CommunicatingSocket(int type, int protocol) : Socket(type, 
 
 CommunicatingSocket::CommunicatingSocket(int newConnSD) : Socket(newConnSD) {}
 
-void CommunicatingSocket::connect(const string& foreignAddress, unsigned short foreignPort) {
+void CommunicatingSocket::connect(const std::string& foreignAddress, unsigned short foreignPort) {
   // Get the address of the requested host
   sockaddr_in destAddr;
   if (!fillAddr(foreignAddress, foreignPort, destAddr)) {
@@ -195,7 +193,7 @@ UDPSocket::UDPSocket(unsigned short localPort) : CommunicatingSocket(SOCK_DGRAM,
   setBroadcast();
 }
 
-UDPSocket::UDPSocket(const string& localAddress, unsigned short localPort)
+UDPSocket::UDPSocket(const std::string& localAddress, unsigned short localPort)
     : CommunicatingSocket(SOCK_DGRAM, IPPROTO_UDP) {
   setLocalAddressAndPort(localAddress, localPort);
   setBroadcast();
@@ -229,7 +227,7 @@ void UDPSocket::disconnect() {
   }
 }
 
-void UDPSocket::sendTo(const void* buffer, int bufferLen, const string& foreignAddress,
+void UDPSocket::sendTo(const void* buffer, int bufferLen, const std::string& foreignAddress,
                        unsigned short foreignPort) {
   sockaddr_in destAddr;
   if (!fillAddr(foreignAddress, foreignPort, destAddr)) {
@@ -244,7 +242,7 @@ void UDPSocket::sendTo(const void* buffer, int bufferLen, const string& foreignA
   }
 }
 
-int UDPSocket::recvFrom(void* buffer, int bufferLen, string& sourceAddress,
+int UDPSocket::recvFrom(void* buffer, int bufferLen, std::string& sourceAddress,
                         unsigned short& sourcePort) {
   sockaddr_in clntAddr;
   socklen_t addrLen = sizeof(clntAddr);

@@ -5,27 +5,30 @@
 #include <fstream>
 #include <sstream>
 
+#include <fsd_common/logging.hpp>
+
 #include <localization_core/confidence_utils.hpp>
 #include <localization_core/location_mapper.hpp>
 
 namespace localization_core {
 
+// Use canonical cone types from fsd_common
+#include "fsd_common/cone_types.hpp"
+
 namespace {
 constexpr double kPi = 3.14159265358979;
 
-constexpr std::uint8_t kConeBlue = 0;
-constexpr std::uint8_t kConeYellow = 1;
-constexpr std::uint8_t kConeOrangeSmall = 2;
-constexpr std::uint8_t kConeOrangeBig = 3;
-constexpr std::uint8_t kConeNone = 4;
-constexpr std::uint8_t kConeRed = 5;
+using fsd_common::kConeBlue;
+using fsd_common::kConeNone;
+using fsd_common::kConeRed;
+using fsd_common::kConeYellowBig;
+using fsd_common::kConeYellowSmall;
 
 std::uint8_t normalizeConeType(std::uint8_t raw_type) {
   switch (raw_type) {
     case kConeBlue:
-    case kConeYellow:
-    case kConeOrangeSmall:
-    case kConeOrangeBig:
+    case kConeYellowSmall:
+    case kConeYellowBig:
     case kConeNone:
     case kConeRed:
       return raw_type;
@@ -720,7 +723,7 @@ bool LocationMapper::LoadMapFromFile(const std::string& path, std::string* error
       loaded_types.push_back(normalizeConeType(static_cast<std::uint8_t>(type)));
       loaded_conf.push_back(std::min(1.0, std::max(0.0, conf)));
     } catch (const std::exception& e) {
-      fprintf(stderr, "[LocationMapper] LoadMapFromFile parse error: %s\n", e.what());
+      FSD_LOG_ERROR("[LocationMapper] LoadMapFromFile parse error: %s", e.what());
       continue;
     }
   }

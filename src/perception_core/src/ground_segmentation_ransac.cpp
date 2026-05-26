@@ -125,6 +125,12 @@ void lidar_cluster::ground_segmentation_ransac_(const pcl::PointCloud<PointType>
     }
 
     // 每个分区独立处理
+    // Optimization: allocate is_ground once outside the zone loop
+    // and track which indices were set to clear them efficiently
+    std::vector<bool> is_ground(n_points, false);
+    std::vector<size_t> ground_indices_buffer;
+    ground_indices_buffer.reserve(n_points / num_zones);
+
     for (size_t z = 0; z < num_zones; z++) {
       const auto& indices = zone_indices[z];
       if (indices.empty())
@@ -266,14 +272,20 @@ void lidar_cluster::ground_segmentation_ransac_(const pcl::PointCloud<PointType>
 
       // 输出非地面点
       // 使用布尔标记数组代替排序+二分查找 (O(n) vs O(n log n))
-      std::vector<bool> is_ground(n_points, false);
+      // Reuse the pre-allocated is_ground vector
+      ground_indices_buffer.clear();
       for (size_t idx : ground_indices) {
         is_ground[idx] = true;
+        ground_indices_buffer.push_back(idx);
       }
       for (size_t idx : indices) {
         if (!is_ground[idx]) {
           g_not_ground_pc->points.push_back(in_pc->points[idx]);
         }
+      }
+      // Clear only the indices we set (not the entire vector)
+      for (size_t idx : ground_indices_buffer) {
+        is_ground[idx] = false;
       }
     }
   } else {
@@ -433,7 +445,7 @@ void lidar_cluster::estimate_plane_(void) {
   Eigen::Matrix3f cov;
   Eigen::Vector4f pc_mean;
   pcl::computeMeanAndCovarianceMatrix(*g_ground_pc, cov, pc_mean);
-  JacobiSVD<MatrixXf> svd(cov, Eigen::DecompositionOptions::ComputeFullU);
+  Eigen::JacobiSVD<Eigen::MatrixXf> svd(cov, Eigen::DecompositionOptions::ComputeFullU);
   normal_ = (svd.matrixU().col(2));
 
   // 法向量约束

@@ -28,7 +28,7 @@
     <arg name="control_prefer_pathlimits_v2" default="false" doc="控制侧双订阅时是否优先消费 V2"/>
     <arg name="control_enable_pathlimits_v2_auto_fallback" default="true" doc="V2 优先时是否自动回退到 V1"/>
     <arg name="control_pathlimits_source_stale_timeout_sec" default="-1.0" doc="控制侧 PathLimits 源超时阈值，&lt;=0 沿用 input_timeout_sec"/>
-    <arg name="decision_fusion_budget_sec" default="0.20" doc="统一主链路融合等待预算"/>
+    <arg name="decision_fusion_budget_sec" default="0.10" doc="统一主链路融合等待预算"/>
     <arg name="enable_vision" default="true" doc="启用视觉模块"/>
     <arg name="vision_mode" default="standard" doc="视觉模式: standard/lightweight/fallback_only"/>
     <arg name="vision_impl" default="py" doc="视觉实现: py/cpp"/>

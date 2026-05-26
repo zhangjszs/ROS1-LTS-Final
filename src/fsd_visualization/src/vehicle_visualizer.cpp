@@ -14,6 +14,14 @@ VehicleVisualizer::VehicleVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh) 
   pnh.param<bool>("show_velocity", show_velocity_, true);
   pnh.param<bool>("show_steering", show_steering_, true);
   pnh.param<bool>("use_mesh", use_mesh_, true);
+
+  // Runtime color overrides
+  vehicle_body_color_ = loadColorParam(pnh, "colors/vehicle_body", VEHICLE_BODY);
+  vehicle_arrow_color_ = loadColorParam(pnh, "colors/vehicle_arrow", VEHICLE_ARROW);
+  vehicle_wheel_color_ = loadColorParam(pnh, "colors/vehicle_wheel", VEHICLE_WHEEL);
+  vehicle_trail_color_ = loadColorParam(pnh, "colors/vehicle_trail", VEHICLE_TRAIL);
+  vehicle_velocity_color_ = loadColorParam(pnh, "colors/vehicle_velocity", VEHICLE_VELOCITY);
+  vehicle_steering_color_ = loadColorParam(pnh, "colors/vehicle_steering", VEHICLE_STEERING);
   pnh.param<std::string>("topics/car_state", car_state_topic_, "localization/car_state");
   pnh.param<std::string>("topics/sim_state", sim_state_topic_, "/simulation/state");
   pnh.param<std::string>("topics/vehicle_cmd", vehicle_cmd_topic_, "vehicle/cmd");
@@ -151,10 +159,10 @@ visualization_msgs::Marker VehicleVisualizer::createBodyMarker(const geometry_ms
     marker.scale.y = VEHICLE_WIDTH;
     marker.scale.z = VEHICLE_HEIGHT;
 
-    marker.color.r = VEHICLE_BODY[0];
-    marker.color.g = VEHICLE_BODY[1];
-    marker.color.b = VEHICLE_BODY[2];
-    marker.color.a = VEHICLE_BODY[3];
+    marker.color.r = vehicle_body_color_[0];
+    marker.color.g = vehicle_body_color_[1];
+    marker.color.b = vehicle_body_color_[2];
+    marker.color.a = vehicle_body_color_[3];
   }
 
   marker.lifetime = ros::Duration(0.0);
@@ -190,10 +198,10 @@ visualization_msgs::Marker VehicleVisualizer::createArrowMarker(
   marker.scale.z = 0.15;                  // 箭身高度
 
   // 颜色
-  marker.color.r = VEHICLE_ARROW[0];
-  marker.color.g = VEHICLE_ARROW[1];
-  marker.color.b = VEHICLE_ARROW[2];
-  marker.color.a = VEHICLE_ARROW[3];
+  marker.color.r = vehicle_arrow_color_[0];
+  marker.color.g = vehicle_arrow_color_[1];
+  marker.color.b = vehicle_arrow_color_[2];
+  marker.color.a = vehicle_arrow_color_[3];
 
   marker.lifetime = ros::Duration(0.0);
 
@@ -253,10 +261,10 @@ std::vector<visualization_msgs::Marker> VehicleVisualizer::createWheelMarkers(
     wheel.scale.z = WHEEL_WIDTH;
 
     // 颜色
-    wheel.color.r = VEHICLE_WHEEL[0];
-    wheel.color.g = VEHICLE_WHEEL[1];
-    wheel.color.b = VEHICLE_WHEEL[2];
-    wheel.color.a = VEHICLE_WHEEL[3];
+    wheel.color.r = vehicle_wheel_color_[0];
+    wheel.color.g = vehicle_wheel_color_[1];
+    wheel.color.b = vehicle_wheel_color_[2];
+    wheel.color.a = vehicle_wheel_color_[3];
 
     wheel.lifetime = ros::Duration(0.0);
 
@@ -277,10 +285,10 @@ visualization_msgs::Marker VehicleVisualizer::createTrailMarker(const ros::Time&
 
   marker.scale.x = TRAIL_WIDTH;
 
-  marker.color.r = VEHICLE_TRAIL[0];
-  marker.color.g = VEHICLE_TRAIL[1];
-  marker.color.b = VEHICLE_TRAIL[2];
-  marker.color.a = VEHICLE_TRAIL[3];
+  marker.color.r = vehicle_trail_color_[0];
+  marker.color.g = vehicle_trail_color_[1];
+  marker.color.b = vehicle_trail_color_[2];
+  marker.color.a = vehicle_trail_color_[3];
 
   marker.pose.orientation.w = 1.0;
 
@@ -291,10 +299,10 @@ visualization_msgs::Marker VehicleVisualizer::createTrailMarker(const ros::Time&
     // 颜色渐变
     std_msgs::ColorRGBA color;
     float alpha = static_cast<float>(i) / static_cast<float>(trail_points_.size());
-    color.r = VEHICLE_TRAIL[0];
-    color.g = VEHICLE_TRAIL[1];
-    color.b = VEHICLE_TRAIL[2];
-    color.a = VEHICLE_TRAIL[3] * alpha;
+    color.r = vehicle_trail_color_[0];
+    color.g = vehicle_trail_color_[1];
+    color.b = vehicle_trail_color_[2];
+    color.a = vehicle_trail_color_[3] * alpha;
     marker.colors.push_back(color);
   }
 
@@ -352,10 +360,10 @@ visualization_msgs::Marker VehicleVisualizer::createVelocityMarker(
   marker.scale.z = 0.2;  // 箭头长度
 
   // 颜色
-  marker.color.r = VEHICLE_VELOCITY[0];
-  marker.color.g = VEHICLE_VELOCITY[1];
-  marker.color.b = VEHICLE_VELOCITY[2];
-  marker.color.a = VEHICLE_VELOCITY[3];
+  marker.color.r = vehicle_velocity_color_[0];
+  marker.color.g = vehicle_velocity_color_[1];
+  marker.color.b = vehicle_velocity_color_[2];
+  marker.color.a = vehicle_velocity_color_[3];
 
   marker.lifetime = ros::Duration(0.0);
 
@@ -401,10 +409,10 @@ visualization_msgs::Marker VehicleVisualizer::createSteeringMarker(
   marker.scale.z = 0.15;  // 箭头长度
 
   // 颜色
-  marker.color.r = VEHICLE_STEERING[0];
-  marker.color.g = VEHICLE_STEERING[1];
-  marker.color.b = VEHICLE_STEERING[2];
-  marker.color.a = VEHICLE_STEERING[3];
+  marker.color.r = vehicle_steering_color_[0];
+  marker.color.g = vehicle_steering_color_[1];
+  marker.color.b = vehicle_steering_color_[2];
+  marker.color.a = vehicle_steering_color_[3];
 
   marker.lifetime = ros::Duration(0.0);
 

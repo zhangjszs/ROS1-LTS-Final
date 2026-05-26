@@ -33,9 +33,6 @@
 #include <perception_core/patchworkpp.hpp>
 #include <perception_core/topology_repair.hpp>
 
-using Eigen::JacobiSVD;
-using Eigen::MatrixXf;
-using Eigen::VectorXf;
 using PointType = pcl::PointXYZI;
 
 struct ConeDetection {
@@ -613,7 +610,7 @@ class lidar_cluster {
   std::string str_seg_distance_;
   float d_ = 0.0f;
   float th_dist_d_ = 0.0f;
-  MatrixXf normal_;
+  Eigen::MatrixXf normal_;
 
   pcl::PointCloud<PointType>::Ptr g_seeds_pc;
   pcl::PointCloud<PointType>::Ptr g_ground_pc;

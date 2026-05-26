@@ -3,6 +3,8 @@
 #include <cmath>
 #include <cstdio>
 
+#include <fsd_common/logging.hpp>
+
 #include <gtsam/geometry/Point2.h>
 #include <gtsam/geometry/Pose2.h>
 #include <gtsam/inference/Symbol.h>
@@ -28,10 +30,13 @@ using gtsam::noiseModel::Robust;
 using gtsam::noiseModel::mEstimator::Cauchy;
 using gtsam::noiseModel::mEstimator::Huber;
 
+// Use canonical cone types from fsd_common
+#include "fsd_common/cone_types.hpp"
+
 namespace {
-constexpr uint8_t kConeBlue = 0;
-constexpr uint8_t kConeNone = 4;
-constexpr uint8_t kConeRed = 5;
+using fsd_common::kConeBlue;
+using fsd_common::kConeNone;
+using fsd_common::kConeRed;
 
 inline bool isBoundaryColor(uint8_t c) {
   return c == kConeBlue || c == kConeRed;
@@ -224,8 +229,8 @@ bool FactorGraphOptimizer::TryUpdate(const localization_core::Pose2& current_pos
       opt_pose_.y += rr.dy;
       opt_pose_.theta += rr.dtheta;
       opt_pose_.theta = std::atan2(std::sin(opt_pose_.theta), std::cos(opt_pose_.theta));
-      fprintf(stderr, "[FG] RELOC_A success: dx=%.2f dy=%.2f dtheta=%.3f inliers=%d\n", rr.dx,
-              rr.dy, rr.dtheta, rr.inlier_count);
+      FSD_LOG_INFO("[FG] RELOC_A success: dx=%.2f dy=%.2f dtheta=%.3f inliers=%d", rr.dx,
+                   rr.dy, rr.dtheta, rr.inlier_count);
       // Force anomaly SM back to TRACKING on next evaluation
       anomaly_sm_.ForceState(AnomalyState::TRACKING);
     }
@@ -249,8 +254,8 @@ bool FactorGraphOptimizer::TryUpdate(const localization_core::Pose2& current_pos
     if (particle_reloc_.HasConverged()) {
       Pose2 reloc_pose = particle_reloc_.GetEstimate();
       opt_pose_ = reloc_pose;
-      fprintf(stderr, "[FG] RELOC_B converged: x=%.2f y=%.2f theta=%.3f\n", reloc_pose.x,
-              reloc_pose.y, reloc_pose.theta);
+      FSD_LOG_INFO("[FG] RELOC_B converged: x=%.2f y=%.2f theta=%.3f", reloc_pose.x,
+                   reloc_pose.y, reloc_pose.theta);
       anomaly_sm_.ForceState(AnomalyState::TRACKING);
       particle_reloc_.Reset();
     }
@@ -567,7 +572,7 @@ int FactorGraphOptimizer::findOrCreateLandmark(const ConeObservation& obs,
 
   // Create new landmark
   if (static_cast<int>(landmarks_.size()) >= cfg_.max_landmarks) {
-    fprintf(stderr, "[FG] Landmark limit reached (%d), dropping new observation\n",
+    FSD_LOG_WARN("[FG] Landmark limit reached (%d), dropping new observation",
             cfg_.max_landmarks);
     return -1;
   }
@@ -706,10 +711,10 @@ double FactorGraphOptimizer::computeChi2Normalized() {
     }
     return (total_dof > 0) ? total_chi2 / total_dof : 0.0;
   } catch (const std::exception& e) {
-    fprintf(stderr, "[FG] computeChi2Normalized exception: %s\n", e.what());
+    FSD_LOG_ERROR("[FG] computeChi2Normalized exception: %s", e.what());
     return 0.0;
   } catch (...) {
-    fprintf(stderr, "[FG] computeChi2Normalized unknown exception\n");
+    FSD_LOG_ERROR("[FG] computeChi2Normalized unknown exception");
     return 0.0;
   }
 }

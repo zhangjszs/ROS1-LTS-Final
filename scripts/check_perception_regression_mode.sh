@@ -6,6 +6,7 @@ BASELINE_DIR="${ROOT_DIR}/perf_reports/baselines/perception"
 
 MODE=""
 BAG_FILE=""
+COLOR_BAG=""
 TOPIC="/perception/lidar_cluster/detections"
 GT_FILE=""
 GT_THRESHOLD="1.0"
@@ -23,6 +24,7 @@ Required:
 
 Optional:
   --topic <topic>               Detection topic (default: /perception/lidar_cluster/detections)
+  --color-bag <bag_file>        Color semantics bag file path
   --gt <gt_csv>                 GT csv path
   --gt-threshold <meters>       GT matching threshold (default: 1.0)
   --gt-max-range <meters>       GT max range (default: 50.0)
@@ -40,6 +42,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --bag)
       BAG_FILE="${2:-}"
+      shift 2
+      ;;
+    --color-bag)
+      COLOR_BAG="${2:-}"
       shift 2
       ;;
     --topic)
@@ -107,6 +113,17 @@ if [[ -n "${GT_FILE}" ]]; then
 fi
 if [[ -n "${OUTPUT_JSON}" ]]; then
   CMD+=(--output-json "${OUTPUT_JSON}")
+fi
+
+# Run color semantics regression if color-bag is provided
+if [[ -n "${COLOR_BAG}" ]]; then
+  COLOR_SCRIPT="${ROOT_DIR}/scripts/check_color_semantics_regression_mode.sh"
+  if [[ -x "${COLOR_SCRIPT}" ]]; then
+    echo "[INFO] Running color semantics regression with bag: ${COLOR_BAG}"
+    "${COLOR_SCRIPT}" --mode "${MODE}" --bag "${COLOR_BAG}"
+  else
+    echo "[WARN] Color semantics script not found: ${COLOR_SCRIPT}"
+  fi
 fi
 
 echo "[INFO] mode=${MODE}"

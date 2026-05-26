@@ -2,7 +2,6 @@
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <perception_core/lidar_cluster_core.hpp>
-using namespace std;
 
 void voxelFilter(const pcl::PointCloud<PointType>::Ptr input,
                  pcl::PointCloud<PointType>::Ptr& output) {
@@ -28,11 +27,11 @@ int main() {
 
   pcl::PointCloud<PointType>::Ptr source3(new pcl::PointCloud<PointType>());
   //输入点云路径
-  string filename1 = "/home/adams/postsynced_msf/pcdtest/filter/ground_out.pcd";
-  string filename2 = "/home/adams/postsynced_msf/pcdtest/filter/StatisticalOutlierFilter.pcd";
+  std::string filename1 = "/home/adams/postsynced_msf/pcdtest/filter/ground_out.pcd";
+  std::string filename2 = "/home/adams/postsynced_msf/pcdtest/filter/StatisticalOutlierFilter.pcd";
 
   pcl::io::loadPCDFile(filename1, *source);
-  cout << "点云加载成功！" << endl;
+  std::cout << "点云加载成功！" << std::endl;
 
   voxelFilter(source, source2);
   boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(
@@ -42,7 +41,7 @@ int main() {
   //在一个视图里显示两张点云图
   int v1(0);
   viewer->createViewPort(0.0, 0.0, 1.0 / 2.0, 1.0, v1);
-  stringstream s1, s2;
+  std::stringstream s1, s2;
   s1 << "before VoxelGridFiltering        number of points: " << source->points.size();
   viewer->addText(s1.str(), 10, 10, 20, 150, 150, 150, "v1 text", v1);
   pcl::visualization::PointCloudColorHandlerCustom<PointType> rgb1(source, 255, 255, 255);

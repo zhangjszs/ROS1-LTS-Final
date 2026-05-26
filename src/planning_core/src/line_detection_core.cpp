@@ -104,6 +104,15 @@ void LineDetectionCore::InitializeAccumulator(int num_rho, int num_theta) {
     }
     cached_num_rho_ = num_rho;
     cached_num_theta_ = num_theta;
+
+    // Precompute trig tables for Hough transform
+    cos_table_.resize(num_theta);
+    sin_table_.resize(num_theta);
+    for (int theta_idx = 0; theta_idx < num_theta; ++theta_idx) {
+      double theta = theta_idx * params_.hough_theta_resolution;
+      cos_table_[theta_idx] = std::cos(theta);
+      sin_table_[theta_idx] = std::sin(theta);
+    }
   }
 
   for (auto& row : hough_accumulator_) {
@@ -120,8 +129,8 @@ std::vector<HoughLine> LineDetectionCore::HoughTransform(const std::vector<ConeP
 
   for (const ConePoint& cone : cones) {
     for (int theta_idx = 0; theta_idx < num_theta; ++theta_idx) {
-      double theta = theta_idx * params_.hough_theta_resolution;
-      double rho = cone.x * std::cos(theta) + cone.y * std::sin(theta);
+      // Use precomputed trig tables instead of computing cos/sin each time
+      double rho = cone.x * cos_table_[theta_idx] + cone.y * sin_table_[theta_idx];
 
       int rho_idx = static_cast<int>((rho + max_rho) / params_.hough_rho_resolution);
 

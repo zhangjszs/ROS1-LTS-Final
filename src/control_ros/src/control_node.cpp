@@ -17,6 +17,7 @@
 
 #include <autodrive_msgs/HUAT_CarState.h>
 #include <autodrive_msgs/HUAT_PathLimits.h>
+#include <autodrive_msgs/HUAT_PathLimitsV2.h>
 #include <autodrive_msgs/HUAT_VehicleCmd.h>
 #include <autodrive_msgs/diagnostics_helper.hpp>
 #include <autodrive_msgs/topic_contract.hpp>
@@ -75,9 +76,9 @@ class ControlNode {
                             autodrive_msgs::topic_contract::kApproachingGoal);
     // Planning input watchdog: use wall-time to avoid /clock validity/jumps during sim replay
     // startup. Default is stricter on real vehicle, looser in simulation replay.
-    pnh_.param("input_timeout_sec", input_timeout_sec_, simulation_ ? 2.0 : 0.5);
+    pnh_.param("input_timeout_sec", input_timeout_sec_, simulation_ ? 10.0 : 2.0);
     if (input_timeout_sec_ <= 0.0)
-      input_timeout_sec_ = simulation_ ? 2.0 : 0.5;
+      input_timeout_sec_ = simulation_ ? 10.0 : 2.0;
     pnh_.param("diagnostics_rate_hz", diagnostics_rate_hz_, 1.0);
     {
       std::string diag_topic, global_diag_topic;
@@ -192,7 +193,7 @@ class ControlNode {
       cmd.brake_force = output.brake_force;
       cmd.gear_position = 1;
 
-      cmd.working_mode = 1;
+      cmd.working_mode = (mode_ == fsd_common::ControlMode::kEbs) ? 2 : 1;
       cmd.racing_num = racing_num_;
       cmd.racing_status = output.racing_status;
 
@@ -286,7 +287,52 @@ class ControlNode {
       sub_pathlimits_ =
           nh_.subscribe(pathlimits_topic, 100, &ControlNode::PathLimitsCallback, this);
       ROS_INFO("[control] Subscribed to pathlimits: %s", pathlimits_topic.c_str());
+
+      // V2 PathLimits support
+      pnh_.param<std::string>("pathlimits_v2_topic", pathlimits_v2_topic_,
+                              "planning/pathlimits_v2");
+      pnh_.param("compat/enable_pathlimits_v2_subscribe", enable_pathlimits_v2_subscribe_, false);
+      pnh_.param("compat/enable_pathlimits_v2_auto_fallback", enable_pathlimits_v2_auto_fallback_,
+                 true);
+      pnh_.param("compat/pathlimits_source_stale_timeout_sec",
+                 pathlimits_source_stale_timeout_sec_, -1.0);
+
+      if (enable_pathlimits_v2_subscribe_) {
+        sub_pathlimits_v2_ =
+            nh_.subscribe(pathlimits_v2_topic_, 100, &ControlNode::PathLimitsV2Callback, this);
+        ROS_INFO("[control] Subscribed to pathlimits_v2: %s (auto_fallback=%s)",
+                 pathlimits_v2_topic_.c_str(),
+                 enable_pathlimits_v2_auto_fallback_ ? "true" : "false");
+      }
     }
+  }
+
+  void PathLimitsV2Callback(const autodrive_msgs::HUAT_PathLimitsV2::ConstPtr& msgs) {
+    // V2 PathLimits callback - convert to V1 format and process (v1-fallback)
+    if (!pose_ready_) {
+      return;
+    }
+
+    // Convert V2 to V1 path format
+    autodrive_msgs::HUAT_PathLimits v1_msgs;
+    v1_msgs.header = msgs->header;
+    v1_msgs.stamp = msgs->stamp;
+
+    for (const auto& pt : msgs->path) {
+      geometry_msgs::Point p;
+      p.x = pt.x;
+      p.y = pt.y;
+      p.z = 0.0;
+      v1_msgs.path.push_back(p);
+    }
+
+    v1_msgs.target_speeds = msgs->target_speeds;
+    v1_msgs.curvatures = msgs->curvatures;
+
+    // Process as V1
+    auto v1_ptr = boost::make_shared<autodrive_msgs::HUAT_PathLimits>(v1_msgs);
+    PathLimitsCallback(v1_ptr);
+    active_pathlimits_source_ = "v2";
   }
 
   void PoseCallback(const autodrive_msgs::HUAT_CarState::ConstPtr& msgs) {
@@ -345,6 +391,9 @@ class ControlNode {
     if (path_len == 0) {
       ROS_WARN_THROTTLE(1.0, "[control] Received empty path, ignoring.");
       path_ready_ = false;
+      // Update timestamp even for empty paths to prevent timeout during planning warm-up
+      has_pathlimits_ = true;
+      last_pathlimits_wall_time_ = ros::WallTime::now();
       return;
     }
 
@@ -548,6 +597,7 @@ class ControlNode {
   ros::NodeHandle pnh_;
 
   ros::Subscriber sub_pathlimits_;
+  ros::Subscriber sub_pathlimits_v2_;
   ros::Subscriber sub_pose_;
   ros::Subscriber sub_last_;
   ros::Publisher pub_cmd_;
@@ -587,6 +637,13 @@ class ControlNode {
   bool has_pathlimits_{false};
   ros::WallTime last_pathlimits_wall_time_;
   int input_timeout_count_{0};
+
+  // V2 PathLimits support
+  std::string pathlimits_v2_topic_{"planning/pathlimits_v2"};
+  bool enable_pathlimits_v2_subscribe_{false};
+  bool enable_pathlimits_v2_auto_fallback_{true};
+  double pathlimits_source_stale_timeout_sec_{-1.0};
+  std::string active_pathlimits_source_{"v1"};
 
   // B13: End-to-end latency tracking (LiDAR → control command)
   double e2e_latency_sum_{0.0};

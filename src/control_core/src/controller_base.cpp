@@ -160,10 +160,11 @@ int ControllerBase::GetTargetIndex() {
         std::sqrt(distance_square(path_coordinate_[index - 1].x, path_coordinate_[index - 1].y,
                                   path_coordinate_[index].x, path_coordinate_[index].y));
     diff_distance += tem_distance;
-    if (diff_distance + tem_distance > lookhead_)
+    if (diff_distance > lookhead_)
       break;
   }
-  if (std::abs(lookhead_ - diff_distance - tem_distance) < std::abs(lookhead_ - diff_distance))
+  // Choose the index whose cumulative distance is closest to lookahead
+  if (std::abs(lookhead_ - diff_distance) < std::abs(lookhead_ - (diff_distance - tem_distance)))
     return index;
   else
     return index - 1;
@@ -197,6 +198,17 @@ double ControllerBase::angle_pid(double delta) {
     output = steering_delta_max_;
   else if (output < -steering_delta_max_)
     output = -steering_delta_max_;
+
+  // Rate limiting: constrain the change in output per cycle
+  // This prevents instantaneous steering jumps when error sign flips
+  double delta_output = output - last_steering_output_;
+  double max_delta = steering_delta_max_ * 0.5;  // Allow 50% of max per cycle
+  if (delta_output > max_delta) {
+    output = last_steering_output_ + max_delta;
+  } else if (delta_output < -max_delta) {
+    output = last_steering_output_ - max_delta;
+  }
+  last_steering_output_ = output;
 
   car_fangle_ = output;
   return output;

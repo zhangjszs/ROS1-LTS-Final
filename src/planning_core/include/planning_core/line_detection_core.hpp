@@ -102,6 +102,10 @@ class LineDetectionCore {
   int cached_num_rho_{0};
   int cached_num_theta_{0};
 
+  // Precomputed trig tables for Hough transform optimization
+  std::vector<double> cos_table_;
+  std::vector<double> sin_table_;
+
   mutable std::string last_error_;
 };
 

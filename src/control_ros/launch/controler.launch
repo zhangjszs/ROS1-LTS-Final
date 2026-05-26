@@ -16,6 +16,10 @@
   <arg name="diagnostics_topic" default="control/diagnostics" doc="控制入口诊断本地话题"/>
   <arg name="publish_global_diagnostics" default="true" doc="是否发布到统一 /diagnostics"/>
   <arg name="global_diagnostics_topic" default="/diagnostics" doc="统一诊断总线话题"/>
+  <arg name="pathlimits_v2_topic" default="planning/pathlimits_v2" doc="V2路径输入话题"/>
+  <arg name="compat/enable_pathlimits_v2_subscribe" default="false" doc="是否订阅V2 PathLimits"/>
+  <arg name="compat/enable_pathlimits_v2_auto_fallback" default="true" doc="V2优先时自动回退V1"/>
+  <arg name="compat/pathlimits_source_stale_timeout_sec" default="-1.0" doc="PathLimits源超时阈值"/>
   <rosparam unless="$(arg skip_param_load)" command="load" file="$(find control_ros)/config/param.yaml" />
   <rosparam unless="$(arg skip_param_load)" command="load" file="$(find control_ros)/config/control_$(arg mode_profile).yaml" />
   <node name="control" pkg="control_ros" type="control_node" output="screen">
@@ -32,6 +36,10 @@
     <param name="diagnostics_topic" value="$(arg diagnostics_topic)" />
     <param name="publish_global_diagnostics" value="$(arg publish_global_diagnostics)" />
     <param name="global_diagnostics_topic" value="$(arg global_diagnostics_topic)" />
+    <param name="pathlimits_v2_topic" value="$(arg pathlimits_v2_topic)" />
+    <param name="compat/enable_pathlimits_v2_subscribe" value="$(arg compat/enable_pathlimits_v2_subscribe)" />
+    <param name="compat/enable_pathlimits_v2_auto_fallback" value="$(arg compat/enable_pathlimits_v2_auto_fallback)" />
+    <param name="compat/pathlimits_source_stale_timeout_sec" value="$(arg compat/pathlimits_source_stale_timeout_sec)" />
   </node>
   <node pkg="rosbag" type="play" name="rosbag_play" output="screen" args="$(arg bag)" if="$(eval arg('bag') != '')" />
 </launch>

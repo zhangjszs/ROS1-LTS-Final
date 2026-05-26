@@ -17,7 +17,7 @@
     <arg name="planning_mission" default="high_speed"/>
     <arg name="control_mode_profile" default="track"/>
     <arg name="control_mode" default="4"/>
-    <arg name="decision_fusion_budget_sec" default="0.20"/>
+    <arg name="decision_fusion_budget_sec" default="0.15"/>
     <arg name="enable_perception" default="true"/>
     <arg name="enable_vision" default="true" doc="Enable camera-based vision module"/>
     <arg name="enable_localization" default="true"/>
@@ -167,6 +167,12 @@
             <arg name="vehicle" value="$(arg vehicle)"/>
             <arg name="vehicle_config" value="$(arg control_vehicle_config)"/>
             <arg name="vehicle_local_config" value="$(arg control_vehicle_local_config)"/>
+            <arg name="pathlimits_v2_topic" value="$(arg control_pathlimits_v2_topic)"/>
+            <arg name="enable_pathlimits_v1_subscribe" value="$(arg control_enable_pathlimits_v1_subscribe)"/>
+            <arg name="enable_pathlimits_v2_subscribe" value="$(arg control_enable_pathlimits_v2_subscribe)"/>
+            <arg name="prefer_pathlimits_v2" value="$(arg control_prefer_pathlimits_v2)"/>
+            <arg name="enable_pathlimits_v2_auto_fallback" value="$(arg control_enable_pathlimits_v2_auto_fallback)"/>
+            <arg name="pathlimits_source_stale_timeout_sec" value="$(arg control_pathlimits_source_stale_timeout_sec)"/>
         </include>
 
         <include unless="$(arg simulation)" file="$(find fsd_launch)/launch/subsystems/vehicle.launch">

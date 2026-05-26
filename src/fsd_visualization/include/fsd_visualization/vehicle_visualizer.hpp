@@ -56,6 +56,14 @@ class VehicleVisualizer {
   bool show_steering_;
   bool use_mesh_;
 
+  // Runtime color overrides (loaded from ROS parameters)
+  std::array<float, 4> vehicle_body_color_;
+  std::array<float, 4> vehicle_arrow_color_;
+  std::array<float, 4> vehicle_wheel_color_;
+  std::array<float, 4> vehicle_trail_color_;
+  std::array<float, 4> vehicle_velocity_color_;
+  std::array<float, 4> vehicle_steering_color_;
+
   // 轨迹历史
   std::deque<geometry_msgs::Point> trail_points_;
 

@@ -2,8 +2,8 @@
 // Created by wss on 7/1/17.
 //
 
-#ifndef PROJECT_MONITOR_WINDOWS_H
-#define PROJECT_MONITOR_WINDOWS_H
+#ifndef VEHICLE_INTERFACE_ROS_APP_H
+#define VEHICLE_INTERFACE_ROS_APP_H
 
 #include "vehicle_interface_core/udp_socket.h"
 #include "vehicle_interface_ros/Node.h"

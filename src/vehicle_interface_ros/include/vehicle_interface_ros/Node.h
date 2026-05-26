@@ -2,8 +2,10 @@
 // Created by wss on 7/1/17.
 //
 
-#ifndef PROJECT_MONITOR_NODE_H
-#define PROJECT_MONITOR_NODE_H
+#ifndef VEHICLE_INTERFACE_ROS_NODE_H
+#define VEHICLE_INTERFACE_ROS_NODE_H
+
+const double CMD_TIMEOUT_SEC = 0.1;
 
 #include "autodrive_msgs/HUAT_InsP2.h"
 #include "autodrive_msgs/HUAT_VehicleCmd.h"
@@ -182,4 +184,4 @@ class UserNode {
   vcu2ipc vcu2ipc_msg;
 };
 
-#endif  // PROJECT_MONITOR_NODE_H
+#endif  // VEHICLE_INTERFACE_ROS_NODE_H

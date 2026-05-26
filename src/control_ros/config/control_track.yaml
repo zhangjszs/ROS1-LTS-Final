@@ -17,14 +17,14 @@
 pp:
   # PID参数（同base）
   angle_kv: 0.0
-  angle_kl: 2.5
-  angle_kp: 0.82
-  angle_ki: 0.0
-  angle_kd: 0.05
+  angle_kl: 2.8
+  angle_kp: 0.85
+  angle_ki: 0.01
+  angle_kd: 0.08
 
   # 最大转向角速度
   # 标准配置，平衡响应和平稳性
-  steering_delta_max: 0.6
+  steering_delta_max: 0.65
 
   # ==========================
   # 滑移角补偿
@@ -35,7 +35,7 @@ pp:
   # 高速循迹需要适度补偿
   # 调大: 适合多弯道的赛道
   # 调小: 适合长直道赛道
-  slip_gain: 0.58
+  slip_gain: 0.62
 
   # ==========================
   # Lookahead距离
@@ -44,8 +44,8 @@ pp:
   # 原因：高速循迹需要适中lookahead
   #   - 太短：可能不稳定
   #   - 太长：可能cut corner
-  min_lookahead: 2.0
-  max_lookahead: 12.0
+  min_lookahead: 2.5
+  max_lookahead: 14.0
 
   # 曲率前馈：标准配置
   curvature_ff_gain: 1.0

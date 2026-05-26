@@ -9,6 +9,17 @@ namespace perception {
 void ConfidenceScorer::setConfig(const Config& config) {
   config_ = config;
 
+  // Normalize weights to ensure they sum to 1.0
+  double weight_sum = config_.weight_size + config_.weight_shape + config_.weight_density +
+                      config_.weight_intensity + config_.weight_position;
+  if (weight_sum > 1e-6) {
+    config_.weight_size /= weight_sum;
+    config_.weight_shape /= weight_sum;
+    config_.weight_density /= weight_sum;
+    config_.weight_intensity /= weight_sum;
+    config_.weight_position /= weight_sum;
+  }
+
   // Configure model fitter
   ConeModelFitter::Config fitter_config;
   fitter_config.enable = config.enable_model_fitting;

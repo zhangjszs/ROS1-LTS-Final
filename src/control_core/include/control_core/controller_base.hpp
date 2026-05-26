@@ -136,6 +136,7 @@ class ControllerBase {
   double angle_integra_{0.0};
   double veloc_integra_{0.0};
   double last_angle_error_{0.0};
+  double last_steering_output_{0.0};  // For rate limiting
 
   int tar_{0};
   int now_{0};

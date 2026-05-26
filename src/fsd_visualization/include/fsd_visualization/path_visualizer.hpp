@@ -51,6 +51,13 @@ class PathVisualizer {
   std::string frame_id_;
   double path_width_;
   double point_size_;
+
+  // Runtime color overrides (loaded from ROS parameters)
+  std::array<float, 4> path_center_color_;
+  std::array<float, 4> path_partial_color_;
+  std::array<float, 4> path_full_color_;
+  std::array<float, 4> boundary_left_color_;
+  std::array<float, 4> boundary_right_color_;
 };
 
 }  // namespace fsd_viz

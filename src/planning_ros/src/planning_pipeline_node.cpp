@@ -154,7 +154,7 @@ void PlanningPipelineNode::InitHighSpeed(ros::NodeHandle& nh) {
   std::string pathlimits_v2_topic;
   pnh.param<std::string>("output_pathlimits_v2_topic", pathlimits_v2_topic,
                          "planning/pathlimits_v2");
-  pnh.param("enable_pathlimits_v2_publish", enable_v2_publish_, true);
+  pnh.param("compat/enable_pathlimits_v2_publish", enable_v2_publish_, true);
   if (enable_v2_publish_ && !pathlimits_v2_topic.empty()) {
     pathlimits_v2_pub_ = nh.advertise<autodrive_msgs::HUAT_PathLimitsV2>(pathlimits_v2_topic, 1);
   }

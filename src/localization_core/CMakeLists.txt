@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(localization_core)
 
-add_compile_options(-std=c++17 -Wall -Wextra -Wno-unused-parameter)
+add_compile_options(-std=c++17 -Wall -Wextra -Wno-unused-parameter -Wno-cpp)
 
-find_package(catkin REQUIRED)
+find_package(catkin REQUIRED COMPONENTS fsd_common)
 find_package(PCL REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(GTSAM REQUIRED)
@@ -21,6 +21,7 @@ endif()
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES localization_core
+  CATKIN_DEPENDS fsd_common
   DEPENDS PCL Eigen3
 )
 
@@ -29,6 +30,7 @@ include_directories(
   ${PCL_INCLUDE_DIRS}
   ${Eigen3_INCLUDE_DIRS}
   ${GTSAM_INCLUDE_DIR}
+  ${catkin_INCLUDE_DIRS}
 )
 
 link_directories(${PCL_LIBRARY_DIRS})

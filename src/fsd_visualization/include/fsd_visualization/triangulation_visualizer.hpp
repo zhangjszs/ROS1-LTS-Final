@@ -27,6 +27,11 @@ class TriangulationVisualizer {
   bool show_circumcenters_;
   bool show_midpoints_;
   bool show_computed_path_;
+
+  // Runtime color overrides (loaded from ROS parameters)
+  std::array<float, 4> tri_edge_color_;
+  std::array<float, 4> tri_midpoint_color_;
+  std::array<float, 4> computed_path_color_;
 };
 
 }  // namespace fsd_viz

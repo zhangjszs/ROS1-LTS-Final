@@ -78,6 +78,10 @@ class ConeVisualizer {
   ros::Time last_tf_failure_time_;
   fsd_common::DiagnosticsHelper diag_helper_;
   ros::Timer diag_timer_;
+
+  // Runtime color overrides (loaded from ROS parameters)
+  std::array<float, 4> cone_bbox_color_;
+  std::array<float, 4> cone_label_color_;
 };
 
 }  // namespace fsd_viz

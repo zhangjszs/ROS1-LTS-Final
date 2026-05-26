@@ -29,13 +29,13 @@
     <!-- Unified PathLimits topic -->
     <arg name="pathlimits_topic" default="planning/pathlimits" doc="控制层 PathLimits 输入话题"/>
 
-    <!-- V2 PathLimits 预留参数（mission_stack 传入，control 侧暂未实现 V2 订阅） -->
-    <arg name="pathlimits_v2_topic" default="planning/pathlimits_v2" doc="V2路径输入话题（预留）"/>
-    <arg name="enable_pathlimits_v1_subscribe" default="true" doc="是否订阅 V1 PathLimits（预留）"/>
-    <arg name="enable_pathlimits_v2_subscribe" default="false" doc="是否订阅 V2 PathLimits（预留）"/>
-    <arg name="prefer_pathlimits_v2" default="false" doc="双订阅时是否优先 V2（预留）"/>
-    <arg name="enable_pathlimits_v2_auto_fallback" default="true" doc="V2优先时是否自动回退 V1（预留）"/>
-    <arg name="pathlimits_source_stale_timeout_sec" default="-1.0" doc="PathLimits源超时阈值（预留）"/>
+    <!-- V2 PathLimits 参数 -->
+    <arg name="pathlimits_v2_topic" default="planning/pathlimits_v2" doc="V2路径输入话题"/>
+    <arg name="enable_pathlimits_v1_subscribe" default="true" doc="是否订阅 V1 PathLimits"/>
+    <arg name="enable_pathlimits_v2_subscribe" default="false" doc="是否订阅 V2 PathLimits"/>
+    <arg name="prefer_pathlimits_v2" default="false" doc="双订阅时是否优先 V2"/>
+    <arg name="enable_pathlimits_v2_auto_fallback" default="true" doc="V2优先时是否自动回退 V1"/>
+    <arg name="pathlimits_source_stale_timeout_sec" default="-1.0" doc="PathLimits源超时阈值"/>
 
     <!-- 控制参数加载顺序：base -> mode -> mission -> vehicle -> vehicle.local -->
     <rosparam command="load" file="$(arg control_base_config)"/>
@@ -60,6 +60,10 @@
         <arg name="diagnostics_topic" value="$(arg diagnostics_topic)"/>
         <arg name="publish_global_diagnostics" value="$(arg publish_global_diagnostics)"/>
         <arg name="global_diagnostics_topic" value="$(arg global_diagnostics_topic)"/>
+        <arg name="pathlimits_v2_topic" value="$(arg pathlimits_v2_topic)"/>
+        <arg name="compat/enable_pathlimits_v2_subscribe" value="$(arg enable_pathlimits_v2_subscribe)"/>
+        <arg name="compat/enable_pathlimits_v2_auto_fallback" value="$(arg enable_pathlimits_v2_auto_fallback)"/>
+        <arg name="compat/pathlimits_source_stale_timeout_sec" value="$(arg pathlimits_source_stale_timeout_sec)"/>
     </include>
 
     <node if="$(arg enable_diagnostic_aggregator)"

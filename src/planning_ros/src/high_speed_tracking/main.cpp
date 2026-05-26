@@ -22,6 +22,7 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <sstream>
 
 #include <autodrive_msgs/HUAT_Cone.h>
@@ -43,8 +44,8 @@ bool loopFallbackWasActive = false;
 ros::Publisher pubPathlimits;  // 统一路径输出（partial/full 均发布到此话题）
 ros::Publisher stopPub;        // 停止发布
 
-WayComputer* wayComputer;  // 使用wayComputer指针变量来访问WayComputer对象的成员函数和成员变量。
-Params* params;  // 使用params指针变量来访问Params对象的成员函数和成员变量。
+std::unique_ptr<WayComputer> wayComputer;
+std::unique_ptr<Params> params;
 PerfStats perf_stats;
 Visualization* visualization = nullptr;
 
@@ -333,10 +334,8 @@ int main(int argc, char** argv) {
   pnh.param("perf_stats_log_every", perf_log_every, 30);
   perf_stats.Configure("high_speed_tracking", perf_enabled, static_cast<size_t>(perf_window),
                        static_cast<size_t>(perf_log_every));
-  params = new Params(nh);  // 加载参数
-  wayComputer = new WayComputer(
-      params
-          ->wayComputer);  // 创建一个名为wayComputer的指针，指向一个WayComputer对象，该对象的构造函数使用params->wayComputer参数来初始化。然后，使用wayComputer计算新的轨迹。
+  params = std::make_unique<Params>(nh);
+  wayComputer = std::make_unique<WayComputer>(params->wayComputer);
   visualization = &Visualization::getInstance();
   visualization->init(nh, params->visualization);
   if (params->main.debug_save_way_files) {
@@ -346,7 +345,7 @@ int main(int argc, char** argv) {
   // 订阅者和发布者
   ros::Subscriber subCones = nh->subscribe(params->main.input_cones_topic, 1, callback_ccat);
   ros::Subscriber subPose =
-      nh->subscribe(params->main.input_pose_topic, 1, &WayComputer::stateCallback, wayComputer);
+      nh->subscribe(params->main.input_pose_topic, 1, &WayComputer::stateCallback, wayComputer.get());
 
   std::string pathlimits_topic;
   pnh.param<std::string>("output_pathlimits_topic", pathlimits_topic,

@@ -285,11 +285,16 @@ void UserNode::recv_msg_vehcileCMD_callack(
   vehicle_tx_msg[4] = vehicle_cmd_msg.brake_force;
   vehicle_tx_msg[5] = vehicle_cmd_msg.pedal_ratio;
   vehicle_tx_msg[6] = vehicle_cmd_msg.gear_position;
-  vehicle_tx_msg[7] = vehicle_cmd_msg.working_mode;
+  vehicle_tx_msg[7] = 2;    // EBS working mode
   vehicle_tx_msg[8] = vehicle_cmd_msg.racing_num;
   vehicle_tx_msg[9] = vehicle_cmd_msg.racing_status;
-  vehicle_tx_msg[10] = 0x00;
-  vehicle_tx_msg[11] = 0x00;
+  // Compute checksum over bytes 0-9
+  uint16_t checksum = 0;
+  for (int i = 0; i < 10; ++i) {
+    checksum += vehicle_tx_msg[i];
+  }
+  vehicle_tx_msg[10] = static_cast<uint8_t>(checksum & 0xFF);
+  vehicle_tx_msg[11] = static_cast<uint8_t>((checksum >> 8) & 0xFF);
   ROS_INFO_STREAM("STEERING:" << (int)vehicle_cmd_msg.steering
                               << " PEDAL:" << (int)vehicle_cmd_msg.pedal_ratio);
   if ((int)vehicle_cmd_msg.brake_force == 80) {

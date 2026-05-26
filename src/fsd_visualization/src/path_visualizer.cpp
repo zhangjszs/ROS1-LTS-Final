@@ -10,6 +10,13 @@ PathVisualizer::PathVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh) {
   pnh.param<double>("path_width", path_width_, PATH_WIDTH);
   pnh.param<double>("point_size", point_size_, PATH_POINT_SIZE);
   pnh.param<bool>("compat/enable_legacy_partial_full", enable_legacy_partial_full_, false);
+
+  // Runtime color overrides
+  path_center_color_ = loadColorParam(pnh, "colors/path_center", PATH_CENTER);
+  path_partial_color_ = loadColorParam(pnh, "colors/path_partial", PATH_PARTIAL);
+  path_full_color_ = loadColorParam(pnh, "colors/path_full", PATH_FULL);
+  boundary_left_color_ = loadColorParam(pnh, "colors/boundary_left", BOUNDARY_LEFT);
+  boundary_right_color_ = loadColorParam(pnh, "colors/boundary_right", BOUNDARY_RIGHT);
   pnh.param<std::string>("topics/pathlimits", unified_path_topic_, "planning/pathlimits");
   pnh.param<std::string>("topics/path_partial", partial_path_topic_,
                          "planning/high_speed_tracking/pathlimits/partial");
@@ -41,7 +48,7 @@ PathVisualizer::PathVisualizer(ros::NodeHandle& nh, ros::NodeHandle& pnh) {
 
 void PathVisualizer::pathLimitsUnifiedCallback(
     const autodrive_msgs::HUAT_PathLimits::ConstPtr& msg) {
-  auto markers = createPathMarkers(*msg, "path_unified", PATH_CENTER);
+  auto markers = createPathMarkers(*msg, "path_unified", path_center_color_);
   auto boundary_markers = createBoundaryMarkers(*msg);
 
   // 速度色带路径（per-point coloring）
@@ -62,7 +69,7 @@ void PathVisualizer::pathLimitsUnifiedCallback(
 
 void PathVisualizer::pathLimitsPartialCallback(
     const autodrive_msgs::HUAT_PathLimits::ConstPtr& msg) {
-  auto markers = createPathMarkers(*msg, "path_partial", PATH_PARTIAL);
+  auto markers = createPathMarkers(*msg, "path_partial", path_partial_color_);
   auto boundary_markers = createBoundaryMarkers(*msg);
 
   pub_path_markers_.publish(markers);
@@ -70,7 +77,7 @@ void PathVisualizer::pathLimitsPartialCallback(
 }
 
 void PathVisualizer::pathLimitsFullCallback(const autodrive_msgs::HUAT_PathLimits::ConstPtr& msg) {
-  auto markers = createPathMarkers(*msg, "path_full", PATH_FULL);
+  auto markers = createPathMarkers(*msg, "path_full", path_full_color_);
   pub_path_markers_.publish(markers);
 }
 
@@ -85,10 +92,10 @@ void PathVisualizer::navPathCallback(const nav_msgs::Path::ConstPtr& msg) {
   line_marker.type = visualization_msgs::Marker::LINE_STRIP;
   line_marker.action = visualization_msgs::Marker::ADD;
   line_marker.scale.x = path_width_;
-  line_marker.color.r = PATH_CENTER[0];
-  line_marker.color.g = PATH_CENTER[1];
-  line_marker.color.b = PATH_CENTER[2];
-  line_marker.color.a = PATH_CENTER[3];
+  line_marker.color.r = path_center_color_[0];
+  line_marker.color.g = path_center_color_[1];
+  line_marker.color.b = path_center_color_[2];
+  line_marker.color.a = path_center_color_[3];
   line_marker.pose.orientation.w = 1.0;
 
   for (const auto& pose : msg->poses) {
@@ -178,10 +185,10 @@ visualization_msgs::MarkerArray PathVisualizer::createBoundaryMarkers(
   left_line.type = visualization_msgs::Marker::LINE_STRIP;
   left_line.action = visualization_msgs::Marker::ADD;
   left_line.scale.x = path_width_ * 0.5;
-  left_line.color.r = BOUNDARY_LEFT[0];
-  left_line.color.g = BOUNDARY_LEFT[1];
-  left_line.color.b = BOUNDARY_LEFT[2];
-  left_line.color.a = BOUNDARY_LEFT[3];
+  left_line.color.r = boundary_left_color_[0];
+  left_line.color.g = boundary_left_color_[1];
+  left_line.color.b = boundary_left_color_[2];
+  left_line.color.a = boundary_left_color_[3];
   left_line.pose.orientation.w = 1.0;
   left_line.lifetime = ros::Duration(0.2);
 
@@ -206,10 +213,10 @@ visualization_msgs::MarkerArray PathVisualizer::createBoundaryMarkers(
   right_line.type = visualization_msgs::Marker::LINE_STRIP;
   right_line.action = visualization_msgs::Marker::ADD;
   right_line.scale.x = path_width_ * 0.5;
-  right_line.color.r = BOUNDARY_RIGHT[0];
-  right_line.color.g = BOUNDARY_RIGHT[1];
-  right_line.color.b = BOUNDARY_RIGHT[2];
-  right_line.color.a = BOUNDARY_RIGHT[3];
+  right_line.color.r = boundary_right_color_[0];
+  right_line.color.g = boundary_right_color_[1];
+  right_line.color.b = boundary_right_color_[2];
+  right_line.color.a = boundary_right_color_[3];
   right_line.pose.orientation.w = 1.0;
   right_line.lifetime = ros::Duration(0.2);
 
