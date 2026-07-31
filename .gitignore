@@ -176,3 +176,6 @@ instance/
 
 # Ignore temporary CTest files and test artifacts
 Testing/Temporary/
+# AI tools (added by cleanup)
+.mimocode/
+.workbuddy/
