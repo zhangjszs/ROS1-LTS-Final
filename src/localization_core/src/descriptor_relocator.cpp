@@ -231,13 +231,24 @@ RelocResult DescriptorRelocator::TryRelocalize(const std::vector<float>& current
       if (inliers >= cfg_.min_inliers &&
           (inliers > result.inlier_count ||
            (inliers == result.inlier_count && total_res / inliers < result.mean_residual))) {
-        // Convert local-frame SE(2) to global correction:
-        // The relative transform from current_pose to db_pose
+        // Use the RANSAC SE(2) transform (tx,ty,dtheta) to compute a refined
+        // global correction instead of snapping to the raw DB pose.
+        // The RANSAC maps current-local coords to DB-local coords:
+        //   p_db_local = R(dtheta) * p_cur_local + t
+        // So the current pose origin (p_cur_local = 0) maps to (tx, ty) in DB-local.
+        // Transform (tx, ty) from DB-local to global:
+        const double c = std::cos(db_desc.ptheta);
+        const double s = std::sin(db_desc.ptheta);
+        const double corrected_x = db_desc.px + c * tx - s * ty;
+        const double corrected_y = db_desc.py + s * tx + c * ty;
+        const double corrected_theta =
+            std::atan2(std::sin(db_desc.ptheta + dtheta), std::cos(db_desc.ptheta + dtheta));
+
         result.success = true;
-        result.dx = db_desc.px - current_pose.x;
-        result.dy = db_desc.py - current_pose.y;
-        result.dtheta = std::atan2(std::sin(db_desc.ptheta - current_pose.theta + dtheta),
-                                   std::cos(db_desc.ptheta - current_pose.theta + dtheta));
+        result.dx = corrected_x - current_pose.x;
+        result.dy = corrected_y - current_pose.y;
+        result.dtheta = std::atan2(std::sin(corrected_theta - current_pose.theta),
+                                   std::cos(corrected_theta - current_pose.theta));
         result.inlier_count = inliers;
         result.mean_residual = total_res / inliers;
       }

@@ -5,6 +5,7 @@
 #include <fstream>
 #include <sstream>
 
+#include <fsd_common/geometry_utils.hpp>
 #include <fsd_common/logging.hpp>
 
 #include <localization_core/confidence_utils.hpp>
@@ -79,8 +80,11 @@ bool LocationMapper::UpdateFromIns(const Asensing& imu, CarState* state_out) {
   mins_.x_acc = imu_data.x_acc;
   mins_.y_acc = imu_data.y_acc;
   // z 轴去除重力分量：FRD 车体系下 gz = g * cos(roll) * cos(pitch)
+  // roll/pitch 来自 INS，单位为角度制，需转换为弧度
   constexpr double kGravity = 9.79;
-  mins_.z_acc = imu_data.z_acc + kGravity * std::cos(imu_data.roll) * std::cos(imu_data.pitch);
+  mins_.z_acc = imu_data.z_acc +
+                kGravity * std::cos(::fsd_common::DegToRad(imu_data.roll)) *
+                              std::cos(::fsd_common::DegToRad(imu_data.pitch));
 
   if (!has_carstate_) {
     car_state_.car_state.theta = 0.0;
@@ -751,22 +755,6 @@ bool LocationMapper::LoadMapFromFile(const std::string& path, std::string* error
   checkpoint_confidences_ = point_confidences_;
   has_checkpoint_ = true;
   return true;
-}
-
-void LocationMapper::saveCarstate(double x, double y) {
-  if (data_root_.empty()) {
-    return;
-  }
-  std::stringstream ss;
-  ss << x << "\t" << y << std::endl;
-  std::string path = data_root_ + "/testData/carstate.txt";
-  std::ofstream f;
-  f.open(path.c_str(), std::ios_base::app);
-  if (f.fail()) {
-    return;
-  }
-  f << ss.str();
-  f.close();
 }
 
 bool LocationMapper::passesGeometryFilter(double lx, double ly) const {

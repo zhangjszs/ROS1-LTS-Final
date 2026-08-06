@@ -1,6 +1,7 @@
 #ifndef FSD_COMMON_LOGGING_HPP_
 #define FSD_COMMON_LOGGING_HPP_
 
+#include <atomic>
 #include <cstdarg>
 #include <cstdio>
 
@@ -47,17 +48,17 @@ inline void Log(LogLevel level, const char* fmt, ...) {
 #define FSD_LOG_WARN(...) ::fsd_common::Log(::fsd_common::LogLevel::WARN, __VA_ARGS__)
 #define FSD_LOG_ERROR(...) ::fsd_common::Log(::fsd_common::LogLevel::ERROR, __VA_ARGS__)
 
-// Implementation of global callback storage
+// Implementation of global callback storage (atomic for thread safety)
 namespace detail {
-inline LogCallback g_log_callback = nullptr;
+inline std::atomic<LogCallback> g_log_callback{nullptr};
 }  // namespace detail
 
 inline void SetLogCallback(LogCallback cb) {
-  detail::g_log_callback = cb;
+  detail::g_log_callback.store(cb, std::memory_order_release);
 }
 
 inline LogCallback GetLogCallback() {
-  return detail::g_log_callback;
+  return detail::g_log_callback.load(std::memory_order_acquire);
 }
 
 }  // namespace fsd_common

@@ -28,6 +28,7 @@ void ControllerBase::SetParams(const ControlParams& params) {
   brake_kp_ = params.brake_kp;
   brake_max_ = params.brake_max;
   brake_speed_margin_ = params.brake_speed_margin;
+  finish_brake_fraction_ = params.finish_brake_fraction;
 
   // B22: critical parameter range validation
   if (car_length_ <= 0.0) {
@@ -58,6 +59,12 @@ void ControllerBase::SetParams(const ControlParams& params) {
   }
   if (brake_max_ < 0.0) {
     brake_max_ = 0.0;
+  }
+  // Clamp finish_brake_fraction to [0, 1]
+  if (finish_brake_fraction_ < 0.0) {
+    finish_brake_fraction_ = 0.0;
+  } else if (finish_brake_fraction_ > 1.0) {
+    finish_brake_fraction_ = 1.0;
   }
 
   // M8: Clamp curvature feedforward gain to reasonable upper bound
@@ -180,7 +187,10 @@ double ControllerBase::angle_range(double alpha) const {
 double ControllerBase::angle_pid(double delta) {
   double error = delta - car_fangle_;
 
-  double differ = error - last_angle_error_;
+  // Derivative-on-measurement to avoid derivative spike on setpoint change.
+  // d/dT(error) = d/dT(delta - car_fangle) = -d(car_fangle)/dT (delta is setpoint)
+  double differ = -(car_fangle_ - last_car_fangle_);
+  last_car_fangle_ = car_fangle_;
   last_angle_error_ = error;
 
   if (std::abs(error) <= steering_delta_max_) {
@@ -321,6 +331,15 @@ int ControllerBase::ComputeDefaultPedal() {
   }
 
   double error = target_speed - car_veloc_;
+
+  // Reset integral when vehicle is stationary (prevents windup from accumulating
+  // while stopped) or when the error sign flips with large magnitude (prevents
+  // overshoot when target speed changes significantly).
+  if (car_veloc_ < 0.1 || (std::abs(error) > 3.0 && std::signbit(error) != std::signbit(last_veloc_error_))) {
+    veloc_integra_ = 0.0;
+  }
+  last_veloc_error_ = error;
+
   double accel;
   veloc_integra_ += error;
   const double max_integra = default_pedal_max_ / std::max(default_pedal_ki_, 1e-6);
@@ -341,7 +360,7 @@ int ControllerBase::ComputeDefaultPedal() {
 int ControllerBase::ComputeDefaultBrake() {
   // M4: If mission is complete, apply minimum braking to avoid coasting
   if (finish_signal_ && car_veloc_ > 0.1) {
-    return static_cast<int>(brake_max_ * 0.3);  // 30% max brake as minimum stop brake
+    return static_cast<int>(brake_max_ * finish_brake_fraction_);
   }
 
   if (path_coordinate_.empty() || target_speeds_.empty()) {

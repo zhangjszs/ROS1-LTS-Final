@@ -54,9 +54,10 @@ struct ControlParams {
   double curvature_ff_gain{1.0};  // 曲率前馈增益 (0=禁用)
 
   // 主动制动参数
-  double brake_kp{40.0};           // 制动比例增益
-  double brake_max{80.0};          // 最大制动力
-  double brake_speed_margin{0.5};  // 超速容忍量 [m/s]
+  double brake_kp{40.0};                 // 制动比例增益
+  double brake_max{80.0};                // 最大制动力
+  double brake_speed_margin{0.5};        // 超速容忍量 [m/s]
+  double finish_brake_fraction{0.3};     // 任务完成时的制动力比例 (0-1)
 };
 
 struct ControlOutput {

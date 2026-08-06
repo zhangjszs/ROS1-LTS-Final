@@ -1,4 +1,5 @@
 #include "planning_core/line_detection_core.hpp"
+#include "planning_core/track_constraints.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -55,12 +56,11 @@ std::vector<Pose> LineDetectionCore::GenerateFallbackPathFromSparseCones(
     double sum_left_y = 0.0, sum_right_y = 0.0;
     int n_left = 0, n_right = 0;
     for (const ConePoint& c : cones) {
-      if (c.color_type == 1 || c.color_type == 2 ||
-          c.color_type == 3)  // YELLOW_SMALL, YELLOW_BIG, or RED = left boundary
+      if (cone_semantic::IsLeftBoundary(c.color_type))  // YELLOW or RED = left boundary
       {
         sum_left_y += c.y;
         ++n_left;
-      } else if (c.color_type == 0)  // BLUE = right boundary
+      } else if (cone_semantic::IsRightBoundary(c.color_type))  // BLUE = right boundary
       {
         sum_right_y += c.y;
         ++n_right;

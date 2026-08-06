@@ -66,8 +66,6 @@ class LocationMapper {
 
   int getNewId();
 
-  void saveCarstate(double x, double y);
-
   bool passesGeometryFilter(double lx, double ly) const;
 
   void interpolateMissingCones(ConeMap* map_out);

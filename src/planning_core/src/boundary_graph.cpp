@@ -3,6 +3,10 @@
 #include <algorithm>
 #include <cmath>
 #include <queue>
+#include <set>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 namespace planning_core {
 
@@ -99,24 +103,88 @@ void BoundaryGraph::ClassifyBoundaries() {
   }
 }
 
+namespace {
+// Spatial hash grid for O(n) neighbor queries (replaces O(n²) brute force).
+// Cell size = max_edge_length so neighbors are in same or adjacent cells.
+class SpatialHash2D {
+ public:
+  explicit SpatialHash2D(double cell_size) : cell_size_(cell_size) {
+    inv_cell_size_ = (cell_size > 0.0) ? 1.0 / cell_size : 1.0;
+  }
+
+  void Insert(uint32_t id, double x, double y) {
+    auto [cx, cy] = Cell(x, y);
+    grid_[Key(cx, cy)].push_back(id);
+  }
+
+  // Collect candidate neighbor IDs within one cell distance
+  std::vector<uint32_t> Candidates(double x, double y) const {
+    std::vector<uint32_t> result;
+    auto [cx, cy] = Cell(x, y);
+    for (int dx = -1; dx <= 1; ++dx) {
+      for (int dy = -1; dy <= 1; ++dy) {
+        auto it = grid_.find(Key(cx + dx, cy + dy));
+        if (it != grid_.end()) {
+          result.insert(result.end(), it->second.begin(), it->second.end());
+        }
+      }
+    }
+    return result;
+  }
+
+ private:
+  static int64_t Key(int32_t cx, int32_t cy) {
+    // Pack two 32-bit cell coords into one 64-bit key
+    return (static_cast<int64_t>(cx) << 32) | static_cast<uint32_t>(cy);
+  }
+
+  std::pair<int32_t, int32_t> Cell(double x, double y) const {
+    return {static_cast<int32_t>(std::floor(x * inv_cell_size_)),
+            static_cast<int32_t>(std::floor(y * inv_cell_size_))};
+  }
+
+  double cell_size_;
+  double inv_cell_size_;
+  std::unordered_map<int64_t, std::vector<uint32_t>> grid_;
+};
+}  // namespace
+
 void BoundaryGraph::BuildEdges() {
   edges_.clear();
 
-  // Build edges between nearby nodes on same boundary
+  // Build edges between nearby nodes on same boundary using spatial hash
   auto connect_boundary = [this](const std::vector<uint32_t>& boundary_ids) {
-    for (size_t i = 0; i < boundary_ids.size(); ++i) {
-      for (size_t j = i + 1; j < boundary_ids.size(); ++j) {
-        const auto& node_i = nodes_[boundary_ids[i]];
-        const auto& node_j = nodes_[boundary_ids[j]];
+    if (boundary_ids.size() < 2)
+      return;
 
+    SpatialHash2D grid(config_.max_edge_length);
+    for (uint32_t id : boundary_ids) {
+      const auto& node = nodes_[id];
+      grid.Insert(id, node.x, node.y);
+    }
+
+    // Track which pairs are already connected to avoid duplicates
+    std::set<std::pair<uint32_t, uint32_t>> seen;
+
+    for (uint32_t id_i : boundary_ids) {
+      const auto& node_i = nodes_[id_i];
+      auto candidates = grid.Candidates(node_i.x, node_i.y);
+      for (uint32_t id_j : candidates) {
+        if (id_j <= id_i)
+          continue;  // Avoid duplicate pairs and self-loops
+        auto pair = std::make_pair(id_i, id_j);
+        if (seen.insert(pair).second == false)
+          continue;
+
+        const auto& node_j = nodes_[id_j];
         double dx = node_i.x - node_j.x;
         double dy = node_i.y - node_j.y;
         double dist = std::hypot(dx, dy);
 
         if (dist < config_.max_edge_length) {
           BoundaryEdge edge;
-          edge.from = boundary_ids[i];
-          edge.to = boundary_ids[j];
+          edge.from = id_i;
+          edge.to = id_j;
           edge.length = dist;
           edge.weight = ComputeEdgeWeight(node_i, node_j);
           edge.type = node_i.is_left_boundary ? BoundaryEdge::Type::LEFT_BOUNDARY
@@ -136,25 +204,35 @@ void BoundaryGraph::BuildEdges() {
   connect_boundary(right_boundary_ids_);
 
   // Build cross-track edges (between left and right boundaries)
-  for (uint32_t left_id : left_boundary_ids_) {
-    for (uint32_t right_id : right_boundary_ids_) {
+  // Use spatial hash on right boundary for efficient neighbor lookup
+  if (!left_boundary_ids_.empty() && !right_boundary_ids_.empty()) {
+    const double cross_max = config_.max_track_width;
+    SpatialHash2D grid(cross_max);
+    for (uint32_t rid : right_boundary_ids_) {
+      const auto& node = nodes_[rid];
+      grid.Insert(rid, node.x, node.y);
+    }
+
+    for (uint32_t left_id : left_boundary_ids_) {
       const auto& left_node = nodes_[left_id];
-      const auto& right_node = nodes_[right_id];
+      auto candidates = grid.Candidates(left_node.x, left_node.y);
+      for (uint32_t right_id : candidates) {
+        const auto& right_node = nodes_[right_id];
+        double dx = left_node.x - right_node.x;
+        double dy = left_node.y - right_node.y;
+        double dist = std::hypot(dx, dy);
 
-      double dx = left_node.x - right_node.x;
-      double dy = left_node.y - right_node.y;
-      double dist = std::hypot(dx, dy);
+        // Check if within track width bounds
+        if (dist >= config_.min_track_width && dist <= cross_max) {
+          BoundaryEdge edge;
+          edge.from = left_id;
+          edge.to = right_id;
+          edge.length = dist;
+          edge.weight = dist;  // Prefer narrower cross-sections
+          edge.type = BoundaryEdge::Type::CROSS_TRACK;
 
-      // Check if within track width bounds
-      if (dist >= config_.min_track_width && dist <= config_.max_track_width) {
-        BoundaryEdge edge;
-        edge.from = left_id;
-        edge.to = right_id;
-        edge.length = dist;
-        edge.weight = dist;  // Prefer narrower cross-sections
-        edge.type = BoundaryEdge::Type::CROSS_TRACK;
-
-        edges_.push_back(edge);
+          edges_.push_back(edge);
+        }
       }
     }
   }
@@ -234,8 +312,11 @@ void AutocrossModeStateMachine::Update(bool loop_closure_stable) {
     stable_frame_count_--;
   }
 
-  // Clamp to reasonable range
-  stable_frame_count_ = std::max(0, stable_frame_count_);
+  // Clamp to reasonable range. Must allow negative values so the exit
+  // threshold (-kExitFastLapThreshold) is reachable from FAST_LAP.
+  stable_frame_count_ =
+      std::clamp(stable_frame_count_, -static_cast<int>(kExitFastLapThreshold),
+                 static_cast<int>(kEnterFastLapThreshold));
 
   // State transitions with hysteresis
   switch (mode_) {

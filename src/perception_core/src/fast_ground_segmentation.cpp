@@ -567,7 +567,7 @@ void FastGroundSegmentation::refinementPass(const pcl::PointCloud<PointType>::Pt
     double diff = pt.z - expected_z;
     double threshold = getAdaptiveThreshold(distance);
 
-    if (diff < threshold && diff > -threshold * 2.0) {
+    if (diff < threshold && diff > -threshold * config_.ground_below_factor) {
       polar_grid_[sector_idx][bin_idx].addPoint(pt.z);
     }
   }

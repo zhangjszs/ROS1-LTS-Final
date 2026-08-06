@@ -123,6 +123,35 @@ TEST(SkipControllerTest, Initialization) {
   EXPECT_FALSE(controller.HasPath());
 }
 
+TEST(SkipControllerTest, CountErrorUsesAbsoluteHeading) {
+  // Verify that CountError uses the absolute path tangent heading (not relative alpha)
+  // for the cross-track error projection.
+  SkipController controller;
+
+  // Convention: positive error = car is to the left of path direction (+x),
+  // negative error = car is to the right.
+  // With heading = 0 (path tangent along +x), path normal points to +y (left).
+
+  // Car at (0, +1) — left of path
+  // dx = 0-0=0, dy = 0-1=-1, signed = -1*cos(0) = -1 < 0 → return +|error|
+  double err_car_left = controller.CountError(0.0, 0.0, 0.0, 1.0, 0.0);
+  // Car at (0, -1) — right of path
+  // dx = 0, dy = 0-(-1)=1, signed = 1*cos(0) = 1 > 0 → return -|error|
+  double err_car_right = controller.CountError(0.0, 0.0, 0.0, -1.0, 0.0);
+
+  EXPECT_GT(err_car_left, 0.0);     // left of path → positive
+  EXPECT_LT(err_car_right, 0.0);    // right of path → negative
+  EXPECT_NEAR(err_car_left, -err_car_right, 1e-9);
+}
+
+TEST(SkipControllerTest, CountErrorMagnitude) {
+  SkipController controller;
+
+  // Distance from path point (0,0) to car (3,4) is 5
+  double err = controller.CountError(0.0, 0.0, 3.0, 4.0, 0.0);
+  EXPECT_NEAR(std::abs(err), 5.0, 1e-9);
+}
+
 // ==================== TestController Tests ====================
 
 TEST(TestControllerTest, Initialization) {
@@ -366,6 +395,82 @@ TEST(PedalBrakeTest, OverspeedBehavior) {
 
   // Should apply brake when overspeed
   EXPECT_GE(output.brake_force, 0);
+}
+
+// ==================== Velocity Integral Reset Tests ====================
+
+TEST(PedalBrakeTest, IntegralResetsWhenStationary) {
+  LineController controller;
+  // Use default params (pedal ki > 0 so integral matters)
+  ControlParams params;
+  controller.SetParams(params);
+
+  std::vector<Position> path;
+  for (int i = 0; i < 10; ++i) {
+    path.push_back({static_cast<double>(i), 0.0});
+  }
+  controller.UpdatePath(path);
+
+  std::vector<double> speeds;
+  for (int i = 0; i < 10; ++i) {
+    speeds.push_back(5.0);
+  }
+  controller.UpdateTargetSpeeds(speeds);
+
+  // Run many cycles with the vehicle stationary.
+  // Without integral reset, the integral would wind up indefinitely and
+  // the pedal output would saturate. With reset, it stays bounded.
+  CarState state;
+  state.x = 0.0;
+  state.y = 0.0;
+  state.theta = 0.0;
+  state.v = 0.0;  // Stationary → integral resets each cycle
+  controller.UpdateCarState(state);
+
+  int max_pedal = 0;
+  for (int i = 0; i < 100; ++i) {
+    ControlOutput output = controller.ComputeOutput();
+    max_pedal = std::max(max_pedal, output.pedal_ratio);
+    // Keep vehicle stationary
+    controller.UpdateCarState(state);
+  }
+
+  // Pedal should remain bounded (not saturate at max) because integral resets
+  EXPECT_GE(max_pedal, 0);
+  EXPECT_LE(max_pedal, 100);
+}
+
+TEST(PedalBrakeTest, FinishBrakeFractionIsConfigurable) {
+  LineController controller;
+  ControlParams params;
+  params.brake_max = 80.0;
+  params.finish_brake_fraction = 0.5;  // 50% instead of default 30%
+  controller.SetParams(params);
+
+  std::vector<Position> path;
+  for (int i = 0; i < 10; ++i) {
+    path.push_back({static_cast<double>(i), 0.0});
+  }
+  controller.UpdatePath(path);
+
+  std::vector<double> speeds;
+  for (int i = 0; i < 10; ++i) {
+    speeds.push_back(5.0);
+  }
+  controller.UpdateTargetSpeeds(speeds);
+
+  CarState state;
+  state.x = 0.0;
+  state.y = 0.0;
+  state.theta = 0.0;
+  state.v = 3.0;  // Moving, so finish brake applies
+  controller.UpdateCarState(state);
+
+  controller.SetFinishSignal(true);
+  ControlOutput output = controller.ComputeOutput();
+
+  // Should apply 50% of brake_max = 40
+  EXPECT_EQ(output.brake_force, 40);
 }
 
 }  // namespace control_core

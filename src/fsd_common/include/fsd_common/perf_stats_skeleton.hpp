@@ -38,7 +38,12 @@ class RollingStatsWindow {
       return false;
     samples_[index_] = sample;
     index_ = (index_ + 1) % window_size_;
-    count_++;
+    // Saturate count at window_size_ * 2 to avoid unbounded growth.
+    // SampleCount() already caps at window_size_, so this only affects
+    // the internal tracking of total samples seen.
+    if (count_ < window_size_ * 2) {
+      count_++;
+    }
     since_log_++;
     if (since_log_ >= log_every_ && SampleCount() >= window_size_) {
       since_log_ = 0;

@@ -136,6 +136,8 @@ class ControllerBase {
   double angle_integra_{0.0};
   double veloc_integra_{0.0};
   double last_angle_error_{0.0};
+  double last_car_fangle_{0.0};       // For derivative-on-measurement
+  double last_veloc_error_{0.0};      // For integral reset on sign flip
   double last_steering_output_{0.0};  // For rate limiting
 
   int tar_{0};
@@ -154,9 +156,10 @@ class ControllerBase {
   double default_high_speed_threshold_{2.0};
 
   // B27: active braking tuning constants
-  double brake_kp_{40.0};           // 制动比例增益
-  double brake_max_{80.0};          // 最大制动力
-  double brake_speed_margin_{0.5};  // 超速容忍量 [m/s]
+  double brake_kp_{40.0};              // 制动比例增益
+  double brake_max_{80.0};             // 最大制动力
+  double brake_speed_margin_{0.5};     // 超速容忍量 [m/s]
+  double finish_brake_fraction_{0.3};  // 任务完成时的制动力比例 (0-1)
 };
 
 }  // namespace control_core

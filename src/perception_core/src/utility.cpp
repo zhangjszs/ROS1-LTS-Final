@@ -508,6 +508,12 @@ void lidar_cluster::PassThrough(pcl::PointCloud<PointType>::Ptr& cloud_filtered)
   }
 
 voxel_filter:
+  // Ensure cloud metadata is valid regardless of code path taken above
+  // (the skidpad goto can skip the CropBox section that normally sets these)
+  if (!cloud_filtered->is_dense) {
+    cloud_filtered->is_dense = true;
+  }
+
   // 2. 体素降采样（减少后续处理点数）
   if (filters_.distance_adaptive_voxel.enable) {
     // 距离自适应体素滤波：近处大体素，远处小体素

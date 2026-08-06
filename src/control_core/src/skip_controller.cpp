@@ -31,14 +31,15 @@ int SkipController::ComputeSteering() {
     index_min = std::max(last - 1, 0);
   }
 
-  double alpha = std::atan2(path_coordinate_[index_min + 1].y - path_coordinate_[index_min].y,
-                            path_coordinate_[index_min + 1].x - path_coordinate_[index_min].x) -
-                 car_fangle_;
+  double path_tangent =
+      std::atan2(path_coordinate_[index_min + 1].y - path_coordinate_[index_min].y,
+                 path_coordinate_[index_min + 1].x - path_coordinate_[index_min].x);
+  double alpha = angle_range(path_tangent - car_fangle_);
 
-  alpha = angle_range(alpha);
-
+  // CountError needs the absolute path tangent angle (not relative alpha)
+  // because the projection formula rotates into the path frame.
   double e_y = CountError(path_coordinate_[index_min].x, path_coordinate_[index_min].y, car_x_,
-                          car_y_, alpha);
+                          car_y_, path_tangent);
 
   // H2: Guard against denominator approaching zero
   double denom = car_veloc_ + 6.0;

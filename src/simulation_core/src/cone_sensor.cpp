@@ -48,24 +48,25 @@ void ConeSensor::observe(const VehicleState& state, std::vector<ConeObservation>
       continue;
     }
 
-    // Check range
+    // Check range using true (pre-noise) distance
     if (obs.distance > params_.lidar_max_range) {
       continue;
     }
 
-    // Apply noise
-    addNoise(obs);
-
-    // Compute color probabilities
-    computeColorProbabilities(cone.color, obs.distance, obs);
-
-    // Set confidence based on distance
+    // Compute detection probability using true distance (before noise is applied)
     double detection_prob = params_.lidar_detection_rate;
     if (obs.distance > params_.distance_dependent_detection) {
       detection_prob *=
           std::max(0.0, 1.0 - (obs.distance - params_.distance_dependent_detection) /
                                   (params_.lidar_max_range - params_.distance_dependent_detection));
     }
+
+    // Apply noise (may change distance, but detection gate already decided)
+    addNoise(obs);
+
+    // Compute color probabilities
+    computeColorProbabilities(cone.color, obs.distance, obs);
+
     obs.confidence = detection_prob;
 
     observations.push_back(obs);
@@ -124,9 +125,12 @@ void ConeSensor::computeColorProbabilities(ConeColor true_color, double distance
           obs.color = ConeColor::YELLOW_SMALL;
           break;
         case ConeColor::RED:
-          // Red cones - treat as a distinct type
+          // Red cones - treat as a distinct type.
+          // Since there is no prob_red field, the "red" probability mass is
+          // assigned to prob_unknown. Total sums to 1.0.
           obs.prob_blue = static_cast<float>((1.0 - color_accuracy) / 2.0);
           obs.prob_yellow = static_cast<float>((1.0 - color_accuracy) / 2.0);
+          obs.prob_unknown = static_cast<float>(color_accuracy);
           obs.color = ConeColor::RED;
           break;
         default:

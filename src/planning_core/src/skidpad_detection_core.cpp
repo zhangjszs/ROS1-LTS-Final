@@ -1,4 +1,5 @@
 #include "planning_core/skidpad_detection_core.hpp"
+#include "planning_core/track_constraints.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -237,11 +238,10 @@ bool SkidpadDetectionCore::EstimateGeometry(GeometryModel* geometry) {
     const Eigen::Vector2d& p = cones_local_[i];
     const uint8_t color = (i < cone_colors_local_.size()) ? cone_colors_local_[i] : 4;
 
-    if (color == 0)  // BLUE = right boundary
+    if (cone_semantic::IsRightBoundary(color))  // BLUE = right boundary
     {
       right_pts.push_back(p);
-    } else if (color == 1 || color == 2 ||
-               color == 3)  // YELLOW_SMALL, YELLOW_BIG, or RED = left boundary
+    } else if (cone_semantic::IsLeftBoundary(color))  // YELLOW or RED = left boundary
     {
       left_pts.push_back(p);
     } else {

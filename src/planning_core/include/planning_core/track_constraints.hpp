@@ -35,6 +35,14 @@ constexpr int LEFT_BOUNDARY = cone_type::RED;
 constexpr int RIGHT_BOUNDARY = cone_type::BLUE;
 // Unknown boundary: used when color is not available (LiDAR-only mode)
 constexpr int UNKNOWN_BOUNDARY = cone_type::NONE;
+
+// Helper: check if a cone color represents a left boundary cone.
+// In HUAT/FSG rules both YELLOW and RED cones mark the left boundary.
+constexpr bool IsLeftBoundary(int color) {
+  return color == cone_type::YELLOW || color == cone_type::RED;
+}
+// Helper: check if a cone color represents a right boundary cone.
+constexpr bool IsRightBoundary(int color) { return color == cone_type::BLUE; }
 }  // namespace cone_semantic
 
 // ---- 加速赛约束 (ACC_*) ----

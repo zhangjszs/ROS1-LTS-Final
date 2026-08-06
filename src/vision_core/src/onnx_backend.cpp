@@ -2,6 +2,7 @@
 
 #include "vision_core/detection_postprocess.hpp"
 
+#include <cstdio>
 #include <fstream>
 
 #include <opencv2/dnn.hpp>
@@ -57,8 +58,8 @@ std::vector<Detection> OnnxBackend::detect(const cv::Mat& bgr) {
   cv::Mat blob = preprocess(bgr);
   const size_t expected_elements = 3ULL * config_.input_height * config_.input_width;
   if (blob.total() != expected_elements) {
-    ROS_ERROR("[onnx_backend] Preprocessed blob size mismatch: %zu vs expected %zu", blob.total(),
-              expected_elements);
+    std::fprintf(stderr, "[onnx_backend] Preprocessed blob size mismatch: %zu vs expected %zu\n",
+                 blob.total(), expected_elements);
     return {};
   }
   std::array<int64_t, 4> input_shape = {1, 3, config_.input_height, config_.input_width};

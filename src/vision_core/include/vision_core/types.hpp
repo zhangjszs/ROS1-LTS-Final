@@ -6,16 +6,22 @@
 namespace vision_core {
 
 // Color type enum — mirrors autodrive_msgs/HUAT_ConeDetections color_types
-// Updated: Removed ORANGE types, replaced with YELLOW_SMALL/YELLOW_BIG
 // Note: Vision outputs unified YELLOW (1), LiDAR classifies into YELLOW_SMALL/YELLOW_BIG by size
 enum ConeColorType : uint8_t {
   BLUE = 0,          // Blue cone
   YELLOW = 1,        // Unified yellow cone (vision output)
-  YELLOW_SMALL = 1,  // Small yellow cone (alias for compatibility)
+  YELLOW_SMALL = 1,  // Small yellow cone (same value as YELLOW — kept for backward compat)
   YELLOW_BIG = 2,    // Big yellow cone
   RED = 3,           // Red cone
   NONE = 4           // Unknown/None
 };
+
+// Check if a cone color represents a left boundary cone (YELLOW or RED)
+constexpr bool IsLeftBoundaryColor(uint8_t color) {
+  return color == YELLOW || color == YELLOW_SMALL || color == YELLOW_BIG || color == RED;
+}
+// Check if a cone color represents a right boundary cone (BLUE)
+constexpr bool IsRightBoundaryColor(uint8_t color) { return color == BLUE; }
 
 struct Detection {
   float x, y, w, h;    // bbox center + size (pixels)

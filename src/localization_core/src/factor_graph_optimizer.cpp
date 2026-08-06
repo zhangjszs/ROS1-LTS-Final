@@ -687,6 +687,8 @@ void FactorGraphOptimizer::addGeometryPriorFactors() {
   // Circle constraints are now added once per landmark at creation time
   // in findOrCreateLandmark(). This method is kept for future
   // non-per-landmark geometry priors (e.g. lane-width constraints).
+  // Intentionally empty — see FactorGraphOptimizer header for the full
+  // geometry prior API design.
 }
 
 double FactorGraphOptimizer::computeChi2Normalized() {
