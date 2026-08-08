@@ -9,9 +9,8 @@ on:
       - 'perf_reports/**'
       - '.clang-format'
       - '.github/workflows/code-style.yml'
-    paths-ignore:
-      - 'docs/**'
-      - '**.md'
+      - '!src/**/*.md'
+      - '!docs/**'
   pull_request:
     branches: [ main, develop ]
     paths:
@@ -20,9 +19,8 @@ on:
       - 'perf_reports/**'
       - '.clang-format'
       - '.github/workflows/code-style.yml'
-    paths-ignore:
-      - 'docs/**'
-      - '**.md'
+      - '!src/**/*.md'
+      - '!docs/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
