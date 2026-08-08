@@ -3,34 +3,63 @@ name: Code Style Check
 on:
   push:
     branches: [ main, develop ]
+    paths:
+      - 'src/**'
+      - 'scripts/**'
+      - 'perf_reports/**'
+      - '.clang-format'
+      - '.github/workflows/code-style.yml'
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
   pull_request:
     branches: [ main, develop ]
+    paths:
+      - 'src/**'
+      - 'scripts/**'
+      - 'perf_reports/**'
+      - '.clang-format'
+      - '.github/workflows/code-style.yml'
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   cpp-format:
     runs-on: ubuntu-20.04
     name: C++ Format Check
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install clang-format
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-format
+          sudo apt-get install -y clang-format-14
+          sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-14 100
+          clang-format --version
 
       - name: Check C++ Format
         run: |
-          find src -type f \( -name "*.cpp" -o -name "*.hpp" -o -name "*.h" \) | xargs clang-format --dry-run --Werror
+          find src -type f \( -name "*.cpp" -o -name "*.hpp" -o -name "*.h" \) \
+            -print0 | xargs -0 -n1 clang-format --dry-run --Werror --
+        timeout-minutes: 10
 
   python-format:
     runs-on: ubuntu-20.04
     name: Python Format Check
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install Python tools
         run: |
-          pip install black isort flake8
+          python -m pip install --upgrade pip
+          python -m pip install black==24.3.0 isort==5.13.2 flake8==6.1.0
 
       - name: Check Python Format with Black
         run: |

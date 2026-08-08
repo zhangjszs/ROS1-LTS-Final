@@ -23,7 +23,7 @@ concurrency:
 jobs:
   contract-check:
     runs-on: ubuntu-20.04
-
+    timeout-minutes: 120
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -34,6 +34,7 @@ jobs:
           required-ros-distributions: noetic
 
       - name: Install dependencies
+        timeout-minutes: 15
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -43,45 +44,51 @@ jobs:
             ros-noetic-tf2-geometry-msgs \
             libpcl-dev \
             libeigen3-dev
-          sudo rosdep init || true
-          rosdep update
+          sudo rosdep init 2>/dev/null || true
+          rosdep update --rosdistro noetic
 
       - name: Install package dependencies
+        timeout-minutes: 15
         run: |
           cd "$GITHUB_WORKSPACE"
-          rosdep install --from-paths src --ignore-src -r -y
+          rosdep install --from-paths src --ignore-src -r -y --rosdistro noetic
 
       - name: Build required packages
+        timeout-minutes: 80
         run: |
           source /opt/ros/noetic/setup.bash
           cd "$GITHUB_WORKSPACE"
-          catkin build --no-status --summarize \
-            fsd_launch perception_ros localization_ros planning_ros control_ros vehicle_interface_ros simulation_ros
+          catkin build --no-status --summarize
 
       - name: Run unit tests
+        timeout-minutes: 15
         run: |
           source /opt/ros/noetic/setup.bash
           cd "$GITHUB_WORKSPACE"
           source devel/setup.bash
-          catkin run_tests --no-status
+          catkin run_tests --no-status --summarize
           catkin_test_results build --verbose
 
       - name: Run perf stats contract checks
+        timeout-minutes: 5
         run: |
           cd "$GITHUB_WORKSPACE"
           ./scripts/check_perf_stats_contracts.sh
 
       - name: Run topic contract checks
+        timeout-minutes: 5
         run: |
           cd "$GITHUB_WORKSPACE"
           ./scripts/check_topic_contracts.sh
 
       - name: Run deprecation contract checks
+        timeout-minutes: 5
         run: |
           cd "$GITHUB_WORKSPACE"
           ./scripts/check_deprecation_contracts.sh
 
       - name: Run runtime smoke checks
+        timeout-minutes: 10
         env:
           RUNTIME_SMOKE_REQUIRED: "1"
           SMOKE_TIMEOUT_SEC: "60"

@@ -20,9 +20,14 @@ on:
       - "src/perception_ros/test/test_mainline_adapter_launch_contract.py"
       - ".github/workflows/perception_color_semantics_ci.yaml"
 
+concurrency:
+  group: color-semantics-gate-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   color-semantics-gate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -51,5 +56,6 @@ jobs:
           python3 -m py_compile perf_reports/scripts/evaluate_color_semantics_metrics.py
 
       - name: Run launch contract unit tests
+        timeout-minutes: 8
         run: |
           python3 -m unittest src/perception_ros/test/test_mainline_adapter_launch_contract.py

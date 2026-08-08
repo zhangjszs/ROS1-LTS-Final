@@ -9,6 +9,10 @@ on:
     # Run daily at 3 AM
     - cron: '0 3 * * *'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CATKIN_WS: ${{ github.workspace }}
 
@@ -16,9 +20,10 @@ jobs:
   coverage:
     runs-on: ubuntu-20.04
     name: Build and Test with Coverage
+    timeout-minutes: 120
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Full history for better coverage analysis
 
@@ -28,6 +33,7 @@ jobs:
           required-ros-distributions: noetic
 
       - name: Install dependencies
+        timeout-minutes: 10
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -37,6 +43,7 @@ jobs:
             python3-pytest-cov
 
       - name: Configure catkin for coverage
+        timeout-minutes: 5
         run: |
           source /opt/ros/noetic/setup.bash
           cd ${{ env.CATKIN_WS }}
@@ -53,9 +60,10 @@ jobs:
           source /opt/ros/noetic/setup.bash
           cd ${{ env.CATKIN_WS }}
           catkin build --no-status --summarize 2>&1 | tee build.log
-        timeout-minutes: 30
+        timeout-minutes: 90
 
       - name: Run tests
+        timeout-minutes: 15
         run: |
           source /opt/ros/noetic/setup.bash
           source ${{ env.CATKIN_WS }}/devel/setup.bash
@@ -121,7 +129,7 @@ jobs:
             --exclude '.*CMakeFiles/.*'
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
           files: |
             coverage.info
@@ -133,7 +141,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Upload coverage artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-reports
           path: |
@@ -143,11 +151,22 @@ jobs:
           retention-days: 30
 
       - name: Comment coverage summary
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v6
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
+
+            if (!fs.existsSync('coverage.info')) {
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: '## 📊 Coverage Report\n\n⚠️ Coverage data was not generated (an earlier step failed). Check the workflow logs for details.'
+              });
+              return;
+            }
+
             const coverageInfo = fs.readFileSync('coverage.info', 'utf8');
 
             // Extract overall coverage percentage
@@ -170,21 +189,26 @@ jobs:
 
             summary += '\n[View full report on Codecov](https://codecov.io/gh/${{ github.repository }})';
 
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: summary
-            });
+            try {
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: summary
+              });
+            } catch (e) {
+              core.setFailed(`Failed to post coverage comment: ${e.message}`);
+            }
 
   coverage-summary:
     runs-on: ubuntu-20.04
     name: Coverage Summary
     needs: coverage
+    timeout-minutes: 10
     if: always()
     steps:
       - name: Download coverage artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: coverage-reports
           path: coverage-reports

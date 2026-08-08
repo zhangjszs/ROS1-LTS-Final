@@ -9,12 +9,17 @@ on:
     # Run daily at 2 AM
     - cron: '0 2 * * *'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   cppcheck:
     runs-on: ubuntu-20.04
     name: Cppcheck Analysis
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install cppcheck
         run: |
@@ -33,43 +38,58 @@ jobs:
             --xml-version=2 \
             -I/opt/ros/noetic/include \
             src/ 2> cppcheck-report.xml || true
+        timeout-minutes: 10
 
       - name: Upload Cppcheck Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: cppcheck-report
           path: cppcheck-report.xml
+          retention-days: 14
 
   clang-tidy:
     runs-on: ubuntu-20.04
     name: Clang-Tidy Analysis
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup ROS
         uses: ros-tooling/setup-ros@v0.7
         with:
           required-ros-distributions: noetic
 
-      - name: Install clang-tidy
+      - name: Install clang-tidy and build deps
+        timeout-minutes: 10
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-tidy
+          sudo apt-get install -y \
+            clang-tidy-14 \
+            python3-catkin-tools \
+            libpcl-dev \
+            libeigen3-dev
+          sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-14 100
+          clang-tidy --version
 
       - name: Build with compile_commands.json
+        timeout-minutes: 20
         run: |
           source /opt/ros/noetic/setup.bash
+          cd "$GITHUB_WORKSPACE"
           catkin config --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-          catkin build --no-status --summarize 2>&1 | head -50
+          # Build core packages to generate compile_commands.json without pulling in the full workspace
+          catkin build --no-status --summarize \
+            perception_core planning_core control_core 2>&1
 
       - name: Run Clang-Tidy (Core Packages)
+        timeout-minutes: 10
         run: |
-          # Run on a subset of core packages to avoid timeout
+          # Check all cpp files in core packages
           for pkg in perception_core planning_core control_core; do
             if [ -d "src/$pkg" ]; then
               echo "=== Checking $pkg ==="
-              find "src/$pkg" -name "*.cpp" | head -5 | while read f; do
-                clang-tidy "$f" -p build/ 2>&1 | head -20 || true
+              find "src/$pkg" -name "*.cpp" | sort | while read f; do
+                clang-tidy "$f" -p build/ 2>&1 | head -30 || true
               done
             fi
           done
@@ -77,12 +97,14 @@ jobs:
   bandit:
     runs-on: ubuntu-20.04
     name: Python Security Scan
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install Bandit
         run: |
-          pip install bandit
+          python -m pip install --upgrade pip
+          python -m pip install bandit==1.7.8
 
       - name: Run Bandit
         run: |
@@ -90,7 +112,8 @@ jobs:
           bandit -r src/ -ll
 
       - name: Upload Bandit Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: bandit-report
           path: bandit-report.json
+          retention-days: 14

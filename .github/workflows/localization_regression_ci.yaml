@@ -9,9 +9,14 @@ on:
       - "src/localization_ros/**"
       - ".github/workflows/localization_regression_ci.yaml"
 
+concurrency:
+  group: localization-regression-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   localization-tools-smoke:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,6 +41,7 @@ jobs:
           python3 -m py_compile perf_reports/scripts/cone_gt_annotator.py
 
       - name: Run localization tooling unit tests
+        timeout-minutes: 8
         run: |
           python3 perf_reports/scripts/test_localization_validation_tools.py
 
