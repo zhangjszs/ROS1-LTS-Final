@@ -299,8 +299,8 @@ roslaunch fsd_launch tools/rviz.launch rviz_mode:=dual
 
 ## Project Documentation
 Additional documentation files:
-- `HANDOFF.md` - Current code state and phase handoff notes
-- `RESTRUCTURE_PLAN.md` - Codebase refactoring plan and implementation records
+- `docs/HANDOFF.md` - Current code state and phase handoff notes
+- `docs/RESTRUCTURE_PLAN.md` - Codebase refactoring plan and implementation records
 - `docs/README.md` - Documentation navigation index
 - `docs/remaining_work_audit_*.md` - Audit of incomplete features and missing dependencies
 - `src/*/README.md` - Package-specific documentation for each module
@@ -481,3 +481,16 @@ Code changes from the system audit use `// B<N>:` tags for traceability:
 - B7–B22: P1 improvements (observability, documentation, latency tracking)
 
 When adding new audit-style fixes, continue the numbering sequence.
+
+<!-- OPENWIKI:START -->
+
+## OpenWiki
+
+This repository has a generated `openwiki/` evidence index. It is optional just-in-time context, not required startup reading.
+
+- Treat source code and tests as authoritative. A brief's unknowns and review items are verification gaps, not automatic requirements.
+- Prefer the narrowest quiet validation that proves the changed behavior. Preserve complete failure output.
+
+The scheduled OpenWiki GitHub Actions workflow refreshes the repository wiki. Do not hand-edit generated OpenWiki pages unless explicitly asked; prefer updating source code/docs and letting OpenWiki regenerate.
+
+<!-- OPENWIKI:END -->

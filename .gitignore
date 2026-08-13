@@ -1,4 +1,6 @@
+# ============================================================
 # ROS / Catkin
+# ============================================================
 build/
 devel/
 install/
@@ -15,7 +17,9 @@ CATKIN_IGNORE
 *.bag
 *.bag.active
 
+# ============================================================
 # C++ compiled artifacts
+# ============================================================
 *.o
 *.so
 *.a
@@ -26,7 +30,9 @@ CMakeCache.txt
 cmake_install.cmake
 compile_commands.json
 
+# ============================================================
 # Python
+# ============================================================
 __pycache__/
 *.pyc
 *.pyo
@@ -53,7 +59,9 @@ ENV/
 env.bak/
 venv.bak/
 
+# ============================================================
 # IDEs and editors
+# ============================================================
 .vscode/
 .idea/
 .claude/
@@ -73,16 +81,19 @@ venv.bak/
 *.tmproject
 tmtags
 
+# ============================================================
 # OS files
+# ============================================================
 .DS_Store
-.DS_Store?
-._*
+.DS_Store?._
 .Spotlight-V100
 .Trashes
 ehthumbs.db
 Thumbs.db
 
+# ============================================================
 # Archives and backups
+# ============================================================
 *.zip
 *.tar.gz
 *.tgz
@@ -92,24 +103,26 @@ Thumbs.db
 *.tmp
 *.temp
 
+# ============================================================
 # Logs
+# ============================================================
 *.log
 
+# ============================================================
 # Local parameter overlays
+# ============================================================
 *.local.yaml
 
+# ============================================================
 # Database
+# ============================================================
 *.db
 *.sqlite
 *.sqlite3
 
-# Documentation builds (ignore generated artifacts, keep source files)
-docs/
-# Unignore plans directory and all markdown files
-!docs/
-!docs/plans/**
-!docs/**/*.md
-# Ignore built documentation artifacts inside docs
+# ============================================================
+# Documentation builds (generated artifacts only)
+# ============================================================
 docs/_build/
 docs/site/
 docs/*.html
@@ -117,20 +130,28 @@ docs/*.pdf
 docs/*.css
 docs/*.js
 
+# ============================================================
 # Demo files
+# ============================================================
 demo/
 /site
 
+# ============================================================
 # Node.js (if applicable)
+# ============================================================
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# ============================================================
 # Jupyter
+# ============================================================
 .ipynb_checkpoints
 
+# ============================================================
 # Build directories
+# ============================================================
 build_tmp/
 bui/
 cmake-build-debug/
@@ -138,21 +159,28 @@ out/build/
 **/out/build/
 target/
 
+# ============================================================
 # Test data
+# ============================================================
 **/testData/*.txt
 
+# ============================================================
 # Performance reports (keep baselines, ignore generated data)
+# ============================================================
 perf_reports/data/*.json
 perf_reports/data/**/*.json
 
-# Type checkers
-.mypy_cache/
+# ============================================================
+# Type checkers / static analysis
+# ============================================================
 .dmypy.json
 dmypy.json
 .pyre/
 .pytype/
 
+# ============================================================
 # Misc Python tools
+# ============================================================
 .python-version
 .ropeproject
 .spyderproject
@@ -164,18 +192,45 @@ celerybeat-schedule
 pip-log.txt
 pip-delete-this-directory.txt
 
+# ============================================================
 # Translations
+# ============================================================
 *.mo
 *.pot
 
+# ============================================================
 # Django/Flask (if applicable)
+# ============================================================
 local_settings.py
 instance/
 .webassets-cache
 .scrapy
 
-# Ignore temporary CTest files and test artifacts
+# ============================================================
+# CTest temporary files
+# ============================================================
 Testing/Temporary/
-# AI tools (added by cleanup)
+
+# ============================================================
+# AI tools
+# ============================================================
 .mimocode/
 .workbuddy/
+
+# ============================================================
+# Third-party tools (downloaded binaries, not project source)
+# ============================================================
+actionlint
+actionlint.tar.gz
+man/
+
+# actionlint documentation (not project docs)
+docs/api.md
+docs/checks.md
+docs/config.md
+docs/install.md
+docs/reference.md
+docs/usage.md
+
+# Generated OpenWiki evidence index (refreshed by CI)
+openwiki/
