@@ -2,7 +2,7 @@
 cd ~/
 source ~/.bashrc
 
-dataROOT="$HOME/2025huat/autoStartGkj"
+dataROOT="$HOME/2025huat/scripts/vehicle/autoStartGkj"
 var=$(cat /sys/class/net/enp2s0f1/carrier 2>/dev/null || echo 0)
 
 while [ "$var" -eq 1 ] 2>/dev/null

@@ -137,7 +137,7 @@ All mission launch files support these common parameters:
 ### Real Vehicle Mode
 
 ```bash
-bash autoStartGkj/start.sh
+bash scripts/vehicle/autoStartGkj/start.sh
 ```
 
 The startup script:
@@ -147,7 +147,7 @@ The startup script:
 4. Launches sensor drivers (LiDAR, camera, INS)
 5. Waits for command file to trigger main system launch
 
-State control: Write '2025' to `autoStartGkj/command` to trigger trackdrive launch.
+State control: Write '2025' to `scripts/vehicle/autoStartGkj/command` to trigger trackdrive launch.
 
 ### Mission Modes
 
@@ -323,7 +323,7 @@ Legacy topics (`/vehcileCMDMsg`, `/Carstate`) are optional compatibility paths a
 
 ### Startup Script Dependencies
 
-`autoStartGkj/start.sh` expects:
+`scripts/vehicle/autoStartGkj/start.sh` expects:
 - `$HOME/Driver/pbox_node_dirve-V3.0.5-20240412/` - INS driver workspace
 - `$HOME/camera/` - Camera driver workspace
 - These paths may need adjustment for your environment

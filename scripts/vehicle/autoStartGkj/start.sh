@@ -1,4 +1,4 @@
-dataROOT="$HOME/2025huat/autoStartGkj"
+dataROOT="$HOME/2025huat/scripts/vehicle/autoStartGkj"
 echo '0' > ${dataROOT}/command
 sourceBash="${dataROOT}/sourceBash"
 
@@ -55,7 +55,7 @@ done
 echo $succ
 gnome-terminal --window -- bash -c "source $HOME/.bashrc; source /opt/ros/noetic/setup.bash; source $HOME/2025huat/devel/setup.bash; rostopic echo /vehcileCMDMsg"
 
-#gnome-terminal --window -- bash -c "$HOME/2025huat/autoStartGkj/sourceBash/detect.sh;exec bash"
+#gnome-terminal --window -- bash -c "$HOME/2025huat/scripts/vehicle/autoStartGkj/sourceBash/detect.sh;exec bash"
 
 
 while [ $succ -eq 2025 ]

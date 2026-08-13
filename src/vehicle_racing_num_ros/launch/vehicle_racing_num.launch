@@ -1,6 +1,6 @@
 <launch>
   <arg name="bag" default="" />
-  <arg name="output_file" default="$(env HOME)/autoStartGkj/command" />
+  <arg name="output_file" default="$(env HOME)/scripts/vehicle/autoStartGkj/command" />
   <arg name="exit_on_nonzero" default="true" />
   <arg name="topic" default="vehicleStatusMsg" />
   <arg name="queue_size" default="1" />

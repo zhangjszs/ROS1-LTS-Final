@@ -9,9 +9,9 @@
   <arg name="approaching_goal_topic" default="planning/skidpad/approaching_goal" doc="八字接近终点话题"/>
   <arg name="cmd_topic" default="vehicle/cmd" doc="控制输出命令话题"/>
   <arg name="enable_file_mode_fallback" default="false" doc="是否允许从文件回退读取控制模式"/>
-  <arg name="mode_file_path" default="$(env HOME)/autoStartGkj/command" doc="兼容模式回退文件路径"/>
+  <arg name="mode_file_path" default="$(env HOME)/scripts/vehicle/autoStartGkj/command" doc="兼容模式回退文件路径"/>
   <arg name="enable_external_stop_file" default="false" doc="是否启用文件外部停车兼容链路"/>
-  <arg name="external_stop_file_path" default="$(env HOME)/autoStartGkj/command" doc="文件外部停车路径"/>
+  <arg name="external_stop_file_path" default="$(env HOME)/scripts/vehicle/autoStartGkj/command" doc="文件外部停车路径"/>
   <arg name="diagnostics_rate_hz" default="1.0" doc="control/diagnostics 发布频率"/>
   <arg name="diagnostics_topic" default="control/diagnostics" doc="控制入口诊断本地话题"/>
   <arg name="publish_global_diagnostics" default="true" doc="是否发布到统一 /diagnostics"/>

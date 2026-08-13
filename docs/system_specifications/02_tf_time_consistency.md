@@ -359,7 +359,7 @@ class HealthMonitor:
 
 ### 4.6 A3 文件侧通道兼容性自检
 
-> 目标：验证 `$HOME/autoStartGkj/command` 已降级为“运维兼容”，不再构成主链路依赖（见 Doc-01 §3.6）。
+> 目标：验证 `$HOME/scripts/vehicle/autoStartGkj/command` 已降级为“运维兼容”，不再构成主链路依赖（见 Doc-01 §3.6）。
 
 **当前实现**:
 - 控制节点已发布 `/control/diagnostics`，并聚合到统一 `/diagnostics`，包含 `mode_source`、`file_mode_fallback_used`、`external_stop_source`、文件读错计数等字段。

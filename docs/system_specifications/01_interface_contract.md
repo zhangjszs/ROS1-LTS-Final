@@ -303,7 +303,7 @@ rotation: (qx, qy, qz, qw) from yaw
 
 **现状证据**:
 - 控制模式参数优先：`control_node` 启动时优先读取私有参数 `~mode`（`src/control_ros/src/control_node.cpp:411-415`）。
-- 文件回退存在：仅在 `enable_file_mode_fallback=true` 时回退读取 `$HOME/autoStartGkj/command`（`src/control_ros/src/control_node.cpp:416-427`）。
+- 文件回退存在：仅在 `enable_file_mode_fallback=true` 时回退读取 `$HOME/scripts/vehicle/autoStartGkj/command`（`src/control_ros/src/control_node.cpp:416-427`）。
 - 文件停车检查存在：仅在 `enable_external_stop_file=true` 且非仿真模式下读取文件触发停车（`src/control_ros/src/control_node.cpp:103-109`、`src/control_ros/src/control_node.cpp:261-272`）。
 - 文件写入节点默认输出同一路径（`src/vehicle_racing_num_ros/launch/vehicle_racing_num.launch:3`、`src/vehicle_racing_num_core/src/racing_num_writer.cpp:9-17`）。
 
@@ -311,7 +311,7 @@ rotation: (qx, qy, qz, qw) from yaw
 |------|------|------|----------|
 | 主链路 | ROS 参数 `~mode`（由 launch `control_mode` 传入） | 控制模式选择 | **MUST** |
 | 主链路 | ROS Topic `/planning/pathlimits` + `/control/command` | 闭环控制输入/输出 | **MUST** |
-| 兼容链路 | 文件 `$HOME/autoStartGkj/command` | 运维/历史兼容（模式回退、外部停车） | **SHOULD（非主链路）** |
+| 兼容链路 | 文件 `$HOME/scripts/vehicle/autoStartGkj/command` | 运维/历史兼容（模式回退、外部停车） | **SHOULD（非主链路）** |
 
 **A3 契约条款**:
 - 标准赛项（`trackdrive`/`autocross`/`acceleration`/`skidpad`/`ebs_test`）启动链路 **MUST** 显式提供 `control_mode`，不得把文件通道作为启动前提。

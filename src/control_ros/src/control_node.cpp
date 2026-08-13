@@ -30,9 +30,9 @@ namespace control_ros {
 std::string DefaultCommandPath() {
   const char* home = std::getenv("HOME");
   if (home == nullptr || home[0] == '\0') {
-    return "autoStartGkj/command";
+    return "scripts/vehicle/autoStartGkj/command";
   }
-  return std::string(home) + "/autoStartGkj/command";
+  return std::string(home) + "/scripts/vehicle/autoStartGkj/command";
 }
 
 int ReadModeFromFile(const std::string& path, bool* read_ok) {

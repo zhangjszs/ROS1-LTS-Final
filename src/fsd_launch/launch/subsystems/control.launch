@@ -13,9 +13,9 @@
     <arg name="vehicle_config" default="$(find fsd_launch)/config/vehicles/$(arg vehicle)/control.yaml"/>
     <arg name="vehicle_local_config" default="" doc="本地覆盖参数文件（*.local.yaml）"/>
     <arg name="enable_file_mode_fallback" default="false" doc="控制模式文件回退开关（兼容链路）"/>
-    <arg name="mode_file_path" default="$(env HOME)/autoStartGkj/command" doc="控制模式文件路径（兼容链路）"/>
+    <arg name="mode_file_path" default="$(env HOME)/scripts/vehicle/autoStartGkj/command" doc="控制模式文件路径（兼容链路）"/>
     <arg name="enable_external_stop_file" default="false" doc="文件外部停车开关（兼容链路）"/>
-    <arg name="external_stop_file_path" default="$(env HOME)/autoStartGkj/command" doc="文件外部停车路径（兼容链路）"/>
+    <arg name="external_stop_file_path" default="$(env HOME)/scripts/vehicle/autoStartGkj/command" doc="文件外部停车路径（兼容链路）"/>
     <arg name="carstate_topic" default="localization/car_state" doc="控制输入车体状态话题"/>
     <arg name="approaching_goal_topic" default="planning/skidpad/approaching_goal" doc="控制输入八字接近终点话题"/>
     <arg name="cmd_topic" default="vehicle/cmd" doc="控制输出命令话题"/>

@@ -8,9 +8,9 @@ namespace vehicle_racing_num_core {
 std::string DefaultOutputPath() {
   const char* home = std::getenv("HOME");
   if (home == nullptr || home[0] == '\0') {
-    return "autoStartGkj/command";
+    return "scripts/vehicle/autoStartGkj/command";
   }
-  return std::string(home) + "/autoStartGkj/command";
+  return std::string(home) + "/scripts/vehicle/autoStartGkj/command";
 }
 
 bool WriteRacingNum(const std::string& output_file, int racing_num) {

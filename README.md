@@ -73,7 +73,7 @@ roslaunch fsd_launch trackdrive.launch simulation:=true bag:=/path/to/bag.bag ra
 
 **实车模式:**
 ```bash
-bash autoStartGkj/start.sh
+bash scripts/vehicle/autoStartGkj/start.sh
 ```
 
 ### RViz 可视化模式

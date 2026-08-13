@@ -384,7 +384,7 @@
 
 | 项目 | 内容 |
 |------|------|
-| **失败模式** | 控制链路对 `$HOME/autoStartGkj/command` 形成硬依赖，导致无文件时控制不可用或异常退出 |
+| **失败模式** | 控制链路对 `$HOME/scripts/vehicle/autoStartGkj/command` 形成硬依赖，导致无文件时控制不可用或异常退出 |
 | **触发条件** | `~mode` 未显式传入触发文件回退；文件缺失/权限异常；运维脚本覆盖文件内容 |
 | **传播路径** | Control: 启动模式不确定或被文件覆盖 → 控制输出中断/模式错误 |
 | **可观测信号** | `/rosout(_agg)`: “文件打开失败”高频日志；`/control/command` 中断；`control_entry_health.mode_source=file`（见 Doc-02 §4.6） |

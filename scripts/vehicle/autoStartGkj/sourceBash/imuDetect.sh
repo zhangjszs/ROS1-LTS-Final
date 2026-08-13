@@ -2,7 +2,7 @@
 cd ~/
 source ~/.bashrc
 
-dataROOT="$HOME/2025huat/autoStartGkj"
+dataROOT="$HOME/2025huat/scripts/vehicle/autoStartGkj"
 imuPath="/dev/ttyUSB0"
 
 while [ -e "$imuPath" ]
