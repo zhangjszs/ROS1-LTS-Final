@@ -15,7 +15,7 @@ set -euo pipefail
 #     <name>_planning_metrics.json
 #     <name>_cone_map_metrics.json (best-effort)
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 OUT_DIR="${OUT_DIR:-/tmp/planning_track_tuning}"
 NAME="${1:?name required}"
 BAG_PATH="${2:-/home/kerwin/rosbag/track.bag}"

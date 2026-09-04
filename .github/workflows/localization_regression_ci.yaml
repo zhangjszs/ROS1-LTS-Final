@@ -47,12 +47,12 @@ jobs:
 
       - name: Verify FG gate assets exist
         run: |
-          test -f scripts/check_localization_fg_gate.py
+          test -f scripts/ci/check_localization_fg_gate.py
           test -f perf_reports/baselines/localization/fg_gate_thresholds.yaml
 
       - name: FG gate checker syntax check
         run: |
-          python3 -m py_compile scripts/check_localization_fg_gate.py
+          python3 -m py_compile scripts/ci/check_localization_fg_gate.py
 
       - name: FG gate checker logic test (mock pass)
         run: |
@@ -70,7 +70,7 @@ jobs:
             }
           }
           JSON
-          python3 scripts/check_localization_fg_gate.py \
+          python3 scripts/ci/check_localization_fg_gate.py \
             --result-json /tmp/fg_gate_test/mock_pass.json \
             --thresholds perf_reports/baselines/localization/fg_gate_thresholds.yaml \
             --output-json /tmp/fg_gate_test/pass_result.json \
@@ -92,7 +92,7 @@ jobs:
             }
           }
           JSON
-          if python3 scripts/check_localization_fg_gate.py \
+          if python3 scripts/ci/check_localization_fg_gate.py \
             --result-json /tmp/fg_gate_test/mock_fail.json \
             --thresholds perf_reports/baselines/localization/fg_gate_thresholds.yaml \
             --output-json /tmp/fg_gate_test/fail_result.json \

@@ -56,22 +56,27 @@ The codebase separates algorithm logic (core) from ROS integration (ros):
 
 Core packages:
 - `perception_core/` - LiDAR clustering, ground segmentation, cone detection
+- `vision_core/` - Vision cone detection and fallback classification
 - `planning_core/` - Line detection (Hough transform), skidpad detection, path generation
 - `control_core/` - Pure pursuit, PID controllers (line, high-speed, skidpad, test)
 - `localization_core/` - State estimation and localization algorithms
+- `simulation_core/` - Vehicle dynamics and tire model simulation
 - `vehicle_interface_core/` - Vehicle communication protocol logic
 - `vehicle_racing_num_core/` - Race number management logic
 
 ROS packages:
 - `perception_ros/` - Wraps perception_core with ROS topics
+- `vision_ros/` - Camera interface and vision model inference node
 - `planning_ros/` - Wraps planning_core with ROS topics
 - `control_ros/` - Wraps control_core with ROS topics
 - `localization_ros/` - Wraps localization_core with ROS topics
+- `simulation_ros/` - Simulation node and interface wrappers
 - `vehicle_interface_ros/` - UDP bridge to vehicle CAN bus
 - `vehicle_racing_num_ros/` - Race number ROS interface
 
 Infrastructure:
 - `autodrive_msgs/` - Custom message definitions (`HUAT_ConeDetections`, `HUAT_CarState`, `HUAT_PathLimits`, `HUAT_VehicleCmd`)
+- `fsd_common/` - Shared geometric definitions, constants, and cone type enums
 - `fsd_launch/` - Unified launch file organization
 - `fsd_visualization/` - Visualization nodes and RViz configs
 - `ins/` - INS message compatibility bridge

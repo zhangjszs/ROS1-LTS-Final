@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VALIDATE_SCRIPT="${ROOT_DIR}/scripts/validate_pathlimits_v2_cutover_replay.sh"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+VALIDATE_SCRIPT="${ROOT_DIR}/scripts/validation/validate_pathlimits_v2_cutover_replay.sh"
 
 OUT_DIR="${OUT_DIR:-${ROOT_DIR}/perf_reports/results/pathlimits_v2_cutover_matrix_$(date +%Y%m%d_%H%M%S)}"
 PLAY_RATE="${PLAY_RATE:-2.0}"

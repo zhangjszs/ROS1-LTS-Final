@@ -7,9 +7,12 @@ This is a ROS Noetic `catkin` workspace for autonomous driving (FSD HUAT). Main 
 - `*_core/`: Algorithmic modules without ROS dependencies
 - `*_ros/`: ROS wrappers (nodes, launch integration, topic/parameter plumbing)
 - `src/autodrive_msgs/`: Shared message definitions
+- `src/fsd_common/`: Shared constants, geometric definitions, and cone types
 - `src/fsd_launch/`: Mission/subsystem launch composition and runtime config
-- `docs/`: Design and process documentation
-- `scripts/` and `perf_reports/`: Validation and performance tooling
+- `src/fsd_visualization/`: Unified visualization and RViz markers
+- `docs/`: Design, interface contracts, and process documentation
+- `scripts/`: Development, CI contracts, validation, benchmarks, and vehicle deployment tooling
+- `perf_reports/`: Performance regression benchmarking and automated reporting framework
 
 **Do not edit generated workspace artifacts in `build/`, `devel/`, or `logs/`.**
 

@@ -653,7 +653,7 @@ def main():
     parser = argparse.ArgumentParser(description="Run replay report suites")
     parser.add_argument(
         "--outdir",
-        default=os.path.join(os.path.dirname(__file__), "..", "perf_reports", "data"),
+        default=os.path.join(os.path.dirname(__file__), "..", "..", "perf_reports", "data"),
         help="Base output directory for report artefacts",
     )
     parser.add_argument(

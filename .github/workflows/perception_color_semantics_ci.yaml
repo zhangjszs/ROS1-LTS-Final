@@ -5,16 +5,16 @@ on:
   push:
     branches: [main]
     paths:
-      - "scripts/check_color_semantics_regression_mode.sh"
-      - "scripts/check_perception_regression_mode.sh"
+      - "scripts/ci/check_color_semantics_regression_mode.sh"
+      - "scripts/ci/check_perception_regression_mode.sh"
       - "perf_reports/scripts/evaluate_color_semantics_metrics.py"
       - "perf_reports/baselines/perception/*.color_semantics.thresholds.env"
       - "src/perception_ros/test/test_mainline_adapter_launch_contract.py"
       - ".github/workflows/perception_color_semantics_ci.yaml"
   pull_request:
     paths:
-      - "scripts/check_color_semantics_regression_mode.sh"
-      - "scripts/check_perception_regression_mode.sh"
+      - "scripts/ci/check_color_semantics_regression_mode.sh"
+      - "scripts/ci/check_perception_regression_mode.sh"
       - "perf_reports/scripts/evaluate_color_semantics_metrics.py"
       - "perf_reports/baselines/perception/*.color_semantics.thresholds.env"
       - "src/perception_ros/test/test_mainline_adapter_launch_contract.py"
@@ -39,8 +39,8 @@ jobs:
 
       - name: Verify gate assets exist
         run: |
-          test -f scripts/check_color_semantics_regression_mode.sh
-          test -f scripts/check_perception_regression_mode.sh
+          test -f scripts/ci/check_color_semantics_regression_mode.sh
+          test -f scripts/ci/check_perception_regression_mode.sh
           test -f perf_reports/scripts/evaluate_color_semantics_metrics.py
           for mode in track accel skidpad; do
             test -f "perf_reports/baselines/perception/${mode}.color_semantics.thresholds.env"
@@ -48,8 +48,8 @@ jobs:
 
       - name: Shell syntax checks
         run: |
-          bash -n scripts/check_color_semantics_regression_mode.sh
-          bash -n scripts/check_perception_regression_mode.sh
+          bash -n scripts/ci/check_color_semantics_regression_mode.sh
+          bash -n scripts/ci/check_perception_regression_mode.sh
 
       - name: Python syntax checks
         run: |

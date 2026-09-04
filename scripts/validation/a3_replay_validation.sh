@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 RESULT_DIR="${RESULT_DIR:-/tmp/a3_validation}"
 BAG_PATH="${1:-/home/kerwin/rosbag/track.bag}"
 PLAY_RATE="${2:-2.0}"

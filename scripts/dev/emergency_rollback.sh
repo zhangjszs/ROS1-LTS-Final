@@ -110,7 +110,7 @@ fi
 
 # Source workspace
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-WORKSPACE_DIR="$(dirname "$SCRIPT_DIR")"
+WORKSPACE_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$WORKSPACE_DIR"
 source devel/setup.bash
 

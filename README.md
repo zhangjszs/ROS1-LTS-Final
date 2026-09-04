@@ -4,34 +4,47 @@
 
 本项目采用 **Core + ROS Wrapper** 分层架构，实现 ROS 与算法逻辑的解耦。
 
-```
+```text
 src/
-├── autodrive_msgs/          # 统一消息定义
-├── fsd_launch/              # 统一启动配置
-│   └── launch/
-│       ├── trackdrive.launch    # 任务入口: 高速循迹
-│       ├── skidpad.launch       # 任务入口: 八字绕环
-│       ├── acceleration.launch  # 任务入口: 直线加速
-│       ├── autocross.launch     # 任务入口: 综合赛道
-│       ├── subsystems/          # 子系统: perception, planning, control, localization
-│       ├── tools/               # 工具: rviz, rosbag_play, debug
-│       └── simulation/          # 全仿真启动
-├── fsd_visualization/       # 统一可视化节点
-├── perception_core/         # 感知算法核心 (无 ROS 依赖)
+├── autodrive_msgs/          # 统一消息定义 (HUAT_ConeDetections, HUAT_CarState 等)
+├── fsd_common/              # 核心通用类型与几何定义 (无 ROS 依赖)
+├── ins/                     # INS 惯导传感器消息兼容桥接
+├── fsd_launch/              # 统一启动配置中心 (任务入口/子系统/工具/仿真)
+├── fsd_visualization/       # 统一可视化节点与 RViz 配置
+├── perception_core/         # 激光雷达点云感知算法核心 (无 ROS 依赖)
 ├── perception_ros/          # 感知 ROS 包装层
-├── planning_core/           # 规划算法核心 (无 ROS 依赖)
+├── vision_core/             # 视觉目标识别与回退核心 (无 ROS 依赖)
+├── vision_ros/              # 视觉 ROS 包装层与模型推理
+├── planning_core/           # 赛道规划算法核心 (无 ROS 依赖)
 ├── planning_ros/            # 规划 ROS 包装层
-├── control_core/            # 控制算法核心 (无 ROS 依赖)
+├── control_core/            # 横纵向控制算法核心 (无 ROS 依赖)
 ├── control_ros/             # 控制 ROS 包装层
-├── localization_core/       # 定位算法核心 (无 ROS 依赖)
+├── localization_core/       # 因子图与滤波状态估计核心 (无 ROS 依赖)
 ├── localization_ros/        # 定位 ROS 包装层
-├── vehicle_interface_core/  # 车辆通信协议核心
-├── vehicle_interface_ros/   # 车辆通信接口 ROS 包装层
-├── vehicle_racing_num_core/ # 比赛编号管理核心
-├── vehicle_racing_num_ros/  # 比赛编号管理 ROS 包装层
-└── ins/                     # INS 消息兼容桥接
+├── simulation_core/         # 车辆动力学与轮胎仿真核心 (无 ROS 依赖)
+├── simulation_ros/          # 仿真环境 ROS 节点与接口
+├── vehicle_interface_core/  # 底盘 CAN/UDP 通信协议核心
+├── vehicle_interface_ros/   # 底盘通信接口 ROS 包装层
+├── vehicle_racing_num_core/ # 比赛车号管理核心
+└── vehicle_racing_num_ros/  # 比赛车号 ROS 包装层
 ```
-
+ 
+## 仓库目录导览
+ 
+```text
+.
+├── src/                 # 核心 ROS1 Catkin 源码包 (21个包，Core + ROS Wrapper 解耦架构)
+├── docs/                # 系统设计、接口契约、赛事规则与技术报告文档中心
+├── scripts/             # 开发维护、CI门禁、回放测试与实车自启脚本
+├── perf_reports/        # 自动化性能基准测试、图表生成与回归评估报告系统
+├── .github/             # GitHub Actions CI/CD 流水线与协作模板
+├── pyproject.toml       # Python 工具统一配置 (black, isort, pytest)
+├── .clang-format        # C++17 代码规范格式化定义
+├── CONTRIBUTING.md      # 开发者代码贡献与协作规范指南
+├── CHANGELOG.md         # 版本发布与演进历史
+└── LICENSE              # BSD-3-Clause 开源许可证
+```
+ 
 ## 快速开始
 
 ### 构建
@@ -203,6 +216,8 @@ rosrun tf tf_echo velodyne base_link
 
 - **[CLAUDE.md](CLAUDE.md)** - Claude Code 开发指南
 - **[docs/README.md](docs/README.md)** - 统一技术文档中心导航索引
+- **[scripts/README.md](scripts/README.md)** - 自动化与开发维护脚本全景字典
+- **[perf_reports/README.md](perf_reports/README.md)** - 性能基准测试与报告系统说明
 - **[docs/reports/remaining_work_audit_2026-03-06.md](docs/reports/remaining_work_audit_2026-03-06.md)** - 当前未完成事项与依赖审计基准
 - **[docs/reports/HANDOFF.md](docs/reports/HANDOFF.md)** - 历史状态基线与交接说明
 - **[docs/competition/](docs/competition/)** - FSAC 比赛规程与赛道/锥桶规范

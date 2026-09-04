@@ -234,3 +234,9 @@ docs/usage.md
 
 # Generated OpenWiki evidence index (refreshed by CI)
 openwiki/
+
+# ============================================================
+# IDE / Agent specific
+# ============================================================
+.antigravity/
+.gemini/

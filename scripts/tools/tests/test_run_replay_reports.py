@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-SCRIPT_PATH = Path(__file__).resolve().parent / "run_replay_reports.py"
+SCRIPT_PATH = Path(__file__).resolve().parent.parent / "run_replay_reports.py"
 SPEC = importlib.util.spec_from_file_location("run_replay_reports", SCRIPT_PATH)
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)

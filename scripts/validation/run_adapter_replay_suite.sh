@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 OUT_DIR="${OUT_DIR:-${ROOT_DIR}/perf_reports/data/adapter_replay_$(date +%Y%m%d_%H%M%S)}"
 LEGACY_BUDGET_SEC="${LEGACY_BUDGET_SEC:-0.15}"
 DEFAULT_SCENARIOS=(

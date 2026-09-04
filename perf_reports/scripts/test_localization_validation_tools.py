@@ -15,7 +15,7 @@ LOCALIZATION_CI_PATH = (
     SCRIPT_DIR.parent.parent / ".github" / "workflows" / "localization_regression_ci.yaml"
 )
 FG_MAINLINE_REPLAY_SCRIPT = (
-    SCRIPT_DIR.parent.parent / "scripts" / "validate_localization_fg_mainline_replay.sh"
+    SCRIPT_DIR.parent.parent / "scripts" / "validation" / "validate_localization_fg_mainline_replay.sh"
 )
 
 

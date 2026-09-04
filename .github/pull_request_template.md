@@ -45,8 +45,8 @@
   ```
 - [ ] 契约门禁检查:
   ```bash
-  ./scripts/check_topic_contracts.sh
-  ./scripts/check_deprecation_contracts.sh
+  ./scripts/ci/check_topic_contracts.sh
+  ./scripts/ci/check_deprecation_contracts.sh
   ```
 - [ ] Python 测试与格式检查:
   ```bash
