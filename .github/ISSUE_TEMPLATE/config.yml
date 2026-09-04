@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: FSAC 翼驰车队技术讨论
+    url: https://github.com/zhangjszs/ROS1-LTS-Final/discussions
+    about: 请在 Discussions 专区交流参赛经验、调参心得与通用疑问。

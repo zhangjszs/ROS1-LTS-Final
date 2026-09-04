@@ -27,7 +27,7 @@
 | `track_constraints.hpp` | 左红右蓝 | 颜色一致性约束 |
 | `track_constraints.hpp` | 参考均速 40-48km/h | SAFE_LAP 初始速度上界 |
 
-证据：`src/competition_guide/traffic_cone.md:15`、`src/competition_guide/traffic_cone.md:16`、`src/planning_core/include/planning_core/track_constraints.hpp:30`、`src/planning_core/include/planning_core/track_constraints.hpp:62`。
+证据：`docs/competition/traffic_cone.md:15`、`docs/competition/traffic_cone.md:16`、`src/planning_core/include/planning_core/track_constraints.hpp:30`、`src/planning_core/include/planning_core/track_constraints.hpp:62`。
 
 ## 4. 算法架构
 

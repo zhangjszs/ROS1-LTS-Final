@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-08-20 - Open Source Standardization & Core Modernization
+
+### Added
+- **Repository Governance & Open Source Templates** - Added `.github/pull_request_template.md`, Issue templates (`bug_report.md`, `feature_request.md`), and issue config.
+- **Factor Graph Mainline Localization** - Integrated factor graph backend with shadow mode, validation replay tools, and multi-mission cutover acceptance.
+- **PathLimitsV2 Contract & Fallback** - End-to-end V1/V2 dual publish pipeline with automatic fallback mechanism in control node.
+- **Color Semantics & Fusion Gating** - Color semantics regression gating and adaptive LiDAR/vision cone filtering.
+
+### Changed
+- **Catkin Source Space Purification** - Relocated non-code competition guide assets (`src/competition_guide/`) to `docs/competition/`, making `src/` strictly contain 21 genuine Catkin packages.
+- **Documentation Architecture Hierarchy** - Restructured `docs/` with distinct directories: `guides/`, `architecture/`, `reports/`, `competition/`, and refreshed `docs/README.md`.
+- **Tooling & Test Portability** - Added pytest configuration in `pyproject.toml`, and enhanced contract verification scripts with fallback to `grep -F -q`.
+
+### Removed
+- Cleaned up redundant duplicate files (`docs/AGENTS.md`, duplicate tuning plans in `docs/plans/`).
+
 ## [1.1.0] - 2026-02-11 - M5 Unified Planner Release
 
 ### Added

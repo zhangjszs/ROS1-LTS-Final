@@ -201,11 +201,12 @@ rosrun tf tf_echo velodyne base_link
 
 ## 文档
 
-- **CLAUDE.md** - Claude Code 开发指南（英文）
-- **HANDOFF.md** - 当前代码状态与阶段性交接说明
-- **RESTRUCTURE_PLAN.md** - 规整化重构规划与实施记录
-- **docs/README.md** - 文档导航索引
-- **docs/remaining_work_audit_2026-03-06.md** - 当前未完成事项、未实现功能与缺失依赖审计
+- **[CLAUDE.md](CLAUDE.md)** - Claude Code 开发指南
+- **[docs/README.md](docs/README.md)** - 统一技术文档中心导航索引
+- **[docs/reports/remaining_work_audit_2026-03-06.md](docs/reports/remaining_work_audit_2026-03-06.md)** - 当前未完成事项与依赖审计基准
+- **[docs/reports/HANDOFF.md](docs/reports/HANDOFF.md)** - 历史状态基线与交接说明
+- **[docs/competition/](docs/competition/)** - FSAC 比赛规程与赛道/锥桶规范
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** - 社区贡献与规范指南
 - 各包 README - 查看 `src/*/README.md`
 
 ## 项目状态

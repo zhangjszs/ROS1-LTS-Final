@@ -5,11 +5,21 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 FAIL=0
 
+match_pattern() {
+  local pattern="$1"
+  local file="$2"
+  if command -v rg >/dev/null 2>&1; then
+    rg -q --fixed-strings "$pattern" "$file"
+  else
+    grep -F -q "$pattern" "$file"
+  fi
+}
+
 check_contains() {
   local file="$1"
   local pattern="$2"
   local label="$3"
-  if ! rg -q --fixed-strings "$pattern" "$file"; then
+  if ! match_pattern "$pattern" "$file"; then
     echo "[FAIL] ${label}: missing '${pattern}'"
     FAIL=1
   fi
@@ -19,7 +29,7 @@ check_not_contains() {
   local file="$1"
   local pattern="$2"
   local label="$3"
-  if rg -q --fixed-strings "$pattern" "$file"; then
+  if match_pattern "$pattern" "$file"; then
     echo "[FAIL] ${label}: should not contain '${pattern}'"
     FAIL=1
   fi

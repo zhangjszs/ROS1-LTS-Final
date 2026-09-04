@@ -30,3 +30,10 @@ line_length = 100
 known_ros = ["rospy", "rospkg", "catkin_pkg", "std_msgs", "sensor_msgs", "geometry_msgs", "nav_msgs"]
 known_first_party = ["fsd_common", "autodrive_msgs"]
 sections = ["FUTURE", "STDLIB", "THIRDPARTY", "ROS", "FIRSTPARTY", "LOCALFOLDER"]
+
+[tool.pytest.ini_options]
+testpaths = ["scripts", "perf_reports/scripts"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+norecursedirs = [".git", "build", "devel", "install", ".catkin_tools", "docs"]
+

@@ -299,10 +299,11 @@ roslaunch fsd_launch tools/rviz.launch rviz_mode:=dual
 
 ## Project Documentation
 Additional documentation files:
-- `docs/HANDOFF.md` - Current code state and phase handoff notes
-- `docs/RESTRUCTURE_PLAN.md` - Codebase refactoring plan and implementation records
 - `docs/README.md` - Documentation navigation index
-- `docs/remaining_work_audit_*.md` - Audit of incomplete features and missing dependencies
+- `docs/reports/HANDOFF.md` - Current code state and phase handoff notes
+- `docs/reports/RESTRUCTURE_PLAN.md` - Codebase refactoring plan and implementation records
+- `docs/reports/remaining_work_audit_*.md` - Audit of incomplete features and missing dependencies
+- `docs/competition/` - Competition rules, track specs, and cone details
 - `src/*/README.md` - Package-specific documentation for each module
 
 ## Project Status
