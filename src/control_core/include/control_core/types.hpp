@@ -73,7 +73,8 @@ enum class ControlStopState : uint8_t {
   RUNNING = 0,
   EXTERNAL_STOP_FILE = 1,
   INPUT_TIMEOUT = 2,
-  MISSION_COMPLETE = 3
+  MISSION_COMPLETE = 3,
+  CARSTATE_TIMEOUT = 4
 };
 
 inline const char* ControlStopStateName(ControlStopState s) {
@@ -86,6 +87,8 @@ inline const char* ControlStopStateName(ControlStopState s) {
       return "INPUT_TIMEOUT";
     case ControlStopState::MISSION_COMPLETE:
       return "MISSION_COMPLETE";
+    case ControlStopState::CARSTATE_TIMEOUT:
+      return "CARSTATE_TIMEOUT";
   }
   return "UNKNOWN";
 }

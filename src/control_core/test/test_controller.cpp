@@ -99,6 +99,48 @@ TEST(LineControllerTest, ComputeOutputWithPath) {
   EXPECT_GE(output.pedal_ratio, 0);
 }
 
+TEST(PedalBrakeTest, ZeroTargetSpeedCommandsStop) {
+  LineController controller;
+  ControlParams params;
+  controller.SetParams(params);
+  controller.UpdatePath({{0.0, 0.0}, {3.0, 0.0}, {6.0, 0.0}, {9.0, 0.0}});
+  controller.UpdateTargetSpeeds({0.0, 0.0, 0.0, 0.0});
+
+  CarState state;
+  state.v = 3.0;
+  controller.UpdateCarState(state);
+
+  const ControlOutput output = controller.ComputeOutput();
+  EXPECT_EQ(output.pedal_ratio, 0);
+  EXPECT_GT(output.brake_force, 0);
+}
+
+TEST(PedalBrakeTest, OverspeedDoesNotApplyThrottle) {
+  LineController controller;
+  ControlParams params;
+  controller.SetParams(params);
+  controller.UpdatePath({{0.0, 0.0}, {3.0, 0.0}, {6.0, 0.0}, {9.0, 0.0}});
+  controller.UpdateTargetSpeeds({1.0, 1.0, 1.0, 1.0});
+
+  CarState state;
+  state.v = 3.0;
+  controller.UpdateCarState(state);
+
+  const ControlOutput output = controller.ComputeOutput();
+  EXPECT_EQ(output.pedal_ratio, 0);
+  EXPECT_GT(output.brake_force, 0);
+}
+
+TEST(SkipControllerTest, SinglePointPathRequestsStop) {
+  SkipController controller;
+  controller.SetParams(ControlParams{});
+  controller.UpdatePath({{0.0, 0.0}});
+
+  const ControlOutput output = controller.ComputeOutput();
+  EXPECT_EQ(output.steering, 110);
+  EXPECT_TRUE(output.stop_requested);
+}
+
 // ==================== HighController Tests ====================
 
 TEST(HighControllerTest, Initialization) {

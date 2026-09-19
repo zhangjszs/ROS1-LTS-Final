@@ -14,6 +14,8 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <algorithm>
+#include <cmath>
 
 #include <autodrive_msgs/HUAT_CarState.h>
 #include <autodrive_msgs/HUAT_PathLimits.h>
@@ -79,6 +81,9 @@ class ControlNode {
     pnh_.param("input_timeout_sec", input_timeout_sec_, simulation_ ? 10.0 : 2.0);
     if (input_timeout_sec_ <= 0.0)
       input_timeout_sec_ = simulation_ ? 10.0 : 2.0;
+    pnh_.param("pose_timeout_sec", pose_timeout_sec_, simulation_ ? 5.0 : 0.5);
+    if (pose_timeout_sec_ <= 0.0)
+      pose_timeout_sec_ = simulation_ ? 5.0 : 0.5;
     pnh_.param("diagnostics_rate_hz", diagnostics_rate_hz_, 1.0);
     {
       std::string diag_topic, global_diag_topic;
@@ -123,13 +128,11 @@ class ControlNode {
   //   P2: Controller stop_requested (mission complete / planner stop)
   // EBS hardware stop is outside software control (handled by vehicle_interface)
   void SpinOnce() {
-    // H6: If already stopped, continue spinning briefly to allow diagnostics to propagate
+    // H6 & Issue #10: Continuously maintain valid stop command when stopped, don't silently die
     if (stopped_) {
+      uint8_t st = (stop_state_ == control_core::ControlStopState::MISSION_COMPLETE) ? 3 : 5;
+      PublishCommand(BuildStopCommand(st, 80));
       PublishDiagnostics(true);
-      ++stop_spin_count_;
-      if (stop_spin_count_ >= kStopSpinIterations) {
-        ros::shutdown();
-      }
       return;
     }
 
@@ -145,7 +148,26 @@ class ControlNode {
       return;
     }
 
-    // P1: Input timeout
+    // Issue #11: CarState input timeout watchdog
+    if (mode_ != fsd_common::ControlMode::kTest && mode_ != fsd_common::ControlMode::kEbs) {
+      if (has_carstate_) {
+        const double pose_age_sec = (ros::WallTime::now() - last_carstate_wall_time_).toSec();
+        if (pose_age_sec > pose_timeout_sec_) {
+          stop_state_ = control_core::ControlStopState::CARSTATE_TIMEOUT;
+          ROS_ERROR(
+              "[control] CarState input timeout: %.3f sec (threshold: %.3f sec). "
+              "Localization/INS may have crashed. Triggering emergency stop.",
+              pose_age_sec, pose_timeout_sec_);
+          PublishEmergencyStop();
+          pose_ready_ = false;
+          PublishDiagnostics(true);
+          stopped_ = true;
+          return;
+        }
+      }
+    }
+
+    // P1 & Issue #9: PathLimits input timeout
     if (mode_ != fsd_common::ControlMode::kTest && mode_ != fsd_common::ControlMode::kEbs) {
       if (has_pathlimits_) {
         const double timeout_sec = (ros::WallTime::now() - last_pathlimits_wall_time_).toSec();
@@ -167,17 +189,20 @@ class ControlNode {
 
     if (!path_ready_ &&
         !(mode_ == fsd_common::ControlMode::kTest || mode_ == fsd_common::ControlMode::kEbs)) {
-      ROS_WARN("得不到有效的惯导路径信息");
+      ROS_WARN_THROTTLE(1.0, "得不到有效的惯导路径信息");
+      // Issue #9: If vehicle was running and path is lost, do not coast silently
+      if (has_pathlimits_) {
+        PublishEmergencyStop();
+      }
       return;
     }
 
     if (controller_) {
       auto output = controller_->ComputeOutput();
-      // P2: Controller stop request (mission complete)
+      // P2 & Issue #10: Controller stop request (mission complete)
       if (output.stop_requested) {
         stop_state_ = control_core::ControlStopState::MISSION_COMPLETE;
-        autodrive_msgs::HUAT_VehicleCmd stop_cmd;
-        PublishCommand(stop_cmd);
+        PublishCommand(BuildStopCommand(3, 80));
         PublishDiagnostics(true);
         stopped_ = true;
         return;
@@ -188,9 +213,10 @@ class ControlNode {
       cmd.head2 = 0X55;
       cmd.length = 10;
 
-      cmd.steering = output.steering;
-      cmd.pedal_ratio = output.pedal_ratio;
-      cmd.brake_force = output.brake_force;
+      // Issue #6: Clamp output values to protocol ranges to prevent uint8 overflow
+      cmd.steering = static_cast<uint8_t>(std::clamp(output.steering, 0, 220));
+      cmd.pedal_ratio = static_cast<uint8_t>(std::clamp(output.pedal_ratio, 0, 100));
+      cmd.brake_force = static_cast<uint8_t>(std::clamp(output.brake_force, 0, 100));
       cmd.gear_position = 1;
 
       cmd.working_mode = (mode_ == fsd_common::ControlMode::kEbs) ? 2 : 1;
@@ -356,10 +382,25 @@ class ControlNode {
     state.ax = msgs->Ax;        // 纵向加速度
     state.ay = msgs->Ay;        // 横向加速度
 
+    // Issue #11: Check header stamp age if valid
+    if (msgs->header.stamp.isValid() && !msgs->header.stamp.isZero()) {
+      const ros::Time now = ros::Time::now();
+      if (now > msgs->header.stamp) {
+        double age = (now - msgs->header.stamp).toSec();
+        if (age > pose_timeout_sec_) {
+          ROS_WARN_THROTTLE(1.0, "[control] Stale CarState header stamp age: %.3fs (threshold: %.3fs)",
+                            age, pose_timeout_sec_);
+          return;
+        }
+      }
+    }
+
     if (controller_) {
       controller_->UpdateCarState(state);
     }
     pose_ready_ = true;
+    has_carstate_ = true;
+    last_carstate_wall_time_ = ros::WallTime::now();
   }
 
   void PathLimitsCallback(const autodrive_msgs::HUAT_PathLimits::ConstPtr& msgs) {
@@ -387,13 +428,11 @@ class ControlNode {
       return;
     }
 
-    // B1: Additional safety checks
-    if (path_len == 0) {
-      ROS_WARN_THROTTLE(1.0, "[control] Received empty path, ignoring.");
+    // B1 & Issue #8 & #9: Reject paths with fewer than 2 points; do NOT update watchdog
+    if (path_len < 2) {
+      ROS_WARN_THROTTLE(1.0, "[control] Received path with %zu points (minimum 2 required), rejecting.", path_len);
       path_ready_ = false;
-      // Update timestamp even for empty paths to prevent timeout during planning warm-up
-      has_pathlimits_ = true;
-      last_pathlimits_wall_time_ = ros::WallTime::now();
+      PublishDiagnostics(true);
       return;
     }
 
@@ -482,24 +521,27 @@ class ControlNode {
     return value == 0;
   }
 
-  void PublishEmergencyStop() {
+  autodrive_msgs::HUAT_VehicleCmd BuildStopCommand(uint8_t racing_status = 5, uint8_t brake_force = 80) {
     autodrive_msgs::HUAT_VehicleCmd cmd;
     cmd.head1 = 0XAA;
     cmd.head2 = 0X55;
     cmd.length = 10;
     cmd.steering = 110;
     cmd.pedal_ratio = 0;
-    cmd.brake_force = 80;
+    cmd.brake_force = brake_force;
     cmd.gear_position = 0;
     cmd.working_mode = 1;
     cmd.racing_num = racing_num_;
-    cmd.racing_status = 5;
+    cmd.racing_status = racing_status;
     int checksum = cmd.head1 + cmd.head2 + cmd.length + cmd.steering + cmd.pedal_ratio +
                    cmd.brake_force + cmd.gear_position + cmd.working_mode + cmd.racing_num +
                    cmd.racing_status;
     cmd.checksum = static_cast<uint8_t>(checksum & 0xFF);
+    return cmd;
+  }
 
-    PublishCommand(cmd);
+  void PublishEmergencyStop() {
+    PublishCommand(BuildStopCommand(5, 80));
   }
 
   void PublishCommand(const autodrive_msgs::HUAT_VehicleCmd& cmd) { pub_cmd_.publish(cmd); }
@@ -637,6 +679,11 @@ class ControlNode {
   bool has_pathlimits_{false};
   ros::WallTime last_pathlimits_wall_time_;
   int input_timeout_count_{0};
+
+  // Issue #11: CarState watchdog tracking
+  double pose_timeout_sec_{0.5};
+  bool has_carstate_{false};
+  ros::WallTime last_carstate_wall_time_;
 
   // V2 PathLimits support
   std::string pathlimits_v2_topic_{"planning/pathlimits_v2"};

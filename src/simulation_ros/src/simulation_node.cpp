@@ -184,16 +184,17 @@ class SimulationNode {
 
   void cmdCallback(const autodrive_msgs::HUAT_VehicleCmd::ConstPtr& msg) {
     std::lock_guard<std::mutex> lock(cmd_mutex_);
-    // steering is uint8 (0-255), map to [-max_steering, max_steering]
-    // 127 = center, 0 = full left, 255 = full right
-    double steering_normalized = (static_cast<double>(msg->steering) - 127.0) / 127.0;
+    // Issue #12: HUAT_VehicleCmd contract: steering [0-220, center=110], pedal [0-100%], brake [0-100%]
+    // Steering: 110 = center (0 rad), 0 = full left (-max_steering), 220 = full right (+max_steering)
+    double steering_normalized = (static_cast<double>(msg->steering) - 110.0) / 110.0;
+    steering_normalized = std::clamp(steering_normalized, -1.0, 1.0);
     current_input_.steering = steering_normalized * vehicle_params_.max_steering;
 
-    // pedal_ratio is uint8 (0-255), map to [0, 1]
-    current_input_.throttle = static_cast<double>(msg->pedal_ratio) / 255.0;
+    // pedal_ratio is 0-100 [%], map to [0, 1]
+    current_input_.throttle = std::clamp(static_cast<double>(msg->pedal_ratio) / 100.0, 0.0, 1.0);
 
-    // brake_force is uint8 (0-255), map to [0, 1]
-    current_input_.brake = static_cast<double>(msg->brake_force) / 255.0;
+    // brake_force is 0-100 [%], map to [0, 1]
+    current_input_.brake = std::clamp(static_cast<double>(msg->brake_force) / 100.0, 0.0, 1.0);
   }
 
   void publishCarState() {

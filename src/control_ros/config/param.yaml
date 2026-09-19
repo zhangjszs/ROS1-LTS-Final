@@ -81,6 +81,7 @@ pp:
   # 输入超时（秒）
   # 增加超时时间，让 planning 有更多时间生成路径
   input_timeout_sec: 10.0
+  pose_timeout_sec: 0.5
 
   # PID - 比例增益
   # 影响: 转向响应速度

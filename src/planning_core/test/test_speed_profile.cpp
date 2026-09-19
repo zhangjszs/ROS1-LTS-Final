@@ -29,6 +29,23 @@ TEST(SpeedProfileTest, SinglePoint) {
   EXPECT_GE(speeds[0], 0.0);
 }
 
+TEST(SpeedProfileTest, LateralAccelerationLimitOverridesMinimumSpeed) {
+  const std::vector<planning_core::Point2D> path = {
+      {0.0, 0.0}, {1.0, 0.0}, {2.0, 0.0}, {3.0, 0.0}};
+  std::vector<double> speeds;
+
+  planning_core::SpeedProfileParams params;
+  params.min_speed = 3.0;
+  params.max_lateral_acc = 1.0;
+  params.curvature_lookahead_m = 0.0;
+  planning_core::ComputeSpeedProfile(path, {0.2, 0.2, 0.2, 0.2}, params, speeds);
+
+  ASSERT_EQ(speeds.size(), path.size());
+  for (double speed : speeds) {
+    EXPECT_LE(speed * speed * 0.2, params.max_lateral_acc + 1e-9);
+  }
+}
+
 TEST(SpeedProfileTest, StraightLineNoCurvature) {
   std::vector<planning_core::Point2D> path = {
       {0.0, 0.0}, {1.0, 0.0}, {2.0, 0.0}, {3.0, 0.0}, {4.0, 0.0}};

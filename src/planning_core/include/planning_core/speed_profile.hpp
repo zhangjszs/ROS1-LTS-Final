@@ -109,21 +109,24 @@ inline void ComputeSpeedProfile(const std::vector<Point2D>& path,
   }
 
   // PASS 1: Lateral acceleration constraint with lookahead curvature
+  // Issue #13: Physical lateral acceleration limit v_lat_max is an absolute ceiling.
+  // Never elevate v_ref[i] above v_lat_max using v_min.
   std::vector<double> v_ref(n, v_cap);
   for (size_t i = 0; i < n; ++i) {
     const double denom = std::max(effective_kappa[i], kappa_eps);
     const double v_lat_max = std::sqrt(std::max(0.0, a_lat / denom));
-    v_ref[i] = std::max(v_min, std::min(v_cap, v_lat_max));
+    // Respect v_cap and v_lat_max as hard safety upper bounds
+    v_ref[i] = std::min(v_cap, v_lat_max);
   }
 
-  // Seed with current vehicle speed
-  v_ref[0] = std::max(
-      v_min,
-      std::min(v_cap, std::isfinite(p.current_speed) ? std::max(0.0, p.current_speed) : 0.0));
+  // Seed with current vehicle speed (reflecting actual vehicle state at index 0)
+  if (std::isfinite(p.current_speed) && p.current_speed >= 0.0) {
+    v_ref[0] = std::min(v_cap, p.current_speed);
+  }
 
-  // End-of-path deceleration: force last point to min_speed
+  // End-of-path deceleration: target min_speed or lower if curvature requires
   if (p.decel_to_stop_at_end && n >= 2) {
-    v_ref[n - 1] = v_min;
+    v_ref[n - 1] = std::min(v_ref[n - 1], std::max(0.0, v_min));
   }
 
   // PASS 2: Forward pass (acceleration constraint)

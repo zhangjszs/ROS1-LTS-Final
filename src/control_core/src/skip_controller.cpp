@@ -18,6 +18,12 @@ double SkipController::CountError(double x1, double y1, double x2, double y2,
 }
 
 int SkipController::ComputeSteering() {
+  // Issue #8: Reject paths with fewer than 2 points to prevent out-of-bounds access
+  if (path_coordinate_.size() < 2) {
+    RequestStop();
+    return steering_offset_;
+  }
+
   int index_min = FindNearestIndex();
   tar_ = index_min;
 

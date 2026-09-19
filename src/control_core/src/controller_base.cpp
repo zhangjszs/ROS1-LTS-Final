@@ -1,6 +1,10 @@
+#include <algorithm>
+#include <cmath>
 #include "control_core/controller_base.hpp"
 
 #include <limits>
+#include <algorithm>
+#include <cmath>
 
 namespace control_core {
 
@@ -312,7 +316,11 @@ double ControllerBase::GetTargetSpeedAt(int index) const {
     return default_target_speed_;
   }
   double v = target_speeds_[index];
-  return (v > 0.0) ? v : default_target_speed_;
+  // Issue #7: 0.0 m/s is a valid stop target; only fall back to default when non-finite or negative
+  if (!std::isfinite(v) || v < 0.0) {
+    return default_target_speed_;
+  }
+  return v;
 }
 
 double ControllerBase::GetCurvatureAt(int index) const {
@@ -328,6 +336,18 @@ int ControllerBase::ComputeDefaultPedal() {
   if (!path_coordinate_.empty() && !target_speeds_.empty()) {
     int nearest = FindNearestIndex();
     target_speed = GetTargetSpeedAt(nearest);
+  }
+
+  // Issue #6 & #7: Target speed zero or mission finished -> cut throttle immediately
+  if (target_speed <= 0.0 || finish_signal_) {
+    veloc_integra_ = 0.0;
+    return 0;
+  }
+
+  // Issue #6: Throttle-brake interlock: if overspeed margin is exceeded, cut throttle
+  if (car_veloc_ - target_speed > brake_speed_margin_) {
+    veloc_integra_ = 0.0;
+    return 0;
   }
 
   double error = target_speed - car_veloc_;
@@ -346,20 +366,25 @@ int ControllerBase::ComputeDefaultPedal() {
   veloc_integra_ = std::max(-max_integra, std::min(veloc_integra_, max_integra));
   accel = default_pedal_kp_ * error + default_pedal_ki_ * veloc_integra_;
 
-  if (car_veloc_ > default_high_speed_threshold_ && car_veloc_ > target_speed)
-    accel = default_pedal_cap_;
+  // Issue #6: When overspeeding and exceeding high speed threshold, cut throttle (accel = 0.0),
+  // NEVER apply positive throttle default_pedal_cap_!
+  if (car_veloc_ > default_high_speed_threshold_ && car_veloc_ > target_speed) {
+    accel = 0.0;
+  }
 
-  if (accel > default_pedal_max_)
-    accel = default_pedal_max_;
+  // Cap launch throttle when accelerating from standstill
+  if (car_veloc_ <= default_min_speed_threshold_ && target_speed > 0.0 && accel > 0.0) {
+    accel = std::min(accel, static_cast<double>(default_pedal_cap_));
+  }
 
-  if (car_veloc_ <= default_min_speed_threshold_ && target_speed > 0.0)
-    accel = default_pedal_cap_;
+  // Issue #6: Strict clamp [0, default_pedal_max_] to prevent negative pedal and uint8 underflow
+  accel = std::clamp(accel, 0.0, static_cast<double>(default_pedal_max_));
   return static_cast<int>(accel);
 }
 
 int ControllerBase::ComputeDefaultBrake() {
-  // M4: If mission is complete, apply minimum braking to avoid coasting
-  if (finish_signal_ && car_veloc_ > 0.1) {
+  // M4: If mission is complete, apply braking to come to / maintain stop
+  if (finish_signal_) {
     return static_cast<int>(brake_max_ * finish_brake_fraction_);
   }
 
@@ -369,6 +394,18 @@ int ControllerBase::ComputeDefaultBrake() {
 
   int nearest = FindNearestIndex();
   double target_speed = GetTargetSpeedAt(nearest);
+
+  // Issue #7: Handle explicit zero target speed (stop command)
+  if (target_speed <= 0.0) {
+    if (car_veloc_ > 0.1) {
+      double brake = std::max(static_cast<double>(brake_max_ * finish_brake_fraction_),
+                              brake_kp_ * car_veloc_);
+      return static_cast<int>(std::min(static_cast<double>(brake_max_), brake));
+    } else {
+      return static_cast<int>(brake_max_ * finish_brake_fraction_);
+    }
+  }
+
   double overspeed = car_veloc_ - target_speed;
 
   if (overspeed > brake_speed_margin_) {
