@@ -231,11 +231,11 @@ chore(config): update cone trust parameters
 
 ## OpenWiki
 
-This repository has a generated `openwiki/` evidence index. It is optional just-in-time context, not required startup reading.
+This repository can optionally have a generated `openwiki/` evidence index; it is not currently present in this workspace. When it exists, treat it as optional just-in-time context, not required startup reading.
 
 - Treat source code and tests as authoritative. A brief's unknowns and review items are verification gaps, not automatic requirements.
 - Prefer the narrowest quiet validation that proves the changed behavior. Preserve complete failure output.
 
-The scheduled OpenWiki GitHub Actions workflow refreshes the repository wiki. Do not hand-edit generated OpenWiki pages unless explicitly asked; prefer updating source code/docs and letting OpenWiki regenerate.
+No OpenWiki GitHub Actions workflow is committed in this repository today. If one is later configured to refresh the generated wiki, do not hand-edit its OpenWiki pages unless explicitly asked; prefer updating source code/docs and letting OpenWiki regenerate.
 
 <!-- OPENWIKI:END -->
